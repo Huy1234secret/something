@@ -92,6 +92,8 @@ const STREAK_LOSS_CHECK_INTERVAL_MS = 1 * 60 * 60 * 1000; // Check for lost stre
 const DAILY_READY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check for ready daily every 5 minutes
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
+// Guild ID whose icon should be used for the bot avatar
+const AVATAR_SYNC_GUILD_ID = process.env.GUILD_ID;
 
 const SPECIAL_ROLE_CHANCE = parseInt(process.env.SPECIAL_ROLE_CHANCE) || 1000000;
 const VERY_RARE_ITEM_ALERT_CHANNEL_ID = process.env.VERY_RARE_ITEM_ALERT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
@@ -749,6 +751,22 @@ async function scheduleDailyReadyNotifications(client) {
     };
     await checkReady();
     setInterval(checkReady, DAILY_READY_CHECK_INTERVAL_MS);
+}
+
+async function syncBotAvatarWithGuild(client) {
+    if (!AVATAR_SYNC_GUILD_ID) return;
+    try {
+        const guild = await client.guilds.fetch(AVATAR_SYNC_GUILD_ID);
+        const iconURL = guild?.iconURL({ extension: 'png', size: 1024 });
+        if (!iconURL) return;
+        const current = client.user.avatarURL({ extension: 'png', size: 1024 });
+        if (current !== iconURL) {
+            await client.user.setAvatar(iconURL);
+            console.log('[AvatarSync] Bot avatar updated to guild icon.');
+        }
+    } catch (err) {
+        console.error('[AvatarSync] Failed to sync avatar with guild icon:', err);
+    }
 }
 
 async function safeEditReply(interaction, options, deleteAfter = false, timeout = DEFAULT_REPLY_DELETE_TIMEOUT) {
@@ -1435,6 +1453,9 @@ function getSessionBuilderComponents(sessionId) {
 client.once('ready', async c => {
     console.log(`Logged in as ${c.user.tag}! Bot is ready at ${new Date().toISOString()}.`);
     startGitHubWebhookServer(c);
+
+    // Sync bot avatar with guild icon on startup
+    await syncBotAvatarWithGuild(c);
 
     try {
         await deployCommands();
@@ -3864,6 +3885,20 @@ client.on('guildMemberRemove', async member => {
 
     } catch (error) {
         console.error(`[GuildMemberRemove] Error handling member leaving ${member.user.tag}:`, error);
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    if (newGuild.id !== AVATAR_SYNC_GUILD_ID) return;
+    const iconURL = newGuild.iconURL({ extension: 'png', size: 1024 });
+    if (!iconURL) return;
+    const current = client.user.avatarURL({ extension: 'png', size: 1024 });
+    if (current === iconURL) return;
+    try {
+        await client.user.setAvatar(iconURL);
+        console.log('[AvatarSync] Bot avatar updated due to guild icon change.');
+    } catch (err) {
+        console.error('[AvatarSync] Failed to update avatar on guild update:', err);
     }
 });
 
