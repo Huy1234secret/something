@@ -16,8 +16,9 @@
  * The module:
  *   • Ensures a `lastInterestTimestamp` column exists in the `users` table
  *   • Runs every hour; credits interest once per 24 h per user
- *   • Caps coins/gems at the tier’s capacity and DM’s the user if full
- */
+ *   • Credits interest to the user’s balance
+ *   • Caps coins/gems at the inventory capacity and DM’s the user if full
+*/
 
 /* ------------------------------------------------------------------ */
 /*  1.  Tier definition – 10 balanced tiers + helper for other files  */
@@ -38,6 +39,8 @@ const BANK_TIERS = [
 
 // Export so other files (e.g. bank.js / systems.js) can `require()` it
 module.exports.BANK_TIERS = BANK_TIERS;
+
+const { INVENTORY_COIN_CAP, INVENTORY_GEM_CAP } = require('./systems.js');
 
 /* ------------------------------------------------------------------ */
 /*  2.  Public entry – call once after the bot is ready                */
@@ -89,12 +92,12 @@ async function applyInterest(client, systemsManager) {
     const now = Date.now();
 
     const users = systemsManager.db.prepare(
-        'SELECT userId, guildId, bankCoins, bankGems, bankTier, lastInterestTimestamp ' +
+        'SELECT userId, guildId, coins, gems, bankCoins, bankGems, bankTier, lastInterestTimestamp ' +
         'FROM users'
     ).all();
 
     const update = systemsManager.db.prepare(
-        'UPDATE users SET bankCoins = ?, bankGems = ?, lastInterestTimestamp = ? ' +
+        'UPDATE users SET coins = ?, gems = ?, lastInterestTimestamp = ? ' +
         'WHERE userId = ? AND guildId = ?'
     );
 
@@ -106,11 +109,11 @@ async function applyInterest(client, systemsManager) {
         const addCoins = Math.floor(u.bankCoins * ratePct / 100);
         const addGems  = Math.floor(u.bankGems  * ratePct / 100);
 
-        let newCoins = u.bankCoins + addCoins;
-        let newGems  = u.bankGems  + addGems;
+        let newCoins = u.coins + addCoins;
+        let newGems  = u.gems  + addGems;
 
-        const coinCap = tier.coinCap;
-        const gemCap  = tier.gemCap;
+        const coinCap = systemsManager.gameConfig.globalSettings.INVENTORY_COIN_CAP || INVENTORY_COIN_CAP;
+        const gemCap  = systemsManager.gameConfig.globalSettings.INVENTORY_GEM_CAP  || INVENTORY_GEM_CAP;
 
         let cappedCoins = false,
             cappedGems  = false;
@@ -133,12 +136,12 @@ async function applyInterest(client, systemsManager) {
             const gemEmoji   = systemsManager.gemEmoji  ?? '💎';
 
             let msg  = `🏦 **Daily Bank Interest** – ${tier.name} (+${ratePct}%):\n`;
-            msg     += `${coinEmoji} **+${addCoins.toLocaleString()}** coins\n`;
-            msg     += `${gemEmoji} **+${addGems.toLocaleString()}** gems`;
+            msg     += `${coinEmoji} **+${addCoins.toLocaleString()}** coins to your balance\n`;
+            msg     += `${gemEmoji} **+${addGems.toLocaleString()}** gems to your balance`;
 
             if (cappedCoins || cappedGems)
                 msg +=
-                    '\n⚠️ Your bank was full; some interest was lost. Consider upgrading!';
+                    '\n⚠️ Your inventory was full; some interest was lost.';
 
             await dm.send(msg).catch(() => {});
         } catch {
