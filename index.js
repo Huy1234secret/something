@@ -47,6 +47,7 @@ const packageJson = require('./package.json');
 const { loadGiveaways, saveGiveaways } = require('./utils/dataManager.js');
 const { handleGiveawaySetupInteraction, handleEnterGiveaway, handleClaimPrize, activeGiveaways, endGiveaway, sendSetupChannelMessage, startInstantGiveaway } = require('./utils/giveawayManager.js');
 const { startGitHubWebhookServer } = require("./githubWebhook.js");
+const deployCommands = require('./deployCommands.js');
 
 
 function normalizePath(filePath) {
@@ -1434,6 +1435,13 @@ function getSessionBuilderComponents(sessionId) {
 client.once('ready', async c => {
     console.log(`Logged in as ${c.user.tag}! Bot is ready at ${new Date().toISOString()}.`);
     startGitHubWebhookServer(c);
+
+    try {
+        await deployCommands();
+        console.log('[Startup] Slash commands deployed.');
+    } catch (deployErr) {
+        console.error('[Startup] Failed to deploy slash commands:', deployErr);
+    }
 
     try {
         const commandFiles = fsSync.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
