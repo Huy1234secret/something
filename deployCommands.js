@@ -446,6 +446,19 @@ const commands = [
                 name: 'restore-streak',
                 description: 'Use gems to restore your lost daily streak.',
                 type: ApplicationCommandOptionType.Subcommand,
+            },
+            {
+                name: 'notify',
+                description: 'Enable or disable notifications when your daily reward is ready.',
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [
+                    {
+                        name: 'enable',
+                        description: 'Enable notifications',
+                        type: ApplicationCommandOptionType.Boolean,
+                        required: true,
+                    }
+                ]
             }
         ]
     }
