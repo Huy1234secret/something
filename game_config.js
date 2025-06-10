@@ -133,7 +133,7 @@ const config = {
             isAlertWorthyByIdShop: false, 
             color: 0xBDC3C7, imageUrl: "https://i.ibb.co/Q7R3YPmy/nh4.png", numRolls: 3,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.938882, rarityValue: 10 },
+                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.938888, rarityValue: 10 },
                 { type: "charm_item", id: "coin_charm", probability: 0.00005, rarityValue: 3000 },
                 { type: "charm_item", id: "xp_charm", probability: 0.00005, rarityValue: 5000 },
                 { type: "charm_item", id: "gem_charm", probability: 0.000001, rarityValue: 8000 },
@@ -141,7 +141,7 @@ const config = {
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, isRareWeekendEligiblePool: true, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00001, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.0000075, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased prob after removing luck_charm
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased prob after removing luck_charm
             ]
         },
         "rare_loot_box": {
@@ -154,7 +154,7 @@ const config = {
             isAlertWorthyByIdShop: false,
             color: 0x0070DD, imageUrl: "https://i.ibb.co/zhmM6cvL/nh3.png", numRolls: 5,
             itemPool: [
-                { type: "currency", subType: "coins", min: 25, max: 50, probability: 0.75, rarityValue: 10 },
+                { type: "currency", subType: "coins", min: 25, max: 50, probability: 0.750001, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.18876, rarityValue: 25 },
                 { type: "charm_item", id: "coin_charm", probability: 0.0001, rarityValue: 3000 },
                 { type: "charm_item", id: "xp_charm", probability: 0.00005, rarityValue: 5000 },
@@ -163,7 +163,7 @@ const config = {
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, isRareWeekendEligiblePool: true, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00008, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000002, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
             ]
         },
         "epic_loot_box": {
@@ -176,7 +176,7 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x9400D3, imageUrl: "https://i.ibb.co/LznxMrgN/nh2.png", numRolls: 10,
             itemPool: [
-                { type: "currency", subType: "coins", min: 50, max: 100, probability: 0.7, rarityValue: 10 },
+                { type: "currency", subType: "coins", min: 50, max: 100, probability: 0.6991045, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1938945, rarityValue: 25 },
                 { type: "charm_item", id: "coin_charm", probability: 0.00045, rarityValue: 3000 },
                 { type: "charm_item", id: "xp_charm", probability: 0.0001, rarityValue: 5000 },
@@ -185,7 +185,7 @@ const config = {
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, isRareWeekendEligiblePool: true, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, isRareWeekendEligiblePool: true, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0005, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.0000055, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
             ]
         },
         "legendary_loot_box": {
@@ -198,7 +198,7 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0xFF8C00, imageUrl: "https://i.ibb.co/vx4jNf2x/nh1.png", numRolls: 30,
             itemPool: [
-                { type: "currency", subType: "coins", min: 100, max: 250, probability: 0.75, rarityValue: 10 },
+                { type: "currency", subType: "coins", min: 100, max: 250, probability: 0.80001, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.142089, rarityValue: 25 },
                 { type: "charm_item", id: "coin_charm", probability: 0.001, rarityValue: 3000 },
                 { type: "charm_item", id: "xp_charm", probability: 0.0008, rarityValue: 5000 },
@@ -207,7 +207,7 @@ const config = {
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, isRareWeekendEligiblePool: true, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, isRareWeekendEligiblePool: true, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000011, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
             ]
         },
 
