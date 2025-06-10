@@ -1,4 +1,4 @@
-const express = require('express');
+const http = require('http');
 const crypto = require('crypto');
 
 function verifySignature(secret, payload, signature) {
@@ -14,31 +14,52 @@ function verifySignature(secret, payload, signature) {
 }
 
 function startGitHubWebhookServer(client, options = {}) {
-    const app = express();
     const port = options.port || process.env.GITHUB_WEBHOOK_PORT || 3001;
     const secret = options.secret || process.env.GITHUB_WEBHOOK_SECRET;
     const channelId = options.channelId || process.env.GITHUB_CHANNEL_ID;
 
-    app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
-
-    app.post('/github-webhook', (req, res) => {
-        const signature = req.headers['x-hub-signature-256'];
-        if (!verifySignature(secret, req.rawBody, signature)) {
-            return res.status(401).send('Invalid signature');
+    const server = http.createServer((req, res) => {
+        if (req.method !== 'POST' || req.url !== '/github-webhook') {
+            res.statusCode = 404;
+            return res.end('Not found');
         }
 
-        if (req.headers['x-github-event'] === 'push') {
-            const { pusher, repository, commits, ref } = req.body;
-            const commitMessages = commits.map(c => `[\`${c.id.substring(0,7)}\`](${c.url}) - ${c.message.split('\n')[0]} (by ${c.author.name})`).join('\n');
-            const content = `**${pusher.name}** pushed to **${repository.name}** (${ref}):\n${commitMessages}`;
-            if (client && channelId) {
-                client.channels.fetch(channelId).then(ch => ch.send(content)).catch(console.error);
+        let data = '';
+        req.on('data', chunk => {
+            data += chunk;
+        });
+
+        req.on('end', () => {
+            const signature = req.headers['x-hub-signature-256'];
+            if (!verifySignature(secret, data, signature)) {
+                res.statusCode = 401;
+                return res.end('Invalid signature');
             }
-        }
-        res.sendStatus(200);
+
+            if (req.headers['x-github-event'] === 'push') {
+                try {
+                    const body = JSON.parse(data);
+                    const { pusher, repository, commits, ref } = body;
+                    const commitMessages = commits
+                        .map(c => `[\`${c.id.substring(0,7)}\`](${c.url}) - ${c.message.split('\n')[0]} (by ${c.author.name})`)
+                        .join('\n');
+                    const content = `**${pusher.name}** pushed to **${repository.name}** (${ref}):\n${commitMessages}`;
+                    if (client && channelId) {
+                        client.channels.fetch(channelId)
+                            .then(ch => ch.send(content))
+                            .catch(console.error);
+                    }
+                } catch (err) {
+                    console.error('Failed to handle push event:', err);
+                }
+            }
+
+            res.statusCode = 200;
+            res.end('OK');
+        });
     });
 
-    app.listen(port, () => {
+    server.listen(port, () => {
         console.log(`GitHub webhook server listening on port ${port}`);
     });
 }
