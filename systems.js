@@ -218,7 +218,9 @@ class SystemsManager {
                 lastRobuxWithdrawalTimestamp INTEGER DEFAULT 0, -- New for cooldown
                 dailyStreak INTEGER DEFAULT 0,
                 lostStreak INTEGER DEFAULT 0,
+                lostStreakTimestamp INTEGER DEFAULT 0,
                 rewardsLastShiftedAt INTEGER DEFAULT 0,
+                lastDailyNotifyTimestamp INTEGER DEFAULT 0,
                 PRIMARY KEY (userId, guildId)
             );`,
             `CREATE TABLE IF NOT EXISTS userInventory (
@@ -232,7 +234,9 @@ class SystemsManager {
                 PRIMARY KEY (userId, guildId, dayNumber)
             );`,
             `CREATE TABLE IF NOT EXISTS userDmSettings (
-                userId TEXT NOT NULL, guildId TEXT NOT NULL, enableShopRestockDm INTEGER,
+                userId TEXT NOT NULL, guildId TEXT NOT NULL,
+                enableShopRestockDm INTEGER,
+                enableDailyReadyDm INTEGER,
                 PRIMARY KEY (userId, guildId)
             );`,
             `CREATE TABLE IF NOT EXISTS userLootAlertSettings (
@@ -282,8 +286,14 @@ class SystemsManager {
         if (!usersInfo.some(col => col.name === 'lostStreak')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN lostStreak INTEGER DEFAULT 0;`);
         }
+        if (!usersInfo.some(col => col.name === 'lostStreakTimestamp')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN lostStreakTimestamp INTEGER DEFAULT 0;`);
+        }
         if (!usersInfo.some(col => col.name === 'rewardsLastShiftedAt')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN rewardsLastShiftedAt INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'lastDailyNotifyTimestamp')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN lastDailyNotifyTimestamp INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'lastInterestTimestamp')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN lastInterestTimestamp INTEGER DEFAULT 0;`);
@@ -304,6 +314,10 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'totalRobuxEarned')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN totalRobuxEarned INTEGER DEFAULT 0;`);
+        }
+        const dmSettingsInfo = this.db.prepare("PRAGMA table_info(userDmSettings)").all();
+        if (!dmSettingsInfo.some(col => col.name === 'enableDailyReadyDm')) {
+            this.db.exec(`ALTER TABLE userDmSettings ADD COLUMN enableDailyReadyDm INTEGER;`);
         }
     }
 
@@ -525,11 +539,13 @@ this.db.prepare(`
     xp, level,
     totalRobuxEarned, lastRobuxWithdrawalTimestamp,
     dailyStreak, lastDailyTimestamp, lostStreak,
+    lostStreakTimestamp,
     rewardsLastShiftedAt,
-    lastInterestTimestamp            
+    lastDailyNotifyTimestamp,
+    lastInterestTimestamp
   )
   VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, ?);        
+          0, 0, 0, 0, 0, 0, 0, 0, ?);
 `).run(userId, guildId, now);
             user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         }
@@ -545,7 +561,9 @@ this.db.prepare(`
         user.lastRobuxWithdrawalTimestamp = user.lastRobuxWithdrawalTimestamp || 0;
         user.dailyStreak = user.dailyStreak || 0;
         user.lostStreak = user.lostStreak || 0;
+        user.lostStreakTimestamp = user.lostStreakTimestamp || 0;
         user.rewardsLastShiftedAt = user.rewardsLastShiftedAt || 0;
+        user.lastDailyNotifyTimestamp = user.lastDailyNotifyTimestamp || 0;
         return user;
     }
 
@@ -618,17 +636,26 @@ this.db.prepare(`
         }
     }
     getUserDmSettings(userId, guildId) {
-        let settings = this.db.prepare('SELECT enableShopRestockDm FROM userDmSettings WHERE userId = ? AND guildId = ?').get(userId, guildId);
+        let settings = this.db.prepare('SELECT enableShopRestockDm, enableDailyReadyDm FROM userDmSettings WHERE userId = ? AND guildId = ?').get(userId, guildId);
         if (!settings) {
-            this.db.prepare('INSERT INTO userDmSettings (userId, guildId, enableShopRestockDm) VALUES (?, ?, NULL)').run(userId, guildId);
-            return { enableShopRestockDm: null }; 
+            this.db.prepare('INSERT INTO userDmSettings (userId, guildId, enableShopRestockDm, enableDailyReadyDm) VALUES (?, ?, NULL, NULL)').run(userId, guildId);
+            return { enableShopRestockDm: null, enableDailyReadyDm: null };
         }
-        return { enableShopRestockDm: settings.enableShopRestockDm === null ? null : !!settings.enableShopRestockDm };
+        return {
+            enableShopRestockDm: settings.enableShopRestockDm === null ? null : !!settings.enableShopRestockDm,
+            enableDailyReadyDm: settings.enableDailyReadyDm === null ? null : !!settings.enableDailyReadyDm
+        };
     }
     updateUserDmSettings(userId, guildId, newSettings) {
-        this.getUserDmSettings(userId, guildId); 
-        let valueToSet = newSettings.enableShopRestockDm === null ? null : (newSettings.enableShopRestockDm ? 1 : 0);
-        this.db.prepare('UPDATE userDmSettings SET enableShopRestockDm = ? WHERE userId = ? AND guildId = ?').run(valueToSet, userId, guildId);
+        this.getUserDmSettings(userId, guildId);
+        if (newSettings.hasOwnProperty('enableShopRestockDm')) {
+            const val = newSettings.enableShopRestockDm === null ? null : (newSettings.enableShopRestockDm ? 1 : 0);
+            this.db.prepare('UPDATE userDmSettings SET enableShopRestockDm = ? WHERE userId = ? AND guildId = ?').run(val, userId, guildId);
+        }
+        if (newSettings.hasOwnProperty('enableDailyReadyDm')) {
+            const val2 = newSettings.enableDailyReadyDm === null ? null : (newSettings.enableDailyReadyDm ? 1 : 0);
+            this.db.prepare('UPDATE userDmSettings SET enableDailyReadyDm = ? WHERE userId = ? AND guildId = ?').run(val2, userId, guildId);
+        }
     }
     getAllUserItemLootAlertSettings(userId, guildId) {
         const settings = {};
@@ -1130,7 +1157,7 @@ this.db.prepare(`
         const costCoins = currentTierInfo.upgradeCostCoins; const costGems = currentTierInfo.upgradeCostGems;
         if (user.bankCoins < costCoins || user.bankGems < costGems) return { success: false, message: `❌ Insufficient funds. Need ${costCoins.toLocaleString()} ${guildEmojis.coinEmoji} and ${costGems.toLocaleString()} ${guildEmojis.gemEmoji}.` };
         this.updateUser(userId, guildId, { bankCoins: user.bankCoins - costCoins, bankGems: user.bankGems - costGems, bankTier: currentTierInfo.nextTier });
-        return { success: true, message: `🎉 Bank upgraded to Tier ${currentTierInfo.nextTier}!` };
+        return { success: true, message: `🎉 Bank upgraded to Tier ${currentTierInfo.nextTier}!`, newTier: currentTierInfo.nextTier };
     }
 
     resetUserData(userId, guildId) {
@@ -1310,6 +1337,14 @@ this.db.prepare(`
             const rows = this.db.prepare(`SELECT uds.userId FROM userDmSettings uds WHERE uds.guildId = ? AND (uds.enableShopRestockDm = 1 OR (uds.enableShopRestockDm IS NULL AND ? = 1))`).all(guildId, guildDefaultEnabled ? 1 : 0);
             return rows.map(row => row.userId);
         } catch (error) { console.error(`[ShopAlertUsers] Error fetching users for guild ${guildId}:`, error); return []; }
+    }
+
+    getUsersForDailyReadyNotification() {
+        if (!this.db) return [];
+        try {
+            const rows = this.db.prepare(`SELECT u.userId, u.guildId, u.lastDailyTimestamp, u.lastDailyNotifyTimestamp FROM users u JOIN userDmSettings uds ON u.userId = uds.userId AND u.guildId = uds.guildId WHERE uds.enableDailyReadyDm = 1`).all();
+            return rows;
+        } catch (error) { console.error('[DailyReadyUsers] Error fetching users:', error); return []; }
     }
     getTotalItemCountInGuild(itemId, guildId) {
         if (!this.db) return 0;
@@ -1522,13 +1557,19 @@ this.db.prepare(`
 
     resetDailyStreak(userId, guildId) {
         const user = this.getUser(userId, guildId);
-        this.updateUser(userId, guildId, { dailyStreak: 0, lostStreak: user.dailyStreak });
+        this.updateUser(userId, guildId, { dailyStreak: 0, lostStreak: user.dailyStreak, lostStreakTimestamp: Date.now() });
     }
 
     attemptStreakRestore(userId, guildId, oldStreakFromButton) {
         const user = this.getUser(userId, guildId);
         if (user.lostStreak === 0) {
             return { success: false, message: "You don't have a lost streak to restore." };
+        }
+
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        if (Date.now() - (user.lostStreakTimestamp || 0) > oneDayMs) {
+            this.updateUser(userId, guildId, { lostStreak: 0, lostStreakTimestamp: 0 });
+            return { success: false, message: 'Your streak restore offer has expired.' };
         }
 
         const oldStreak = oldStreakFromButton || user.lostStreak;
@@ -1542,6 +1583,7 @@ this.db.prepare(`
         this.updateUser(userId, guildId, {
             dailyStreak: oldStreak,
             lostStreak: 0,
+            lostStreakTimestamp: 0,
             lastDailyTimestamp: Date.now() - (23 * 60 * 60 * 1000) // Set timestamp to 23h ago to allow next claim soon
         });
 

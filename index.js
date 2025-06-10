@@ -88,6 +88,9 @@ const USER_MANAGEMENT_PANEL_TIMEOUT_MS = 15 * 60 * 1000; // New timeout for /add
 const SHOP_CHECK_INTERVAL_MS = 1 * 60 * 1000;
 const UNBOXING_ANIMATION_DURATION_MS = 3550;
 const STREAK_LOSS_CHECK_INTERVAL_MS = 1 * 60 * 60 * 1000; // Check for lost streaks every hour
+const DAILY_READY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check for ready daily every 5 minutes
+
+const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
 const SPECIAL_ROLE_CHANCE = parseInt(process.env.SPECIAL_ROLE_CHANCE) || 1000000;
 const VERY_RARE_ITEM_ALERT_CHANNEL_ID = process.env.VERY_RARE_ITEM_ALERT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
@@ -548,6 +551,7 @@ async function scheduleStreakLossCheck(client) {
                 if (timeSinceLastClaim > streakLossThreshold) {
                     const oldStreak = user.dailyStreak;
                     client.levelSystem.resetDailyStreak(user.userId, user.guildId);
+                    const expireTs = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
 
                     try {
                         const discordUser = await client.users.fetch(user.userId);
@@ -559,7 +563,7 @@ async function scheduleStreakLossCheck(client) {
                             .setDescription(`Oh no! You missed your daily check-in and your streak of **${oldStreak} days** has been reset.`)
                             .addFields(
                                 { name: '💔 What Happened?', value: 'Daily streaks must be maintained by claiming your reward at least once every 36 hours.' },
-                                { name: '💎 Restore Your Streak?', value: `You can restore your streak for **${costToRestore}** ${client.levelSystem.gemEmoji}. This is a one-time offer!` }
+                                { name: '💎 Restore Your Streak?', value: `You can restore your streak for **${costToRestore}** ${client.levelSystem.gemEmoji}. This offer expires <t:${expireTs}:R>.` }
                             )
                             .setFooter({ text: 'Use the button below or the /daily restore-streak command.' });
 
@@ -717,6 +721,33 @@ async function scheduleWeekendBoosts(client) {
     // initial + interval
     await checkWeekendStatus();
     setInterval(checkWeekendStatus, WEEKEND_CHECK_INTERVAL_MS);
+}
+
+async function scheduleDailyReadyNotifications(client) {
+    console.log("[Daily Notify Scheduler] Initializing daily ready notifications...");
+    const checkReady = async () => {
+        try {
+            const rows = client.levelSystem.getUsersForDailyReadyNotification();
+            const now = Date.now();
+            const cooldown = 12 * 60 * 60 * 1000;
+            for (const row of rows) {
+                const nextClaim = (row.lastDailyTimestamp || 0) + cooldown;
+                if (now >= nextClaim && (row.lastDailyNotifyTimestamp || 0) <= (row.lastDailyTimestamp || 0)) {
+                    try {
+                        const userObj = await client.users.fetch(row.userId);
+                        await userObj.send({ content: `<@${row.userId}> your daily reward is ready! Use /daily check in the server.` }).catch(e => { if (e.code !== 50007) console.warn(`[DailyNotify] DM failed for ${row.userId}: ${e.message}`); });
+                    } catch (e) {
+                        if (e.code !== 50007) console.warn(`[DailyNotify] Could not notify ${row.userId}: ${e.message}`);
+                    }
+                    client.levelSystem.updateUser(row.userId, row.guildId, { lastDailyNotifyTimestamp: now });
+                }
+            }
+        } catch (err) {
+            console.error('[Daily Notify Scheduler] Error:', err);
+        }
+    };
+    await checkReady();
+    setInterval(checkReady, DAILY_READY_CHECK_INTERVAL_MS);
 }
 
 async function safeEditReply(interaction, options, deleteAfter = false, timeout = DEFAULT_REPLY_DELETE_TIMEOUT) {
@@ -1569,6 +1600,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 }
 
 scheduleStreakLossCheck(client);
+scheduleDailyReadyNotifications(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -1869,6 +1901,14 @@ client.on('interactionCreate', async interaction => {
                     }
                     const result = client.levelSystem.attemptStreakRestore(interaction.user.id, interaction.guild.id);
                      await safeEditReply(interaction, { content: result.message, ephemeral: true });
+                } else if (subcommand === 'notify') {
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.deferReply({ ephemeral: true });
+                        deferredThisInteraction = true;
+                    }
+                    const enable = interaction.options.getBoolean('enable');
+                    client.levelSystem.updateUserDmSettings(interaction.user.id, interaction.guild.id, { enableDailyReadyDm: enable });
+                    await safeEditReply(interaction, { content: `Daily ready notifications ${enable ? 'enabled' : 'disabled'}.`, ephemeral: true });
                 }
                 return;
             }
@@ -3358,6 +3398,19 @@ client.on('interactionCreate', async interaction => {
 
         // Send an ephemeral follow-up to the user with the result
         await interaction.followUp({ content: upgradeResult.message, ephemeral: true }).catch(e => console.warn("Bank upgrade followup failed:", e.message));
+
+        if (upgradeResult.success && upgradeResult.newTier && upgradeResult.newTier >= 10) {
+            try {
+                const role = interaction.guild.roles.cache.get(BANK_MAXED_ROLE_ID);
+                if (role && interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles) && interaction.guild.members.me.roles.highest.position > role.position) {
+                    if (!interaction.member.roles.cache.has(BANK_MAXED_ROLE_ID)) {
+                        await interaction.member.roles.add(role).catch(() => {});
+                    }
+                }
+            } catch (e) {
+                console.warn(`[BankUpgradeRole] Failed to assign role: ${e.message}`);
+            }
+        }
 
         // After all interaction responses are done, update the original message panel
         try {
