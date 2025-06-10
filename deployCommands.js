@@ -446,41 +446,53 @@ const commands = [
                 name: 'restore-streak',
                 description: 'Use gems to restore your lost daily streak.',
                 type: ApplicationCommandOptionType.Subcommand,
+            },
+            {
+                name: 'notify',
+                description: 'Enable or disable notifications when your daily reward is ready.',
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [
+                    {
+                        name: 'enable',
+                        description: 'Enable notifications',
+                        type: ApplicationCommandOptionType.Boolean,
+                        required: true,
+                    }
+                ]
             }
         ]
     }
 ];
 
-const token = process.env.DISCORD_TOKEN;
-const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
-
-if (!token || !clientId) {
-    console.error('CRITICAL ERROR: Missing DISCORD_TOKEN or CLIENT_ID in .env file. Cannot deploy commands.');
-    process.exit(1);
+async function deployCommands(token = process.env.DISCORD_TOKEN, clientId = process.env.CLIENT_ID, guildId = process.env.GUILD_ID) {
+    if (!token || !clientId) {
+        throw new Error('Missing DISCORD_TOKEN or CLIENT_ID in environment.');
+    }
+    const rest = new REST({ version: '10' }).setToken(token);
+    console.log(`Started refreshing ${commands.length} application (/) commands.`);
+    let data;
+    if (guildId) {
+        data = await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands },
+        );
+        console.log(`Successfully reloaded ${data.length} application (/) commands for GUILD: ${guildId}.`);
+    } else {
+        data = await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: commands },
+        );
+        console.log(`Successfully reloaded ${data.length} application (/) commands GLOBALLY.`);
+        console.log("Note: Global commands can take up to an hour to update across all servers.");
+    }
+    return data;
 }
 
-const rest = new REST({ version: '10' }).setToken(token);
+module.exports = deployCommands;
 
-(async () => {
-    try {
-        console.log(`Started refreshing ${commands.length} application (/) commands.`);
-        let data;
-        if (guildId) {
-            data = await rest.put(
-                Routes.applicationGuildCommands(clientId, guildId),
-                { body: commands },
-            );
-            console.log(`Successfully reloaded ${data.length} application (/) commands for GUILD: ${guildId}.`);
-        } else {
-            data = await rest.put(
-                Routes.applicationCommands(clientId),
-                { body: commands },
-            );
-            console.log(`Successfully reloaded ${data.length} application (/) commands GLOBALLY.`);
-            console.log("Note: Global commands can take up to an hour to update across all servers.");
-        }
-    } catch (error) {
+if (require.main === module) {
+    deployCommands().catch(error => {
         console.error('Failed to deploy application commands:', error);
-    }
-})();
+        process.exit(1);
+    });
+}
