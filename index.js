@@ -79,6 +79,7 @@ const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
+const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 
 const INVENTORY_MESSAGE_TIMEOUT_MS = 60000;
 const USE_ITEM_REPLY_TIMEOUT_MS = 60000;
@@ -1441,6 +1442,21 @@ client.once('ready', async c => {
         console.log('[Startup] Slash commands deployed.');
     } catch (deployErr) {
         console.error('[Startup] Failed to deploy slash commands:', deployErr);
+    }
+
+    if (LOGO_SYNC_GUILD_ID) {
+        try {
+            const targetGuild = await c.guilds.fetch(LOGO_SYNC_GUILD_ID);
+            const iconURL = targetGuild.iconURL({ extension: 'png', size: 4096 });
+            if (iconURL) {
+                await c.user.setAvatar(iconURL);
+                console.log(`[Logo Sync] Bot avatar updated to match guild ${targetGuild.name}.`);
+            } else {
+                console.warn(`[Logo Sync] Guild ${LOGO_SYNC_GUILD_ID} has no icon to sync.`);
+            }
+        } catch (err) {
+            console.error(`[Logo Sync] Failed to sync bot avatar: ${err.message}`);
+        }
     }
 
     try {
@@ -3864,6 +3880,20 @@ client.on('guildMemberRemove', async member => {
 
     } catch (error) {
         console.error(`[GuildMemberRemove] Error handling member leaving ${member.user.tag}:`, error);
+    }
+});
+
+client.on('guildUpdate', async (oldGuild, newGuild) => {
+    if (LOGO_SYNC_GUILD_ID && newGuild.id === LOGO_SYNC_GUILD_ID && oldGuild.icon !== newGuild.icon) {
+        try {
+            const iconURL = newGuild.iconURL({ extension: 'png', size: 4096 });
+            if (iconURL) {
+                await client.user.setAvatar(iconURL);
+                console.log(`[Logo Sync] Bot avatar updated due to guild icon change in ${newGuild.name}.`);
+            }
+        } catch (err) {
+            console.error(`[Logo Sync] Failed to update bot avatar on guildUpdate: ${err.message}`);
+        }
     }
 });
 
