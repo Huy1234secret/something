@@ -46,6 +46,7 @@ const packageJson = require('./package.json');
 
 const { loadGiveaways, saveGiveaways } = require('./utils/dataManager.js');
 const { handleGiveawaySetupInteraction, handleEnterGiveaway, handleClaimPrize, activeGiveaways, endGiveaway, sendSetupChannelMessage, startInstantGiveaway } = require('./utils/giveawayManager.js');
+const { startGitHubWebhookServer } = require("./githubWebhook.js");
 
 
 function normalizePath(filePath) {
@@ -1401,6 +1402,7 @@ function getSessionBuilderComponents(sessionId) {
 
 client.once('ready', async c => {
     console.log(`Logged in as ${c.user.tag}! Bot is ready at ${new Date().toISOString()}.`);
+    startGitHubWebhookServer(c);
 
     try {
         const commandFiles = fsSync.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
