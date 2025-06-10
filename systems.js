@@ -285,6 +285,9 @@ class SystemsManager {
         if (!usersInfo.some(col => col.name === 'rewardsLastShiftedAt')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN rewardsLastShiftedAt INTEGER DEFAULT 0;`);
         }
+        if (!usersInfo.some(col => col.name === 'lastInterestTimestamp')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN lastInterestTimestamp INTEGER DEFAULT 0;`);
+        }
         const guildSettingsInfo = this.db.prepare("PRAGMA table_info(guildSettings)").all();
         if (!guildSettingsInfo.some(col => col.name === 'lastWeekendBoostStartAnnounceTimestamp')) {
             this.db.exec(`ALTER TABLE guildSettings ADD COLUMN lastWeekendBoostStartAnnounceTimestamp INTEGER DEFAULT 0;`);
