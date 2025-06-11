@@ -337,47 +337,12 @@ const commands = [
                 name: 'view',
                 description: 'View your current bot settings.',
                 type: ApplicationCommandOptionType.Subcommand,
-            },
-            {
-                name: 'toggle-shop-dm',
-                description: 'Enable/disable DM notifications for rare items/discounts in the shop.',
-                type: ApplicationCommandOptionType.Subcommand,
-            },
-            {
-                name: 'set-rarity-alert',
-                description: 'Set rarity threshold for item drop alerts in the public channel (e.g., 1000 for 1-in-1000).',
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [
-                    {
-                        name: 'threshold',
-                        description: 'Enter rarity (e.g., 1000 for 1-in-1000). 0 to disable.',
-                        type: ApplicationCommandOptionType.Integer,
-                        required: true,
-                        minValue: 0
-                    }
-                ]
-            },
-            {
-                name: 'set-item-alert',
-                description: 'Enable/disable public channel announcements for specific items you find.',
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [
-                    {
-                        name: 'item_id_alert',
-                        description: 'The ID or name of the item to configure alerts for.',
-                        type: ApplicationCommandOptionType.String,
-                        required: true,
-                        autocomplete: true
-                    },
-                    {
-                        name: 'status',
-                        description: 'Enable or disable public channel alerts for this item type.',
-                        type: ApplicationCommandOptionType.Boolean,
-                        required: true,
-                    }
-                ]
             }
         ]
+    },
+    {
+        name: 'set-setting',
+        description: 'Configure your personal alert settings.',
     },
     {
         name: 'delete-all-commands',
@@ -446,19 +411,6 @@ const commands = [
                 name: 'restore-streak',
                 description: 'Use gems to restore your lost daily streak.',
                 type: ApplicationCommandOptionType.Subcommand,
-            },
-            {
-                name: 'notify',
-                description: 'Enable or disable notifications when your daily reward is ready.',
-                type: ApplicationCommandOptionType.Subcommand,
-                options: [
-                    {
-                        name: 'enable',
-                        description: 'Enable notifications',
-                        type: ApplicationCommandOptionType.Boolean,
-                        required: true,
-                    }
-                ]
             }
         ]
     }
