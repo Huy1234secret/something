@@ -337,6 +337,67 @@ async function buildDailyEmbed(interaction, client) {
 }
 // --- End Helper Functions for /daily ---
 
+function buildSettingsEmbed(userId, guildId, systemsManager) {
+    const userDm = systemsManager.getUserDmSettings(userId, guildId);
+    const globalAlert = systemsManager.getUserGlobalLootAlertSettings(userId, guildId);
+    const dailyEnabled = userDm.enableDailyReadyDm ? SETTINGS_EMOJI_ENABLED : SETTINGS_EMOJI_DISABLED;
+
+    const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('⚙️ User Settings')
+        .setDescription('Configure your alert preferences.')
+        .addFields(
+            { name: 'Daily Ready Alert', value: `${dailyEnabled} Once your daily is ready, it will notify you.` },
+            { name: 'Item Rarity Alert', value: `\`${globalAlert.alertRarityThreshold}\` Any item rarer than your set rarity will be notified.` },
+            { name: 'Shop Notify', value: 'Use the buttons below to configure shop alerts.' }
+        );
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('setting_toggle_daily')
+            .setLabel(userDm.enableDailyReadyDm ? 'Disable Daily Alert' : 'Enable Daily Alert')
+            .setStyle(userDm.enableDailyReadyDm ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('setting_set_rarity')
+            .setLabel('Change Rarity Threshold')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('setting_shop')
+            .setLabel('Shop Settings')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embed, components: [row] };
+}
+
+function buildShopSettingsEmbed(userId, guildId, systemsManager) {
+    const userDm = systemsManager.getUserDmSettings(userId, guildId);
+    const guildDefaults = systemsManager.getGuildSettings(guildId);
+    let shopDmEnabled = false;
+    if (userDm.enableShopRestockDm === null) shopDmEnabled = !!guildDefaults.shopRestockDmEnabled;
+    else shopDmEnabled = !!userDm.enableShopRestockDm;
+    const statusEmoji = shopDmEnabled ? SETTINGS_EMOJI_ENABLED : SETTINGS_EMOJI_DISABLED;
+
+    const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('🛍️ Shop Notifications')
+        .setDescription('Manage notifications about shop restocks.')
+        .addFields({ name: 'Shop Restock DM', value: `${statusEmoji} Receive a DM when the shop restocks.` });
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('shop_toggle_dm')
+            .setLabel(shopDmEnabled ? 'Disable DM' : 'Enable DM')
+            .setStyle(shopDmEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('shop_back')
+            .setLabel('Back')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return { embed, components: [row] };
+}
+
 // --- Helper Functions for /withdraw-robux ---
 function buildRobuxWithdrawalRequestEmbed(withdrawalRequest, targetUser) {
     const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
@@ -756,7 +817,9 @@ async function safeEditReply(interaction, options, deleteAfter = false, timeout 
     let message;
     try {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ ephemeral: options.ephemeral || false }).catch(e => {
+            const deferOpts = {};
+            if (options.ephemeral) deferOpts.flags = MessageFlags.Ephemeral;
+            await interaction.deferReply(deferOpts).catch(e => {
                 // If defer fails because it's already replied/deferred, that's okay for editReply path.
                 if (e.code !== 40060 && e.code !== 10062) { // 40060: Interaction already acknowledged, 10062: Unknown interaction (token expired)
                     console.warn(`[Helper safeEditReply] Failed to deferReply for ${interaction.id} prior to edit: ${e.message} (Code: ${e.code})`);
@@ -764,7 +827,9 @@ async function safeEditReply(interaction, options, deleteAfter = false, timeout 
             });
         }
 
-        message = await interaction.editReply(options).catch(async (e) => {
+        const editOptions = { ...options };
+        delete editOptions.ephemeral;
+        message = await interaction.editReply(editOptions).catch(async (e) => {
             console.error(`[Helper safeEditReply] editReply Error for ${interaction.id} (${interaction.commandName || interaction.customId}): ${e.message} (Code: ${e.code})`);
             // If editReply fails because the interaction is unknown or already replied to, try followUp as a last resort
             if (e.code === 10062 || e.code === 40060 || e.code === 10008 || e.message.toLowerCase().includes("unknown interaction")) {
@@ -1872,12 +1937,6 @@ client.on('interactionCreate', async interaction => {
                     .filter(item => item.name.toLowerCase().includes(searchTerm) || item.id.toLowerCase().includes(searchTerm))
                     .map(item => ({ name: `${item.name} (ID: ${item.id})`, value: item.id }))
                     .slice(0, 25);
-            } else if (commandName === 'usersettings' && interaction.options.getSubcommand(false) === 'set-item-alert' && focusedValue.name === 'item_id_alert') {
-                choices = Object.values(client.levelSystem.gameConfig.items)
-                    .filter(item => item.type !== client.levelSystem.itemTypes.JUNK && item.type !== client.levelSystem.itemTypes.CURRENCY)
-                    .filter(item => item.name.toLowerCase().includes(searchTerm) || item.id.toLowerCase().includes(searchTerm))
-                    .map(item => ({ name: `${item.name} (ID: ${item.id})`, value: item.id }))
-                    .slice(0, 25);
             } else if (commandName === 'item-info' && focusedValue.name === 'item_name') {
                  choices = Object.values(client.levelSystem.gameConfig.items)
                     .filter(item => item.type !== client.levelSystem.itemTypes.JUNK)
@@ -1925,14 +1984,6 @@ client.on('interactionCreate', async interaction => {
                     }
                     const result = client.levelSystem.attemptStreakRestore(interaction.user.id, interaction.guild.id);
                      await safeEditReply(interaction, { content: result.message, ephemeral: true });
-                } else if (subcommand === 'notify') {
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: true });
-                        deferredThisInteraction = true;
-                    }
-                    const enable = interaction.options.getBoolean('enable');
-                    client.levelSystem.updateUserDmSettings(interaction.user.id, interaction.guild.id, { enableDailyReadyDm: enable });
-                    await safeEditReply(interaction, { content: `Daily ready notifications ${enable ? 'enabled' : 'disabled'}.`, ephemeral: true });
                 }
                 return;
             }
@@ -2352,38 +2403,16 @@ client.on('interactionCreate', async interaction => {
                             .setFooter({text: "Use subcommands to change settings."});
                         await safeEditReply(interaction, { embeds: [settingsEmbed], ephemeral: true });
                     }
-                    else if (subcommand === 'toggle-shop-dm') {
-                        const currentSetting = client.levelSystem.getUserDmSettings(userId, guildId).enableShopRestockDm;
-                        const guildDefault = client.levelSystem.getGuildSettings(guildId).shopRestockDmEnabled; // Get guild's default
-                        let newSettingValue;
-                        // Cycle: Explicit True -> Explicit False -> Guild Default (null) -> Explicit True
-                        if (currentSetting === true) newSettingValue = false; // True to False
-                        else if (currentSetting === false) newSettingValue = null; // False to Default
-                        else if (currentSetting === null && guildDefault) newSettingValue = false; // Default (if true) to False
-                        else newSettingValue = true; // Default (if false) or any other case to True
-
-                        client.levelSystem.updateUserDmSettings(userId, guildId, { enableShopRestockDm: newSettingValue });
-                        let statusMessage = "";
-                        if (newSettingValue === true) statusMessage = "Enabled.";
-                        else if (newSettingValue === false) statusMessage = "Disabled.";
-                        else statusMessage = "Reset to guild default."; // newSettingValue is null
-                        await safeEditReply(interaction, { content: `✅ Shop restock DMs ${statusMessage}`, ephemeral: true });
-                    }
-                    else if (subcommand === 'set-rarity-alert') {
-                        const threshold = interaction.options.getInteger('threshold');
-                        if (threshold < 0) return sendInteractionError(interaction, "Threshold must be 0 or positive.", true, deferredThisInteraction);
-                        client.levelSystem.setUserGlobalLootAlertSettings(userId, guildId, threshold);
-                        await safeEditReply(interaction, { content: `✅ Global loot alert rarity threshold set to \`${threshold}\`.`, ephemeral: true });
-                    }
-                    else if (subcommand === 'set-item-alert') {
-                        const itemIdToToggle = interaction.options.getString('item_id_alert');
-                        const enable = interaction.options.getBoolean('enable');
-                        const itemConf = client.levelSystem._getItemMasterProperty(itemIdToToggle, null); // Get full config
-                        if (!itemConf || itemConf.type === client.levelSystem.itemTypes.JUNK || itemConf.type === client.levelSystem.itemTypes.CURRENCY) return sendInteractionError(interaction, `Invalid or non-alertable item ID: ${itemIdToToggle}.`, true, deferredThisInteraction);
-                        client.levelSystem.setUserItemLootAlertSetting(userId, guildId, itemIdToToggle, enable);
-                        await safeEditReply(interaction, { content: `✅ Alerts for ${itemConf.name} ${enable ? 'enabled' : 'disabled'}.`, ephemeral: true });
-                    }
+                    
                 } catch (userSettingsError) { console.error('[UserSettings Error]', userSettingsError); await sendInteractionError(interaction, 'Error managing settings.', true, deferredThisInteraction); }
+                return;
+            }
+            if (commandName === 'set-setting') {
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                    await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                } catch (settingsError) { console.error('[SetSetting Error]', settingsError); await sendInteractionError(interaction, 'Failed to display settings.', true, deferredThisInteraction); }
                 return;
             }
             if (commandName === 'item-info') {
@@ -2670,6 +2699,64 @@ client.on('interactionCreate', async interaction => {
                         await sendInteractionError(interaction, result.message || "Failed to claim reward.", true, deferredThisInteraction);
                     }
                 } catch (claimError) { console.error('[ClaimDaily Error]', claimError); await sendInteractionError(interaction, "An error occurred while claiming your reward.", true, deferredThisInteraction); }
+                return;
+            }
+            if (customId === 'setting_toggle_daily') {
+                if (!interaction.isButton()) return;
+                const userId = interaction.user.id; const guildId = interaction.guild.id;
+                const current = client.levelSystem.getUserDmSettings(userId, guildId).enableDailyReadyDm;
+                const newVal = current ? false : true;
+                client.levelSystem.updateUserDmSettings(userId, guildId, { enableDailyReadyDm: newVal });
+                const { embed, components } = buildSettingsEmbed(userId, guildId, client.levelSystem);
+                await interaction.update({ embeds: [embed], components }).catch(()=>{});
+                return;
+            }
+            if (customId === 'setting_set_rarity') {
+                if (!interaction.isButton()) return;
+                const modal = new ModalBuilder()
+                    .setCustomId('setting_rarity_modal')
+                    .setTitle('Set Rarity Threshold');
+                const input = new TextInputBuilder()
+                    .setCustomId('rarity_threshold_input')
+                    .setLabel('Rarity value (e.g., 1000)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                await interaction.showModal(modal).catch(async e => { console.error('Show modal error', e); await sendInteractionError(interaction, 'Failed to show input.', true, false); });
+                return;
+            }
+            if (customId === 'setting_rarity_modal') {
+                if (!interaction.isModalSubmit()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const val = parseInt(interaction.fields.getTextInputValue('rarity_threshold_input'));
+                if (isNaN(val) || val < 0) {
+                    return sendInteractionError(interaction, 'Invalid number.', true, deferredThisInteraction);
+                }
+                client.levelSystem.setUserGlobalLootAlertSettings(interaction.user.id, interaction.guild.id, val);
+                const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                return;
+            }
+            if (customId === 'setting_shop') {
+                if (!interaction.isButton()) return;
+                const { embed, components } = buildShopSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await interaction.update({ embeds: [embed], components }).catch(()=>{});
+                return;
+            }
+            if (customId === 'shop_back') {
+                if (!interaction.isButton()) return;
+                const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await interaction.update({ embeds: [embed], components }).catch(()=>{});
+                return;
+            }
+            if (customId === 'shop_toggle_dm') {
+                if (!interaction.isButton()) return;
+                const userId = interaction.user.id; const guildId = interaction.guild.id;
+                const current = client.levelSystem.getUserDmSettings(userId, guildId).enableShopRestockDm;
+                const newVal = current ? false : true;
+                client.levelSystem.updateUserDmSettings(userId, guildId, { enableShopRestockDm: newVal });
+                const { embed, components } = buildShopSettingsEmbed(userId, guildId, client.levelSystem);
+                await interaction.update({ embeds: [embed], components }).catch(()=>{});
                 return;
             }
             if (customId.startsWith('restore_streak_confirm_')) {
