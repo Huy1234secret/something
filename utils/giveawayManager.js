@@ -187,6 +187,17 @@ async function sendSetupChannelMessage(interaction, config) {
             return newMessage;
         }
     } catch (error) {
+        if (error && error.code === 10008) {
+            try {
+                console.warn(`[sendSetupChannelMessage] Setup message ${config.setupMessageId} missing. Sending a new one.`);
+                const newMessage = await channel.send({ embeds: [embed], components });
+                config.setupMessageId = newMessage.id;
+                return newMessage;
+            } catch (sendErr) {
+                console.error('[sendSetupChannelMessage] Failed to send replacement message after unknown message error:', sendErr);
+                throw sendErr;
+            }
+        }
         console.error('Error sending/updating setup channel message:', error);
         // Re-throw to be caught by the interaction handler in index.js
         throw error;
