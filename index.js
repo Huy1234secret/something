@@ -375,7 +375,7 @@ function buildShopSettingsEmbed(userId, guildId, systemsManager) {
     const embed = new EmbedBuilder()
         .setColor(0x9B59B6)
         .setTitle('🛍️ Shop Alert Settings')
-        .setDescription('Configure alerts for shop items.');
+        .setDescription('Configure alerts for shop items. Discount notifications are disabled while weekend boost is active.');
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('shop_setting_lootbox').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary),
@@ -564,7 +564,7 @@ async function scheduleShopRestock(client) {
                     if (restockResult.success) {
                             await refreshShopDisplayForGuild(guildId, client);
 
-                            if (restockResult.alertableItemsFound && restockResult.alertableItemsFound.length > 0) {
+                            if (!WEEKEND_BOOST_ACTIVE && restockResult.alertableItemsFound && restockResult.alertableItemsFound.length > 0) {
                                 const alertWorthyDiscount = client.levelSystem.gameConfig.globalSettings.ALERT_WORTHY_DISCOUNT_PERCENT || 0.25;
                                 const highlyRelevantItems = restockResult.alertableItemsFound.filter(
                                     item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1 || item.id === 'robux' // Always alert for Robux
@@ -3510,7 +3510,7 @@ client.on('interactionCreate', async interaction => {
                         await safeEditReply(interaction, { content: `✅ Shop instantly restocked for ${instantRestockGemCost} ${gemEmoji}!`, ephemeral: false }, true, 10000);
                         await refreshShopDisplayForGuild(interaction.guild.id, client);
                          // DM alert logic for instant restock
-                         if (restockResult.alertableItemsFound && restockResult.alertableItemsFound.length > 0) {
+                         if (!WEEKEND_BOOST_ACTIVE && restockResult.alertableItemsFound && restockResult.alertableItemsFound.length > 0) {
                             const alertWorthyDiscount = client.levelSystem.gameConfig.globalSettings.ALERT_WORTHY_DISCOUNT_PERCENT || 0.25;
                             const highlyRelevantItems = restockResult.alertableItemsFound.filter(
                                 item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1
