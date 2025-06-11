@@ -1992,7 +1992,8 @@ client.on('interactionCreate', async interaction => {
                     }
                 } else if (subcommand === 'restore-streak') {
                      if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: true });
+                        const deferOpts = interaction.guild ? { ephemeral: true } : {};
+                    await interaction.deferReply(deferOpts);
                         deferredThisInteraction = true;
                     }
                     const result = client.levelSystem.attemptStreakRestore(interaction.user.id, interaction.guild.id);
@@ -2068,7 +2069,8 @@ client.on('interactionCreate', async interaction => {
                 if (!targetMemberForCmd) return sendInteractionError(interaction, "The specified user is not a member of this server.", true);
 
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
+                    const deferOpts = interaction.guild ? { ephemeral: true } : {};
+                    await interaction.deferReply(deferOpts);
                     deferredThisInteraction = true;
                 }
 
@@ -2693,7 +2695,8 @@ client.on('interactionCreate', async interaction => {
             if (customId === 'claim_daily_reward') {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
+                    const deferOpts = interaction.guild ? { ephemeral: true } : {};
+                    await interaction.deferReply(deferOpts);
                     deferredThisInteraction = true;
                 }
                 try {
@@ -2833,8 +2836,9 @@ client.on('interactionCreate', async interaction => {
                 const guildId = parts[3];
                 const oldStreak = parseInt(parts[4]);
 
-                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
+                if (!interaction.replied && !interaction.deferred) {
+                    const deferOpts = interaction.guild ? { ephemeral: true } : {};
+                    await interaction.deferReply(deferOpts);
                     deferredThisInteraction = true;
                 }
 
