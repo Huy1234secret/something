@@ -303,7 +303,7 @@ class ShopManager {
                 description: masterItemConfig?.description || null,
                 itemType: masterItemConfig?.type || 'general_item',
                 // MODIFIED LINE BELOW
-                priceCurrency: (dbItem.itemId === 'robux' && masterItemConfig) ? (masterItemConfig.priceCurrency || 'gems') : (masterItemConfig?.priceCurrency || 'coins'),
+                priceCurrency: (dbItem.itemId === this.systemsManager.ROBUX_ID && masterItemConfig) ? (masterItemConfig.priceCurrency || this.systemsManager.GEMS_ID) : (masterItemConfig?.priceCurrency || this.systemsManager.COINS_ID),
             };
         });
     }
@@ -365,15 +365,15 @@ class ShopManager {
         const totalCost = shopItemEntry.currentPrice * amountToPurchase;
 
         // --- START OF CORRECTION FOR CURRENCY DEDUCTION ---
-        let currencyToDeduct = itemConfigMaster.priceCurrency || 'coins'; // Get from master config
+        let currencyToDeduct = itemConfigMaster.priceCurrency || this.systemsManager.COINS_ID; // Get from master config
         let userCurrencyBalance;
         let currencyEmojiForMessage;
 
-        if (currencyToDeduct === 'gems') {
+        if (currencyToDeduct === this.systemsManager.GEMS_ID) {
             userCurrencyBalance = userBalance.gems;
             currencyEmojiForMessage = this.systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
         } else { // Default to coins
-            currencyToDeduct = 'coins'; // Ensure it's explicitly coins if not gems
+            currencyToDeduct = this.systemsManager.COINS_ID; // Ensure it's explicitly coins if not gems
             userCurrencyBalance = userBalance.coins;
             currencyEmojiForMessage = this.systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
         }
@@ -386,7 +386,7 @@ class ShopManager {
         const purchaseTransaction = this.db.transaction(() => {
             let deductionResult;
             // --- DEDUCT CORRECT CURRENCY ---
-            if (currencyToDeduct === 'gems') {
+            if (currencyToDeduct === this.systemsManager.GEMS_ID) {
                 deductionResult = this.systemsManager.addGems(userId, guildId, -totalCost, "shop_purchase");
             } else { // coins
                 deductionResult = this.systemsManager.addCoins(userId, guildId, -totalCost, "shop_purchase");

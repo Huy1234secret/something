@@ -37,6 +37,17 @@ const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
 
+const gameConfig = require('./game_config.js');
+const ITEM_IDS = {
+    COINS: gameConfig.items.coins?.id || 'coins',
+    GEMS: gameConfig.items.gems?.id || 'gems',
+    ROBUX: gameConfig.items.robux?.id || 'robux',
+    COMMON_LOOT_BOX: gameConfig.items.common_loot_box?.id || 'common_loot_box',
+    RARE_LOOT_BOX: gameConfig.items.rare_loot_box?.id || 'rare_loot_box',
+    EPIC_LOOT_BOX: gameConfig.items.epic_loot_box?.id || 'epic_loot_box',
+    LEGENDARY_LOOT_BOX: gameConfig.items.legendary_loot_box?.id || 'legendary_loot_box',
+};
+
 const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -101,11 +112,11 @@ const VERY_RARE_ITEM_ALERT_CHANNEL_ID = process.env.VERY_RARE_ITEM_ALERT_CHANNEL
 // New Constant for Robux Withdrawal Log Channel
 const ROBUX_WITHDRAWAL_LOG_CHANNEL_ID = '1379495267031846952'; // YOUR_CHANNEL_ID_HERE
 
-const MAX_UNBOX_AMOUNTS = {
-    common_loot_box: 300,
-    rare_loot_box: 200,
-    epic_loot_box: 100,
-    legendary_loot_box: 50,
+const MAX_UNBOX_AMOUNTS = gameConfig.globalSettings?.MAX_UNBOX_AMOUNTS || {
+    [ITEM_IDS.COMMON_LOOT_BOX]: 300,
+    [ITEM_IDS.RARE_LOOT_BOX]: 200,
+    [ITEM_IDS.EPIC_LOOT_BOX]: 100,
+    [ITEM_IDS.LEGENDARY_LOOT_BOX]: 50,
 };
 
 const LEVEL_SPECIFIC_IMAGE_URLS = {
@@ -397,7 +408,7 @@ function buildShopCategoryEmbed(userId, guildId, systemsManager, category) {
     } else if (category === 'special_role_item') {
         const cosmicToken = systemsManager.gameConfig.items[systemsManager.COSMIC_ROLE_TOKEN_ID];
         if (cosmicToken) items.push(cosmicToken);
-        const robuxItem = systemsManager.gameConfig.items['robux'];
+        const robuxItem = systemsManager.gameConfig.items[ITEM_IDS.ROBUX];
         if (robuxItem) items.push(robuxItem);
     }
     const embed = new EmbedBuilder()
@@ -572,7 +583,7 @@ async function scheduleShopRestock(client) {
                             if (!WEEKEND_BOOST_ACTIVE && restockResult.alertableItemsFound && restockResult.alertableItemsFound.length > 0) {
                                 const alertWorthyDiscount = client.levelSystem.gameConfig.globalSettings.ALERT_WORTHY_DISCOUNT_PERCENT || 0.25;
                                 const highlyRelevantItems = restockResult.alertableItemsFound.filter(
-                                    item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1 || item.id === 'robux' // Always alert for Robux
+                                    item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1 || item.id === ITEM_IDS.ROBUX // Always alert for Robux
                                 );
                                 if (highlyRelevantItems.length > 0) {
                                     const itemIds = highlyRelevantItems.map(i => i.id);
@@ -581,9 +592,9 @@ async function scheduleShopRestock(client) {
                                         const alertEmbed = new EmbedBuilder().setTitle(`🛍️ Rare Finds & Deals in ${guild.name}'s Shop!`).setColor(0xFFB6C1).setDescription("Heads up! The following special items or discounts are now available:").setTimestamp();
                                         highlyRelevantItems.slice(0,5).forEach(item => {
                                             let priceCurrencyEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
-                                            if (item.priceCurrency === 'gems') {
+                                            if (item.priceCurrency === ITEM_IDS.GEMS) {
                                                 priceCurrencyEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
-                                            } else if (item.priceCurrency === 'robux') { // Should not happen for robux item itself, but good practice
+                                            } else if (item.priceCurrency === ITEM_IDS.ROBUX) { // Should not happen for robux item itself, but good practice
                                                 priceCurrencyEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
                                             }
 
@@ -593,7 +604,7 @@ async function scheduleShopRestock(client) {
                                                 fieldValue += ` (~~${item.originalPrice.toLocaleString()}~~ - ${displayLabel})`;
                                             }
                                             if (item.id === client.levelSystem.COSMIC_ROLE_TOKEN_ID) fieldValue += "\n✨ *A Cosmic Role Token! Extremely rare.*";
-                                            if (item.id === 'robux') fieldValue += "\n💎 *Premium Robux is available!*"; // Specific highlight for Robux
+                                            if (item.id === ITEM_IDS.ROBUX) fieldValue += "\n💎 *Premium Robux is available!*"; // Specific highlight for Robux
                                             alertEmbed.addFields({ name: `${item.emoji} ${item.name} (Stock: ${item.stock})`, value: fieldValue});
                                         });
                                         if(highlyRelevantItems.length > 5) alertEmbed.addFields({name: "...and more!", value:"Check the shop!"});
@@ -1084,9 +1095,9 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
             const itemName = item.name || item.itemId;
             // Determine the correct emoji for the price currency
             let priceCurrencyEmojiDisplay = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
-            if (item.priceCurrency === 'gems') {
+            if (item.priceCurrency === ITEM_IDS.GEMS) {
                 priceCurrencyEmojiDisplay = systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
-            } else if (item.priceCurrency === 'robux') { // Though Robux is unlikely to be priced in Robux
+            } else if (item.priceCurrency === ITEM_IDS.ROBUX) { // Though Robux is unlikely to be priced in Robux
                 priceCurrencyEmojiDisplay = systemsManager.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
             }
 
@@ -1104,12 +1115,12 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
             let itemLine = `${itemEmoji} **${itemName}** \`ID: ${item.itemId}\`` +
                            `\n> Price: ${priceString} - Stock: ${item.stock > 0 ? item.stock.toLocaleString() : '**Out of Stock!**'} ${(item.itemType === systemsManager.itemTypes.LOOT_BOX || item.itemType === SHOP_ITEM_TYPES.LOOTBOX) ? crateEmoji : ''}`;
             
-            if (item.itemId === 'robux') { // Highlight for Robux item
-                itemLine += `\n> ✨ *Premium Currency! Each unit costs ${item.currentPrice} ${item.priceCurrency === 'gems' ? (systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK) : (systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK)}.*`;
+            if (item.itemId === ITEM_IDS.ROBUX) { // Highlight for Robux item
+                itemLine += `\n> ✨ *Premium Currency! Each unit costs ${item.currentPrice} ${item.priceCurrency === ITEM_IDS.GEMS ? (systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK) : (systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK)}.*`;
             } else if (item.itemId === systemsManager.COSMIC_ROLE_TOKEN_ID) {
                 itemLine += "\n> ✨ *A Cosmic Role Token! Extremely rare.*";
             }
-            if (item.description && item.itemId !== 'robux') { // Don't repeat description if already highlighted for Robux
+            if (item.description && item.itemId !== ITEM_IDS.ROBUX) { // Don't repeat description if already highlighted for Robux
                 itemLine += `\n> *${item.description.substring(0,150)}${item.description.length > 150 ? '...' : ''}*`;
             }
             descriptionLines.push(itemLine);
@@ -1298,7 +1309,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             // Ensure generalItemsDisplay does not include currencies if they somehow slipped through
             const generalItemsDisplay = categorizedInventory.generalItems.filter(item => {
                 const itemConf = systemsManager._getItemMasterProperty(item.itemId, null);
-                return itemConf && itemConf.type !== systemsManager.itemTypes.CURRENCY && itemConf.type !== systemsManager.itemTypes.CURRENCY_ITEM && item.itemId !== 'robux' && item.itemId !== 'coins' && item.itemId !== 'gems';
+                return itemConf && itemConf.type !== systemsManager.itemTypes.CURRENCY && itemConf.type !== systemsManager.itemTypes.CURRENCY_ITEM && item.itemId !== ITEM_IDS.ROBUX && item.itemId !== ITEM_IDS.COINS && item.itemId !== ITEM_IDS.GEMS;
             });
             const valuableItemsDisplay = categorizedInventory.cosmicTokens;
 
@@ -3309,13 +3320,13 @@ client.on('interactionCreate', async interaction => {
                                 } else if (op.type === 'currency') {
                                     const currencyId = op.targetId.toLowerCase();
                                     const amountToChange = op.action === 'add' ? op.amount : -op.amount;
-                                    if (currencyId === 'coins') {
+                                    if (currencyId === ITEM_IDS.COINS) {
                                         const coinResult = client.levelSystem.addCoins(session.targetUserId, session.guildId, amountToChange, "admin_add_user_panel");
                                         opResult += ` - ✅ SUCCESS: Coins changed by ${coinResult.added}. New balance: ${coinResult.newBalance}.`;
-                                    } else if (currencyId === 'gems') {
+                                    } else if (currencyId === ITEM_IDS.GEMS) {
                                         const gemResult = client.levelSystem.addGems(session.targetUserId, session.guildId, amountToChange, "admin_add_user_panel");
                                         opResult += ` - ✅ SUCCESS: Gems changed by ${gemResult.added}. New balance: ${gemResult.newBalance}.`;
-                                    } else if (currencyId === 'robux') { // New case for Robux
+                                    } else if (currencyId === ITEM_IDS.ROBUX) { // New case for Robux
                                         const robuxResult = client.levelSystem.addRobux(session.targetUserId, session.guildId, amountToChange, "admin_add_user_panel");
                                         opResult += ` - ✅ SUCCESS: Robux changed by ${robuxResult.added}. New balance: ${robuxResult.newBalance}.`;
                                     } else {
