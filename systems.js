@@ -243,6 +243,10 @@ class SystemsManager {
                 userId TEXT NOT NULL, guildId TEXT NOT NULL, itemId TEXT NOT NULL,
                 enableAlert INTEGER DEFAULT 1, PRIMARY KEY (userId, guildId, itemId)
             );`,
+            `CREATE TABLE IF NOT EXISTS userShopAlertSettings (
+                userId TEXT NOT NULL, guildId TEXT NOT NULL, itemId TEXT NOT NULL,
+                enableAlert INTEGER DEFAULT 1, PRIMARY KEY (userId, guildId, itemId)
+            );`,
             `CREATE TABLE IF NOT EXISTS userGlobalLootAlertSettings (
                 userId TEXT NOT NULL, guildId TEXT NOT NULL,
                 alertRarityThreshold INTEGER DEFAULT ${DEFAULT_ANNOUNCE_RARITY_THRESHOLD},
@@ -669,6 +673,19 @@ this.db.prepare(`
     }
     setUserItemLootAlertSetting(userId, guildId, itemId, enableAlert) {
         this.db.prepare('INSERT OR REPLACE INTO userLootAlertSettings (userId, guildId, itemId, enableAlert) VALUES (?, ?, ?, ?)').run(userId, guildId, itemId, enableAlert ? 1 : 0);
+    }
+    getAllUserShopAlertSettings(userId, guildId) {
+        const settings = {};
+        const rows = this.db.prepare("SELECT itemId, enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ?").all(userId, guildId);
+        rows.forEach(row => { settings[row.itemId] = !!row.enableAlert; });
+        return settings;
+    }
+    getUserShopAlertSetting(userId, guildId, itemId) {
+        const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, itemId);
+        return { itemId, enableAlert: row ? !!row.enableAlert : true };
+    }
+    setUserShopAlertSetting(userId, guildId, itemId, enableAlert) {
+        this.db.prepare('INSERT OR REPLACE INTO userShopAlertSettings (userId, guildId, itemId, enableAlert) VALUES (?, ?, ?, ?)').run(userId, guildId, itemId, enableAlert ? 1 : 0);
     }
     getUserGlobalLootAlertSettings(userId, guildId) {
         let settings = this.db.prepare('SELECT alertRarityThreshold FROM userGlobalLootAlertSettings WHERE userId = ? AND guildId = ?').get(userId, guildId);
@@ -1206,6 +1223,7 @@ this.db.prepare(`
         }
         if (options.doLootAlertSettings) {
             this.db.prepare('DELETE FROM userLootAlertSettings WHERE guildId = ?').run(guildId);
+            this.db.prepare('DELETE FROM userShopAlertSettings WHERE guildId = ?').run(guildId);
             this.db.prepare('DELETE FROM userGlobalLootAlertSettings WHERE guildId = ?').run(guildId);
             details.push("User loot alert settings reset.");
         }
@@ -1231,6 +1249,7 @@ this.db.prepare(`
         const activeCharms = this.db.prepare('SELECT * FROM userActiveCharms WHERE guildId = ?').all(guildId);
         const dmSettings = this.db.prepare('SELECT * FROM userDmSettings WHERE guildId = ?').all(guildId);
         const lootAlertSettings = this.db.prepare('SELECT * FROM userLootAlertSettings WHERE guildId = ?').all(guildId);
+        const shopAlertSettings = this.db.prepare('SELECT * FROM userShopAlertSettings WHERE guildId = ?').all(guildId);
         const globalLootAlertSettings = this.db.prepare('SELECT * FROM userGlobalLootAlertSettings WHERE guildId = ?').all(guildId);
         const robuxWithdrawals = this.db.prepare('SELECT * FROM robux_withdrawals WHERE guildId = ?').all(guildId);
 
@@ -1242,6 +1261,7 @@ this.db.prepare(`
                 userActiveCharms: activeCharms,
                 userDmSettings: dmSettings,
                 userLootAlertSettings: lootAlertSettings,
+                userShopAlertSettings: shopAlertSettings,
                 userGlobalLootAlertSettings: globalLootAlertSettings,
                 robuxWithdrawals: robuxWithdrawals // Include withdrawal requests in export
             }
@@ -1337,6 +1357,18 @@ this.db.prepare(`
             const rows = this.db.prepare(`SELECT uds.userId FROM userDmSettings uds WHERE uds.guildId = ? AND (uds.enableShopRestockDm = 1 OR (uds.enableShopRestockDm IS NULL AND ? = 1))`).all(guildId, guildDefaultEnabled ? 1 : 0);
             return rows.map(row => row.userId);
         } catch (error) { console.error(`[ShopAlertUsers] Error fetching users for guild ${guildId}:`, error); return []; }
+    }
+    getUsersForShopAlertByItems(guildId, itemIds = []) {
+        const baseUsers = this.getUsersForShopAlert(guildId);
+        if (itemIds.length === 0) return baseUsers;
+        const filtered = [];
+        for (const userId of baseUsers) {
+            for (const itemId of itemIds) {
+                const setting = this.getUserShopAlertSetting(userId, guildId, itemId);
+                if (setting.enableAlert) { filtered.push(userId); break; }
+            }
+        }
+        return filtered;
     }
 
     getUsersForDailyReadyNotification() {

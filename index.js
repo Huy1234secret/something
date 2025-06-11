@@ -35,6 +35,7 @@ const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
+const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
 
 const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
@@ -370,6 +371,44 @@ function buildSettingsEmbed(userId, guildId, systemsManager) {
     return { embed, components: [row] };
 }
 
+function buildShopSettingsEmbed(userId, guildId, systemsManager) {
+    const embed = new EmbedBuilder()
+        .setColor(0x9B59B6)
+        .setTitle('🛍️ Shop Alert Settings')
+        .setDescription('Configure alerts for shop items.');
+
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('shop_setting_lootbox').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('shop_setting_charm').setLabel('Charms').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('shop_setting_exclusive').setLabel('Exclusive').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('shop_setting_discount').setLabel('Discount').setStyle(ButtonStyle.Primary)
+    );
+    const backRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('shop_setting_back_main').setLabel('Back').setStyle(ButtonStyle.Secondary)
+    );
+    return { embed, components: [row1, backRow] };
+}
+
+function buildShopCategoryEmbed(userId, guildId, systemsManager, category) {
+    const userSettings = systemsManager.getAllUserShopAlertSettings(userId, guildId);
+    let items = Object.values(systemsManager.gameConfig.items).filter(it => it.type === category);
+    if (category === 'discount') {
+        items = SHOP_DISCOUNT_IDS.map(id => ({ id, name: id.toUpperCase(), emoji: '💸' }));
+    }
+    const embed = new EmbedBuilder()
+        .setColor(0x1ABC9C)
+        .setTitle(`🛍️ ${category.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} Alerts`);
+    items.forEach(it => {
+        const enabled = userSettings[it.id] !== false;
+        embed.addFields({ name: `${it.emoji || ''} ${it.name}`, value: enabled ? SETTINGS_EMOJI_ENABLED : SETTINGS_EMOJI_DISABLED, inline: true });
+    });
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('shop_category_back').setLabel('Back').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`shop_change_modal_${category}`).setLabel('Change').setStyle(ButtonStyle.Primary)
+    );
+    return { embed, components: [row] };
+}
+
 // --- Helper Functions for /withdraw-robux ---
 function buildRobuxWithdrawalRequestEmbed(withdrawalRequest, targetUser) {
     const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
@@ -531,7 +570,8 @@ async function scheduleShopRestock(client) {
                                     item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1 || item.id === 'robux' // Always alert for Robux
                                 );
                                 if (highlyRelevantItems.length > 0) {
-                                    const usersToAlert = client.levelSystem.getUsersForShopAlert(guildId);
+                                    const itemIds = highlyRelevantItems.map(i => i.id);
+                                    const usersToAlert = client.levelSystem.getUsersForShopAlertByItems(guildId, itemIds);
                                     if (usersToAlert.length > 0) {
                                         const alertEmbed = new EmbedBuilder().setTitle(`🛍️ Rare Finds & Deals in ${guild.name}'s Shop!`).setColor(0xFFB6C1).setDescription("Heads up! The following special items or discounts are now available:").setTimestamp();
                                         highlyRelevantItems.slice(0,5).forEach(item => {
@@ -2677,14 +2717,15 @@ client.on('interactionCreate', async interaction => {
                 const newVal = current ? false : true;
                 client.levelSystem.updateUserDmSettings(userId, guildId, { enableDailyReadyDm: newVal });
                 const { embed, components } = buildSettingsEmbed(userId, guildId, client.levelSystem);
-                if (interaction.message && interaction.message.editable) {
-                    await interaction.message.edit({ embeds: [embed], components }).catch(()=>{});
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed], components }).catch(()=>{});
+                } else {
+                    await interaction.update({ embeds: [embed], components }).catch(()=>{});
                 }
                 return;
             }
             if (customId === 'setting_set_rarity') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 const modal = new ModalBuilder()
                     .setCustomId('setting_rarity_modal')
                     .setTitle('Set Rarity Threshold');
@@ -2712,7 +2753,51 @@ client.on('interactionCreate', async interaction => {
             if (customId === 'setting_shop') {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                await safeEditReply(interaction, { content: 'Shop setting configuration coming soon.', ephemeral: true });
+                const { embed, components } = buildShopSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                return;
+            }
+            if (customId === 'shop_setting_back_main') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                return;
+            }
+            if (customId === 'shop_setting_lootbox' || customId === 'shop_setting_charm' || customId === 'shop_setting_exclusive' || customId === 'shop_setting_discount') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const category = customId.split('_')[2];
+                const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                return;
+            }
+            if (customId === 'shop_category_back') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const { embed, components } = buildShopSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                return;
+            }
+            if (customId.startsWith('shop_change_modal_')) {
+                if (!interaction.isButton()) return;
+                const category = customId.replace('shop_change_modal_', '');
+                const modal = new ModalBuilder().setCustomId(`shop_change_submit_${category}`).setTitle('Edit Shop Alert');
+                const idInput = new TextInputBuilder().setCustomId('item_id').setLabel('Item ID').setStyle(TextInputStyle.Short).setRequired(true);
+                const enableInput = new TextInputBuilder().setCustomId('enable_flag').setLabel('Enable? (true/false)').setStyle(TextInputStyle.Short).setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(idInput), new ActionRowBuilder().addComponents(enableInput));
+                await interaction.showModal(modal).catch(async e => { console.error('Show modal error', e); await sendInteractionError(interaction, 'Failed to open form.', true, false); });
+                return;
+            }
+            if (customId.startsWith('shop_change_submit_')) {
+                if (!interaction.isModalSubmit()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const category = customId.replace('shop_change_submit_', '');
+                const itemId = interaction.fields.getTextInputValue('item_id').trim();
+                const enableFlag = interaction.fields.getTextInputValue('enable_flag').trim().toLowerCase() === 'true';
+                client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, enableFlag);
+                const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
+                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
                 return;
             }
             if (customId.startsWith('restore_streak_confirm_')) {
@@ -3409,7 +3494,8 @@ client.on('interactionCreate', async interaction => {
                                 item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1
                             );
                             if (highlyRelevantItems.length > 0) {
-                                const usersToAlert = client.levelSystem.getUsersForShopAlert(interaction.guild.id); // Get users who opted in
+                                const itemIds = highlyRelevantItems.map(i => i.id);
+                                const usersToAlert = client.levelSystem.getUsersForShopAlertByItems(interaction.guild.id, itemIds); // Get users who opted in
                                 if (usersToAlert.length > 0) {
                                     const alertEmbed = new EmbedBuilder().setTitle(`🛍️ Rare Finds & Deals in ${interaction.guild.name}'s Shop! (Instant Restock)`).setColor(0xFFB6C1).setDescription("Heads up! The following special items or discounts are now available due to an instant restock:").setTimestamp();
                                     highlyRelevantItems.slice(0,5).forEach(item => { // Limit to 5 items in DM
