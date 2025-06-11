@@ -2747,36 +2747,55 @@ client.on('interactionCreate', async interaction => {
                 }
                 client.levelSystem.setUserGlobalLootAlertSettings(interaction.user.id, interaction.guild.id, val);
                 const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.message && interaction.message.editable) {
+                    await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
+                }
+                await interaction.editReply({ content: '✅ Setting updated!', embeds: [], components: [] }).catch(() => {});
                 return;
             }
             if (customId === 'setting_shop') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const { embed, components } = buildShopSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed], components }).catch(() => {});
+                } else {
+                    await interaction.update({ embeds: [embed], components }).catch(() => {});
+                }
                 return;
             }
             if (customId === 'shop_setting_back_main') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed], components }).catch(() => {});
+                } else {
+                    await interaction.update({ embeds: [embed], components }).catch(() => {});
+                }
                 return;
             }
             if (customId === 'shop_setting_lootbox' || customId === 'shop_setting_charm' || customId === 'shop_setting_exclusive' || customId === 'shop_setting_discount') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const category = customId.split('_')[2];
                 const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed], components }).catch(() => {});
+                } else {
+                    await interaction.update({ embeds: [embed], components }).catch(() => {});
+                }
                 return;
             }
             if (customId === 'shop_category_back') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const { embed, components } = buildShopSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.editReply({ embeds: [embed], components }).catch(() => {});
+                } else {
+                    await interaction.update({ embeds: [embed], components }).catch(() => {});
+                }
                 return;
             }
             if (customId.startsWith('shop_change_modal_')) {
@@ -2797,7 +2816,10 @@ client.on('interactionCreate', async interaction => {
                 const enableFlag = interaction.fields.getTextInputValue('enable_flag').trim().toLowerCase() === 'true';
                 client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, enableFlag);
                 const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
-                await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
+                if (interaction.message && interaction.message.editable) {
+                    await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
+                }
+                await interaction.editReply({ content: '✅ Setting updated!', embeds: [], components: [] }).catch(() => {});
                 return;
             }
             if (customId.startsWith('restore_streak_confirm_')) {
