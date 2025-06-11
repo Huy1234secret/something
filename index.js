@@ -3142,7 +3142,7 @@ client.on('interactionCreate', async interaction => {
                         // Basic structure: action - type - target - amount (amount optional for role)
                         // e.g., + - role - 12345 (3 parts)
                         // e.g., + - coin - 100 (3 parts)
-                        // e.g., + - item - common_box - 5 (4 parts)
+                        // e.g., + - item - common_loot_box - 5 (4 parts)
 
                         if (parts.length < 3) {
                             parsingErrors.push(`Skipped: "${line}" (Format error: too few parts)`);
