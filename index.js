@@ -3205,7 +3205,7 @@ client.on('interactionCreate', async interaction => {
 
                         // Universal amount processing (e.g. making negative amounts consistent)
                         if (operationAmount !== null && operationAmount !== undefined) { // Check for undefined too
-                            if (op.action === 'remove' && operationAmount < 0) {
+                            if (action === 'remove' && operationAmount < 0) {
                                 operationAmount = Math.abs(operationAmount);
                             } else if (action === 'add' && operationAmount < 0) { // Adding a negative is removing a positive
                                 action = 'remove';
