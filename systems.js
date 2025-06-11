@@ -1547,10 +1547,31 @@ this.db.prepare(`
             const finalDisplayProb = itemSpec.finalDisplayProb;
             if (finalDisplayProb < 0.000001 && itemSpec.id !== this.COSMIC_ROLE_TOKEN_ID) continue;
             if (itemSpec.id === this.COSMIC_ROLE_TOKEN_ID && !userHasDiscoveredCosmic && finalDisplayProb < 0.000001) continue;
-            let itemNameDisplay = itemSpec.name; let itemEmojiDisplay = itemSpec.emoji; let quantityText = "";
-            if (itemSpec.type === this.itemTypes.CURRENCY) quantityText = ` (${itemSpec.min}-${itemSpec.max})`;
-            else if (itemSpec.quantity) { if (Array.isArray(itemSpec.quantity) && itemSpec.quantity.length === 2) quantityText = ` (x${itemSpec.quantity[0]}-${itemSpec.quantity[1]})`; else quantityText = ` (x${itemSpec.quantity})`; }
-            contents.push( `${itemEmojiDisplay} **${itemNameDisplay}**${quantityText}\n` + `  └ Chance: ${formatChanceDisplay(finalDisplayProb, "", true)}` );
+
+            let itemNameDisplay = itemSpec.name;
+            let itemEmojiDisplay = itemSpec.emoji;
+            const fallbackId = itemSpec.id || itemSpec.subType;
+            if (!itemNameDisplay && fallbackId) {
+                itemNameDisplay = this._getItemMasterProperty(fallbackId, 'name') || fallbackId;
+            }
+            if (!itemEmojiDisplay && fallbackId) {
+                itemEmojiDisplay = this._getItemMasterProperty(fallbackId, 'emoji') || '❓';
+            }
+
+            let quantityText = "";
+            if (itemSpec.type === this.itemTypes.CURRENCY) {
+                quantityText = ` (${itemSpec.min}-${itemSpec.max})`;
+            } else if (itemSpec.quantity) {
+                if (Array.isArray(itemSpec.quantity) && itemSpec.quantity.length === 2)
+                    quantityText = ` (x${itemSpec.quantity[0]}-${itemSpec.quantity[1]})`;
+                else
+                    quantityText = ` (x${itemSpec.quantity})`;
+            }
+
+            contents.push(
+                `${itemEmojiDisplay} **${itemNameDisplay}**${quantityText}\n` +
+                `  └ Chance: ${formatChanceDisplay(finalDisplayProb, "", true)}`
+            );
         }
         if (contents.length === 0) return ["This box appears empty, or its contents are a well-kept secret!"];
         return contents;
