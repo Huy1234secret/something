@@ -103,6 +103,16 @@ class SystemsManager {
         this.coinEmoji = this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
         this.gemEmoji = this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
         this.robuxEmoji = this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
+        this.COINS_ID = this.gameConfig.items.coins?.id || 'coins';
+        this.GEMS_ID = this.gameConfig.items.gems?.id || 'gems';
+        this.ROBUX_ID = this.gameConfig.items.robux?.id || 'robux';
+        this.COMMON_LOOT_BOX_ID = this.gameConfig.items.common_loot_box?.id || 'common_loot_box';
+        this.RARE_LOOT_BOX_ID = this.gameConfig.items.rare_loot_box?.id || 'rare_loot_box';
+        this.EPIC_LOOT_BOX_ID = this.gameConfig.items.epic_loot_box?.id || 'epic_loot_box';
+        this.LEGENDARY_LOOT_BOX_ID = this.gameConfig.items.legendary_loot_box?.id || 'legendary_loot_box';
+        this.COIN_CHARM_ID = this.gameConfig.items.coin_charm?.id || 'coin_charm';
+        this.GEM_CHARM_ID = this.gameConfig.items.gem_charm?.id || 'gem_charm';
+        this.XP_CHARM_ID = this.gameConfig.items.xp_charm?.id || 'xp_charm';
         this.xpCooldowns = new Map();
         this.itemTypes = {
             CURRENCY: 'currency',
@@ -169,14 +179,14 @@ class SystemsManager {
         }
         // Fallbacks for core currencies if not found directly by itemId (e.g. 'coins' as itemId)
         if (propertyName === 'name') {
-            if (itemId === 'coins') return this.gameConfig.items.coins?.name || 'Coins';
-            if (itemId === 'gems') return this.gameConfig.items.gems?.name || 'Gems';
-            if (itemId === 'robux') return this.gameConfig.items.robux?.name || 'Robux';
+            if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.name || 'Coins';
+            if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.name || 'Gems';
+            if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.name || 'Robux';
         }
         if (propertyName === 'emoji') {
-            if (itemId === 'coins') return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
-            if (itemId === 'gems') return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
-            if (itemId === 'robux') return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
+            if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
+            if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
+            if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
         }
         return defaultValue;
     }
@@ -502,8 +512,8 @@ class SystemsManager {
                          catch (e) { console.error("Error in checkAndAwardSpecialRoleFn from openLootBox:", e); }
                     }
                 } else if (itemDetails.type === this.itemTypes.CURRENCY) {
-                    if (itemDetails.subType === 'coins') this.addCoins(userId, guildId, quantity, `loot_box_${boxId}`, weekendMultipliers);
-                    else if (itemDetails.subType === 'gems') this.addGems(userId, guildId, quantity, `loot_box_${boxId}`, weekendMultipliers);
+                    if (itemDetails.subType === this.COINS_ID) this.addCoins(userId, guildId, quantity, `loot_box_${boxId}`, weekendMultipliers);
+                    else if (itemDetails.subType === this.GEMS_ID) this.addGems(userId, guildId, quantity, `loot_box_${boxId}`, weekendMultipliers);
                     // Robux is not typically found in loot boxes, so no 'robux' subType check here by default.
                 } else {
                     this.giveItem(userId, guildId, itemDetails.id, quantity, itemDetails.type || this.itemTypes.ITEM, `loot_box_open_${boxId}`);
@@ -793,7 +803,7 @@ this.db.prepare(`
         embed.addFields({ name: '💎 Rarity', value: `**${rarityString}**`, inline: true }, { name: '🏷️ Type', value: `\`${itemConfig.type || 'Unknown'}\``, inline: true });
 
         if (itemConfig.basePrice !== undefined && itemConfig.basePrice !== null) {
-            const priceCurrencyEmoji = itemConfig.priceCurrency === 'gems' ? this.gemEmoji : (itemConfig.priceCurrency === 'robux' ? this.robuxEmoji : this.coinEmoji);
+            const priceCurrencyEmoji = itemConfig.priceCurrency === this.GEMS_ID ? this.gemEmoji : (itemConfig.priceCurrency === this.ROBUX_ID ? this.robuxEmoji : this.coinEmoji);
             embed.addFields({ name: `💰 Base Shop Price`, value: `\`${itemConfig.basePrice.toLocaleString()}\` ${priceCurrencyEmoji}`, inline: true });
         }
 
@@ -808,7 +818,7 @@ this.db.prepare(`
             embed.addFields({ name: '✨ Buff Effect', value: this._getCharmBuffFormatted(itemConfig), inline: false });
         } else if (itemConfig.id === this.COSMIC_ROLE_TOKEN_ID) {
             embed.addFields({ name: '👑 Special Role', value: `<@&${this.SPECIAL_ROLE_ID_TO_GRANT}>`, inline: true }, { name: 'Status', value: 'You have access to this token\'s information!', inline: true });
-        } else if (itemConfig.type === this.itemTypes.CURRENCY_ITEM || itemConfig.id === 'coins' || itemConfig.id === 'gems' || itemConfig.id === 'robux') {
+        } else if (itemConfig.type === this.itemTypes.CURRENCY_ITEM || itemConfig.id === this.COINS_ID || itemConfig.id === this.GEMS_ID || itemConfig.id === this.ROBUX_ID) {
             const balance = this.getBalance(userId, guildId);
             const bankBalance = this.getBankBalance(userId, guildId);
             let currencyEmoji = '💰';
@@ -817,24 +827,24 @@ this.db.prepare(`
             let currentBank = 0;
             let bankCap = 0;
 
-            if (itemId === 'coins' || itemConfig.id === 'coins') {
+            if (itemId === this.COINS_ID || itemConfig.id === this.COINS_ID) {
                 currencyEmoji = this.coinEmoji;
                 currencyCap = INVENTORY_COIN_CAP;
                 currentWallet = balance.coins;
                 currentBank = bankBalance.bankCoins;
                 bankCap = BANK_TIERS[bankBalance.bankTier]?.coinCap || 0;
-            } else if (itemId === 'gems' || itemConfig.id === 'gems') {
+            } else if (itemId === this.GEMS_ID || itemConfig.id === this.GEMS_ID) {
                 currencyEmoji = this.gemEmoji;
                 currencyCap = INVENTORY_GEM_CAP;
                 currentWallet = balance.gems;
                 currentBank = bankBalance.bankGems;
                 bankCap = BANK_TIERS[bankBalance.bankTier]?.gemCap || 0;
-            } else if (itemId === 'robux' || itemConfig.id === 'robux') {
+            } else if (itemId === this.ROBUX_ID || itemConfig.id === this.ROBUX_ID) {
                 currencyEmoji = this.robuxEmoji;
                 currencyCap = INVENTORY_ROBUX_CAP;
                 currentWallet = balance.robux;
             }
-            embed.addFields({ name: 'Balance', value: `Wallet: \`${currentWallet.toLocaleString()} / ${currencyCap.toLocaleString()}\` ${currencyEmoji}${ (itemId === 'coins' || itemId === 'gems') ? `\nBank: \`${currentBank.toLocaleString()} / ${bankCap.toLocaleString()}\` ${currencyEmoji}` : ''}`, inline: false });
+            embed.addFields({ name: 'Balance', value: `Wallet: \`${currentWallet.toLocaleString()} / ${currencyCap.toLocaleString()}\` ${currencyEmoji}${ (itemId === this.COINS_ID || itemId === this.GEMS_ID) ? `\nBank: \`${currentBank.toLocaleString()} / ${bankCap.toLocaleString()}\` ${currencyEmoji}` : ''}`, inline: false });
         }
         const waysToObtain = await this._getWaysToObtainFormatted(itemId, itemConfig, userId, guildId);
         if (waysToObtain.length > 0) embed.addFields({ name: '🗺️ Ways to Obtain', value: waysToObtain.join('\n'), inline: false });
@@ -865,21 +875,21 @@ this.db.prepare(`
         const itemEmoji = itemMasterConfig.emoji; // Will be undefined if not set, handled by fallback in message
 
         // Handle currency types first
-        if (itemId === 'robux' && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
+        if (itemId === this.ROBUX_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const robuxResult = this.addRobux(userId, guildId, quantity, source);
             if (robuxResult.success) {
                 return { success: true, activated: false, message: `${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) to your balance.` };
             }
-        } else if (itemId === 'coins' && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
+        } else if (itemId === this.COINS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const coinResult = this.addCoins(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (coinResult.success) {
                 return { success: true, activated: false, message: `${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) to your balance.` };
             }
-        } else if (itemId === 'gems' && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
+        } else if (itemId === this.GEMS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const gemResult = this.addGems(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (gemResult.success) {
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
@@ -924,14 +934,14 @@ this.db.prepare(`
             }
             // Fallbacks for core currencies if itemId is 'coins', 'gems', 'robux'
             if (propertyName === 'name') {
-                if (itemId === 'coins') return this.gameConfig.items.coins?.name || 'Coins';
-                if (itemId === 'gems') return this.gameConfig.items.gems?.name || 'Gems';
-                if (itemId === 'robux') return this.gameConfig.items.robux?.name || 'Robux';
+                if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.name || 'Coins';
+                if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.name || 'Gems';
+                if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.name || 'Robux';
             }
             if (propertyName === 'emoji') {
-                if (itemId === 'coins') return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
-                if (itemId === 'gems') return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
-                if (itemId === 'robux') return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
+                if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
+                if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
+                if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
             }
             return defaultValueIfPropertyMissing; // Property not found in fallbacks or item itself missing
         }
@@ -967,7 +977,7 @@ this.db.prepare(`
     inventoryItems.forEach(dbItem => {
         // *** ADD FILTER FOR CURRENCIES ***
         const masterItemCheck = this._getItemMasterProperty(dbItem.itemId, null);
-        if (masterItemCheck && (masterItemCheck.type === this.itemTypes.CURRENCY || masterItemCheck.type === this.itemTypes.CURRENCY_ITEM || dbItem.itemId === 'robux' || dbItem.itemId === 'coins' || dbItem.itemId === 'gems')) {
+        if (masterItemCheck && (masterItemCheck.type === this.itemTypes.CURRENCY || masterItemCheck.type === this.itemTypes.CURRENCY_ITEM || dbItem.itemId === this.ROBUX_ID || dbItem.itemId === this.COINS_ID || dbItem.itemId === this.GEMS_ID)) {
             // console.warn(`[UserInventory] Currency item '${dbItem.itemId}' found in userInventory table for ${userId}. This should be a direct balance. Ignoring for inventory display.`);
             return; // Skip currency items from appearing as inventory items
         }
@@ -1017,8 +1027,8 @@ this.db.prepare(`
         } else if (effectiveType === this.itemTypes.CURRENCY) {
             const min = lootItemConfig.min || 1; const max = lootItemConfig.max || lootItemConfig.min || 1;
             const value = min + Math.floor(Math.random() * (max - min + 1));
-            if (lootItemConfig.subType === 'coins') this.addCoins(userId, guildId, value, source, effectiveWeekendMultipliers);
-            else if (lootItemConfig.subType === 'gems') this.addGems(userId, guildId, value, source, effectiveWeekendMultipliers);
+            if (lootItemConfig.subType === this.COINS_ID) this.addCoins(userId, guildId, value, source, effectiveWeekendMultipliers);
+            else if (lootItemConfig.subType === this.GEMS_ID) this.addGems(userId, guildId, value, source, effectiveWeekendMultipliers);
             // Robux is not set to drop directly from loot tables by default
         } else {
             this.giveItem(userId, guildId, lootItemConfig.id, 1, effectiveType, source);
@@ -1129,7 +1139,7 @@ this.db.prepare(`
     depositToBank(userId, guildId, currencyType, amount) {
         const user = this.getUser(userId, guildId); const bankCapacity = this.getBankCapacity(userId, guildId);
         const guildEmojis = this.getGuildSettings(guildId); let success = false; let message = "";
-        if (currencyType === 'coins') {
+        if (currencyType === this.COINS_ID) {
             if (user.coins < amount) message = `❌ Not enough coins. You have ${user.coins.toLocaleString()} ${guildEmojis.coinEmoji}.`;
             else if (amount <=0 ) message = "❌ Deposit amount must be positive.";
             else {
@@ -1137,7 +1147,7 @@ this.db.prepare(`
                 if (amountToDeposit <= 0 && amount > 0) message = `❌ Bank coin storage is full.`;
                 else { this.updateUser(userId, guildId, { coins: user.coins - amountToDeposit, bankCoins: user.bankCoins + amountToDeposit }); message = `✅ Deposited ${amountToDeposit.toLocaleString()} ${guildEmojis.coinEmoji}.`; if (amountToDeposit < amount) message += ` (Bank was full)`; success = true; }
             }
-        } else if (currencyType === 'gems') {
+        } else if (currencyType === this.GEMS_ID) {
             if (user.gems < amount) message = `❌ Not enough gems. You have ${user.gems.toLocaleString()} ${guildEmojis.gemEmoji}.`;
             else if (amount <=0 ) message = "❌ Deposit amount must be positive.";
             else {
@@ -1152,7 +1162,7 @@ this.db.prepare(`
     withdrawFromBank(userId, guildId, currencyType, amount) {
         const user = this.getUser(userId, guildId); const guildEmojis = this.getGuildSettings(guildId);
         let success = false; let message = "";
-        if (currencyType === 'coins') {
+        if (currencyType === this.COINS_ID) {
             if (user.bankCoins < amount) message = `❌ Not enough coins in bank. You have ${user.bankCoins.toLocaleString()} ${guildEmojis.coinEmoji}.`;
             else if (amount <=0 ) message = "❌ Withdraw amount must be positive.";
             else {
@@ -1160,7 +1170,7 @@ this.db.prepare(`
                 if (amountToWithdraw <= 0 && amount > 0) message = `❌ Inventory coin storage is full.`;
                 else { this.updateUser(userId, guildId, { bankCoins: user.bankCoins - amountToWithdraw, coins: user.coins + amountToWithdraw }); message = `✅ Withdrew ${amountToWithdraw.toLocaleString()} ${guildEmojis.coinEmoji}.`; if (amountToWithdraw < amount) message += ` (Inventory was full)`; success = true; }
             }
-        } else if (currencyType === 'gems') {
+        } else if (currencyType === this.GEMS_ID) {
             if (user.bankGems < amount) message = `❌ Not enough gems in bank. You have ${user.bankGems.toLocaleString()} ${guildEmojis.gemEmoji}.`;
             else if (amount <=0 ) message = "❌ Withdraw amount must be positive.";
             else {
@@ -1397,9 +1407,9 @@ this.db.prepare(`
         if (!this.db) return 0;
         try {
             let columnName = '';
-            if (currencyType === 'coins') columnName = 'coins';
-            else if (currencyType === 'gems') columnName = 'gems';
-            else if (currencyType === 'robux') columnName = 'robux';
+            if (currencyType === this.COINS_ID) columnName = 'coins';
+            else if (currencyType === this.GEMS_ID) columnName = 'gems';
+            else if (currencyType === this.ROBUX_ID) columnName = 'robux';
             else return 0;
 
             const result = this.db.prepare(`SELECT SUM(${columnName}) as total FROM users WHERE guildId = ?`).get(guildId);
@@ -1474,7 +1484,7 @@ this.db.prepare(`
         const guildSettings = this.getGuildSettings(guildId); const isWeekend = guildSettings.weekendBoostActive;
         const itemMasterConfig = this._getItemMasterProperty(itemId, null) || itemConfigFromCaller;
 
-        if (itemId === 'robux') {
+        if (itemId === this.ROBUX_ID) {
             ways.push("✨ **Admin Command:** Can be granted by server staff.");
             ways.push("✨ **Daily Rewards:** A rare chance after a 7-day streak.");
         }
@@ -1492,8 +1502,8 @@ this.db.prepare(`
         }
         if (itemMasterConfig.appearanceChanceInShop > 0) { 
             let priceCurrencyText = "Coins";
-            if (itemMasterConfig.priceCurrency === 'gems') priceCurrencyText = "Gems";
-            else if (itemMasterConfig.priceCurrency === 'robux') priceCurrencyText = "Robux";
+            if (itemMasterConfig.priceCurrency === this.GEMS_ID) priceCurrencyText = "Gems";
+            else if (itemMasterConfig.priceCurrency === this.ROBUX_ID) priceCurrencyText = "Robux";
             ways.push(`🛍️ **Shop:** Appears with ~${formatChanceDisplay(itemMasterConfig.appearanceChanceInShop, "", true)} chance. Costs ${itemMasterConfig.basePrice} ${priceCurrencyText}.`); ways.push("---"); 
         }
         let foundInLootboxesHeaderAdded = false;
@@ -1555,9 +1565,9 @@ this.db.prepare(`
         const item = this._getItemMasterProperty(itemId, null);
         if (item && item.emoji) return item.emoji;
         const guildSettings = this.getGuildSettings(guildId);
-        if (itemId === 'coins') return guildSettings?.coinEmoji || this.gameConfig.items.coins.emoji;
-        if (itemId === 'gems') return guildSettings?.gemEmoji || this.gameConfig.items.gems.emoji;
-        if (itemId === 'robux') return guildSettings?.robuxEmoji || this.gameConfig.items.robux.emoji;
+        if (itemId === this.COINS_ID) return guildSettings?.coinEmoji || this.gameConfig.items.coins.emoji;
+        if (itemId === this.GEMS_ID) return guildSettings?.gemEmoji || this.gameConfig.items.gems.emoji;
+        if (itemId === this.ROBUX_ID) return guildSettings?.robuxEmoji || this.gameConfig.items.robux.emoji;
         return '❓';
     }
     addCoins(userId, guildId, amount, source = "unknown", weekendMultipliersArg) {
@@ -1635,13 +1645,13 @@ this.db.prepare(`
         if (Math.random() < 0.5) {
             // --- Item Reward ---
             const baseItemPool = [
-                { id: "common_loot_box", baseProb: 0.49 },
-                { id: "rare_loot_box", baseProb: 0.01 },
-                { id: "epic_loot_box", baseProb: 0.0005 },
-                { id: "legendary_loot_box", baseProb: 0.000001 },
-                { id: "coin_charm", baseProb: 0.00005 },
-                { id: "gem_charm", baseProb: 0.000005 },
-                { id: "xp_charm", baseProb: 0.00001 },
+                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.49 },
+                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.01 },
+                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0005 },
+                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.000001 },
+                { id: this.COIN_CHARM_ID, baseProb: 0.00005 },
+                { id: this.GEM_CHARM_ID, baseProb: 0.000005 },
+                { id: this.XP_CHARM_ID, baseProb: 0.00001 },
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
@@ -1649,13 +1659,13 @@ this.db.prepare(`
             
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
-                const isRare = item.id !== 'common_loot_box';
+                const isRare = item.id !== this.COMMON_LOOT_BOX_ID;
                 const finalProb = isRare ? (item.baseProb / totalBaseProb) * (1 + itemLuckBoost) : (item.baseProb / totalBaseProb);
                 if (isRare) totalRareProb += finalProb;
                 return { ...item, finalProb };
             });
 
-            const commonItem = dynamicPool.find(item => item.id === 'common_loot_box');
+            const commonItem = dynamicPool.find(item => item.id === this.COMMON_LOOT_BOX_ID);
             if (commonItem) {
                 commonItem.finalProb = Math.max(0, 1 - totalRareProb);
             }
@@ -1671,9 +1681,9 @@ this.db.prepare(`
             // --- Currency Reward ---
             const coinAmount = Math.floor(Math.random() * 201) + 50;
             const gemAmount = Math.floor(Math.random() * 5) + 1;
-            return Math.random() < 0.05 
-                ? { type: 'currency', data: { id: 'gems', amount: gemAmount } }
-                : { type: 'currency', data: { id: 'coins', amount: coinAmount } };
+            return Math.random() < 0.05
+                ? { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } }
+                : { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } };
         }
     }
 
@@ -1709,7 +1719,7 @@ this.db.prepare(`
         // Check for rare Robux reward on day 3
         const day3Reward = rewardsMap.get(3);
         if (day3Reward && user.dailyStreak >= 7 && Math.random() < 0.005) {
-            const robuxReward = { type: 'currency', data: { id: 'robux', amount: Math.floor(Math.random() * 5) + 1 }};
+            const robuxReward = { type: 'currency', data: { id: this.ROBUX_ID, amount: Math.floor(Math.random() * 5) + 1 }};
             rewardsMap.set(3, robuxReward);
         }
 
@@ -1757,14 +1767,14 @@ this.db.prepare(`
         const rewardToClaim = rewards[1];
         if (!rewardToClaim) return { success: false, message: "Could not find your daily reward." };
         
-        const isRobux = rewardToClaim.data.id === 'robux';
+        const isRobux = rewardToClaim.data.id === this.ROBUX_ID;
         const currencyBoost = 1 + (user.dailyStreak * 0.2);
         let claimedRewardMessage = "";
 
         if (rewardToClaim.type === 'currency') {
             const finalAmount = isRobux ? rewardToClaim.data.amount : Math.ceil(rewardToClaim.data.amount * currencyBoost);
-            if (rewardToClaim.data.id === 'coins') this.addCoins(userId, guildId, finalAmount, 'daily_reward');
-            else if (rewardToClaim.data.id === 'gems') this.addGems(userId, guildId, finalAmount, 'daily_reward');
+            if (rewardToClaim.data.id === this.COINS_ID) this.addCoins(userId, guildId, finalAmount, 'daily_reward');
+            else if (rewardToClaim.data.id === this.GEMS_ID) this.addGems(userId, guildId, finalAmount, 'daily_reward');
             else if (isRobux) this.addRobux(userId, guildId, finalAmount, 'daily_reward');
             claimedRewardMessage = `You claimed ${finalAmount.toLocaleString()} ${this.getItemEmojiById(rewardToClaim.data.id, guildId)}!`;
         } else if (rewardToClaim.type === 'item') {
