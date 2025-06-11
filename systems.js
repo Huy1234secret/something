@@ -490,7 +490,8 @@ class SystemsManager {
         for (let roll = 0; roll < numRolls; roll++) {
             const chosenItemFromPool = this._performWeightedRandomPick(dynamicItemPool, 'finalPickChance');
             if (chosenItemFromPool) {
-                const itemDetails = { ...chosenItemFromPool }; let quantity = 1;
+                const itemDetails = { ...chosenItemFromPool };
+                let quantity = 1;
                 if (itemDetails.type === this.itemTypes.CURRENCY) {
                     const minQty = parseInt(itemDetails.min, 10); const maxQty = parseInt(itemDetails.max, 10);
                     if (!isNaN(minQty) && !isNaN(maxQty) && maxQty >= minQty) quantity = Math.floor(Math.random() * (maxQty - minQty + 1)) + minQty;
@@ -504,6 +505,13 @@ class SystemsManager {
                         const minQ = parseInt(itemDetails.quantity[0], 10); const maxQ = parseInt(itemDetails.quantity[1], 10);
                         if (!isNaN(minQ) && !isNaN(maxQ) && maxQ >= minQ) quantity = Math.floor(Math.random() * (maxQ - minQ + 1)) + minQ;
                     } else if (typeof itemDetails.quantity === 'number') quantity = itemDetails.quantity;
+                }
+                const fallbackId = itemDetails.id || itemDetails.subType;
+                if (!itemDetails.name && fallbackId) {
+                    itemDetails.name = this._getItemMasterProperty(fallbackId, 'name') || fallbackId;
+                }
+                if (!itemDetails.emoji && fallbackId) {
+                    itemDetails.emoji = this._getItemMasterProperty(fallbackId, 'emoji') || '❓';
                 }
                 if (itemDetails.id === this.COSMIC_ROLE_TOKEN_ID) {
                     this.giveItem(userId, guildId, itemDetails.id, quantity, this.itemTypes.COSMIC_TOKEN, `loot_box_open_${boxId}`);
