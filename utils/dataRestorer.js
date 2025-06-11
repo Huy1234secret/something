@@ -39,6 +39,7 @@ async function restoreDataFromFiles() {
                     { name: 'userActiveCharms', key: 'userActiveCharms' },
                     { name: 'userDmSettings', key: 'userDmSettings' },
                     { name: 'userLootAlertSettings', key: 'userLootAlertSettings' },
+                    { name: 'userShopAlertSettings', key: 'userShopAlertSettings' },
                     { name: 'userGlobalLootAlertSettings', key: 'userGlobalLootAlertSettings' },
                     { name: 'robux_withdrawals', key: 'robuxWithdrawals' }
                 ];
