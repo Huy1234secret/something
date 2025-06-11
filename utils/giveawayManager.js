@@ -1387,11 +1387,11 @@ async function handleClaimPrize(interaction, activeGiveawaysMap) {
     const messageId = parts[1];
     const winnerId = parts[2];
 
-    // Defer the interaction immediately and ephemerally
+    // Defer the interaction. Ephemeral replies are not allowed in DMs
     if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: true }).catch(e => {
+        const deferOptions = interaction.guild ? { ephemeral: true } : {};
+        await interaction.deferReply(deferOptions).catch(e => {
             console.error('[handleClaimPrize] Failed to deferReply:', e);
-            return;
         });
     }
 
