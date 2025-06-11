@@ -394,6 +394,11 @@ function buildShopCategoryEmbed(userId, guildId, systemsManager, category) {
     let items = Object.values(systemsManager.gameConfig.items).filter(it => it.type === category);
     if (category === 'discount') {
         items = SHOP_DISCOUNT_IDS.map(id => ({ id, name: id.toUpperCase(), emoji: '💸' }));
+    } else if (category === 'special_role_item') {
+        const cosmicToken = systemsManager.gameConfig.items[systemsManager.COSMIC_ROLE_TOKEN_ID];
+        if (cosmicToken) items.push(cosmicToken);
+        const robuxItem = systemsManager.gameConfig.items['robux'];
+        if (robuxItem) items.push(robuxItem);
     }
     const embed = new EmbedBuilder()
         .setColor(0x1ABC9C)
