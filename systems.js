@@ -490,7 +490,8 @@ class SystemsManager {
         for (let roll = 0; roll < numRolls; roll++) {
             const chosenItemFromPool = this._performWeightedRandomPick(dynamicItemPool, 'finalPickChance');
             if (chosenItemFromPool) {
-                const itemDetails = { ...chosenItemFromPool }; let quantity = 1;
+                const itemDetails = { ...chosenItemFromPool };
+                let quantity = 1;
                 if (itemDetails.type === this.itemTypes.CURRENCY) {
                     const minQty = parseInt(itemDetails.min, 10); const maxQty = parseInt(itemDetails.max, 10);
                     if (!isNaN(minQty) && !isNaN(maxQty) && maxQty >= minQty) quantity = Math.floor(Math.random() * (maxQty - minQty + 1)) + minQty;
@@ -504,6 +505,13 @@ class SystemsManager {
                         const minQ = parseInt(itemDetails.quantity[0], 10); const maxQ = parseInt(itemDetails.quantity[1], 10);
                         if (!isNaN(minQ) && !isNaN(maxQ) && maxQ >= minQ) quantity = Math.floor(Math.random() * (maxQ - minQ + 1)) + minQ;
                     } else if (typeof itemDetails.quantity === 'number') quantity = itemDetails.quantity;
+                }
+                const fallbackId = itemDetails.id || itemDetails.subType;
+                if (!itemDetails.name && fallbackId) {
+                    itemDetails.name = this._getItemMasterProperty(fallbackId, 'name') || fallbackId;
+                }
+                if (!itemDetails.emoji && fallbackId) {
+                    itemDetails.emoji = this._getItemMasterProperty(fallbackId, 'emoji') || '❓';
                 }
                 if (itemDetails.id === this.COSMIC_ROLE_TOKEN_ID) {
                     this.giveItem(userId, guildId, itemDetails.id, quantity, this.itemTypes.COSMIC_TOKEN, `loot_box_open_${boxId}`);
@@ -1547,10 +1555,31 @@ this.db.prepare(`
             const finalDisplayProb = itemSpec.finalDisplayProb;
             if (finalDisplayProb < 0.000001 && itemSpec.id !== this.COSMIC_ROLE_TOKEN_ID) continue;
             if (itemSpec.id === this.COSMIC_ROLE_TOKEN_ID && !userHasDiscoveredCosmic && finalDisplayProb < 0.000001) continue;
-            let itemNameDisplay = itemSpec.name; let itemEmojiDisplay = itemSpec.emoji; let quantityText = "";
-            if (itemSpec.type === this.itemTypes.CURRENCY) quantityText = ` (${itemSpec.min}-${itemSpec.max})`;
-            else if (itemSpec.quantity) { if (Array.isArray(itemSpec.quantity) && itemSpec.quantity.length === 2) quantityText = ` (x${itemSpec.quantity[0]}-${itemSpec.quantity[1]})`; else quantityText = ` (x${itemSpec.quantity})`; }
-            contents.push( `${itemEmojiDisplay} **${itemNameDisplay}**${quantityText}\n` + `  └ Chance: ${formatChanceDisplay(finalDisplayProb, "", true)}` );
+
+            let itemNameDisplay = itemSpec.name;
+            let itemEmojiDisplay = itemSpec.emoji;
+            const fallbackId = itemSpec.id || itemSpec.subType;
+            if (!itemNameDisplay && fallbackId) {
+                itemNameDisplay = this._getItemMasterProperty(fallbackId, 'name') || fallbackId;
+            }
+            if (!itemEmojiDisplay && fallbackId) {
+                itemEmojiDisplay = this._getItemMasterProperty(fallbackId, 'emoji') || '❓';
+            }
+
+            let quantityText = "";
+            if (itemSpec.type === this.itemTypes.CURRENCY) {
+                quantityText = ` (${itemSpec.min}-${itemSpec.max})`;
+            } else if (itemSpec.quantity) {
+                if (Array.isArray(itemSpec.quantity) && itemSpec.quantity.length === 2)
+                    quantityText = ` (x${itemSpec.quantity[0]}-${itemSpec.quantity[1]})`;
+                else
+                    quantityText = ` (x${itemSpec.quantity})`;
+            }
+
+            contents.push(
+                `${itemEmojiDisplay} **${itemNameDisplay}**${quantityText}\n` +
+                `  └ Chance: ${formatChanceDisplay(finalDisplayProb, "", true)}`
+            );
         }
         if (contents.length === 0) return ["This box appears empty, or its contents are a well-kept secret!"];
         return contents;
