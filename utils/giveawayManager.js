@@ -164,7 +164,17 @@ async function sendSetupChannelMessage(interaction, config) {
         if (config.setupMessageId) {
             const message = await channel.messages.fetch(config.setupMessageId).catch(() => null);
             if (message && message.editable) { // Ensure message exists and is editable
-                return await message.edit({ embeds: [embed], components: components });
+                try {
+                    return await message.edit({ embeds: [embed], components: components });
+                } catch (err) {
+                    if (err.code === 10008) { // Unknown Message - probably deleted
+                        console.warn(`Setup message ${config.setupMessageId} was not found when editing. Sending new message.`);
+                        const newMessage = await channel.send({ embeds: [embed], components: components });
+                        config.setupMessageId = newMessage.id;
+                        return newMessage;
+                    }
+                    throw err;
+                }
             } else {
                 console.warn(`Setup message ${config.setupMessageId} not found or not editable, sending new message.`);
                 const newMessage = await channel.send({ embeds: [embed], components: components });
