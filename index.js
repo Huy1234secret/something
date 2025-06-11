@@ -3513,7 +3513,9 @@ client.on('interactionCreate', async interaction => {
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const confirmation = interaction.fields.getTextInputValue('shop_restock_confirmation_input');
-                    if (confirmation !== "CONFIRM") return sendInteractionError(interaction, "Restock not confirmed.", true, deferredThisInteraction);
+                    if (confirmation.trim().toLowerCase() !== "confirm") {
+                        return sendInteractionError(interaction, "Restock not confirmed.", true, deferredThisInteraction);
+                    }
 
                     const instantRestockGemCost = client.levelSystem.gameConfig.globalSettings.INSTANT_RESTOCK_GEM_COST || 5;
                     const userBalance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
