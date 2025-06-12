@@ -78,7 +78,7 @@ const XP_PER_MESSAGE_BASE = parseInt(process.env.XP_PER_MESSAGE_BASE) || 1;
 const XP_COOLDOWN_SECONDS = parseInt(process.env.XP_COOLDOWN_SECONDS) || 1;
 
 const MIN_COINS_PER_MESSAGE = parseInt(process.env.MIN_COINS_PER_MESSAGE) || 1;
-const MAX_COINS_PER_MESSAGE = parseInt(process.env.MAX_COINS_PER_MESSAGE) || 3;
+const MAX_COINS_PER_MESSAGE = parseInt(process.env.MAX_COINS_PER_MESSAGE) || 10;
 
 const DEFAULT_REPLY_DELETE_TIMEOUT = 60000;
 
@@ -1774,15 +1774,23 @@ client.on('messageCreate', async message => {
             const configuredXpPerMessage = client.levelSystem.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
             const xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, configuredXpPerMessage, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
             if (xpResult.leveledUp) {
+                const gemReward = Math.pow(xpResult.newLevel, 2);
+                client.levelSystem.addGems(message.author.id, message.guild.id, gemReward, "level_up");
+
+                const coinMultiplierForEmbed = Math.pow(2, Math.floor(xpResult.newLevel / 5));
+
                 const botMember = message.guild.members.me; // Get the bot's member object
-                 if (!botMember) { // Should always exist, but good check
+                if (!botMember) { // Should always exist, but good check
                     console.error(`[LevelUp] Bot member not found in guild ${message.guild.name}.`); return;
                 }
                 const levelUpImageURL = getImageUrlForLevel(xpResult.newLevel) || message.author.displayAvatarURL({ dynamic: true });
+                const gemEmoji = client.levelSystem.gemEmoji || '💎';
                 const levelUpEmbed = new EmbedBuilder()
                     .setColor(0x00FF00).setTitle('<:levelup:1373261581126860910> Level Up! 🎉')
                     .setDescription(`<a:sparkly:1373275364230697061> Congratulations ${message.author}! You've advanced to **Level ${xpResult.newLevel}**!`)
-                    .setThumbnail(levelUpImageURL).setTimestamp()
+                    .setThumbnail(levelUpImageURL)
+                    .addFields({ name: 'Rewards', value: `+${gemReward} ${gemEmoji}\nChat coin multiplier: x${coinMultiplierForEmbed}` })
+                    .setTimestamp()
                     .setFooter({ text: `Leveled up in: ${message.guild.name}`, iconURL: message.guild.iconURL({ dynamic: true }) });
 
                 const guildLevelUpChannelId = client.levelSystem.getGuildSettings(message.guild.id).levelUpChannelId || LEVEL_UP_CHANNEL_ID;
@@ -1805,7 +1813,9 @@ client.on('messageCreate', async message => {
         if (configuredMinCoins > 0 && configuredMaxCoins >= configuredMinCoins) {
             const minCoins = Math.min(configuredMinCoins, configuredMaxCoins);
             const maxCoins = Math.max(configuredMinCoins, configuredMaxCoins);
-            const coinsEarned = Math.floor(Math.random() * (maxCoins - minCoins + 1)) + minCoins;
+            const coinsEarnedBase = Math.floor(Math.random() * (maxCoins - minCoins + 1)) + minCoins;
+            const coinMultiplier = Math.pow(2, Math.floor(xpResult.newLevel / 5));
+            const coinsEarned = coinsEarnedBase * coinMultiplier;
             if (coinsEarned > 0) client.levelSystem.addCoins(message.author.id, message.guild.id, coinsEarned, "chat_message", WEEKEND_MULTIPLIERS); // Pass weekend multipliers
         }
     }

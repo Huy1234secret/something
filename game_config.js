@@ -15,7 +15,7 @@ const config = {
         ALERT_WORTHY_DISCOUNT_PERCENT: 0.25,   // DM users if an item is ≥ 25 % off
         MAX_SHOP_SLOTS: 10,
 
-        BASE_COINS_PER_MESSAGE: [1, 3],
+        BASE_COINS_PER_MESSAGE: [1, 10],
         BASE_XP_PER_MESSAGE: 15,
         XP_COOLDOWN_SECONDS: 60,
         VOICE_XP_PER_INTERVAL: 5,
