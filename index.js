@@ -3349,11 +3349,11 @@ client.on('interactionCreate', async interaction => {
                                             opResult += ` - ❌ FAILED: Amount for item "${itemConfig.name || itemConfig.id}" must be a positive number.`;
                                         } else if (op.action === 'add') {
                                             // Use itemConfig.id to ensure we're using the canonical ID from the resolved config
-                                            const giveResult = client.levelSystem.giveItem(session.targetUserId, session.guild.id, itemConfig.id, op.amount, itemTypeForGive, 'admin_add_user_panel_give');
+                                            const giveResult = client.levelSystem.giveItem(session.targetUserId, session.guildId, itemConfig.id, op.amount, itemTypeForGive, 'admin_add_user_panel_give');
                                             opResult += giveResult.success ? ` - ✅ SUCCESS: ${giveResult.message}` : ` - ❌ FAILED: ${giveResult.message}`;
                                         } else if (op.action === 'remove') {
                                             // Use itemConfig.id here as well
-                                            const takeResult = client.levelSystem.takeItem(session.targetUserId, session.guild.id, itemConfig.id, op.amount);
+                                            const takeResult = client.levelSystem.takeItem(session.targetUserId, session.guildId, itemConfig.id, op.amount);
                                             opResult += takeResult ? ` - ✅ SUCCESS: Removed ${op.amount}x ${itemConfig.name || itemConfig.id}.` : ` - ❌ FAILED: Could not remove ${op.amount}x ${itemConfig.name || itemConfig.id} (not enough, item not found, or other issue).`;
                                         }
                                     }}
