@@ -1769,10 +1769,11 @@ client.on('messageCreate', async message => {
     }
 
     if (gainedXpThisMessage) {
+        let xpResult;
         try {
             // Use configured XP per message, fallback to global const
             const configuredXpPerMessage = client.levelSystem.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
-            const xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, configuredXpPerMessage, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
+            xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, configuredXpPerMessage, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
             if (xpResult.leveledUp) {
                 const gemReward = Math.pow(xpResult.newLevel, 2);
                 client.levelSystem.addGems(message.author.id, message.guild.id, gemReward, "level_up");
@@ -1814,7 +1815,8 @@ client.on('messageCreate', async message => {
             const minCoins = Math.min(configuredMinCoins, configuredMaxCoins);
             const maxCoins = Math.max(configuredMinCoins, configuredMaxCoins);
             const coinsEarnedBase = Math.floor(Math.random() * (maxCoins - minCoins + 1)) + minCoins;
-            const coinMultiplier = Math.pow(2, Math.floor(xpResult.newLevel / 5));
+            const levelForCoins = xpResult ? xpResult.newLevel : client.levelSystem.getUser(message.author.id, message.guild.id).level;
+            const coinMultiplier = Math.pow(2, Math.floor(levelForCoins / 5));
             const coinsEarned = coinsEarnedBase * coinMultiplier;
             if (coinsEarned > 0) client.levelSystem.addCoins(message.author.id, message.guild.id, coinsEarned, "chat_message", WEEKEND_MULTIPLIERS); // Pass weekend multipliers
         }
