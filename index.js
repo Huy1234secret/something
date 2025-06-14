@@ -111,6 +111,8 @@ const VERY_RARE_ITEM_ALERT_CHANNEL_ID = process.env.VERY_RARE_ITEM_ALERT_CHANNEL
 
 // New Constant for Robux Withdrawal Log Channel
 const ROBUX_WITHDRAWAL_LOG_CHANNEL_ID = '1379495267031846952'; // YOUR_CHANNEL_ID_HERE
+// Channel to log general bot errors and issues
+const BOT_LOG_CHANNEL_ID = process.env.BOT_LOG_CHANNEL_ID || '1383481711651721307';
 
 const MAX_UNBOX_AMOUNTS = gameConfig.globalSettings?.MAX_UNBOX_AMOUNTS || {
     [ITEM_IDS.COMMON_LOOT_BOX]: 300,
@@ -894,6 +896,18 @@ async function safeEditReply(interaction, options, deleteAfter = false, timeout 
     }
 }
 
+async function logToBotLogChannel(content) {
+    if (!BOT_LOG_CHANNEL_ID) return;
+    try {
+        const logChannel = await client.channels.fetch(BOT_LOG_CHANNEL_ID).catch(() => null);
+        if (logChannel && logChannel.isTextBased()) {
+            await logChannel.send({ content }).catch(e => console.error(`[BotLog] Failed to send message: ${e.message}`));
+        }
+    } catch (err) {
+        console.error(`[BotLog] Error while logging to channel: ${err.message}`);
+    }
+}
+
 async function sendInteractionError(interaction, message = 'An error occurred!', ephemeral = true, wasDeferredByThisLogic = false) {
     const options = { content: `❌ ${message}`, embeds: [], components: [], ephemeral: ephemeral };
     try {
@@ -916,6 +930,9 @@ async function sendInteractionError(interaction, message = 'An error occurred!',
     } catch (error) {
         console.error(`[sendInteractionError] General error during error reporting for ${interaction.id}: ${error.message}`);
     }
+    // Log this error to the bot log channel
+    const context = interaction.commandName ? `Command: ${interaction.commandName}` : interaction.customId ? `Interaction: ${interaction.customId}` : 'Unknown Interaction';
+    logToBotLogChannel(`⚠️ ${context} - ${interaction.user.tag}: ${message}`).catch(()=>{});
 }
 
 async function setBankMessageTimeout(interaction, messageId, bankMessageKey) {
@@ -3930,6 +3947,7 @@ client.on('interactionCreate', async interaction => {
         }
     } catch (mainInteractionError) {
         console.error(`[InteractionCreate Critical Error] ID: ${interaction?.id}, User: ${interaction?.user?.tag}, Cmd/ID: ${interaction?.commandName || interaction?.customId}`, mainInteractionError);
+        logToBotLogChannel(`Critical interaction error for ${interaction?.user?.tag}: ${mainInteractionError.message}`).catch(()=>{});
         if (interaction.isRepliable()) {
             const errorOptions = { content: "Oops! Something went terribly wrong. Please try again later.", embeds:[], components:[], ephemeral: true };
             if (!interaction.replied && !interaction.deferred) { try { await interaction.reply(errorOptions); } catch (e) { /* ignore */ } }
@@ -4088,4 +4106,14 @@ client.login(process.env.DISCORD_TOKEN).catch(error => {
     console.error("Ensure your DISCORD_TOKEN is correctly set in the .env file and is valid.");
     console.error("Also, check if your bot has all necessary Privileged Gateway Intents enabled in the Discord Developer Portal (Presence, Server Members, Message Content).");
     process.exit(1);
+});
+
+process.on('unhandledRejection', async (reason) => {
+    console.error('Unhandled Rejection:', reason);
+    await logToBotLogChannel(`Unhandled Rejection: ${reason?.message || reason}`).catch(()=>{});
+});
+
+process.on('uncaughtException', async (err) => {
+    console.error('Uncaught Exception:', err);
+    await logToBotLogChannel(`Uncaught Exception: ${err.message}`).catch(()=>{});
 });
