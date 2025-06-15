@@ -173,6 +173,31 @@ function isDateInWeekendRange(date = new Date()) {
     return day === 6 || day === 0; // Saturday or Sunday UTC
 }
 
+function getCurrentWeekendEndDate(refDate = new Date()) {
+    const range = client?.levelSystem?.gameConfig?.globalSettings?.WEEKEND_DATE_RANGE;
+    let startDay = 6, startHour = 0, endDay = 1, endHour = 0;
+    if (range) {
+        ({ startDay = 6, startHour = 0, endDay = 1, endHour = 0 } = range);
+    }
+    startDay = (startDay + Math.floor(startHour / 24)) % 7;
+    startHour = startHour % 24;
+    endDay = (endDay + Math.floor(endHour / 24)) % 7;
+    endHour = endHour % 24;
+
+    const start = new Date(refDate);
+    const dayDiff = (refDate.getUTCDay() - startDay + 7) % 7;
+    start.setUTCDate(refDate.getUTCDate() - dayDiff);
+    start.setUTCHours(startHour, 0, 0, 0);
+    if (start > refDate) start.setUTCDate(start.getUTCDate() - 7);
+
+    const end = new Date(start);
+    const addDays = (endDay - startDay + 7) % 7 || 7;
+    end.setUTCDate(start.getUTCDate() + addDays);
+    end.setUTCHours(endHour, 0, 0, 0);
+    if (end <= refDate) end.setUTCDate(end.getUTCDate() + 7);
+    return end;
+}
+
 const dbFilePath = path.resolve(__dirname, 'database.db');
 const restoreCandidateDbPath = path.resolve(__dirname, 'database_to_restore.db');
 
@@ -517,6 +542,10 @@ function buildWeekendAnnouncementEmbed(client, enabled) {
         embed.setDescription(
             `Coins ×${coinMult}\nGems ×${gemMult}\nXP ×${xpMult}\nEnjoy until Monday 00:00 UTC+7!`
         );
+        const endDate = getCurrentWeekendEndDate();
+        if (endDate) {
+            embed.addFields({ name: 'Time Remaining', value: `<t:${Math.floor(endDate.getTime()/1000)}:R>` });
+        }
     } else {
         embed.setDescription('Weekend boost has concluded.');
     }
@@ -850,7 +879,22 @@ async function scheduleWeekendBoosts(client) {
                 const ch = await client.channels.fetch(WEEKEND_ANNOUNCEMENT_CHANNEL_ID).catch(() => null);
                 if (ch?.isTextBased?.()) {
                     const embed = buildWeekendAnnouncementEmbed(client, isCurrentlyWeekend);
-                    ch.send({ embeds : [embed] }).catch(console.error);
+                    if (isCurrentlyWeekend) {
+                        let existing = null;
+                        if (settings.weekendAlertMessageId) {
+                            existing = await ch.messages.fetch(settings.weekendAlertMessageId).catch(() => null);
+                            if (!existing) client.levelSystem.setGuildSettings(guildId, { weekendAlertMessageId: null });
+                        }
+                        if (!existing) {
+                            const msg = await ch.send({ embeds: [embed] }).catch(console.error);
+                            if (msg) client.levelSystem.setGuildSettings(guildId, { weekendAlertMessageId: msg.id });
+                        }
+                    } else {
+                        await ch.send({ embeds: [embed] }).catch(console.error);
+                        if (settings.weekendAlertMessageId) {
+                            client.levelSystem.setGuildSettings(guildId, { weekendAlertMessageId: null });
+                        }
+                    }
                 }
             }
         }
