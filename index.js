@@ -150,6 +150,11 @@ let WEEKEND_BOOST_ACTIVE = false;
 let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
+function isDateInWeekendRange(date = new Date()) {
+    const day = date.getUTCDay();
+    return day === 6 || day === 0; // Saturday or Sunday UTC
+}
+
 const dbFilePath = path.resolve(__dirname, 'database.db');
 const restoreCandidateDbPath = path.resolve(__dirname, 'database_to_restore.db');
 
@@ -479,6 +484,29 @@ function getRobuxWithdrawalActionComponents(withdrawalId, currentStatus = 'PENDI
 }
 // --- End Helper Functions for /withdraw-robux ---
 
+function buildWeekendAnnouncementEmbed(client, enabled) {
+    const g = client.levelSystem?.gameConfig?.globalSettings || {};
+    const coinMult = g.WEEKEND_COIN_MULTIPLIER || WEEKEND_COIN_MULTIPLIER;
+    const gemMult  = g.WEEKEND_GEM_MULTIPLIER  || WEEKEND_GEM_MULTIPLIER;
+    const xpMult   = g.WEEKEND_XP_MULTIPLIER   || WEEKEND_XP_MULTIPLIER;
+
+    const embed = new EmbedBuilder()
+        .setColor(enabled ? 0x2ECC71 : 0xE74C3C)
+        .setTitle(enabled ? '🎉 Weekend Boost Activated!' : 'Weekend Boost Ended')
+        .setTimestamp();
+
+    if (enabled) {
+        embed.setDescription(
+            `Coins ×${coinMult}\nGems ×${gemMult}\nXP ×${xpMult}\nEnjoy until Monday 00:00 UTC!`
+        );
+    } else {
+        embed.setDescription('Weekend boost has concluded.');
+    }
+
+    return embed;
+}
+
+
 
 async function refreshShopDisplayForGuild(guildIdToRefresh, clientInstance) {
     if (!clientInstance.levelSystem || !clientInstance.levelSystem.shopManager) {
@@ -702,8 +730,7 @@ async function scheduleWeekendBoosts(client) {
 
             Any other moment ⇒ boost OFF.
         */
-        const isCurrentlyWeekend = (dayOfWeek === 6)        // Saturday
-                                || (dayOfWeek === 0);       // Sunday
+        const isCurrentlyWeekend = isDateInWeekendRange(current);
 
         WEEKEND_BOOST_ACTIVE = isCurrentlyWeekend;
 
