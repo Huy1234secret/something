@@ -55,13 +55,14 @@ const config = {
         WEEKEND_GEM_MULTIPLIER:  2,
         WEEKEND_XP_MULTIPLIER:   2,
         WEEKEND_SHOP_STOCK_MULTIPLIER: 2,
-        // Weekend starts Friday 24:00 (i.e. Saturday 00:00 UTC)
-        // and ends Sunday 24:00 (i.e. Monday 00:00 UTC)
+        // Weekend range is evaluated in UTC.
+        // For UTC+7 this means Friday 17:00 UTC until Sunday 17:00 UTC
+        // (local Saturday 00:00 to Monday 00:00).
         WEEKEND_DATE_RANGE: {
             startDay: 5,  // Friday
-            startHour: 24,
+            startHour: 17,
             endDay: 0,    // Sunday
-            endHour: 24
+            endHour: 17
         },
 
         WEEKEND_SHOP_DISCOUNT_TIERS: [
