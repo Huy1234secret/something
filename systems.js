@@ -214,7 +214,8 @@ class SystemsManager {
                 gemEmoji TEXT DEFAULT '${currentDefaultGemEmoji}',
                 robuxEmoji TEXT DEFAULT '${currentDefaultRobuxEmoji}',
                 lastWeekendBoostStartAnnounceTimestamp INTEGER DEFAULT 0,
-                lastWeekendBoostEndAnnounceTimestamp INTEGER DEFAULT 0
+                lastWeekendBoostEndAnnounceTimestamp INTEGER DEFAULT 0,
+                weekendAlertMessageId TEXT
             );`,
             `CREATE TABLE IF NOT EXISTS users (
                 userId TEXT NOT NULL, guildId TEXT NOT NULL, xp INTEGER DEFAULT 0, level INTEGER DEFAULT 0,
@@ -321,6 +322,9 @@ class SystemsManager {
         }
         if (!guildSettingsInfo.some(col => col.name === 'robuxEmoji')) {
             this.db.exec(`ALTER TABLE guildSettings ADD COLUMN robuxEmoji TEXT DEFAULT '${currentDefaultRobuxEmoji.replace(/'/g, "''")}';`);
+        }
+        if (!guildSettingsInfo.some(col => col.name === 'weekendAlertMessageId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN weekendAlertMessageId TEXT;');
         }
 
         if (!usersInfo.some(col => col.name === 'robux')) {
@@ -614,7 +618,8 @@ this.db.prepare(`
                 logChannelId: null, welcomeChannelId: null, leaveChannelId: null, levelUpChannelId: null,
                 lootDropAlertChannelId: null, leaderboardChannelId: null, leaderboardMessageId: null,
                 leaderboardLastUpdated: null, lastWeekendToggleTimestamp: null,
-                lastWeekendBoostStartAnnounceTimestamp: 0, lastWeekendBoostEndAnnounceTimestamp: 0
+                lastWeekendBoostStartAnnounceTimestamp: 0, lastWeekendBoostEndAnnounceTimestamp: 0,
+                weekendAlertMessageId: null
             };
         }
         let settings = this.db.prepare('SELECT * FROM guildSettings WHERE guildId = ?').get(guildId);
@@ -626,8 +631,8 @@ this.db.prepare(`
 
         if (!settings) {
             this.db.prepare(
-                `INSERT INTO guildSettings (guildId, coinEmoji, gemEmoji, robuxEmoji, weekendBoostActive, shopRestockDmEnabled, lastWeekendBoostStartAnnounceTimestamp, lastWeekendBoostEndAnnounceTimestamp)
-                 VALUES (?, ?, ?, ?, 0, ?, 0, 0)`
+                `INSERT INTO guildSettings (guildId, coinEmoji, gemEmoji, robuxEmoji, weekendBoostActive, shopRestockDmEnabled, lastWeekendBoostStartAnnounceTimestamp, lastWeekendBoostEndAnnounceTimestamp, weekendAlertMessageId)
+                 VALUES (?, ?, ?, ?, 0, ?, 0, 0, NULL)`
             ).run(guildId, defaultCoin, defaultGem, defaultRobux, DEFAULT_SHOP_RESTOCK_DM_ENABLED ? 1: 0);
             settings = this.db.prepare('SELECT * FROM guildSettings WHERE guildId = ?').get(guildId);
         }
@@ -641,6 +646,7 @@ this.db.prepare(`
         
         settings.lastWeekendBoostStartAnnounceTimestamp = settings.lastWeekendBoostStartAnnounceTimestamp || 0;
         settings.lastWeekendBoostEndAnnounceTimestamp = settings.lastWeekendBoostEndAnnounceTimestamp || 0;
+        settings.weekendAlertMessageId = settings.weekendAlertMessageId || null;
         return settings;
     }
 
