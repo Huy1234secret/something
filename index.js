@@ -1771,7 +1771,8 @@ await scheduleWeekendBoosts(client);   // ← moved up (it runs an immediate che
     try {
         const now = new Date();
         const active = isDateInWeekendRange(now);
-        const msg = `[Startup] Weekend range check: ${active ? 'IN' : 'OUT'} of weekend at ${now.toUTCString()}`;
+        const tzDate = new Date(now.getTime() + 7 * 60 * 60 * 1000); // UTC+7 offset
+        const msg = `[Startup] Weekend range check: ${active ? 'IN' : 'OUT'} of weekend at ${tzDate.toUTCString().replace('GMT', 'UTC+7')}`;
         console.log(msg);
         await logToBotLogChannel(msg).catch(()=>{});
     } catch (err) {
