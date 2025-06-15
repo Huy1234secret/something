@@ -55,6 +55,14 @@ const config = {
         WEEKEND_GEM_MULTIPLIER:  2,
         WEEKEND_XP_MULTIPLIER:   2,
         WEEKEND_SHOP_STOCK_MULTIPLIER: 2,
+        // Weekend starts Friday 24:00 (i.e. Saturday 00:00 UTC)
+        // and ends Sunday 24:00 (i.e. Monday 00:00 UTC)
+        WEEKEND_DATE_RANGE: {
+            startDay: 5,  // Friday
+            startHour: 24,
+            endDay: 0,    // Sunday
+            endHour: 24
+        },
 
         WEEKEND_SHOP_DISCOUNT_TIERS: [
             { discount: 1.00, probability: 0.001, label: "🎉 FREE! (Weekend Deal)" },
