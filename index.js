@@ -515,7 +515,7 @@ function buildWeekendAnnouncementEmbed(client, enabled) {
 
     if (enabled) {
         embed.setDescription(
-            `Coins ×${coinMult}\nGems ×${gemMult}\nXP ×${xpMult}\nEnjoy until Monday 00:00 UTC!`
+            `Coins ×${coinMult}\nGems ×${gemMult}\nXP ×${xpMult}\nEnjoy until Monday 00:00 UTC+7!`
         );
     } else {
         embed.setDescription('Weekend boost has concluded.');
