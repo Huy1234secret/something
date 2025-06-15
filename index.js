@@ -151,6 +151,24 @@ let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDis
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
 function isDateInWeekendRange(date = new Date()) {
+    const range = client?.levelSystem?.gameConfig?.globalSettings?.WEEKEND_DATE_RANGE;
+    if (range) {
+        let { startDay = 6, startHour = 0, endDay = 1, endHour = 0 } = range;
+        startDay = (startDay + Math.floor(startHour / 24)) % 7;
+        startHour = startHour % 24;
+        endDay = (endDay + Math.floor(endHour / 24)) % 7;
+        endHour = endHour % 24;
+
+        const minutesOfWeek = (d) => d.getUTCDay() * 24 * 60 + d.getUTCHours() * 60 + d.getUTCMinutes();
+        let currentMin = minutesOfWeek(date);
+        let startMin = startDay * 24 * 60 + startHour * 60;
+        let endMin = endDay * 24 * 60 + endHour * 60;
+
+        if (endMin <= startMin) endMin += 7 * 24 * 60;
+        if (currentMin < startMin) currentMin += 7 * 24 * 60;
+
+        return currentMin >= startMin && currentMin < endMin;
+    }
     const day = date.getUTCDay();
     return day === 6 || day === 0; // Saturday or Sunday UTC
 }
@@ -1748,6 +1766,17 @@ scheduleDailyLeaderboardUpdate(client);
 
 // ✅ Make sure weekend state is correct *first*
 await scheduleWeekendBoosts(client);   // ← moved up (it runs an immediate check)
+
+    // Log weekend status on each restart
+    try {
+        const now = new Date();
+        const active = isDateInWeekendRange(now);
+        const msg = `[Startup] Weekend range check: ${active ? 'IN' : 'OUT'} of weekend at ${now.toUTCString()}`;
+        console.log(msg);
+        await logToBotLogChannel(msg).catch(()=>{});
+    } catch (err) {
+        console.error('[Startup] Failed to report weekend status:', err);
+    }
 
 /* now it’s safe to restock the shop */
 if (client.levelSystem && client.levelSystem.shopManager) {
