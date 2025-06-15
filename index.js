@@ -1879,7 +1879,6 @@ client.on('messageCreate', async message => {
                         const lootEmbed = new EmbedBuilder()
                             .setColor(embedColor).setTitle(alertTitle).setDescription(eventDescription)
                             .setThumbnail(itemConfig.imageUrl || null) // Always use item's direct image for thumbnail
-                            .setImage(alertImage) // Set the potentially custom image
                             .addFields(
                                 { name: '🔍 Discovered By', value: `${message.author.tag}`, inline: true },
                                 { name: '💎 Rarity Tier', value: `**${rarityString}**`, inline: true },
@@ -3973,7 +3972,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
                             const lootEmbed = new EmbedBuilder()
                                 .setColor(embedColor).setTitle(alertTitle).setDescription(eventDescription)
-                                .setThumbnail(itemConfig.imageUrl || null).setImage(alertImage)
+                                .setThumbnail(itemConfig.imageUrl || null)
                                 .addFields(
                                     { name: '🎤 Recipient', value: `${memberForVoice.user.tag}`, inline: true },
                                     { name: '💎 Rarity Tier', value: `**${rarityString}**`, inline: true }
