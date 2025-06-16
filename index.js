@@ -3899,21 +3899,54 @@ client.on('interactionCreate', async interaction => {
                     emoji: item.emoji || undefined
                 }));
                 const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId('item_info_specific_select')
+                    .setCustomId(`item_info_specific_select_${category}`)
                     .setPlaceholder(`Select a ${category.slice(0,-1)} to view details`)
                     .addOptions(itemOptions);
                 await safeEditReply(interaction, { components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))], ephemeral: false }, true);
                 return;
             }
-            if (customId === 'item_info_specific_select') {
+            if (customId.startsWith('item_info_specific_select')) {
                 if (!interaction.guild) return sendInteractionError(interaction, "Item info interactions require a server context.", true);
                 if (!interaction.isStringSelectMenu()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(e => console.warn("Item info specific select deferUpdate failed", e)); }
+                const category = customId.replace('item_info_specific_select_', '');
                 const selectedItemId = interaction.values[0];
                 try {
                     const itemEmbed = await client.levelSystem.buildItemInfoEmbed(selectedItemId, null, interaction.user.id, interaction.guild.id, client);
-                    await safeEditReply(interaction, { embeds: [itemEmbed], components: [], content: null, ephemeral: false }, true);
+                    const backRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`item_info_back_${category}`).setLabel('Back').setStyle(ButtonStyle.Secondary)
+                    );
+                    await safeEditReply(interaction, { embeds: [itemEmbed], components: [backRow], content: null, ephemeral: false }, true);
                 } catch (itemInfoDisplayError) { console.error('[ItemInfo Specific Display Error]', itemInfoDisplayError); await sendInteractionError(interaction, "Could not display item details.", false, true); } // Pass deferred
+                return;
+            }
+            if (customId.startsWith('item_info_back_')) {
+                if (!interaction.guild) return sendInteractionError(interaction, "Item info interactions require a server context.", true);
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
+                const category = customId.replace('item_info_back_', '');
+                let itemsForCategory = [];
+                if (category === 'lootboxes') itemsForCategory = client.levelSystem.getAllLootBoxDefinitionsForInfo();
+                else if (category === 'charms') itemsForCategory = client.levelSystem.getAllCharmDefinitionsForInfo();
+                else if (category === 'others') itemsForCategory = client.levelSystem.getAllOtherItemsForInfo();
+                if (itemsForCategory.length === 0) {
+                    return safeEditReply(interaction, { content: 'No items found in this category.', components: [], ephemeral: false }, true);
+                }
+                const itemOptions = itemsForCategory.slice(0, 25).map(item => ({
+                    label: item.name,
+                    description: item.description || item.name,
+                    value: item.id,
+                    emoji: item.emoji || undefined
+                }));
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`item_info_specific_select_${category}`)
+                    .setPlaceholder(`Select a ${category.slice(0,-1)} to view details`)
+                    .addOptions(itemOptions);
+                const components = [
+                    new ActionRowBuilder().addComponents(selectMenu),
+                    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))
+                ];
+                await safeEditReply(interaction, { components, embeds: [], content: 'Select an item:', ephemeral: false }, true);
                 return;
             }
             if (customId.startsWith('eb_')) {
