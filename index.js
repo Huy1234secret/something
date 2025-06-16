@@ -3893,8 +3893,8 @@ client.on('interactionCreate', async interaction => {
                     return safeEditReply(interaction, { content: 'No items found in this category.', components: [], ephemeral: false }, true);
                 }
                 const itemOptions = itemsForCategory.slice(0, 25).map(item => ({
-                    label: item.emoji || item.name,
-                    description: item.name,
+                    label: item.name,
+                    description: item.description || item.name,
                     value: item.id,
                     emoji: item.emoji || undefined
                 }));
@@ -3902,7 +3902,7 @@ client.on('interactionCreate', async interaction => {
                     .setCustomId('item_info_specific_select')
                     .setPlaceholder(`Select a ${category.slice(0,-1)} to view details`)
                     .addOptions(itemOptions);
-                await safeEditReply(interaction, { content: `Select an item from '${category}':`, components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))], ephemeral: false }, true);
+                await safeEditReply(interaction, { components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))], ephemeral: false }, true);
                 return;
             }
             if (customId === 'item_info_specific_select') {
