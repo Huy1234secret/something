@@ -198,6 +198,22 @@ function getCurrentWeekendEndDate(refDate = new Date()) {
     return end;
 }
 
+function getNextWeekendStartDate(refDate = new Date()) {
+    const range = client?.levelSystem?.gameConfig?.globalSettings?.WEEKEND_DATE_RANGE;
+    let startDay = 6, startHour = 0, endDay = 1, endHour = 0;
+    if (range) {
+        ({ startDay = 6, startHour = 0, endDay = 1, endHour = 0 } = range);
+    }
+    startDay = (startDay + Math.floor(startHour / 24)) % 7;
+    startHour = startHour % 24;
+    const start = new Date(refDate);
+    const dayDiff = (startDay - refDate.getUTCDay() + 7) % 7;
+    start.setUTCDate(refDate.getUTCDate() + dayDiff);
+    start.setUTCHours(startHour, 0, 0, 0);
+    if (start <= refDate) start.setUTCDate(start.getUTCDate() + 7);
+    return start;
+}
+
 const dbFilePath = path.resolve(__dirname, 'database.db');
 const restoreCandidateDbPath = path.resolve(__dirname, 'database_to_restore.db');
 
@@ -762,6 +778,7 @@ async function scheduleStreakLossCheck(client) {
 async function scheduleWeekendBoosts(client) {
     console.log("[Weekend Boost Scheduler] Initialising weekend boost checks.");
     const ANNOUNCE_COOLDOWN_MS = 12 * 60 * 60 * 1000;   // 12 h
+    let boundaryTimer = null;
     const checkWeekendStatus = async () => {
 
         const now        = Date.now();
@@ -900,8 +917,22 @@ async function scheduleWeekendBoosts(client) {
         }
     };
 
-    // initial + interval
+    const scheduleNextBoundary = () => {
+        const nowDate = new Date();
+        const next = isDateInWeekendRange(nowDate)
+            ? getCurrentWeekendEndDate(nowDate)
+            : getNextWeekendStartDate(nowDate);
+        const delay = Math.max(next.getTime() - nowDate.getTime(), 1000);
+        if (boundaryTimer) clearTimeout(boundaryTimer);
+        boundaryTimer = setTimeout(async () => {
+            await checkWeekendStatus();
+            scheduleNextBoundary();
+        }, delay);
+    };
+
+    // initial + interval + boundary timer
     await checkWeekendStatus();
+    scheduleNextBoundary();
     setInterval(checkWeekendStatus, WEEKEND_CHECK_INTERVAL_MS);
 }
 
