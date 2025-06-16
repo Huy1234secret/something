@@ -3892,7 +3892,12 @@ client.on('interactionCreate', async interaction => {
                 if (itemsForCategory.length === 0) {
                     return safeEditReply(interaction, { content: 'No items found in this category.', components: [], ephemeral: false }, true);
                 }
-                const itemOptions = itemsForCategory.slice(0, 25).map(item => ({ label: `${item.name}`, description: `ID: ${item.id}`, value: item.id }));
+                const itemOptions = itemsForCategory.slice(0, 25).map(item => ({
+                    label: item.emoji || item.name,
+                    description: item.name,
+                    value: item.id,
+                    emoji: item.emoji || undefined
+                }));
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId('item_info_specific_select')
                     .setPlaceholder(`Select a ${category.slice(0,-1)} to view details`)
