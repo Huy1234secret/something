@@ -1012,14 +1012,20 @@ this.db.prepare(`
     return categorizedInventory;
 }
     getAllLootBoxDefinitionsForInfo() {
-        return Object.values(this.gameConfig.items).filter(item => item.type === this.itemTypes.LOOT_BOX).map(lb => ({ id: lb.id, name: lb.name, emoji: lb.emoji || '📦' }));
+        return Object.values(this.gameConfig.items)
+            .filter(item => item.type === this.itemTypes.LOOT_BOX)
+            .map(lb => ({ id: lb.id, name: lb.name, description: lb.description, emoji: lb.emoji || '📦' }));
     }
     getAllCharmDefinitionsForInfo() {
         // Exclude luck_charm if it was previously a type
-        return Object.values(this.gameConfig.items).filter(item => item.type === this.itemTypes.CHARM && item.id !== 'luck_charm').map(charm => ({ id: charm.id, name: charm.name, emoji: charm.emoji || '✨' }));
+        return Object.values(this.gameConfig.items)
+            .filter(item => item.type === this.itemTypes.CHARM && item.id !== 'luck_charm')
+            .map(charm => ({ id: charm.id, name: charm.name, description: charm.description, emoji: charm.emoji || '✨' }));
     }
     getAllOtherItemsForInfo() {
-        return Object.values(this.gameConfig.items).filter(item => ![this.itemTypes.LOOT_BOX, this.itemTypes.CHARM, this.itemTypes.CURRENCY, this.itemTypes.JUNK].includes(item.type)).map(item => ({ id: item.id, name: item.name, emoji: item.emoji || '❓'}));
+        return Object.values(this.gameConfig.items)
+            .filter(item => ![this.itemTypes.LOOT_BOX, this.itemTypes.CHARM, this.itemTypes.CURRENCY, this.itemTypes.JUNK].includes(item.type))
+            .map(item => ({ id: item.id, name: item.name, description: item.description, emoji: item.emoji || '❓' }));
     }
     processLootDrop(userId, guildId, lootItemConfig, member, weekendMultipliers) {
         const effectiveWeekendMultipliers = weekendMultipliers || this.globalWeekendMultipliers || { currency: 1.0, xp: 1.0, luck: 1.0 };
