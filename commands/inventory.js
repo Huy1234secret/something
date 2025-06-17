@@ -4,7 +4,7 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('inventory')
-        .setDescription('Access your inventory, balance, and charms.'),
+        .setDescription('Access your inventory, balance, charms, and perks.'),
     async execute(interaction) {
         // This command's logic is primarily handled in index.js for dynamic embed building and interaction.
         // It's defined here for command deployment.

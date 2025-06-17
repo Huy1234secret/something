@@ -24,6 +24,12 @@ const INVENTORY_COIN_CAP = gameConfig.globalSettings?.INVENTORY_COIN_CAP || 1000
 const INVENTORY_GEM_CAP = gameConfig.globalSettings?.INVENTORY_GEM_CAP || 100000;
 const INVENTORY_ROBUX_CAP = gameConfig.globalSettings?.INVENTORY_ROBUX_CAP || 400;
 
+const ROLE_PERKS = {
+    '1374410303931945020': { gemPerMessage: 1, discountPercent: 8, xpPerMessage: 3, coinMultiplier: 2.0, gemMultiplier: 1.2 },
+    '1379129385189249074': { gemPerMessage: 0, discountPercent: 2, xpPerMessage: 1, coinMultiplier: 1.2, gemMultiplier: 1.05 },
+    '1374410304984977548': { gemPerMessage: 3, discountPercent: 15, xpPerMessage: 5, coinMultiplier: 3.0, gemMultiplier: 1.5 }
+};
+
 const BANK_TIERS = {
     0:  { coinCap:  10_000,   gemCap:   100,  upgradeCostCoins:   8_000,  upgradeCostGems:    0,    interestRate: 0,  nextTier: 1 },
     1:  { coinCap:  50_000,   gemCap:   250,  upgradeCostCoins:   40_000,  upgradeCostGems:  200,   interestRate: 1,  nextTier: 2 },
@@ -357,7 +363,7 @@ class SystemsManager {
         return lastEligibleItem || null;
     }
 
-    addGems(userId, guildId, amount, source = "unknown", weekendMultipliersArg) {
+    addGems(userId, guildId, amount, source = "unknown", weekendMultipliersArg, skipRoleMultiplier = false) {
         const effectiveWeekendMultipliers = weekendMultipliersArg || this.globalWeekendMultipliers || { currency: 1.0, gem: 1.0 };
         if (amount === 0) return { success: false, added: 0, newBalance: this.getBalance(userId, guildId).gems, reason: "Amount was zero." };
 
@@ -374,6 +380,10 @@ class SystemsManager {
             const weekendMultiplier = effectiveWeekendMultipliers?.gem !== undefined ? effectiveWeekendMultipliers.gem : (this.gameConfig.globalSettings?.WEEKEND_GEM_MULTIPLIER || WEEKEND_GEM_MULTIPLIER);
             if (isWeekend && weekendMultiplier > 1.0 && source !== "admin_command" && source !== "shop_purchase" && !source.startsWith("bank_")) {
                 finalAmount = Math.round(finalAmount * weekendMultiplier);
+            }
+            if (!skipRoleMultiplier) {
+                const roleData = this.getActiveRolePerks(userId, guildId);
+                finalAmount = Math.round(finalAmount * roleData.totals.gemMultiplier);
             }
         }
         finalAmount = Math.round(finalAmount);
@@ -737,6 +747,10 @@ this.db.prepare(`
         const guildSettings = this.getGuildSettings(guildId);
         const isWeekend = guildSettings.weekendBoostActive;
         let finalAmount = amount;
+        if (!isManualOrVoice) {
+            const roleData = this.getActiveRolePerks(userId, guildId);
+            finalAmount += roleData.totals.xpPerMessage;
+        }
         const xpCharms = this.getActiveCharms(userId, guildId, this.CHARM_TYPES.XP);
         let charmXpBoost = 0;
         xpCharms.forEach(charm => { charmXpBoost += (charm.boostValue || 0); });
@@ -1128,6 +1142,27 @@ this.db.prepare(`
         let query = 'SELECT charmInstanceId, userId, guildId, charmId, charmType, boostValue, expiryTimestamp, source FROM userActiveCharms WHERE userId = ? AND guildId = ?'; const params = [userId, guildId];
         if (charmTypeFilter) { query += ' AND charmType = ?'; params.push(charmTypeFilter); }
         return this.db.prepare(query).all(...params);
+    }
+
+    getActiveRolePerks(userId, guildId) {
+        const base = { roles: [], totals: { gemPerMessage: 0, discountPercent: 0, xpPerMessage: 0, coinMultiplier: 1.0, gemMultiplier: 1.0 } };
+        if (!this.client) return base;
+        const guild = this.client.guilds.cache.get(guildId);
+        if (!guild) return base;
+        const member = guild.members.cache.get(userId);
+        if (!member) return base;
+        const matched = Object.keys(ROLE_PERKS).filter(rid => member.roles.cache.has(rid));
+        matched.forEach(rid => {
+            const perk = ROLE_PERKS[rid];
+            if (!perk) return;
+            base.totals.gemPerMessage += perk.gemPerMessage || 0;
+            base.totals.discountPercent += perk.discountPercent || 0;
+            base.totals.xpPerMessage += perk.xpPerMessage || 0;
+            if (perk.coinMultiplier) base.totals.coinMultiplier *= perk.coinMultiplier;
+            if (perk.gemMultiplier) base.totals.gemMultiplier *= perk.gemMultiplier;
+        });
+        base.roles = matched;
+        return base;
     }
     
     // Luck related calculation methods removed
@@ -1611,7 +1646,7 @@ this.db.prepare(`
         if (itemId === this.ROBUX_ID) return guildSettings?.robuxEmoji || this.gameConfig.items.robux.emoji;
         return '❓';
     }
-    addCoins(userId, guildId, amount, source = "unknown", weekendMultipliersArg) {
+    addCoins(userId, guildId, amount, source = "unknown", weekendMultipliersArg, skipRoleMultiplier = false) {
         const effectiveWeekendMultipliers = weekendMultipliersArg || this.globalWeekendMultipliers || { currency: 1.0 };
         if (amount === 0) return { success: false, added: 0, newBalance: this.getBalance(userId, guildId).coins, reason: "Amount was zero." };
         const user = this.getUser(userId, guildId); const guildSettings = this.getGuildSettings(guildId);
@@ -1623,6 +1658,10 @@ this.db.prepare(`
             const weekendMultiplier = effectiveWeekendMultipliers?.currency !== undefined ? effectiveWeekendMultipliers.currency : (this.gameConfig.globalSettings?.WEEKEND_COIN_MULTIPLIER || WEEKEND_COIN_MULTIPLIER);
             if (isWeekend && weekendMultiplier > 1.0 && source !== "admin_command" && source !== "shop_purchase" && !source.startsWith("bank_")) {
                 finalAmount = Math.round(finalAmount * weekendMultiplier);
+            }
+            if (!skipRoleMultiplier) {
+                const roleData = this.getActiveRolePerks(userId, guildId);
+                finalAmount = Math.round(finalAmount * roleData.totals.coinMultiplier);
             }
         }
         finalAmount = Math.round(finalAmount); let newCoins = user.coins + finalAmount; let actualAdded = finalAmount;
@@ -1915,4 +1954,5 @@ module.exports = {
     SETTINGS_EMOJI_ENABLED, SETTINGS_EMOJI_DISABLED,
     VOICE_ACTIVITY_INTERVAL_MS, MAX_LEVEL, ROBUX_WITHDRAWAL_COOLDOWN_MS,
     DEFAULT_COIN_EMOJI, DEFAULT_GEM_EMOJI, DEFAULT_ROBUX_EMOJI,
+    ROLE_PERKS,
 };
