@@ -33,6 +33,11 @@ const { postOrUpdateLeaderboard, formatLeaderboardEmbed } = require('./leaderboa
 const DEFAULT_COIN_EMOJI_FALLBACK = '<a:coin:1373568800783466567>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
+const COIN_BOOST_EMOJI = '<:scoinmulti:1384503519330959380>';
+const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
+const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
+const DISCOUNT_BOOST_EMOJI = '<:sdiscount:1384506117895225355>';
+const GEM_CHAT_BOOST_EMOJI = '<:sultragemmulti:1384512368708423781>';
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
@@ -693,7 +698,7 @@ async function scheduleShopRestock(client) {
 
                                             let fieldValue = `Price: ${item.price.toLocaleString()} ${priceCurrencyEmoji}`;
                                             if(item.discountPercent > 0 && item.originalPrice > item.price) {
-                                                const displayLabel = item.discountLabel && item.discountLabel.trim() !== "" ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`;
+                                                const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== "" ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`);
                                                 fieldValue += ` (~~${item.originalPrice.toLocaleString()}~~ - ${displayLabel})`;
                                             }
                                             if (item.id === client.levelSystem.COSMIC_ROLE_TOKEN_ID) fieldValue += "\n✨ *A Cosmic Role Token! Extremely rare.*";
@@ -1243,9 +1248,9 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
             let priceString = `${item.currentPrice.toLocaleString()} ${priceCurrencyEmojiDisplay}`;
 
             if (item.discountPercent > 0 && item.originalPrice > item.currentPrice) {
-                const displayLabel = item.discountLabel && item.discountLabel.trim() !== "" ?
+                const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== "" ?
                                      item.discountLabel :
-                                     `${(item.discountPercent * 100).toFixed(0)}% OFF`;
+                                     `${(item.discountPercent * 100).toFixed(0)}% OFF`);
                 priceString = `~~${item.originalPrice.toLocaleString()}~~ ${item.currentPrice.toLocaleString()} ${priceCurrencyEmojiDisplay} **(${displayLabel})**`;
             }
 
@@ -1267,9 +1272,9 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
         // Display active discounts explicitly
         const discountFieldValues = shopItems.map((item, index) => {
             if (item.discountPercent > 0 && item.originalPrice > item.currentPrice) {
-                 const displayLabel = item.discountLabel && item.discountLabel.trim() !== "" ?
+                 const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== "" ?
                                      item.discountLabel :
-                                     `${(item.discountPercent * 100).toFixed(0)}% OFF`;
+                                     `${(item.discountPercent * 100).toFixed(0)}% OFF`);
                 return `Slot ${index + 1} (${item.name || item.itemId}): **${displayLabel}**`;
             }
             return null;
@@ -1569,16 +1574,6 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             // Luck display calculations removed from here
 
 
-            // Display total boosts only if there are any
-            if (activeCharmInstances.length > 0 || totalCoinBoost > 0 || totalGemBoost > 0 || totalXpBoost > 0 ) { // Removed displayedLuckPower check
-                embed.addFields({ name: '\u200B\n📈 Current Total Stat Boosts 📈', value: '\u200B', inline: false }); // Separator
-                embed.addFields(
-                    { name: `${coinEmoji} Coin Bonus`, value: `\`+${totalCoinBoost.toFixed(0)}%\``, inline: true },
-                    { name: `${gemEmoji} Gem Bonus (Boxes)`, value: `\`+${totalGemBoost.toFixed(0)}%\``, inline: true },
-                    { name: `✨ XP Bonus (Chat)`, value: `\`+${totalXpBoost.toFixed(0)} XP\``, inline: true }
-                    // Luck Power display removed
-                );
-            }
             // Display charms in inventory (not yet active)
             const ownedCharms = categorizedInventory.charms;
             if (ownedCharms.length > 0) {
@@ -1587,6 +1582,46 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
                     embed.addFields({ name: `${item.emoji || '✨'} ${item.name}`, value: `Quantity: \`${item.quantity.toLocaleString()}\`\nID: \`${item.itemId}\``, inline: true });
                 });
             }
+        } else if (currentTab === 'perks') {
+            embed.setTitle('🎁 Perks');
+            embed.setColor(0xF1C40F);
+
+            const rolePerkInfo = systemsManager.getActiveRolePerks(user.id, guildId);
+            const charmInstances = systemsManager.getActiveCharms(user.id, guildId);
+
+            let coinBoost = (rolePerkInfo.totals.coinMultiplier - 1) * 100;
+            let gemBoost = (rolePerkInfo.totals.gemMultiplier - 1) * 100;
+            let discountBoost = rolePerkInfo.totals.discountPercent;
+            let xpBoost = rolePerkInfo.totals.xpPerMessage;
+            let gemPerMsg = rolePerkInfo.totals.gemPerMessage;
+
+            charmInstances.forEach(c => {
+                if (c.charmType === systemsManager.CHARM_TYPES.COIN) coinBoost += c.boostValue || 0;
+                else if (c.charmType === systemsManager.CHARM_TYPES.GEM) gemBoost += c.boostValue || 0;
+                else if (c.charmType === systemsManager.CHARM_TYPES.XP) xpBoost += c.boostValue || 0;
+                else if (c.charmType === systemsManager.CHARM_TYPES.DISCOUNT) discountBoost += c.boostValue || 0;
+            });
+
+            const wk = systemsManager.globalWeekendMultipliers || {};
+            if (wk.currency && wk.currency > 1) coinBoost += (wk.currency - 1) * 100;
+            if (wk.gem && wk.gem > 1) gemBoost += (wk.gem - 1) * 100;
+            if (wk.xp && wk.xp > 1) {
+                const baseXp = systemsManager.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
+                xpBoost += (baseXp + xpBoost) * (wk.xp - 1);
+            }
+
+            const roleList = rolePerkInfo.roles.map(id => `<@&${id}>`).join(', ') || 'None';
+            const perkLines = [];
+            if (coinBoost > 0) perkLines.push(`${COIN_BOOST_EMOJI} Coin Boost: \`+${coinBoost.toFixed(0)}%\``);
+            if (gemBoost > 0) perkLines.push(`${GEM_BOOST_EMOJI} Gem Boost: \`+${gemBoost.toFixed(0)}%\``);
+            if (discountBoost > 0) perkLines.push(`${DISCOUNT_BOOST_EMOJI} Discount: \`+${discountBoost.toFixed(0)}%\``);
+            if (xpBoost > 0) perkLines.push(`${XP_BOOST_EMOJI} XP Boost: \`+${xpBoost.toFixed(0)} XP/msg\``);
+            if (gemPerMsg > 0) perkLines.push(`${GEM_CHAT_BOOST_EMOJI} Gems/msg: \`+${gemPerMsg}\``);
+
+            embed.addFields(
+                { name: 'Active Role Perks', value: roleList },
+                { name: 'Total Perks', value: perkLines.join('\n') || 'None' }
+            );
         }
         // Fallback description if embed is still empty
         if (!embed.data.description && (!embed.data.fields || embed.data.fields.length === 0) && currentTab !== 'balance') { // Don't add generic desc for balance tab
@@ -1610,7 +1645,8 @@ function getInventoryNavComponents(currentTab) {
             { label: 'Items', value: 'items', emoji: '🗒️', default: currentTab === 'items' },
             { label: 'Loot Boxes', value: 'lootboxes', emoji: '📦', default: currentTab === 'lootboxes' },
             { label: 'Balance', value: 'balance', emoji: '💰', default: currentTab === 'balance' },
-            { label: 'Active Charms', value: 'charms', emoji: '✨', default: currentTab === 'charms' }
+            { label: 'Active Charms', value: 'charms', emoji: '✨', default: currentTab === 'charms' },
+            { label: 'Perks', value: 'perks', emoji: '🎁', default: currentTab === 'perks' }
         );
     return [new ActionRowBuilder().addComponents(selectMenu)];
 }
@@ -1902,6 +1938,7 @@ client.on('messageCreate', async message => {
     await checkAndAwardSpecialRole(member, 'sending a message');
 
     // XP and Coin Gain Logic
+    const rolePerkData = client.levelSystem.getActiveRolePerks(message.author.id, message.guild.id);
     let gainedXpThisMessage = false;
     const xpCooldownKey = `xp-${message.author.id}-${message.guild.id}`;
     // Use configured cooldown, fallback to global const
@@ -1922,7 +1959,8 @@ client.on('messageCreate', async message => {
         try {
             // Use configured XP per message, fallback to global const
             const configuredXpPerMessage = client.levelSystem.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
-            xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, configuredXpPerMessage, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
+            const xpWithPerks = configuredXpPerMessage + (rolePerkData.totals.xpPerMessage || 0);
+            xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, xpWithPerks, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
             if (xpResult.leveledUp) {
                 const gemReward = Math.pow(xpResult.newLevel, 2);
                 client.levelSystem.addGems(message.author.id, message.guild.id, gemReward, "level_up");
@@ -1967,7 +2005,10 @@ client.on('messageCreate', async message => {
             const levelForCoins = xpResult ? xpResult.newLevel : client.levelSystem.getUser(message.author.id, message.guild.id).level;
             const coinMultiplier = Math.pow(2, Math.floor(levelForCoins / 5));
             const coinsEarned = coinsEarnedBase * coinMultiplier;
-            if (coinsEarned > 0) client.levelSystem.addCoins(message.author.id, message.guild.id, coinsEarned, "chat_message", WEEKEND_MULTIPLIERS); // Pass weekend multipliers
+            if (coinsEarned > 0) client.levelSystem.addCoins(message.author.id, message.guild.id, coinsEarned, "chat_message", WEEKEND_MULTIPLIERS);
+            if (rolePerkData.totals.gemPerMessage > 0) {
+                client.levelSystem.addGems(message.author.id, message.guild.id, rolePerkData.totals.gemPerMessage, "role_perk_chat", WEEKEND_MULTIPLIERS, true);
+            }
         }
     }
     // Direct Drop Logic
@@ -3705,7 +3746,7 @@ client.on('interactionCreate', async interaction => {
                                     highlyRelevantItems.slice(0,5).forEach(item => { // Limit to 5 items in DM
                                         let fieldValue = `Price: ${item.price.toLocaleString()} ${client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK}`;
                                         if(item.discountPercent > 0 && item.originalPrice > item.price) {
-                                            const displayLabel = item.discountLabel && item.discountLabel.trim() !== "" ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`;
+                                            const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== "" ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`);
                                             fieldValue += ` (~~${item.originalPrice.toLocaleString()}~~ - ${displayLabel})`;
                                         }
                                         if (item.id === client.levelSystem.COSMIC_ROLE_TOKEN_ID) fieldValue += "\n✨ *A Cosmic Role Token! Extremely rare.*";

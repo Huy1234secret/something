@@ -362,7 +362,11 @@ class ShopManager {
         }
 
         const userBalance = this.systemsManager.getBalance(userId, guildId);
-        const totalCost = shopItemEntry.currentPrice * amountToPurchase;
+        let totalCost = shopItemEntry.currentPrice * amountToPurchase;
+        const rolePerks = this.systemsManager.getActiveRolePerks(userId, guildId);
+        if (rolePerks.totals.discountPercent > 0) {
+            totalCost = Math.round(totalCost * (1 - rolePerks.totals.discountPercent / 100));
+        }
 
         // --- START OF CORRECTION FOR CURRENCY DEDUCTION ---
         let currencyToDeduct = itemConfigMaster.priceCurrency || this.systemsManager.COINS_ID; // Get from master config
