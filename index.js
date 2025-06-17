@@ -3902,7 +3902,7 @@ client.on('interactionCreate', async interaction => {
                     .setCustomId(`item_info_specific_select_${category}`)
                     .setPlaceholder(`Select a ${category.slice(0,-1)} to view details`)
                     .addOptions(itemOptions);
-                await safeEditReply(interaction, { components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))], ephemeral: false }, true);
+                await safeEditReply(interaction, { components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_back_to_categories').setLabel('Back').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))], ephemeral: false }, true);
                 return;
             }
             if (customId.startsWith('item_info_specific_select')) {
@@ -3944,9 +3944,25 @@ client.on('interactionCreate', async interaction => {
                     .addOptions(itemOptions);
                 const components = [
                     new ActionRowBuilder().addComponents(selectMenu),
-                    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger))
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('item_info_back_to_categories').setLabel('Back').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger)
+                    )
                 ];
                 await safeEditReply(interaction, { components, embeds: [], content: 'Select an item:', ephemeral: false }, true);
+                return;
+            }
+            if (customId === 'item_info_back_to_categories') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
+                const categoryButtons = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder().setCustomId('item_info_category_select_lootboxes').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+                        new ButtonBuilder().setCustomId('item_info_category_select_charms').setLabel('Charms').setStyle(ButtonStyle.Primary).setEmoji('✨'),
+                        new ButtonBuilder().setCustomId('item_info_category_select_others').setLabel('Other Items').setStyle(ButtonStyle.Primary).setEmoji('🔖'),
+                        new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger)
+                    );
+                await safeEditReply(interaction, { content: 'Select an item category to browse:', components: [categoryButtons], ephemeral: false }, true);
                 return;
             }
             if (customId.startsWith('eb_')) {
