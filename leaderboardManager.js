@@ -55,7 +55,7 @@ const LEVEL_TO_EMOJI_ID_MAP = {
  * @param {Object} systemsManager - The SystemsManager instance.
  * @returns {Promise<EmbedBuilder>} The formatted leaderboard embed.
  */
-async function formatLeaderboardEmbed(leaderboardData, client, guildId, systemsManager) {
+async function formatLeaderboardEmbed(leaderboardData, client, guildId, systemsManager, timeUntilNextUpdateMs = 0) {
     const embed = new EmbedBuilder()
         .setColor('#0099FF')
         .setTitle('🏆 Top 10 Level Leaderboard');
@@ -90,6 +90,10 @@ async function formatLeaderboardEmbed(leaderboardData, client, guildId, systemsM
     }));
 
     embed.addFields(fields);
+    if (timeUntilNextUpdateMs > 0) {
+        const nextUpdateTimestamp = Math.floor((Date.now() + timeUntilNextUpdateMs) / 1000);
+        embed.addFields({ name: 'Next Update', value: `<t:${nextUpdateTimestamp}:R>`, inline: false });
+    }
     embed.setFooter({ text: 'Last updated:' });
     embed.setTimestamp();
 
@@ -124,7 +128,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const lastUpdated = settings.leaderboardLastUpdated;
         const now = Date.now();
 
-        const updateInterval = 5 * 60 * 1000; // 5 minutes
+        const updateInterval = 60 * 60 * 1000; // 1 hour
 
         // If not forced by admin, check the update interval
         if (!isForcedByAdmin && lastUpdated && (now - lastUpdated < updateInterval)) {
@@ -134,7 +138,13 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
 
         const leaderboardData = systemsManager.getLeaderboard(guildId, limit);
         // Pass systemsManager to formatLeaderboardEmbed
-        const leaderboardEmbed = await formatLeaderboardEmbed(leaderboardData, client, guildId, systemsManager);
+        const leaderboardEmbed = await formatLeaderboardEmbed(
+            leaderboardData,
+            client,
+            guildId,
+            systemsManager,
+            updateInterval
+        );
 
         const guild = await client.guilds.fetch(guildId);
         if (!guild) {

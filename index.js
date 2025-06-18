@@ -636,7 +636,7 @@ async function refreshShopDisplayForGuild(guildIdToRefresh, clientInstance) {
 }
 
 async function scheduleDailyLeaderboardUpdate(client) {
-    console.log("[Leaderboard Scheduler] Initializing daily leaderboard updates...");
+    console.log("[Leaderboard Scheduler] Initializing hourly leaderboard updates...");
     const updateLeaderboard = async () => {
         const guilds = client.guilds.cache;
         for (const [guildId, guild] of guilds) {
@@ -657,7 +657,7 @@ async function scheduleDailyLeaderboardUpdate(client) {
         }
     };
     await updateLeaderboard();
-    setInterval(updateLeaderboard, 24 * 60 * 60 * 1000);
+    setInterval(updateLeaderboard, 60 * 60 * 1000);
 }
 
 async function scheduleShopRestock(client) {
@@ -2833,7 +2833,13 @@ client.on('interactionCreate', async interaction => {
                         deferredByThisLogic = true;
                     }
                     const leaderboardData = client.levelSystem.getLeaderboard(guildId, LEADERBOARD_LIMIT);
-                    const embed = await formatLeaderboardEmbed(leaderboardData, client, guildId, client.levelSystem);
+                    const embed = await formatLeaderboardEmbed(
+                        leaderboardData,
+                        client,
+                        guildId,
+                        client.levelSystem,
+                        60 * 60 * 1000
+                    );
                     await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
                 } else if (subcommand === 'postnow') {
                     if (!isAdmin()) {
