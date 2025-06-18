@@ -3691,13 +3691,18 @@ client.on('interactionCreate', async interaction => {
                     const purchaseResult = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemIdToBuy, amountToBuy, member);
                     if (purchaseResult.success) {
                         await safeEditReply(interaction, { content: `✅ ${purchaseResult.message}`, ephemeral: false }, true, 10000); // Public success, auto-delete
+                        const updatedBalance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                        const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
+                        const gemEmoji  = client.levelSystem.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
+                        const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
                         const receiptEmbed = new EmbedBuilder()
                             .setColor(0x2ecc71)
                             .setTitle('🧾 Purchase Receipt')
-                            .setDescription('Enjoy your new items!')
+                            .setDescription('Thank you for your purchase! Here is your receipt.')
                             .addFields(
-                                { name: 'Item', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nAmount: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
-                                { name: 'SUMMARY', value: `Discount: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}\nTotal Price: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}` }
+                                { name: 'Item Purchased', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nQuantity: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
+                                { name: 'Summary', value: `Discount Applied: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}\nTotal Paid: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}\nRemaining Stock: ${purchaseResult.newStock}` },
+                                { name: 'Your Balance', value: `${coinEmoji} ${updatedBalance.coins.toLocaleString()} | ${gemEmoji} ${updatedBalance.gems.toLocaleString()} | ${robuxEmoji} ${updatedBalance.robux.toLocaleString()}` }
                             )
                             .setTimestamp();
                         await interaction.followUp({ embeds: [receiptEmbed], ephemeral: true }).catch(() => {});
