@@ -719,8 +719,27 @@ async function scheduleShopRestock(client) {
                                             try { await (await client.users.fetch(alertUserId)).send({ embeds: [alertEmbed] }); }
                                             catch(dmError){ if(dmError.code !== 50007) console.warn(`[Shop Restock DM] Failed to DM ${alertUserId}: ${dmError.message}`); }
                                         }
-                                    }
-                                }
+                                   }
+                               }
+                           }
+                            // Send personal watchlist notifications
+                            const allItemIds = restockResult.items.map(it => it.id);
+                            const watchUsers = client.levelSystem.getUsersForShopAlertByItems(guildId, allItemIds);
+                            for (const watchUserId of watchUsers) {
+                                const relevant = restockResult.items.filter(it => client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.id).enableAlert);
+                                if (relevant.length === 0) continue;
+                                const userEmbed = new EmbedBuilder().setTitle(`🛍️ Shop Restocked in ${guild.name}`)
+                                    .setColor(0x9B59B6)
+                                    .setDescription('Items you are watching are now available:')
+                                    .setTimestamp();
+                                relevant.forEach(item => {
+                                    let priceEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
+                                    if (item.priceCurrency === ITEM_IDS.GEMS) priceEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
+                                    else if (item.priceCurrency === ITEM_IDS.ROBUX) priceEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
+                                    userEmbed.addFields({ name: `${item.emoji} ${item.name} (Stock: ${item.stock})`, value: `Price: ${item.price.toLocaleString()} ${priceEmoji}`, inline: false });
+                                });
+                                try { await (await client.users.fetch(watchUserId)).send({ embeds: [userEmbed] }); }
+                                catch (watchErr) { if (watchErr.code !== 50007) console.warn(`[Shop Restock Watch DM] Failed to DM ${watchUserId}: ${watchErr.message}`); }
                             }
                         } else {
                             console.error(`[Shop Restock] Failed to restock for guild ${guild.name}: ${restockResult.message}`);
@@ -2990,7 +3009,9 @@ client.on('interactionCreate', async interaction => {
             if (customId === 'setting_rarity_modal') {
                 if (!interaction.isModalSubmit()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                const val = parseInt(interaction.fields.getTextInputValue('rarity_threshold_input'));
+                const rawVal = interaction.fields.getTextInputValue('rarity_threshold_input');
+                const cleaned = rawVal.replace(/,/g, '');
+                const val = parseInt(cleaned);
                 if (isNaN(val) || val < 0) {
                     return sendInteractionError(interaction, 'Invalid number.', true, deferredThisInteraction);
                 }
@@ -3060,7 +3081,8 @@ client.on('interactionCreate', async interaction => {
                 if (!interaction.isModalSubmit()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 const category = customId.replace('shop_change_submit_', '');
-                const itemId = interaction.fields.getTextInputValue('item_id').trim();
+                const itemIdInput = interaction.fields.getTextInputValue('item_id').trim();
+                const itemId = itemIdInput.toLowerCase();
                 const current = client.levelSystem.getUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId).enableAlert;
                 const newVal = current ? false : true;
                 client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, newVal);
@@ -3068,7 +3090,7 @@ client.on('interactionCreate', async interaction => {
                 if (interaction.message && interaction.message.editable) {
                     await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
                 }
-                await interaction.editReply({ content: `✅ Alerts for \`${itemId}\` ${newVal ? 'enabled' : 'disabled'}!`, embeds: [], components: [] }).catch(() => {});
+                await interaction.editReply({ content: `✅ Alerts for \`${itemIdInput}\` ${newVal ? 'enabled' : 'disabled'}!`, embeds: [], components: [] }).catch(() => {});
                 return;
             }
             if (customId.startsWith('restore_streak_confirm_')) {

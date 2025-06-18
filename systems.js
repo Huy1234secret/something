@@ -778,15 +778,17 @@ this.db.prepare(`
     getAllUserShopAlertSettings(userId, guildId) {
         const settings = {};
         const rows = this.db.prepare("SELECT itemId, enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ?").all(userId, guildId);
-        rows.forEach(row => { settings[row.itemId] = !!row.enableAlert; });
+        rows.forEach(row => { settings[row.itemId.toLowerCase()] = !!row.enableAlert; });
         return settings;
     }
     getUserShopAlertSetting(userId, guildId, itemId) {
-        const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, itemId);
-        return { itemId, enableAlert: row ? !!row.enableAlert : true };
+        const normalizedId = itemId.toLowerCase();
+        const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, normalizedId);
+        return { itemId: normalizedId, enableAlert: row ? !!row.enableAlert : true };
     }
     setUserShopAlertSetting(userId, guildId, itemId, enableAlert) {
-        this.db.prepare('INSERT OR REPLACE INTO userShopAlertSettings (userId, guildId, itemId, enableAlert) VALUES (?, ?, ?, ?)').run(userId, guildId, itemId, enableAlert ? 1 : 0);
+        const normalizedId = itemId.toLowerCase();
+        this.db.prepare('INSERT OR REPLACE INTO userShopAlertSettings (userId, guildId, itemId, enableAlert) VALUES (?, ?, ?, ?)').run(userId, guildId, normalizedId, enableAlert ? 1 : 0);
     }
     getUserGlobalLootAlertSettings(userId, guildId) {
         let settings = this.db.prepare('SELECT alertRarityThreshold FROM userGlobalLootAlertSettings WHERE userId = ? AND guildId = ?').get(userId, guildId);
