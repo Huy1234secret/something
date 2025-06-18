@@ -29,7 +29,7 @@ const {
     ROBUX_WITHDRAWAL_COOLDOWN_MS // New constant from systems.js
 } = require('./systems.js');
 
-const { postOrUpdateLeaderboard, formatLeaderboardEmbed, formatCoinLeaderboardEmbed, formatGemLeaderboardEmbed, formatValueLeaderboardEmbed } = require('./leaderboardManager.js');
+const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatLeaderboardEmbed, formatCoinLeaderboardEmbed, formatGemLeaderboardEmbed, formatValueLeaderboardEmbed } = require('./leaderboardManager.js');
 const DEFAULT_COIN_EMOJI_FALLBACK = '<a:coin:1373568800783466567>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
@@ -652,6 +652,7 @@ async function scheduleDailyLeaderboardUpdate(client) {
                         console.warn(`[Leaderboard Scheduler] Failed to update leaderboard for ${guild.name}: ${result.message}`);
                     }
                 }
+                await updateLeaderboardRewards(client, guildId, client.levelSystem);
             } catch (error) {
                 console.error(`[Leaderboard Scheduler] Error updating leaderboard for guild ${guild.name} (${guildId}):`, error);
             }

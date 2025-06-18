@@ -3,6 +3,13 @@ const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, Butt
 
 const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
 
+const LEADERBOARD_REWARD_ROLE_IDS = {
+    level: '1384876972844257352',
+    gem: '1384939346380984454',
+    coin: '1384939352236490842',
+    value: '1384939352412393493',
+};
+
 // NEW: Map levels to custom emoji IDs (USING PLACEHOLDERS - YOU NEED TO REPLACE IDs)
 // Assuming you have custom emojis like <:bronze1:ID>, <:bronze2:ID>, ... , <:darkmatter10:ID>
 const LEVEL_TO_EMOJI_ID_MAP = {
@@ -345,8 +352,62 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
     }
 }
 
+async function updateLeaderboardRewards(client, guildId, systemsManager) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        await guild.members.fetch().catch(() => {});
+
+        const blacklistSet = new Set();
+        for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
+            const role = guild.roles.cache.get(rId);
+            if (role) role.members.forEach(m => blacklistSet.add(m.id));
+        }
+
+        const topLevel = systemsManager.getLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
+        const topCoin = systemsManager.getCoinLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
+        const topGem = systemsManager.getGemLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
+        const topValue = systemsManager.getValueLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
+
+        const roleSpecs = [
+            { roleId: LEADERBOARD_REWARD_ROLE_IDS.level, userId: topLevel?.userId },
+            { roleId: LEADERBOARD_REWARD_ROLE_IDS.coin, userId: topCoin?.userId },
+            { roleId: LEADERBOARD_REWARD_ROLE_IDS.gem, userId: topGem?.userId },
+            { roleId: LEADERBOARD_REWARD_ROLE_IDS.value, userId: topValue?.userId },
+        ];
+
+        if (!guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return;
+
+        for (const spec of roleSpecs) {
+            const role = guild.roles.cache.get(spec.roleId);
+            if (!role) continue;
+            if (guild.members.me.roles.highest.position <= role.position) continue;
+
+            const currentMembers = Array.from(role.members.values());
+            const newMember = spec.userId ? guild.members.cache.get(spec.userId) : null;
+
+            if (newMember && !blacklistSet.has(spec.userId)) {
+                if (!newMember.roles.cache.has(role.id)) {
+                    await newMember.roles.add(role).catch(() => {});
+                }
+                for (const member of currentMembers) {
+                    if (member.id !== newMember.id) {
+                        await member.roles.remove(role).catch(() => {});
+                    }
+                }
+            } else {
+                for (const member of currentMembers) {
+                    await member.roles.remove(role).catch(() => {});
+                }
+            }
+        }
+    } catch (err) {
+        console.error(`[LeaderboardReward] Failed to update rewards for guild ${guildId}:`, err);
+    }
+}
+
 module.exports = {
     postOrUpdateLeaderboard,
+    updateLeaderboardRewards,
     formatLeaderboardEmbed,
     formatCoinLeaderboardEmbed,
     formatGemLeaderboardEmbed,
