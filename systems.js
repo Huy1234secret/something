@@ -329,6 +329,18 @@ class SystemsManager {
         if (!guildSettingsInfo.some(col => col.name === 'robuxEmoji')) {
             this.db.exec(`ALTER TABLE guildSettings ADD COLUMN robuxEmoji TEXT DEFAULT '${currentDefaultRobuxEmoji.replace(/'/g, "''")}';`);
         }
+        if (!guildSettingsInfo.some(col => col.name === 'topLevelUserId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN topLevelUserId TEXT;');
+        }
+        if (!guildSettingsInfo.some(col => col.name === 'topCoinUserId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN topCoinUserId TEXT;');
+        }
+        if (!guildSettingsInfo.some(col => col.name === 'topGemUserId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN topGemUserId TEXT;');
+        }
+        if (!guildSettingsInfo.some(col => col.name === 'topValueUserId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN topValueUserId TEXT;');
+        }
         if (!guildSettingsInfo.some(col => col.name === 'weekendAlertMessageId')) {
             this.db.exec('ALTER TABLE guildSettings ADD COLUMN weekendAlertMessageId TEXT;');
         }
@@ -691,7 +703,11 @@ this.db.prepare(`
                 lootDropAlertChannelId: null, leaderboardChannelId: null, leaderboardMessageId: null,
                 leaderboardLastUpdated: null, lastWeekendToggleTimestamp: null,
                 lastWeekendBoostStartAnnounceTimestamp: 0, lastWeekendBoostEndAnnounceTimestamp: 0,
-                weekendAlertMessageId: null
+                weekendAlertMessageId: null,
+                topLevelUserId: null,
+                topCoinUserId: null,
+                topGemUserId: null,
+                topValueUserId: null
             };
         }
         let settings = this.db.prepare('SELECT * FROM guildSettings WHERE guildId = ?').get(guildId);
@@ -719,6 +735,10 @@ this.db.prepare(`
         settings.lastWeekendBoostStartAnnounceTimestamp = settings.lastWeekendBoostStartAnnounceTimestamp || 0;
         settings.lastWeekendBoostEndAnnounceTimestamp = settings.lastWeekendBoostEndAnnounceTimestamp || 0;
         settings.weekendAlertMessageId = settings.weekendAlertMessageId || null;
+        settings.topLevelUserId = settings.topLevelUserId || null;
+        settings.topCoinUserId = settings.topCoinUserId || null;
+        settings.topGemUserId = settings.topGemUserId || null;
+        settings.topValueUserId = settings.topValueUserId || null;
         return settings;
     }
 
