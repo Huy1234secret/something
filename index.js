@@ -2865,9 +2865,9 @@ client.on('interactionCreate', async interaction => {
                         client.levelSystem,
                         60 * 60 * 1000
                     );
-                    const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client);
-                    const gemEmbed = await formatGemLeaderboardEmbed(gemData, client);
-                    const valueEmbed = await formatValueLeaderboardEmbed(valueData, client);
+                    const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, 60 * 60 * 1000);
+                    const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, 60 * 60 * 1000);
+                    const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, 60 * 60 * 1000);
 
                     await safeEditReply(interaction, { embeds: [embed, coinEmbed, gemEmbed, valueEmbed], ephemeral: false }, true);
                 } else if (subcommand === 'postnow') {
