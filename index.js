@@ -29,7 +29,7 @@ const {
     ROBUX_WITHDRAWAL_COOLDOWN_MS // New constant from systems.js
 } = require('./systems.js');
 
-const { postOrUpdateLeaderboard, formatLeaderboardEmbed } = require('./leaderboardManager.js');
+const { postOrUpdateLeaderboard, formatLeaderboardEmbed, formatCoinLeaderboardEmbed, formatGemLeaderboardEmbed, formatValueLeaderboardEmbed } = require('./leaderboardManager.js');
 const DEFAULT_COIN_EMOJI_FALLBACK = '<a:coin:1373568800783466567>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
@@ -2833,6 +2833,10 @@ client.on('interactionCreate', async interaction => {
                         deferredByThisLogic = true;
                     }
                     const leaderboardData = client.levelSystem.getLeaderboard(guildId, LEADERBOARD_LIMIT);
+                    const coinData = client.levelSystem.getCoinLeaderboard(guildId, 5);
+                    const gemData = client.levelSystem.getGemLeaderboard(guildId, 5);
+                    const valueData = client.levelSystem.getValueLeaderboard(guildId, 5);
+
                     const embed = await formatLeaderboardEmbed(
                         leaderboardData,
                         client,
@@ -2840,7 +2844,11 @@ client.on('interactionCreate', async interaction => {
                         client.levelSystem,
                         60 * 60 * 1000
                     );
-                    await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
+                    const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client);
+                    const gemEmbed = await formatGemLeaderboardEmbed(gemData, client);
+                    const valueEmbed = await formatValueLeaderboardEmbed(valueData, client);
+
+                    await safeEditReply(interaction, { embeds: [embed, coinEmbed, gemEmbed, valueEmbed], ephemeral: false }, true);
                 } else if (subcommand === 'postnow') {
                     if (!isAdmin()) {
                         return sendInteractionError(interaction, "You do not have permission to force a leaderboard update.", true);

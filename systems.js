@@ -568,6 +568,29 @@ class SystemsManager {
         return this.db.prepare( 'SELECT userId, level, xp FROM users WHERE guildId = ? ORDER BY level DESC, xp DESC LIMIT ?' ).all(guildId, limit);
     }
 
+    getCoinLeaderboard(guildId, limit = 5) {
+        return this.db.prepare('SELECT userId, (coins + bankCoins) AS totalCoins FROM users WHERE guildId = ? ORDER BY totalCoins DESC LIMIT ?').all(guildId, limit);
+    }
+
+    getGemLeaderboard(guildId, limit = 5) {
+        return this.db.prepare('SELECT userId, (gems + bankGems) AS totalGems FROM users WHERE guildId = ? ORDER BY totalGems DESC LIMIT ?').all(guildId, limit);
+    }
+
+    getValueLeaderboard(guildId, limit = 5) {
+        const users = this.db.prepare('SELECT userId, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        const results = users.map(user => {
+            let totalValue = user.coins + user.bankCoins + user.gems + user.bankGems;
+            const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
+            inventory.forEach(item => {
+                const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);
+                if (typeof basePrice === 'number') totalValue += basePrice * item.quantity;
+            });
+            return { userId: user.userId, totalValue };
+        });
+        results.sort((a, b) => b.totalValue - a.totalValue);
+        return results.slice(0, limit);
+    }
+
     getUser(userId, guildId) {
         let user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         if (!user) {
