@@ -2190,6 +2190,13 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
+        if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.message && interaction.message.interaction && interaction.message.interaction.user && interaction.message.interaction.user.id !== interaction.user.id) {
+            const replyOpts = { content: "You can't use someone else's command.", ephemeral: true };
+            if (!interaction.replied && !interaction.deferred) await interaction.reply(replyOpts).catch(()=>{});
+            else await interaction.followUp(replyOpts).catch(()=>{});
+            return;
+        }
+
         if (interaction.isChatInputCommand()) {
             if (!interaction.guild) {
                 return sendInteractionError(interaction, "This command can only be used in a server.", true);
@@ -3684,11 +3691,32 @@ client.on('interactionCreate', async interaction => {
                     const purchaseResult = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemIdToBuy, amountToBuy, member);
                     if (purchaseResult.success) {
                         await safeEditReply(interaction, { content: `✅ ${purchaseResult.message}`, ephemeral: false }, true, 10000); // Public success, auto-delete
+                        const receiptEmbed = new EmbedBuilder()
+                            .setColor(0x2ecc71)
+                            .setTitle('🧾 Purchase Receipt')
+                            .setDescription('Enjoy your new items!')
+                            .addFields(
+                                { name: 'Item', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nAmount: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
+                                { name: 'SUMMARY', value: `Discount: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}\nTotal Price: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}` }
+                            )
+                            .setTimestamp();
+                        await interaction.followUp({ embeds: [receiptEmbed], ephemeral: true }).catch(() => {});
                         await refreshShopDisplayForGuild(interaction.guild.id, client);
-                         if (itemIdToBuy === client.levelSystem.COSMIC_ROLE_TOKEN_ID || client.levelSystem._getItemMasterProperty(itemIdToBuy, 'id') === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
+                        if (itemIdToBuy === client.levelSystem.COSMIC_ROLE_TOKEN_ID || client.levelSystem._getItemMasterProperty(itemIdToBuy, 'id') === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
                             const itemConfig = client.levelSystem._getItemMasterProperty(itemIdToBuy, null);
                             await checkAndAwardSpecialRole(member, `purchasing ${itemConfig?.name || itemIdToBuy}`, itemConfig?.name || itemIdToBuy);
                         }
+                    } else if (purchaseResult.itemId) {
+                        const failedEmbed = new EmbedBuilder()
+                            .setColor(0xe74c3c)
+                            .setTitle('❌ Purchase Failed')
+                            .setDescription(purchaseResult.message || 'Purchase failed.')
+                            .addFields(
+                                { name: 'Item', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nAmount: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
+                                { name: 'SUMMARY', value: `Discount: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}\nTotal Price: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}\nYou need more funds.` }
+                            )
+                            .setTimestamp();
+                        await safeEditReply(interaction, { embeds: [failedEmbed], ephemeral: true }, true);
                     } else {
                         await sendInteractionError(interaction, purchaseResult.message || "Purchase failed.", true, deferredThisInteraction);
                     }
