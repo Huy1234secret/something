@@ -811,6 +811,14 @@ this.db.prepare(`
         const settings = {};
         const rows = this.db.prepare("SELECT itemId, enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ?").all(userId, guildId);
         rows.forEach(row => { settings[row.itemId.toLowerCase()] = !!row.enableAlert; });
+
+        // When global notifications are disabled, report all shop alerts as disabled
+        if (this.client && this.client.NON_DAILY_NOTIFICATIONS_ENABLED === false) {
+            for (const itemId of Object.keys(this.gameConfig.items)) {
+                settings[itemId.toLowerCase()] = false;
+            }
+        }
+
         return settings;
     }
         getUserShopAlertSetting(userId, guildId, itemId) {
@@ -821,7 +829,9 @@ this.db.prepare(`
         }
         const normalizedId = String(itemId).toLowerCase();
         const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, normalizedId);
-        return { itemId: normalizedId, enableAlert: row ? !!row.enableAlert : false };
+        let enabled = row ? !!row.enableAlert : false;
+        if (this.client && this.client.NON_DAILY_NOTIFICATIONS_ENABLED === false) enabled = false;
+        return { itemId: normalizedId, enableAlert: enabled };
     }
     setUserShopAlertSetting(userId, guildId, itemId, enableAlert) {
         this._ensureShopAlertTable();
