@@ -97,6 +97,7 @@ const DEFAULT_REPLY_DELETE_TIMEOUT = 60000;
 const DEFAULT_LEADERBOARD_GUILD_ID = process.env.DEFAULT_LEADERBOARD_GUILD_ID;
 const DEFAULT_LEADERBOARD_CHANNEL_ID = process.env.DEFAULT_LEADERBOARD_CHANNEL_ID;
 const LEADERBOARD_LIMIT = parseInt(process.env.LEADERBOARD_LIMIT) || 10;
+const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
 
 const LOOTBOX_DROP_CHANNEL_ID = process.env.LOOTBOX_DROP_CHANNEL_ID;
 const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
@@ -4212,6 +4213,35 @@ client.on('interactionCreate', async interaction => {
                         await interaction.message.edit({ embeds: [previewEmbed], components: builderComponents }).catch(console.error);
                     }
                 }
+                return;
+            }
+
+            if (customId.startsWith('check_rank_')) {
+                if (!interaction.guild) return sendInteractionError(interaction, 'Rank check requires a server context.', true);
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const type = customId.replace('check_rank_', '');
+                await interaction.guild.members.fetch().catch(()=>{});
+                const blacklistSet = new Set();
+                for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
+                    const role = interaction.guild.roles.cache.get(rId);
+                    if (role) role.members.forEach(m => blacklistSet.add(m.id));
+                }
+                let replyMsg = 'Rank info unavailable.';
+                if (type === 'level') {
+                    const info = client.levelSystem.getLevelInfo(interaction.user.id, interaction.guild.id);
+                    replyMsg = `Your level rank is **#${info.rank}**.`;
+                } else if (type === 'coins') {
+                    const data = client.levelSystem.getCoinRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
+                    replyMsg = `Your coins rank is **#${data.rank}** with ${data.totalCoins.toLocaleString()} coins.`;
+                } else if (type === 'gems') {
+                    const data = client.levelSystem.getGemRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
+                    replyMsg = `Your gems rank is **#${data.rank}** with ${data.totalGems.toLocaleString()} gems.`;
+                } else if (type === 'value') {
+                    const data = client.levelSystem.getValueRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
+                    replyMsg = `Your value rank is **#${data.rank}** with total value ${data.totalValue.toLocaleString()}.`;
+                }
+                await safeEditReply(interaction, { content: replyMsg, ephemeral: true });
                 return;
             }
 

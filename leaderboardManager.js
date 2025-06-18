@@ -1,5 +1,7 @@
 // leaderboardManager.js
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
 
 // NEW: Map levels to custom emoji IDs (USING PLACEHOLDERS - YOU NEED TO REPLACE IDs)
 // Assuming you have custom emojis like <:bronze1:ID>, <:bronze2:ID>, ... , <:darkmatter10:ID>
@@ -235,10 +237,25 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             return { success: true, updated: false, message: "Leaderboard was updated recently. Automatic updates follow an interval." };
         }
 
-        const leaderboardData = systemsManager.getLeaderboard(guildId, limit);
-        const coinData = systemsManager.getCoinLeaderboard(guildId, 5);
-        const gemData = systemsManager.getGemLeaderboard(guildId, 5);
-        const valueData = systemsManager.getValueLeaderboard(guildId, 5);
+        const guild = await client.guilds.fetch(guildId);
+        await guild.members.fetch().catch(() => {});
+        const blacklistSet = new Set();
+        for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
+            const role = guild.roles.cache.get(rId);
+            if (role) role.members.forEach(m => blacklistSet.add(m.id));
+        }
+
+        const leaderboardRaw = systemsManager.getLeaderboard(guildId, limit * 5);
+        const leaderboardData = leaderboardRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, limit);
+
+        const coinRaw = systemsManager.getCoinLeaderboard(guildId, 25);
+        const coinData = coinRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
+
+        const gemRaw = systemsManager.getGemLeaderboard(guildId, 25);
+        const gemData = gemRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
+
+        const valueRaw = systemsManager.getValueLeaderboard(guildId, 25);
+        const valueData = valueRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
 
         const leaderboardEmbed = await formatLeaderboardEmbed(
             leaderboardData,
@@ -251,7 +268,15 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const gemEmbed = await formatGemLeaderboardEmbed(gemData, client);
         const valueEmbed = await formatValueLeaderboardEmbed(valueData, client);
 
-        const guild = await client.guilds.fetch(guildId);
+        const components = [
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('check_rank_level').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('🎖️'),
+                new ButtonBuilder().setCustomId('check_rank_coins').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('💰'),
+                new ButtonBuilder().setCustomId('check_rank_gems').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('💎'),
+                new ButtonBuilder().setCustomId('check_rank_value').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+            )
+        ];
+
         if (!guild) {
             console.warn(`[Leaderboard] Guild with ID ${guildId} not found.`);
             return { success: false, message: "Guild not found." };
@@ -286,7 +311,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
                 const oldMessage = await channel.messages.fetch(messageId);
                 if (oldMessage.author.id === client.user.id) { // Check if bot owns message
                     if (botPermissionsInChannel.has(PermissionsBitField.Flags.ManageMessages) || oldMessage.editable) { // Check editability
-                        await oldMessage.edit({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed] });
+                        await oldMessage.edit({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
                         messageUpdated = true;
                     } else {
                          console.warn(`[Leaderboard] Cannot edit message ${messageId} (not editable or missing ManageMessages). Will post new.`);
@@ -303,7 +328,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         if (!settings.leaderboardMessageId && !messageUpdated) {
-            const newMessage = await channel.send({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed] });
+            const newMessage = await channel.send({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
             newMsgId = newMessage.id;
         }
         
