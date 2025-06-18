@@ -4239,7 +4239,7 @@ client.on('interactionCreate', async interaction => {
                     replyMsg = `Your gems rank is **#${data.rank}** with ${data.totalGems.toLocaleString()} gems.`;
                 } else if (type === 'value') {
                     const data = client.levelSystem.getValueRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
-                    replyMsg = `Your value rank is **#${data.rank}** with total value ${data.totalValue.toLocaleString()}.`;
+                    replyMsg = `Your value rank is **#${data.rank}** with item value ${data.totalValue.toLocaleString()}.`;
                 }
                 await safeEditReply(interaction, { content: replyMsg, ephemeral: true });
                 return;
