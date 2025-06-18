@@ -3695,13 +3695,23 @@ client.on('interactionCreate', async interaction => {
                         const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
                         const gemEmoji  = client.levelSystem.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
                         const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
+                        const originalTotal = purchaseResult.totalCost + purchaseResult.discountAmount;
+                        let discountLine = `Discount Applied: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}`;
+                        if (purchaseResult.discountAmount > 0) {
+                            discountLine += ` (${purchaseResult.discountPercent}%)`;
+                        }
+                        let summaryValue = `${discountLine}\nTotal Paid: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}`;
+                        if (purchaseResult.discountAmount > 0) {
+                            summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${purchaseResult.currencyEmoji}`;
+                        }
+                        summaryValue += `\nRemaining Stock: ${purchaseResult.newStock}`;
                         const receiptEmbed = new EmbedBuilder()
                             .setColor(0x2ecc71)
                             .setTitle('🧾 Purchase Receipt')
                             .setDescription('Thank you for your purchase! Here is your receipt.')
                             .addFields(
                                 { name: 'Item Purchased', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nQuantity: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
-                                { name: 'Summary', value: `Discount Applied: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}\nTotal Paid: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}\nRemaining Stock: ${purchaseResult.newStock}` },
+                                { name: 'Summary', value: summaryValue },
                                 { name: 'Your Balance', value: `${coinEmoji} ${updatedBalance.coins.toLocaleString()} | ${gemEmoji} ${updatedBalance.gems.toLocaleString()} | ${robuxEmoji} ${updatedBalance.robux.toLocaleString()}` }
                             )
                             .setTimestamp();
