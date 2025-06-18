@@ -15,6 +15,10 @@ const config = {
         ALERT_WORTHY_DISCOUNT_PERCENT: 0.25,   // DM users if an item is ≥ 25 % off
         MAX_SHOP_SLOTS: 10,
 
+        // Toggle to globally enable/disable all notifications except the daily ready alert
+        // Set to `false` to suppress non-daily notifications across the bot
+        NON_DAILY_NOTIFICATIONS_ENABLED: true,
+
         BASE_COINS_PER_MESSAGE: [1, 10],
         BASE_XP_PER_MESSAGE: 15,
         XP_COOLDOWN_SECONDS: 60,

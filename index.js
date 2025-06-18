@@ -2,10 +2,24 @@
 const {
     Client, GatewayIntentBits, Collection, EmbedBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    ChannelType, AttachmentBuilder, MessageFlags, PermissionsBitField, ActivityType, InteractionType, StringSelectMenuBuilder
+    ChannelType, AttachmentBuilder, MessageFlags, PermissionsBitField, ActivityType, InteractionType, StringSelectMenuBuilder,
+    User
 } = require('discord.js');
 const dotenv = require('dotenv');
 dotenv.config();
+
+// Global toggle to suppress all notifications except daily reward alerts
+const NON_DAILY_NOTIFICATIONS_ENABLED = process.env.DISABLE_NON_DAILY_NOTIFICATIONS !== 'true';
+const originalUserSend = User.prototype.send;
+User.prototype.send = function (...args) {
+    if (!NON_DAILY_NOTIFICATIONS_ENABLED) {
+        const content = typeof args[0] === 'string' ? args[0] : (args[0]?.content || '');
+        if (!content.toLowerCase().includes('daily reward')) {
+            return Promise.resolve();
+        }
+    }
+    return originalUserSend.apply(this, args);
+};
 
 // --- Merged Imports from systems.js and shopManager.js ---
 const {
