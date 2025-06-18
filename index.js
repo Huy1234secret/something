@@ -494,7 +494,7 @@ function buildShopCategoryEmbed(userId, guildId, systemsManager, category) {
         .setTitle(`🛍️ ${category.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} Alerts`);
     items.forEach(it => {
         const enabled = userSettings[it.id] !== false;
-        embed.addFields({ name: `${it.emoji || ''} ${it.name}`, value: enabled ? SETTINGS_EMOJI_ENABLED : SETTINGS_EMOJI_DISABLED, inline: true });
+        embed.addFields({ name: `${it.emoji || ''} ${it.name} (\`${it.id}\`)`, value: enabled ? SETTINGS_EMOJI_ENABLED : SETTINGS_EMOJI_DISABLED, inline: true });
     });
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('shop_category_back').setLabel('Back').setStyle(ButtonStyle.Secondary),
@@ -3035,10 +3035,9 @@ client.on('interactionCreate', async interaction => {
             if (customId.startsWith('shop_change_modal_')) {
                 if (!interaction.isButton()) return;
                 const category = customId.replace('shop_change_modal_', '');
-                const modal = new ModalBuilder().setCustomId(`shop_change_submit_${category}`).setTitle('Edit Shop Alert');
+                const modal = new ModalBuilder().setCustomId(`shop_change_submit_${category}`).setTitle('Toggle Shop Item Alert');
                 const idInput = new TextInputBuilder().setCustomId('item_id').setLabel('Item ID').setStyle(TextInputStyle.Short).setRequired(true);
-                const enableInput = new TextInputBuilder().setCustomId('enable_flag').setLabel('Enable? (true/false)').setStyle(TextInputStyle.Short).setRequired(true);
-                modal.addComponents(new ActionRowBuilder().addComponents(idInput), new ActionRowBuilder().addComponents(enableInput));
+                modal.addComponents(new ActionRowBuilder().addComponents(idInput));
                 await interaction.showModal(modal).catch(async e => { console.error('Show modal error', e); await sendInteractionError(interaction, 'Failed to open form.', true, false); });
                 return;
             }
@@ -3047,13 +3046,14 @@ client.on('interactionCreate', async interaction => {
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 const category = customId.replace('shop_change_submit_', '');
                 const itemId = interaction.fields.getTextInputValue('item_id').trim();
-                const enableFlag = interaction.fields.getTextInputValue('enable_flag').trim().toLowerCase() === 'true';
-                client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, enableFlag);
+                const current = client.levelSystem.getUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId).enableAlert;
+                const newVal = current ? false : true;
+                client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, newVal);
                 const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
                 if (interaction.message && interaction.message.editable) {
                     await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
                 }
-                await interaction.editReply({ content: '✅ Setting updated!', embeds: [], components: [] }).catch(() => {});
+                await interaction.editReply({ content: `✅ Alerts for \`${itemId}\` ${newVal ? 'enabled' : 'disabled'}!`, embeds: [], components: [] }).catch(() => {});
                 return;
             }
             if (customId.startsWith('restore_streak_confirm_')) {
