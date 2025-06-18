@@ -591,6 +591,45 @@ class SystemsManager {
         return results.slice(0, limit);
     }
 
+    getCoinRank(userId, guildId, blacklistIds = []) {
+        const users = this.db.prepare('SELECT userId, (coins + bankCoins) AS totalCoins FROM users WHERE guildId = ?').all(guildId);
+        const filtered = users.filter(u => !blacklistIds.includes(u.userId));
+        filtered.sort((a, b) => b.totalCoins - a.totalCoins);
+        const idx = filtered.findIndex(u => u.userId === userId);
+        const userRow = users.find(u => u.userId === userId);
+        const totalCoins = userRow ? userRow.totalCoins : 0;
+        return { rank: idx >= 0 ? idx + 1 : filtered.length + 1, totalCoins };
+    }
+
+    getGemRank(userId, guildId, blacklistIds = []) {
+        const users = this.db.prepare('SELECT userId, (gems + bankGems) AS totalGems FROM users WHERE guildId = ?').all(guildId);
+        const filtered = users.filter(u => !blacklistIds.includes(u.userId));
+        filtered.sort((a, b) => b.totalGems - a.totalGems);
+        const idx = filtered.findIndex(u => u.userId === userId);
+        const userRow = users.find(u => u.userId === userId);
+        const totalGems = userRow ? userRow.totalGems : 0;
+        return { rank: idx >= 0 ? idx + 1 : filtered.length + 1, totalGems };
+    }
+
+    getValueRank(userId, guildId, blacklistIds = []) {
+        const users = this.db.prepare('SELECT userId, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        const results = users.map(user => {
+            let totalValue = user.coins + user.bankCoins + user.gems + user.bankGems;
+            const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
+            inventory.forEach(item => {
+                const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);
+                if (typeof basePrice === 'number') totalValue += basePrice * item.quantity;
+            });
+            return { userId: user.userId, totalValue };
+        });
+        const filtered = results.filter(r => !blacklistIds.includes(r.userId));
+        filtered.sort((a, b) => b.totalValue - a.totalValue);
+        const idx = filtered.findIndex(r => r.userId === userId);
+        const userRow = results.find(r => r.userId === userId);
+        const totalValue = userRow ? userRow.totalValue : 0;
+        return { rank: idx >= 0 ? idx + 1 : filtered.length + 1, totalValue };
+    }
+
     getUser(userId, guildId) {
         let user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         if (!user) {
