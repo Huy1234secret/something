@@ -100,6 +100,105 @@ async function formatLeaderboardEmbed(leaderboardData, client, guildId, systemsM
     return embed;
 }
 
+async function formatCoinLeaderboardEmbed(leaderboardData, client) {
+    const embed = new EmbedBuilder()
+        .setColor('#FFD700')
+        .setTitle('💰 Top 5 Coins');
+
+    if (leaderboardData.length === 0) {
+        embed.setDescription('No data available.');
+        return embed;
+    }
+
+    const fields = await Promise.all(leaderboardData.map(async (user, index) => {
+        let userTag = 'Unknown User';
+        try {
+            const fetchedUser = await client.users.fetch(user.userId);
+            userTag = fetchedUser.username;
+        } catch (error) {
+            console.error(`Error fetching user for coins leaderboard: ${user.userId}`, error);
+        }
+        const rankEmoji = getRankEmoji(index + 1);
+        return {
+            name: `${rankEmoji} ${index + 1}. ${userTag}`,
+            value: `${user.totalCoins.toLocaleString()} Coins`,
+            inline: false,
+        };
+    }));
+
+    embed.addFields(fields);
+    embed.setFooter({ text: 'Last updated:' });
+    embed.setTimestamp();
+
+    return embed;
+}
+
+async function formatGemLeaderboardEmbed(leaderboardData, client) {
+    const embed = new EmbedBuilder()
+        .setColor('#00FFFF')
+        .setTitle('💎 Top 5 Gems');
+
+    if (leaderboardData.length === 0) {
+        embed.setDescription('No data available.');
+        return embed;
+    }
+
+    const fields = await Promise.all(leaderboardData.map(async (user, index) => {
+        let userTag = 'Unknown User';
+        try {
+            const fetchedUser = await client.users.fetch(user.userId);
+            userTag = fetchedUser.username;
+        } catch (error) {
+            console.error(`Error fetching user for gems leaderboard: ${user.userId}`, error);
+        }
+        const rankEmoji = getRankEmoji(index + 1);
+        return {
+            name: `${rankEmoji} ${index + 1}. ${userTag}`,
+            value: `${user.totalGems.toLocaleString()} Gems`,
+            inline: false,
+        };
+    }));
+
+    embed.addFields(fields);
+    embed.setFooter({ text: 'Last updated:' });
+    embed.setTimestamp();
+
+    return embed;
+}
+
+async function formatValueLeaderboardEmbed(leaderboardData, client) {
+    const embed = new EmbedBuilder()
+        .setColor('#9b59b6')
+        .setTitle('📦 Top 5 Total Value');
+
+    if (leaderboardData.length === 0) {
+        embed.setDescription('No data available.');
+        return embed;
+    }
+
+    const fields = await Promise.all(leaderboardData.map(async (user, index) => {
+        let userTag = 'Unknown User';
+        try {
+            const fetchedUser = await client.users.fetch(user.userId);
+            userTag = fetchedUser.username;
+        } catch (error) {
+            console.error(`Error fetching user for value leaderboard: ${user.userId}`, error);
+        }
+        const rankEmoji = getRankEmoji(index + 1);
+        return {
+            name: `${rankEmoji} ${index + 1}. ${userTag}`,
+            value: `${user.totalValue.toLocaleString()} Value`,
+            inline: false,
+        };
+    }));
+
+    embed.addFields(fields);
+    embed.setFooter({ text: 'Last updated:' });
+    embed.setTimestamp();
+
+    return embed;
+}
+
 /**
  * Gets a crown emoji for top ranks.
  * @param {number} rank - The rank number.
@@ -137,7 +236,10 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         const leaderboardData = systemsManager.getLeaderboard(guildId, limit);
-        // Pass systemsManager to formatLeaderboardEmbed
+        const coinData = systemsManager.getCoinLeaderboard(guildId, 5);
+        const gemData = systemsManager.getGemLeaderboard(guildId, 5);
+        const valueData = systemsManager.getValueLeaderboard(guildId, 5);
+
         const leaderboardEmbed = await formatLeaderboardEmbed(
             leaderboardData,
             client,
@@ -145,6 +247,9 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             systemsManager,
             updateInterval
         );
+        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client);
+        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client);
+        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client);
 
         const guild = await client.guilds.fetch(guildId);
         if (!guild) {
@@ -181,7 +286,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
                 const oldMessage = await channel.messages.fetch(messageId);
                 if (oldMessage.author.id === client.user.id) { // Check if bot owns message
                     if (botPermissionsInChannel.has(PermissionsBitField.Flags.ManageMessages) || oldMessage.editable) { // Check editability
-                        await oldMessage.edit({ embeds: [leaderboardEmbed] });
+                        await oldMessage.edit({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed] });
                         messageUpdated = true;
                     } else {
                          console.warn(`[Leaderboard] Cannot edit message ${messageId} (not editable or missing ManageMessages). Will post new.`);
@@ -198,7 +303,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         if (!settings.leaderboardMessageId && !messageUpdated) {
-            const newMessage = await channel.send({ embeds: [leaderboardEmbed] });
+            const newMessage = await channel.send({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed] });
             newMsgId = newMessage.id;
         }
         
@@ -218,5 +323,8 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
 module.exports = {
     postOrUpdateLeaderboard,
     formatLeaderboardEmbed,
+    formatCoinLeaderboardEmbed,
+    formatGemLeaderboardEmbed,
+    formatValueLeaderboardEmbed,
     // LEVEL_TO_EMOJI_ID_MAP // No need to export this
 };
