@@ -577,9 +577,9 @@ class SystemsManager {
     }
 
     getValueLeaderboard(guildId, limit = 5) {
-        const users = this.db.prepare('SELECT userId, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        const users = this.db.prepare('SELECT userId FROM users WHERE guildId = ?').all(guildId);
         const results = users.map(user => {
-            let totalValue = user.coins + user.bankCoins + user.gems + user.bankGems;
+            let totalValue = 0; // Count only items, currencies no longer contribute
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
             inventory.forEach(item => {
                 const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);
@@ -612,9 +612,9 @@ class SystemsManager {
     }
 
     getValueRank(userId, guildId, blacklistIds = []) {
-        const users = this.db.prepare('SELECT userId, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        const users = this.db.prepare('SELECT userId FROM users WHERE guildId = ?').all(guildId);
         const results = users.map(user => {
-            let totalValue = user.coins + user.bankCoins + user.gems + user.bankGems;
+            let totalValue = 0; // Only sum up item values
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
             inventory.forEach(item => {
                 const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);

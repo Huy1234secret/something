@@ -171,7 +171,7 @@ async function formatGemLeaderboardEmbed(leaderboardData, client) {
 async function formatValueLeaderboardEmbed(leaderboardData, client) {
     const embed = new EmbedBuilder()
         .setColor('#9b59b6')
-        .setTitle('📦 Top 5 Total Value');
+        .setTitle('📦 Top 5 Item Value');
 
     if (leaderboardData.length === 0) {
         embed.setDescription('No data available.');
@@ -189,7 +189,7 @@ async function formatValueLeaderboardEmbed(leaderboardData, client) {
         const rankEmoji = getRankEmoji(index + 1);
         return {
             name: `${rankEmoji} ${index + 1}. ${userTag}`,
-            value: `${user.totalValue.toLocaleString()} Value`,
+            value: `${user.totalValue.toLocaleString()} Item Value`,
             inline: false,
         };
     }));
