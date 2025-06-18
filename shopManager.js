@@ -362,11 +362,11 @@ class ShopManager {
         }
 
         const userBalance = this.systemsManager.getBalance(userId, guildId);
-        let totalCost = shopItemEntry.currentPrice * amountToPurchase;
+        const baseCost = shopItemEntry.currentPrice * amountToPurchase;
         const rolePerks = this.systemsManager.getActiveRolePerks(userId, guildId);
-        if (rolePerks.totals.discountPercent > 0) {
-            totalCost = Math.round(totalCost * (1 - rolePerks.totals.discountPercent / 100));
-        }
+        const discountPercent = rolePerks.totals.discountPercent || 0;
+        const discountAmount = discountPercent > 0 ? Math.round(baseCost * (discountPercent / 100)) : 0;
+        const totalCost = Math.round(baseCost - discountAmount);
 
         // --- START OF CORRECTION FOR CURRENCY DEDUCTION ---
         let currencyToDeduct = itemConfigMaster.priceCurrency || this.systemsManager.COINS_ID; // Get from master config
@@ -383,7 +383,19 @@ class ShopManager {
         }
 
         if (userCurrencyBalance < totalCost) {
-            return { success: false, message: `You need ${totalCost.toLocaleString()} ${currencyEmojiForMessage} but you only have ${userCurrencyBalance.toLocaleString()} ${currencyEmojiForMessage}.` };
+            return {
+                success: false,
+                message: `You need ${totalCost.toLocaleString()} ${currencyEmojiForMessage} but you only have ${userCurrencyBalance.toLocaleString()} ${currencyEmojiForMessage}.`,
+                itemId: shopItemEntry.itemId,
+                itemName: itemConfigMaster.name,
+                emoji: itemConfigMaster.emoji || '❓',
+                amount: amountToPurchase,
+                pricePerItem: shopItemEntry.currentPrice,
+                discountAmount,
+                discountPercent,
+                totalCost,
+                currencyEmoji: currencyEmojiForMessage
+            };
         }
         // --- END OF CORRECTION FOR CURRENCY DEDUCTION ---
 
@@ -416,7 +428,17 @@ class ShopManager {
             return {
                 success: true,
                 message: `Successfully purchased ${amountToPurchase}x ${itemConfigMaster.emoji || '❓'} **${itemConfigMaster.name}** for ${totalCost.toLocaleString()} ${currencyEmojiForMessage}!${itemAddMessagePart}`,
-                itemId: shopItemEntry.itemId, newStock: newStock, slotId: shopItemEntry.slotId
+                itemId: shopItemEntry.itemId,
+                itemName: itemConfigMaster.name,
+                emoji: itemConfigMaster.emoji || '❓',
+                amount: amountToPurchase,
+                pricePerItem: shopItemEntry.currentPrice,
+                discountAmount,
+                discountPercent,
+                totalCost,
+                currencyEmoji: currencyEmojiForMessage,
+                newStock: newStock,
+                slotId: shopItemEntry.slotId
             };
         });
 
