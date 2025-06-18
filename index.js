@@ -8,11 +8,10 @@ const {
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Global toggle to suppress all notifications except daily reward alerts
-let NON_DAILY_NOTIFICATIONS_ENABLED = process.env.DISABLE_NON_DAILY_NOTIFICATIONS !== 'true';
+// Corrected code
 const originalUserSend = User.prototype.send;
 User.prototype.send = function (...args) {
-    if (!NON_DAILY_NOTIFICATIONS_ENABLED) {
+    if (this.client && this.client.NON_DAILY_NOTIFICATIONS_ENABLED === false) {
         const content = typeof args[0] === 'string' ? args[0] : (args[0]?.content || '');
         if (!content.toLowerCase().includes('daily reward')) {
             return Promise.resolve();
@@ -275,6 +274,7 @@ const client = new Client({
         GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.DirectMessages
     ]
 });
+client.NON_DAILY_NOTIFICATIONS_ENABLED = process.env.DISABLE_NON_DAILY_NOTIFICATIONS !== 'true';
 
 console.log(`[DATABASE] Bot is attempting to use database file at: ${dbFilePath}`);
 try {
@@ -2501,21 +2501,33 @@ client.on('interactionCreate', async interaction => {
                 } catch (giveItemError) { console.error('[GiveItem Command] Error:', giveItemError); await sendInteractionError(interaction, "Failed to give item. Internal error.", true, deferredThisInteraction); }
                 return;
             }
-            if (commandName === 'toggle-notifications') {
-                if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-                    return sendInteractionError(interaction, 'Administrator permission required.', true, false);
-                }
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                try {
-                    const enabled = interaction.options.getBoolean('enabled');
-                    NON_DAILY_NOTIFICATIONS_ENABLED = enabled;
-                    await safeEditReply(interaction, { content: `✅ Non-daily notifications ${enabled ? 'enabled' : 'disabled'} globally.`, ephemeral: true });
-                } catch (err) {
-                    console.error('[ToggleNotifications Error]', err);
-                    await sendInteractionError(interaction, 'Failed to toggle notifications.', true, deferredThisInteraction);
-                }
-                return;
-            }
+const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('toggle-notifications')
+        .setDescription('Enable or disable all non-daily notifications for this bot instance.')
+        .addBooleanOption(option =>
+            option.setName('enabled')
+                .setDescription('Set to true to enable non-daily notifications.')
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
+    async execute(interaction, client) {
+        if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
+        }
+
+        const enabled = interaction.options.getBoolean('enabled');
+        
+        // Modify the property on the client object
+        client.NON_DAILY_NOTIFICATIONS_ENABLED = enabled;
+
+        await interaction.reply({ 
+            content: `✅ All non-daily notifications have been **${enabled ? 'ENABLED' : 'DISABLED'}**.`, 
+            ephemeral: true 
+        });
+    },
+};
             if (commandName === 'adminshop') {
                 if (!isStaff()) return sendInteractionError(interaction, "No permission for admin shop.", true, false);
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }

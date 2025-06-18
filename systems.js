@@ -813,15 +813,15 @@ this.db.prepare(`
         rows.forEach(row => { settings[row.itemId.toLowerCase()] = !!row.enableAlert; });
         return settings;
     }
-    getUserShopAlertSetting(userId, guildId, itemId) {
+        getUserShopAlertSetting(userId, guildId, itemId) {
         this._ensureShopAlertTable();
         if (!itemId) {
             console.warn(`[ShopAlertSetting] itemId missing for user ${userId} in guild ${guildId}`);
-            return { itemId: null, enableAlert: true };
+            return { itemId: null, enableAlert: false };
         }
         const normalizedId = String(itemId).toLowerCase();
         const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, normalizedId);
-        return { itemId: normalizedId, enableAlert: row ? !!row.enableAlert : true };
+        return { itemId: normalizedId, enableAlert: row ? !!row.enableAlert : false };
     }
     setUserShopAlertSetting(userId, guildId, itemId, enableAlert) {
         this._ensureShopAlertTable();
@@ -1530,17 +1530,26 @@ this.db.prepare(`
             return rows.map(row => row.userId);
         } catch (error) { console.error(`[ShopAlertUsers] Error fetching users for guild ${guildId}:`, error); return []; }
     }
-    getUsersForShopAlertByItems(guildId, itemIds = []) {
-        const baseUsers = this.getUsersForShopAlert(guildId);
-        if (itemIds.length === 0) return baseUsers;
-        const filtered = [];
-        for (const userId of baseUsers) {
-            for (const itemId of itemIds) {
-                const setting = this.getUserShopAlertSetting(userId, guildId, itemId);
-                if (setting.enableAlert) { filtered.push(userId); break; }
-            }
+        getUsersForShopAlertByItems(guildId, itemIds = []) {
+        if (!this.db || !itemIds || itemIds.length === 0) return [];
+        this._ensureShopAlertTable();
+        try {
+            const lowerCaseItemIds = itemIds.map(id => String(id).toLowerCase());
+            const placeholders = lowerCaseItemIds.map(() => '?').join(',');
+            const query = `
+                SELECT DISTINCT userId 
+                FROM userShopAlertSettings 
+                WHERE guildId = ? 
+                  AND itemId IN (${placeholders})
+                  AND enableAlert = 1
+            `;
+            const params = [guildId, ...lowerCaseItemIds];
+            const rows = this.db.prepare(query).all(...params);
+            return rows.map(row => row.userId);
+        } catch (error) {
+            console.error(`[getUsersForShopAlertByItems] Error fetching users for guild ${guildId}:`, error);
+            return [];
         }
-        return filtered;
     }
 
     getUsersForDailyReadyNotification() {
