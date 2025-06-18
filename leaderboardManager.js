@@ -10,6 +10,8 @@ const LEADERBOARD_REWARD_ROLE_IDS = {
     value: '1384939352412393493',
 };
 
+const FIRST_PLACE_ALERT_DELETE_TIMEOUT = 24 * 60 * 60 * 1000; // 1 day
+
 async function sendFirstPlaceAlert(guild, channelId, typeName, oldUserId, newUserId, role) {
     if (!channelId) return;
     const channel = await guild.channels.fetch(channelId).catch(() => null);
@@ -29,7 +31,12 @@ async function sendFirstPlaceAlert(guild, channelId, typeName, oldUserId, newUse
     }
     if (!desc) return;
     embed.setDescription(desc);
-    await channel.send({ embeds: [embed] }).catch(() => {});
+    const sent = await channel.send({ embeds: [embed] }).catch(() => null);
+    if (sent && sent.deletable) {
+        setTimeout(() => {
+            sent.delete().catch(() => {});
+        }, FIRST_PLACE_ALERT_DELETE_TIMEOUT);
+    }
 }
 
 // NEW: Map levels to custom emoji IDs (USING PLACEHOLDERS - YOU NEED TO REPLACE IDs)
