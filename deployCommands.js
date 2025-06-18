@@ -413,6 +413,19 @@ const commands = [
                 type: ApplicationCommandOptionType.Subcommand,
             }
         ]
+    },
+    {
+        name: 'toggle-notifications',
+        description: 'Enable or disable all non-daily notifications globally.',
+        options: [
+            {
+                name: 'enabled',
+                description: 'Set to true to enable non-daily notifications.',
+                type: ApplicationCommandOptionType.Boolean,
+                required: true,
+            }
+        ],
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString()
     }
 ];
 
