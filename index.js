@@ -77,6 +77,13 @@ function normalizePath(filePath) {
         .replace(/^\/|\/$/g, '');
 }
 
+function formatPercent(decimal, decimals = 4) {
+    return ((decimal || 0) * 100)
+        .toFixed(decimals)
+        .replace(/\.0+$/, '')
+        .replace(/(\.\d*[1-9])0+$/, '$1') + '%';
+}
+
 const STAFF_ROLE_IDS = process.env.STAFF_ROLE_IDS ? process.env.STAFF_ROLE_IDS.split(',').map(id => id.trim()) : [];
 const LEVEL_UP_CHANNEL_ID = process.env.LEVEL_UP_CHANNEL_ID;
 const XP_PER_MESSAGE_BASE = parseInt(process.env.XP_PER_MESSAGE_BASE) || 1;
@@ -2556,7 +2563,7 @@ client.on('interactionCreate', async interaction => {
                                 const resultEmbed = new EmbedBuilder()
                                     .setTitle(`🎁 Opened ${amount}x ${itemConfig.emoji || '📦'} ${itemConfig.name}! 🎁`)
                                     .setColor(itemConfig.color || 0xAAAAAA)
-                                    .setDescription(result.itemsRolled.map(r => `${r.emoji || '❓'} **${r.name}** (x${r.quantity}) \`(${client.levelSystem._getItemRarityString(r.id, r, r.type)}, Chance: ${((r.rolledChance || 0) * 100).toFixed(4)}%)\``).join('\n') || 'No items received (this should not happen).')
+                                    .setDescription(result.itemsRolled.map(r => `${r.emoji || '❓'} **${r.name}** (x${r.quantity}) \`(${client.levelSystem._getItemRarityString(r.id, r, r.type)}, Chance: ${formatPercent(r.rolledChance || 0)})\``).join('\n') || 'No items received (this should not happen).')
                                     .setTimestamp();
                                 if(result.grantedSpecialRole) resultEmbed.addFields({name: "✨ SPECIAL ROLE AWARDED! ✨", value: "You obtained a Cosmic Role Token and the special role was granted!"});
                                 if(result.charmsObtainedDetails && result.charmsObtainedDetails.length > 0) { // Display charms activated
@@ -2582,7 +2589,7 @@ client.on('interactionCreate', async interaction => {
                                     notifyEmbed.setColor(rarityDetails.color); // Set color based on the (first) rare item's rarity
                                     notifyEmbed.addFields({
                                         name: `${notifyItem.emoji || '❓'} ${notifyItem.name} (x${notifyItem.quantity})`,
-                                        value: `From: **${notifyItem.fromBox || 'Unknown Box'}**\nRolled Chance: \`${((notifyItem.chance || 0) * 100).toFixed(4)}%\` (Threshold: ${notifyItem.threshold})`,
+                                        value: `From: **${notifyItem.fromBox || 'Unknown Box'}**\nRolled Chance: \`${formatPercent(notifyItem.chance || 0)}\` (Threshold: ${notifyItem.threshold})`,
                                         inline: false
                                     });
                                 });
