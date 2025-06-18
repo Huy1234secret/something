@@ -10,6 +10,28 @@ const LEADERBOARD_REWARD_ROLE_IDS = {
     value: '1384939352412393493',
 };
 
+async function sendFirstPlaceAlert(guild, channelId, typeName, oldUserId, newUserId, role) {
+    if (!channelId) return;
+    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    if (!channel) return;
+    const embed = new EmbedBuilder()
+        .setColor('#F1C40F')
+        .setTitle('🏅 First Place Update');
+    let desc = '';
+    if (newUserId && newUserId !== oldUserId) {
+        desc += `<@${newUserId}> is now **#1** in the **${typeName}** leaderboard!`;
+        if (role) desc += `\nReward: ${role}`;
+    }
+    if (oldUserId && oldUserId !== newUserId) {
+        if (desc) desc += '\n';
+        desc += `<@${oldUserId}> lost the top spot.`;
+        if (role) desc += ` Lost: ${role}`;
+    }
+    if (!desc) return;
+    embed.setDescription(desc);
+    await channel.send({ embeds: [embed] }).catch(() => {});
+}
+
 // NEW: Map levels to custom emoji IDs (USING PLACEHOLDERS - YOU NEED TO REPLACE IDs)
 // Assuming you have custom emojis like <:bronze1:ID>, <:bronze2:ID>, ... , <:darkmatter10:ID>
 const LEVEL_TO_EMOJI_ID_MAP = {
@@ -356,6 +378,9 @@ async function updateLeaderboardRewards(client, guildId, systemsManager) {
     try {
         const guild = await client.guilds.fetch(guildId);
         await guild.members.fetch().catch(() => {});
+        const settings = systemsManager.getGuildSettings(guildId);
+
+        const channelId = settings.leaderboardChannelId;
 
         const blacklistSet = new Set();
         for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
@@ -374,6 +399,24 @@ async function updateLeaderboardRewards(client, guildId, systemsManager) {
             { roleId: LEADERBOARD_REWARD_ROLE_IDS.gem, userId: topGem?.userId },
             { roleId: LEADERBOARD_REWARD_ROLE_IDS.value, userId: topValue?.userId },
         ];
+
+        const newTops = {
+            topLevelUserId: topLevel?.userId || null,
+            topCoinUserId: topCoin?.userId || null,
+            topGemUserId: topGem?.userId || null,
+            topValueUserId: topValue?.userId || null,
+        };
+
+        for (const [key, newId] of Object.entries(newTops)) {
+            const oldId = settings[key];
+            if (oldId !== newId) {
+                const type = key.replace('top', '').replace('UserId', '').toLowerCase();
+                const roleId = LEADERBOARD_REWARD_ROLE_IDS[type];
+                const role = guild.roles.cache.get(roleId);
+                await sendFirstPlaceAlert(guild, channelId, type, oldId, newId, role ? role.toString() : null);
+                settings[key] = newId;
+            }
+        }
 
         if (!guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return;
 
@@ -400,6 +443,8 @@ async function updateLeaderboardRewards(client, guildId, systemsManager) {
                 }
             }
         }
+
+        systemsManager.setGuildSettings(guildId, newTops);
     } catch (err) {
         console.error(`[LeaderboardReward] Failed to update rewards for guild ${guildId}:`, err);
     }
