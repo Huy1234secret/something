@@ -138,7 +138,7 @@ async function formatLeaderboardEmbed(leaderboardData, client, guildId, systemsM
     return embed;
 }
 
-async function formatCoinLeaderboardEmbed(leaderboardData, client) {
+async function formatCoinLeaderboardEmbed(leaderboardData, client, timeUntilNextUpdateMs = 0) {
     const embed = new EmbedBuilder()
         .setColor('#FFD700')
         .setTitle('💰 Top 5 Coins');
@@ -165,13 +165,17 @@ async function formatCoinLeaderboardEmbed(leaderboardData, client) {
     }));
 
     embed.addFields(fields);
+    if (timeUntilNextUpdateMs > 0) {
+        const nextUpdateTimestamp = Math.floor((Date.now() + timeUntilNextUpdateMs) / 1000);
+        embed.addFields({ name: 'Next Update', value: `<t:${nextUpdateTimestamp}:R>`, inline: false });
+    }
     embed.setFooter({ text: 'Last updated:' });
     embed.setTimestamp();
 
     return embed;
 }
 
-async function formatGemLeaderboardEmbed(leaderboardData, client) {
+async function formatGemLeaderboardEmbed(leaderboardData, client, timeUntilNextUpdateMs = 0) {
     const embed = new EmbedBuilder()
         .setColor('#00FFFF')
         .setTitle('💎 Top 5 Gems');
@@ -198,13 +202,17 @@ async function formatGemLeaderboardEmbed(leaderboardData, client) {
     }));
 
     embed.addFields(fields);
+    if (timeUntilNextUpdateMs > 0) {
+        const nextUpdateTimestamp = Math.floor((Date.now() + timeUntilNextUpdateMs) / 1000);
+        embed.addFields({ name: 'Next Update', value: `<t:${nextUpdateTimestamp}:R>`, inline: false });
+    }
     embed.setFooter({ text: 'Last updated:' });
     embed.setTimestamp();
 
     return embed;
 }
 
-async function formatValueLeaderboardEmbed(leaderboardData, client) {
+async function formatValueLeaderboardEmbed(leaderboardData, client, timeUntilNextUpdateMs = 0) {
     const embed = new EmbedBuilder()
         .setColor('#9b59b6')
         .setTitle('📦 Top 5 Total Value');
@@ -231,6 +239,10 @@ async function formatValueLeaderboardEmbed(leaderboardData, client) {
     }));
 
     embed.addFields(fields);
+    if (timeUntilNextUpdateMs > 0) {
+        const nextUpdateTimestamp = Math.floor((Date.now() + timeUntilNextUpdateMs) / 1000);
+        embed.addFields({ name: 'Next Update', value: `<t:${nextUpdateTimestamp}:R>`, inline: false });
+    }
     embed.setFooter({ text: 'Last updated:' });
     embed.setTimestamp();
 
@@ -300,9 +312,9 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             systemsManager,
             updateInterval
         );
-        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client);
-        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client);
-        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client);
+        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, updateInterval);
+        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, updateInterval);
+        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, updateInterval);
 
         const components = [
             new ActionRowBuilder().addComponents(
