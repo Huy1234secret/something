@@ -815,7 +815,11 @@ this.db.prepare(`
     }
     getUserShopAlertSetting(userId, guildId, itemId) {
         this._ensureShopAlertTable();
-        const normalizedId = itemId.toLowerCase();
+        if (!itemId) {
+            console.warn(`[ShopAlertSetting] itemId missing for user ${userId} in guild ${guildId}`);
+            return { itemId: null, enableAlert: true };
+        }
+        const normalizedId = String(itemId).toLowerCase();
         const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, normalizedId);
         return { itemId: normalizedId, enableAlert: row ? !!row.enableAlert : true };
     }

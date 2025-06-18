@@ -686,10 +686,10 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
             }
         }
     }
-    const allItemIds = restockResult.items.map(it => it.id);
+    const allItemIds = restockResult.items.map(it => it.itemId);
     const watchUsers = client.levelSystem.getUsersForShopAlertByItems(guildId, allItemIds);
     for (const watchUserId of watchUsers) {
-        const relevant = restockResult.items.filter(it => client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.id).enableAlert);
+        const relevant = restockResult.items.filter(it => client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.itemId).enableAlert);
         if (relevant.length === 0) continue;
         const userEmbed = new EmbedBuilder()
             .setTitle(`🛍️ Shop Restocked in ${guild.name}`)
