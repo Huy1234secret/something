@@ -3131,6 +3131,23 @@ module.exports = {
                 const category = customId.replace('shop_change_submit_', '');
                 const itemIdInput = interaction.fields.getTextInputValue('item_id').trim();
                 const itemId = itemIdInput.toLowerCase();
+                let validIds = [];
+                if (category === 'discount') {
+                    validIds = SHOP_DISCOUNT_IDS.map(id => id.toLowerCase());
+                } else {
+                    const type = category === 'lootbox' ? 'loot_box_item'
+                        : category === 'charm' ? 'charm_item'
+                        : category === 'exclusive' ? 'special_role_item' : null;
+                    if (type) {
+                        validIds = Object.values(client.levelSystem.gameConfig.items)
+                            .filter(it => it.type === type)
+                            .map(it => String(it.id).toLowerCase());
+                    }
+                }
+                if (validIds.length > 0 && !validIds.includes(itemId)) {
+                    await interaction.editReply({ content: `❌ Invalid item ID \`${itemIdInput}\` for this category.`, embeds: [], components: [] });
+                    return;
+                }
                 const current = client.levelSystem.getUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId).enableAlert;
                 const newVal = current ? false : true;
                 client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, newVal);
