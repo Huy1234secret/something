@@ -651,10 +651,9 @@ async function refreshShopDisplayForGuild(guildIdToRefresh, clientInstance) {
 }
 
 async function sendRestockAlerts(client, guild, restockResult, isInstant = false) {
-    if (!restockResult.alertableItemsFound || restockResult.alertableItemsFound.length === 0) return;
     const guildId = guild.id;
     const alertWorthyDiscount = client.levelSystem.gameConfig.globalSettings.ALERT_WORTHY_DISCOUNT_PERCENT || 0.25;
-    const highlyRelevantItems = restockResult.alertableItemsFound.filter(
+    const highlyRelevantItems = (restockResult.alertableItemsFound || []).filter(
         item => (item.discountPercent >= alertWorthyDiscount) || item.isWeekendSpecial === 1 || item.id === ITEM_IDS.ROBUX
     );
     if (highlyRelevantItems.length > 0) {
