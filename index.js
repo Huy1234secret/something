@@ -3792,7 +3792,6 @@ module.exports = {
                     if (!itemIdToBuy) return sendInteractionError(interaction, "Item ID cannot be empty.", true, deferredThisInteraction);
                     const purchaseResult = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemIdToBuy, amountToBuy, member);
                     if (purchaseResult.success) {
-                        await safeEditReply(interaction, { content: `✅ ${purchaseResult.message}`, ephemeral: false }, true, 10000); // Public success, auto-delete
                         const updatedBalance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
                         const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
                         const gemEmoji  = client.levelSystem.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
@@ -3817,7 +3816,7 @@ module.exports = {
                                 { name: 'Your Balance', value: `${coinEmoji} ${updatedBalance.coins.toLocaleString()} | ${gemEmoji} ${updatedBalance.gems.toLocaleString()} | ${robuxEmoji} ${updatedBalance.robux.toLocaleString()}` }
                             )
                             .setTimestamp();
-                        await interaction.followUp({ embeds: [receiptEmbed], ephemeral: true }).catch(() => {});
+                        await safeEditReply(interaction, { embeds: [receiptEmbed], ephemeral: true }, false);
                         await refreshShopDisplayForGuild(interaction.guild.id, client);
                         if (itemIdToBuy === client.levelSystem.COSMIC_ROLE_TOKEN_ID || client.levelSystem._getItemMasterProperty(itemIdToBuy, 'id') === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
                             const itemConfig = client.levelSystem._getItemMasterProperty(itemIdToBuy, null);
