@@ -661,25 +661,23 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
         const itemIds = highlyRelevantItems.map(i => i.id);
         const usersToAlert = client.levelSystem.getUsersForShopAlertByItems(guildId, itemIds);
         if (usersToAlert.length > 0) {
-            const alertEmbed = new EmbedBuilder()
-                .setTitle(`🛍️ Rare Finds & Deals in ${guild.name}'s Shop!${isInstant ? ' (Instant Restock)' : ''}`)
-                .setColor(0xFFB6C1)
-                .setDescription('Heads up! The following special items or discounts are now available:')
-                .setTimestamp();
-            highlyRelevantItems.slice(0,5).forEach(item => {
+            const lines = highlyRelevantItems.slice(0,5).map(item => {
                 let priceCurrencyEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
                 if (item.priceCurrency === ITEM_IDS.GEMS) priceCurrencyEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
                 else if (item.priceCurrency === ITEM_IDS.ROBUX) priceCurrencyEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
-                let fieldValue = `Price: ${item.price.toLocaleString()} ${priceCurrencyEmoji}`;
+                let txt = `${item.emoji} ${item.name} - ${item.price.toLocaleString()} ${priceCurrencyEmoji}`;
                 if (item.discountPercent > 0 && item.originalPrice > item.price) {
                     const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== '' ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`);
-                    fieldValue += ` (~~${item.originalPrice.toLocaleString()}~~ - ${displayLabel})`;
+                    txt += ` (~~${item.originalPrice.toLocaleString()}~~ - ${displayLabel})`;
                 }
-                if (item.id === client.levelSystem.COSMIC_ROLE_TOKEN_ID) fieldValue += `\n✨ *A Cosmic Role Token! Extremely rare.*`;
-                if (item.id === ITEM_IDS.ROBUX) fieldValue += `\n💎 *Premium Robux is available!*`;
-                alertEmbed.addFields({ name: `${item.emoji} ${item.name} (Stock: ${item.stock})`, value: fieldValue });
+                return txt;
             });
-            if (highlyRelevantItems.length > 5) alertEmbed.addFields({ name: '...and more!', value: 'Check the shop!' });
+            if (highlyRelevantItems.length > 5) lines.push('...and more! Check the shop!');
+            const alertEmbed = new EmbedBuilder()
+                .setTitle(`🛍️ Rare Finds & Deals in ${guild.name}'s Shop!${isInstant ? ' (Instant Restock)' : ''}`)
+                .setColor(0xFFB6C1)
+                .setDescription(lines.join('\n'))
+                .setTimestamp();
             for (const alertUserId of usersToAlert) {
                 try { await (await client.users.fetch(alertUserId)).send({ embeds: [alertEmbed] }); }
                 catch(dmError){ if(dmError.code !== 50007) console.warn(`[Shop Restock DM] Failed to DM ${alertUserId}: ${dmError.message}`); }
@@ -691,17 +689,17 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
     for (const watchUserId of watchUsers) {
         const relevant = restockResult.items.filter(it => client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.itemId).enableAlert);
         if (relevant.length === 0) continue;
-        const userEmbed = new EmbedBuilder()
-            .setTitle(`🛍️ Shop Restocked in ${guild.name}`)
-            .setColor(0x9B59B6)
-            .setDescription('Items you are watching are now available:')
-            .setTimestamp();
-        relevant.forEach(item => {
+        const lines = relevant.map(item => {
             let priceEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
             if (item.priceCurrency === ITEM_IDS.GEMS) priceEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
             else if (item.priceCurrency === ITEM_IDS.ROBUX) priceEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
-            userEmbed.addFields({ name: `${item.emoji} ${item.name} (Stock: ${item.stock})`, value: `Price: ${item.price.toLocaleString()} ${priceEmoji}`, inline: false });
+            return `${item.emoji} ${item.name} - ${item.price.toLocaleString()} ${priceEmoji} (Stock: ${item.stock})`;
         });
+        const userEmbed = new EmbedBuilder()
+            .setTitle(`🛍️ Shop Restocked in ${guild.name}`)
+            .setColor(0x9B59B6)
+            .setDescription(lines.join('\n'))
+            .setTimestamp();
         try { await (await client.users.fetch(watchUserId)).send({ embeds: [userEmbed] }); }
         catch (watchErr) { if (watchErr.code !== 50007) console.warn(`[Shop Restock Watch DM] Failed to DM ${watchUserId}: ${watchErr.message}`); }
     }
@@ -998,7 +996,9 @@ async function scheduleDailyReadyNotifications(client) {
                 if (now >= nextClaim && (row.lastDailyNotifyTimestamp || 0) <= (row.lastDailyTimestamp || 0)) {
                     try {
                         const userObj = await client.users.fetch(row.userId);
-                        await userObj.send({ content: `<@${row.userId}> your daily reward is ready! Use /daily check in the server.` }).catch(e => { if (e.code !== 50007) console.warn(`[DailyNotify] DM failed for ${row.userId}: ${e.message}`); });
+                        await userObj.send({ content: 'Your daily reward is ready! Use /daily to claim it.' }).catch(e => {
+                            if (e.code !== 50007) console.warn(`[DailyNotify] DM failed for ${row.userId}: ${e.message}`);
+                        });
                     } catch (e) {
                         if (e.code !== 50007) console.warn(`[DailyNotify] Could not notify ${row.userId}: ${e.message}`);
                     }
