@@ -692,7 +692,8 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
             let priceEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
             if (item.priceCurrency === ITEM_IDS.GEMS) priceEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
             else if (item.priceCurrency === ITEM_IDS.ROBUX) priceEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
-            return `${item.emoji} ${item.name} - ${item.price.toLocaleString()} ${priceEmoji} (Stock: ${item.stock})`;
+            const priceValue = item.currentPrice ?? item.price ?? 0;
+            return `${item.emoji} ${item.name} - ${priceValue.toLocaleString()} ${priceEmoji} (Stock: ${item.stock})`;
         });
         const userEmbed = new EmbedBuilder()
             .setTitle(`🛍️ Shop Restocked in ${guild.name}`)
