@@ -168,6 +168,7 @@ class SystemsManager {
         }
         this.client = null;
         this.globalWeekendMultipliers = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 }; // luck: 1.0 as default now
+        this.userLuckBonuses = new Map();
     }
 
     setClient(clientInstance) {
@@ -1806,6 +1807,7 @@ this.db.prepare(`
     resetDailyStreak(userId, guildId) {
         const user = this.getUser(userId, guildId);
         this.updateUser(userId, guildId, { dailyStreak: 0, lostStreak: user.dailyStreak, lostStreakTimestamp: Date.now() });
+        this.updateUserLuckBonus(userId, guildId);
     }
 
     attemptStreakRestore(userId, guildId, oldStreakFromButton) {
@@ -1834,6 +1836,7 @@ this.db.prepare(`
             lostStreakTimestamp: 0,
             lastDailyTimestamp: Date.now() - (23 * 60 * 60 * 1000) // Set timestamp to 23h ago to allow next claim soon
         });
+        this.updateUserLuckBonus(userId, guildId);
 
         return { success: true, message: `✅ Your streak of **${oldStreak} days** has been restored for ${cost} ${this.gemEmoji}!` };
     }
@@ -1856,7 +1859,7 @@ this.db.prepare(`
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
-            const itemLuckBoost = Math.min(1.0, streak * 0.001); // Max 100% boost (i.e., double chances for rares)
+            const itemLuckBoost = Math.min(1.0, streak * 0.0025); // Max 100% boost (i.e., double chances for rares)
             
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
@@ -1991,11 +1994,31 @@ this.db.prepare(`
 
         // ONLY update the user's claim timestamp and streak. DO NOT shift rewards here.
         this.updateUser(userId, guildId, { lastDailyTimestamp: now, dailyStreak: newStreak, lostStreak: 0 });
+        this.updateUserLuckBonus(userId, guildId);
 
         return { success: true, message: claimedRewardMessage };
     }
 
     // --- End Daily System Methods ---
+
+    recalculateAllLuckBonuses() {
+        this.userLuckBonuses.clear();
+        const rows = this.db.prepare('SELECT userId, guildId, dailyStreak FROM users').all();
+        for (const row of rows) {
+            const percent = Math.min(100, row.dailyStreak * 0.25);
+            this.userLuckBonuses.set(`${row.userId}-${row.guildId}`, percent);
+        }
+    }
+
+    updateUserLuckBonus(userId, guildId) {
+        const user = this.getUser(userId, guildId);
+        const percent = Math.min(100, (user.dailyStreak || 0) * 0.25);
+        this.userLuckBonuses.set(`${userId}-${guildId}`, percent);
+    }
+
+    getUserLuckBonus(userId, guildId) {
+        return this.userLuckBonuses.get(`${userId}-${guildId}`) || 0;
+    }
 
     // New methods for Robux Withdrawal
     createRobuxWithdrawalRequest(userId, guildId, robloxUsername, amount, gamepassLink, logMessageId) {
