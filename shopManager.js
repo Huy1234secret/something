@@ -427,7 +427,6 @@ class ShopManager {
             }
             return {
                 success: true,
-                message: `Successfully purchased ${amountToPurchase}x ${itemConfigMaster.emoji || '❓'} **${itemConfigMaster.name}** for ${totalCost.toLocaleString()} ${currencyEmojiForMessage}!${itemAddMessagePart}`,
                 itemId: shopItemEntry.itemId,
                 itemName: itemConfigMaster.name,
                 emoji: itemConfigMaster.emoji || '❓',
