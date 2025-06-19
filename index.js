@@ -381,7 +381,7 @@ async function buildDailyEmbed(interaction, client) {
     const rewards = systemsManager.getDailyRewards(userId, guildId);
 
     const currencyBoost = (1 + (user.dailyStreak * 0.2)).toFixed(2);
-    const itemLuckBoost = Math.min(100, (user.dailyStreak * 0.1)).toFixed(2); // Capped at 100%
+    const itemLuckBoost = Math.min(100, (user.dailyStreak * 0.25)).toFixed(2); // Capped at 100%
 
     const now = Date.now();
     const lastClaim = user.lastDailyTimestamp || 0;
@@ -1815,6 +1815,10 @@ client.once('ready', async c => {
         client.levelSystem.setClient(client);
     } else if (client.levelSystem) { // Fallback if setClient method isn't defined (should be)
         client.levelSystem.client = client;
+    }
+    if (client.levelSystem && typeof client.levelSystem.recalculateAllLuckBonuses === 'function') {
+        client.levelSystem.recalculateAllLuckBonuses();
+        console.log('[Startup] Recalculated luck bonuses for all users.');
     }
 
     console.log('Attempting to load and restore previous giveaway states...');
