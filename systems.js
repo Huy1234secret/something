@@ -252,8 +252,8 @@ class SystemsManager {
             );`,
             `CREATE TABLE IF NOT EXISTS userDmSettings (
                 userId TEXT NOT NULL, guildId TEXT NOT NULL,
-                enableShopRestockDm INTEGER,
-                enableDailyReadyDm INTEGER,
+                enableShopRestockDm INTEGER DEFAULT 1,
+                enableDailyReadyDm INTEGER DEFAULT 1,
                 PRIMARY KEY (userId, guildId)
             );`,
             `CREATE TABLE IF NOT EXISTS userLootAlertSettings (
@@ -763,8 +763,8 @@ this.db.prepare(`
     getUserDmSettings(userId, guildId) {
         let settings = this.db.prepare('SELECT enableShopRestockDm, enableDailyReadyDm FROM userDmSettings WHERE userId = ? AND guildId = ?').get(userId, guildId);
         if (!settings) {
-            this.db.prepare('INSERT INTO userDmSettings (userId, guildId, enableShopRestockDm, enableDailyReadyDm) VALUES (?, ?, NULL, NULL)').run(userId, guildId);
-            return { enableShopRestockDm: null, enableDailyReadyDm: null };
+            this.db.prepare('INSERT INTO userDmSettings (userId, guildId, enableShopRestockDm, enableDailyReadyDm) VALUES (?, ?, 1, 1)').run(userId, guildId);
+            return { enableShopRestockDm: true, enableDailyReadyDm: true };
         }
         return {
             enableShopRestockDm: settings.enableShopRestockDm === null ? null : !!settings.enableShopRestockDm,
