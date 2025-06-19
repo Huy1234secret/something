@@ -54,6 +54,7 @@ const GEM_CHAT_BOOST_EMOJI = '<:sultragemmulti:1384512368708423781>';
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
+const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 1.00 };
 
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
@@ -684,16 +685,34 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
         }
     }
     const allItemIds = restockResult.items.map(it => it.itemId);
-    const watchUsers = client.levelSystem.getUsersForShopAlertByItems(guildId, allItemIds);
+    const watchUsersSet = new Set(client.levelSystem.getUsersForShopAlertByItems(guildId, allItemIds));
+    const discountWatchUsers = client.levelSystem.getUsersForShopAlertByItems(guildId, SHOP_DISCOUNT_IDS);
+    for (const u of discountWatchUsers) watchUsersSet.add(u);
+    const watchUsers = Array.from(watchUsersSet);
     for (const watchUserId of watchUsers) {
-        const relevant = restockResult.items.filter(it => client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.itemId).enableAlert);
+        const relevant = restockResult.items.filter(it => {
+            if (client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, it.itemId).enableAlert) return true;
+            if (it.discountPercent > 0) {
+                for (const [disId, threshold] of Object.entries(DISCOUNT_THRESHOLD_MAP)) {
+                    if (it.discountPercent >= threshold && client.levelSystem.getUserShopAlertSetting(watchUserId, guildId, disId).enableAlert) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
         if (relevant.length === 0) continue;
         const lines = relevant.map(item => {
             let priceEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
             if (item.priceCurrency === ITEM_IDS.GEMS) priceEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
             else if (item.priceCurrency === ITEM_IDS.ROBUX) priceEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
             const priceValue = item.currentPrice ?? item.price ?? 0;
-            return `${item.emoji} ${item.name} - ${priceValue.toLocaleString()} ${priceEmoji} (Stock: ${item.stock})`;
+            let txt = `${item.emoji} ${item.name} - ${priceValue.toLocaleString()} ${priceEmoji} (Stock: ${item.stock})`;
+            if (item.discountPercent > 0 && item.originalPrice > priceValue) {
+                const displayLabel = `${DISCOUNT_BOOST_EMOJI} ` + (item.discountLabel && item.discountLabel.trim() !== '' ? item.discountLabel : `${(item.discountPercent * 100).toFixed(0)}% OFF`);
+                txt += ` (~~${item.originalPrice.toLocaleString()}~~ ${displayLabel})`;
+            }
+            return txt;
         });
         const userEmbed = new EmbedBuilder()
             .setTitle(`🛍️ Shop Restocked in ${guild.name}`)
