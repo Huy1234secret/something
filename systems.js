@@ -830,7 +830,8 @@ this.db.prepare(`
         }
         const normalizedId = String(itemId).toLowerCase();
         const row = this.db.prepare('SELECT enableAlert FROM userShopAlertSettings WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, normalizedId);
-        let enabled = row ? !!row.enableAlert : false;
+        // Default to true if no explicit record exists, matching getAllUserShopAlertSettings behaviour
+        let enabled = row ? !!row.enableAlert : true;
         if (this.client && this.client.NON_DAILY_NOTIFICATIONS_ENABLED === false) enabled = false;
         return { itemId: normalizedId, enableAlert: enabled };
     }
