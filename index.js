@@ -3128,21 +3128,23 @@ module.exports = {
             if (customId.startsWith('shop_change_submit_')) {
                 if (!interaction.isModalSubmit()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                const category = customId.replace('shop_change_submit_', '');
+                const rawCategory = customId.replace('shop_change_submit_', '');
                 const itemIdInput = interaction.fields.getTextInputValue('item_id').trim();
                 const itemId = itemIdInput.toLowerCase();
+
+                // Normalize category to match item types used in config
+                let normalizedCategory = rawCategory;
+                if (['lootbox', 'loot_box_item'].includes(rawCategory)) normalizedCategory = 'loot_box_item';
+                else if (['charm', 'charm_item'].includes(rawCategory)) normalizedCategory = 'charm_item';
+                else if (['exclusive', 'special_role_item'].includes(rawCategory)) normalizedCategory = 'special_role_item';
+
                 let validIds = [];
-                if (category === 'discount') {
+                if (normalizedCategory === 'discount') {
                     validIds = SHOP_DISCOUNT_IDS.map(id => id.toLowerCase());
-                } else {
-                    const type = category === 'lootbox' ? 'loot_box_item'
-                        : category === 'charm' ? 'charm_item'
-                        : category === 'exclusive' ? 'special_role_item' : null;
-                    if (type) {
-                        validIds = Object.values(client.levelSystem.gameConfig.items)
-                            .filter(it => it.type === type)
-                            .map(it => String(it.id).toLowerCase());
-                    }
+                } else if (['loot_box_item', 'charm_item', 'special_role_item'].includes(normalizedCategory)) {
+                    validIds = Object.values(client.levelSystem.gameConfig.items)
+                        .filter(it => it.type === normalizedCategory)
+                        .map(it => String(it.id).toLowerCase());
                 }
                 if (validIds.length > 0 && !validIds.includes(itemId)) {
                     await interaction.editReply({ content: `❌ Invalid item ID \`${itemIdInput}\` for this category.`, embeds: [], components: [] });
@@ -3151,7 +3153,7 @@ module.exports = {
                 const current = client.levelSystem.getUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId).enableAlert;
                 const newVal = current ? false : true;
                 client.levelSystem.setUserShopAlertSetting(interaction.user.id, interaction.guild.id, itemId, newVal);
-                const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, category === 'lootbox' ? 'loot_box_item' : category === 'charm' ? 'charm_item' : category === 'exclusive' ? 'special_role_item' : 'discount');
+                const { embed, components } = buildShopCategoryEmbed(interaction.user.id, interaction.guild.id, client.levelSystem, normalizedCategory);
                 if (interaction.message && interaction.message.editable) {
                     await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
                 }
