@@ -2034,9 +2034,11 @@ this.db.prepare(`
         }
 
         this.addGems(userId, guildId, -cost, 'daily_skip');
+        // Only adjust the lastDailyTimestamp so the user can claim again.
+        // Do NOT modify rewardsLastShiftedAt here, otherwise the reward line
+        // would shift before claiming which results in losing today's reward.
         this.updateUser(userId, guildId, {
-            lastDailyTimestamp: user.lastDailyTimestamp - cooldown,
-            rewardsLastShiftedAt: (user.rewardsLastShiftedAt || 0) - cooldown
+            lastDailyTimestamp: user.lastDailyTimestamp - cooldown
         });
 
         const claimResult = this.claimDailyReward(userId, guildId);
