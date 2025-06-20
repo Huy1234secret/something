@@ -1909,11 +1909,11 @@ this.db.prepare(`
         }
     }
 
-    getDailyRewards(userId, guildId) {
+    getDailyRewards(userId, guildId, forceShift = false) {
         const user = this.getUser(userId, guildId);
         const now = Date.now();
         const cooldown = 12 * 60 * 60 * 1000;
-        const canShift = now - (user.rewardsLastShiftedAt || 0) >= cooldown;
+        const canShift = forceShift || (now - (user.rewardsLastShiftedAt || 0) >= cooldown);
 
         // Step 1: Fetch current rewards from DB
         const currentRewardsFromDb = this.db.prepare('SELECT * FROM userDailyRewards WHERE userId = ? AND guildId = ? ORDER BY dayNumber ASC').all(userId, guildId);
@@ -1984,7 +1984,7 @@ this.db.prepare(`
             return { success: false, message: "You have already claimed your daily reward. Please wait." };
         }
 
-        // getDailyRewards will handle any necessary shifts before we claim.
+        // Fetch the current set of rewards without shifting yet.
         const rewards = this.getDailyRewards(userId, guildId);
         const rewardToClaim = rewards[1];
         if (!rewardToClaim) return { success: false, message: "Could not find your daily reward." };
@@ -2010,9 +2010,12 @@ this.db.prepare(`
         const streakCooldown = 24 * 60 * 60 * 1000;
         const newStreak = now - (user.lastDailyTimestamp || 0) < streakCooldown ? user.dailyStreak + 1 : 1;
 
-        // ONLY update the user's claim timestamp and streak. DO NOT shift rewards here.
+        // Update the user's claim timestamp and streak
         this.updateUser(userId, guildId, { lastDailyTimestamp: now, dailyStreak: newStreak, lostStreak: 0 });
         this.updateUserLuckBonus(userId, guildId);
+
+        // Shift rewards forward now that today's reward was claimed
+        this.getDailyRewards(userId, guildId, true);
 
         return { success: true, message: claimedRewardMessage };
     }
