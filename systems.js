@@ -1850,17 +1850,18 @@ this.db.prepare(`
         if (Math.random() < 0.5) {
             // --- Item Reward ---
             const baseItemPool = [
-                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.49 },
-                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.01 },
-                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0005 },
-                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.000001 },
-                { id: this.COIN_CHARM_ID, baseProb: 0.00005 },
-                { id: this.GEM_CHARM_ID, baseProb: 0.000005 },
-                { id: this.XP_CHARM_ID, baseProb: 0.00001 },
+                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.8 },
+                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.195 },
+                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0049 },
+                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.00001 },
+                { id: this.COIN_CHARM_ID, baseProb: 0.0000025 },
+                { id: this.GEM_CHARM_ID, baseProb: 0.0000001 },
+                { id: this.XP_CHARM_ID, baseProb: 0.0000008 },
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
-            const itemLuckBoost = Math.min(1.0, streak * 0.0025); // Max 100% boost (i.e., double chances for rares)
+            // Each streak day adds 1.25% to rare item chances with no cap
+            const itemLuckBoost = streak * 0.0125;
             
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
@@ -1886,7 +1887,8 @@ this.db.prepare(`
             // --- Currency Reward ---
             const coinAmount = Math.floor(Math.random() * 201) + 50;
             const gemAmount = Math.floor(Math.random() * 5) + 1;
-            return Math.random() < 0.05
+            // 50% chance for gems, 50% for coins
+            return Math.random() < 0.5
                 ? { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } }
                 : { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } };
         }
@@ -2006,14 +2008,14 @@ this.db.prepare(`
         this.userLuckBonuses.clear();
         const rows = this.db.prepare('SELECT userId, guildId, dailyStreak FROM users').all();
         for (const row of rows) {
-            const percent = Math.min(100, row.dailyStreak * 0.25);
+            const percent = row.dailyStreak * 1.25;
             this.userLuckBonuses.set(`${row.userId}-${row.guildId}`, percent);
         }
     }
 
     updateUserLuckBonus(userId, guildId) {
         const user = this.getUser(userId, guildId);
-        const percent = Math.min(100, (user.dailyStreak || 0) * 0.25);
+        const percent = (user.dailyStreak || 0) * 1.25;
         this.userLuckBonuses.set(`${userId}-${guildId}`, percent);
     }
 
