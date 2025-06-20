@@ -1846,8 +1846,10 @@ this.db.prepare(`
         const user = this.getUser(userId, guildId);
         const streak = user.dailyStreak || 0;
 
-        // ~50% chance for item, ~50% for currency
-        if (Math.random() < 0.5) {
+        // Base 50% item chance, increases slightly with luck up to ~70%
+        const itemLuckBoost = Math.min(10.0, streak * 0.01); // Max 1000% boost
+        const itemChance = Math.min(0.7, 0.5 + 0.02 * itemLuckBoost);
+        if (Math.random() < itemChance) {
             // --- Item Reward ---
             const baseItemPool = [
                 // Probabilities normalise to the item chance of 50% when no luck is applied.
@@ -1862,7 +1864,6 @@ this.db.prepare(`
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
-            const itemLuckBoost = Math.min(10.0, streak * 0.01); // Max 1000% boost
             
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
@@ -1894,7 +1895,7 @@ this.db.prepare(`
             // --- Currency Reward ---
             const coinAmount = Math.floor(Math.random() * 201) + 50;
             const gemAmount = Math.floor(Math.random() * 5) + 1;
-            // 50% currency split evenly between coins and gems
+            // Remaining chance split evenly between coins and gems
             return Math.random() < 0.5
                 ? { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } }
                 : { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } };
