@@ -2031,7 +2031,10 @@ this.db.prepare(`
         }
 
         this.addGems(userId, guildId, -cost, 'daily_skip');
-        this.updateUser(userId, guildId, { lastDailyTimestamp: user.lastDailyTimestamp - cooldown });
+        this.updateUser(userId, guildId, {
+            lastDailyTimestamp: user.lastDailyTimestamp - cooldown,
+            rewardsLastShiftedAt: (user.rewardsLastShiftedAt || 0) - cooldown
+        });
 
         const claimResult = this.claimDailyReward(userId, guildId);
         if (claimResult.success) {
