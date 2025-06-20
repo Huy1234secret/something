@@ -1846,17 +1846,19 @@ this.db.prepare(`
         const user = this.getUser(userId, guildId);
         const streak = user.dailyStreak || 0;
 
-        // 50% chance for item, 50% for currency
-        if (Math.random() < 0.5) {
+        // ~55% chance for item, ~45% for currency
+        if (Math.random() < 0.549901571) {
             // --- Item Reward ---
             const baseItemPool = [
-                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.49 },
-                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.01 },
-                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0005 },
-                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.000001 },
-                { id: this.COIN_CHARM_ID, baseProb: 0.00005 },
-                { id: this.GEM_CHARM_ID, baseProb: 0.000005 },
-                { id: this.XP_CHARM_ID, baseProb: 0.00001 },
+                // Probabilities here are relative weights that normalise to the
+                // item chance of ~55% when no luck bonus is applied.
+                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.8183282676964747 },
+                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.17275818984703356 },
+                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.008910685581583836 },
+                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.0000018185072615477216 },
+                { id: this.COIN_CHARM_ID, baseProb: 0.0000009092536307738608 },
+                { id: this.GEM_CHARM_ID, baseProb: 0.0000000018185072615477217 },
+                { id: this.XP_CHARM_ID, baseProb: 0.0000001272955083083405 },
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
@@ -1886,7 +1888,8 @@ this.db.prepare(`
             // --- Currency Reward ---
             const coinAmount = Math.floor(Math.random() * 201) + 50;
             const gemAmount = Math.floor(Math.random() * 5) + 1;
-            return Math.random() < 0.05
+            // 40% chance for gems, 60% for coins
+            return Math.random() < 0.4
                 ? { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } }
                 : { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } };
         }
