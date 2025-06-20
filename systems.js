@@ -1869,7 +1869,8 @@ this.db.prepare(`
                 const isRare = item.id !== this.COMMON_LOOT_BOX_ID && !item.noLuck;
                 const baseProbability = item.baseProb / totalBaseProb;
                 // Slightly stronger luck scaling so max boost is more impactful
-                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 1.25) : baseProbability;
+                // Increased multiplier so luck gives a bit more item chance
+                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 1.5) : baseProbability;
                 if (isRare) totalRareProb += finalProb;
                 return { ...item, finalProb };
             });
