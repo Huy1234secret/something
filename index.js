@@ -381,7 +381,7 @@ async function buildDailyEmbed(interaction, client) {
     const rewards = systemsManager.getDailyRewards(userId, guildId);
 
     const currencyBoost = (1 + (user.dailyStreak * 0.2)).toFixed(2);
-    const itemLuckBoost = Math.min(100, (user.dailyStreak * 0.25)).toFixed(2); // Capped at 100%
+    const itemLuckBoost = Math.min(1000, (user.dailyStreak * 1)).toFixed(2); // Capped at 1000%
 
     const now = Date.now();
     const lastClaim = user.lastDailyTimestamp || 0;
@@ -430,13 +430,21 @@ async function buildDailyEmbed(interaction, client) {
     embed.addFields({ name: '⏳ Next Claim', value: nextClaimText, inline: false });
     embed.setFooter({ text: "Rewards shift forward each time you claim. Don't lose your streak!" });
 
+    const skipCost = Math.ceil(10 * Math.pow(1.125, (user.dailyStreak || 0) - 1));
+
     const components = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('claim_daily_reward')
             .setLabel('Claim Today\'s Reward')
             .setStyle(ButtonStyle.Success)
             .setEmoji('🎉')
-            .setDisabled(!canClaim)
+            .setDisabled(!canClaim),
+        new ButtonBuilder()
+            .setCustomId('skip_daily_cooldown')
+            .setLabel(`Skip Cooldown (${skipCost} Gems)`) 
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('⏭️')
+            .setDisabled(canClaim)
     );
 
     return { embed, components: [components] };
@@ -3046,6 +3054,32 @@ module.exports = {
                         await sendInteractionError(interaction, result.message || "Failed to claim reward.", true, deferredThisInteraction);
                     }
                 } catch (claimError) { console.error('[ClaimDaily Error]', claimError); await sendInteractionError(interaction, "An error occurred while claiming your reward.", true, deferredThisInteraction); }
+                return;
+            }
+            if (customId === 'skip_daily_cooldown') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) {
+                    const deferOpts = interaction.guild ? { ephemeral: true } : {};
+                    await interaction.deferReply(deferOpts);
+                    deferredThisInteraction = true;
+                }
+                try {
+                    const result = client.levelSystem.skipDailyCooldown(interaction.user.id, interaction.guild.id);
+                    if (result.success) {
+                        await safeEditReply(interaction, { content: `✅ **Success!** ${result.message}`, ephemeral: true });
+                        const { embed: newEmbed, components: newComponents } = await buildDailyEmbed(interaction, client);
+                        if (interaction.message && interaction.message.editable) {
+                            await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => {
+                                console.warn('Failed to edit daily embed after skip:', e.message);
+                            });
+                        }
+                    } else {
+                        await sendInteractionError(interaction, result.message || 'Failed to skip cooldown.', true, deferredThisInteraction);
+                    }
+                } catch (skipError) {
+                    console.error('[SkipDaily Error]', skipError);
+                    await sendInteractionError(interaction, 'An error occurred while skipping.', true, deferredThisInteraction);
+                }
                 return;
             }
             if (customId === 'setting_toggle_daily') {

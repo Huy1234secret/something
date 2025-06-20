@@ -1846,28 +1846,29 @@ this.db.prepare(`
         const user = this.getUser(userId, guildId);
         const streak = user.dailyStreak || 0;
 
-        // ~55% chance for item, ~45% for currency
-        if (Math.random() < 0.549901571) {
+        // ~50% chance for item, ~50% for currency
+        if (Math.random() < 0.5) {
             // --- Item Reward ---
             const baseItemPool = [
-                // Probabilities here are relative weights that normalise to the
-                // item chance of ~55% when no luck bonus is applied.
-                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.8183282676964747 },
-                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.17275818984703356 },
-                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.008910685581583836 },
-                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.0000018185072615477216 },
-                { id: this.COIN_CHARM_ID, baseProb: 0.0000009092536307738608 },
-                { id: this.GEM_CHARM_ID, baseProb: 0.0000000018185072615477217 },
-                { id: this.XP_CHARM_ID, baseProb: 0.0000001272955083083405 },
+                // Probabilities normalise to the item chance of 50% when no luck is applied.
+                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.80 },
+                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.195 },
+                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0049 },
+                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.00001 },
+                { id: this.COIN_CHARM_ID, baseProb: 0.0000025 },
+                { id: this.GEM_CHARM_ID, baseProb: 0.0000001 },
+                { id: this.XP_CHARM_ID, baseProb: 0.0000008 },
+                { id: this.COSMIC_ROLE_TOKEN_ID, baseProb: 0.000001, noLuck: true },
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
-            const itemLuckBoost = Math.min(1.0, streak * 0.0025); // Max 100% boost (i.e., double chances for rares)
+            const itemLuckBoost = Math.min(10.0, streak * 0.01); // Max 1000% boost
             
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
-                const isRare = item.id !== this.COMMON_LOOT_BOX_ID;
-                const finalProb = isRare ? (item.baseProb / totalBaseProb) * (1 + itemLuckBoost) : (item.baseProb / totalBaseProb);
+                const isRare = item.id !== this.COMMON_LOOT_BOX_ID && !item.noLuck;
+                const baseProbability = item.baseProb / totalBaseProb;
+                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost) : baseProbability;
                 if (isRare) totalRareProb += finalProb;
                 return { ...item, finalProb };
             });
@@ -1877,9 +1878,14 @@ this.db.prepare(`
                 commonItem.finalProb = Math.max(0, 1 - totalRareProb);
             }
 
+            const cosmicItem = dynamicPool.find(it => it.noLuck);
+            const cosmicProb = cosmicItem ? cosmicItem.finalProb : 0;
             const finalTotalProb = dynamicPool.reduce((sum, item) => sum + item.finalProb, 0);
-            if (finalTotalProb > 0) {
-                dynamicPool.forEach(item => item.finalProb /= finalTotalProb);
+            const scaleDenom = finalTotalProb - cosmicProb;
+            if (scaleDenom > 0) {
+                dynamicPool.forEach(item => {
+                    if (!item.noLuck) item.finalProb = item.finalProb * (1 - cosmicProb) / scaleDenom;
+                });
             }
             
             const chosenItem = this._performWeightedRandomPick(dynamicPool, 'finalProb');
@@ -1888,10 +1894,10 @@ this.db.prepare(`
             // --- Currency Reward ---
             const coinAmount = Math.floor(Math.random() * 201) + 50;
             const gemAmount = Math.floor(Math.random() * 5) + 1;
-            // 40% chance for gems, 60% for coins
-            return Math.random() < 0.4
-                ? { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } }
-                : { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } };
+            // 50% currency split evenly between coins and gems
+            return Math.random() < 0.5
+                ? { type: 'currency', data: { id: this.COINS_ID, amount: coinAmount } }
+                : { type: 'currency', data: { id: this.GEMS_ID, amount: gemAmount } };
         }
     }
 
@@ -2003,20 +2009,43 @@ this.db.prepare(`
         return { success: true, message: claimedRewardMessage };
     }
 
+    skipDailyCooldown(userId, guildId) {
+        const user = this.getUser(userId, guildId);
+        const cooldown = 12 * 60 * 60 * 1000;
+        const now = Date.now();
+        if (now - (user.lastDailyTimestamp || 0) >= cooldown) {
+            return { success: false, message: 'Your daily is already ready to claim.' };
+        }
+
+        const cost = Math.ceil(10 * Math.pow(1.125, (user.dailyStreak || 1) - 1));
+        if (user.gems < cost) {
+            return { success: false, message: `You need ${cost} ${this.gemEmoji} to skip the cooldown.` };
+        }
+
+        this.addGems(userId, guildId, -cost, 'daily_skip');
+        this.updateUser(userId, guildId, { lastDailyTimestamp: user.lastDailyTimestamp - cooldown });
+
+        const claimResult = this.claimDailyReward(userId, guildId);
+        if (claimResult.success) {
+            return { success: true, message: `Cooldown skipped for ${cost} ${this.gemEmoji}. ${claimResult.message}` };
+        }
+        return claimResult;
+    }
+
     // --- End Daily System Methods ---
 
     recalculateAllLuckBonuses() {
         this.userLuckBonuses.clear();
         const rows = this.db.prepare('SELECT userId, guildId, dailyStreak FROM users').all();
         for (const row of rows) {
-            const percent = Math.min(100, row.dailyStreak * 0.25);
+            const percent = Math.min(1000, row.dailyStreak * 1);
             this.userLuckBonuses.set(`${row.userId}-${row.guildId}`, percent);
         }
     }
 
     updateUserLuckBonus(userId, guildId) {
         const user = this.getUser(userId, guildId);
-        const percent = Math.min(100, (user.dailyStreak || 0) * 0.25);
+        const percent = Math.min(1000, (user.dailyStreak || 0) * 1);
         this.userLuckBonuses.set(`${userId}-${guildId}`, percent);
     }
 
