@@ -1862,7 +1862,11 @@ this.db.prepare(`
             ];
 
             const totalBaseProb = baseItemPool.reduce((sum, item) => sum + item.baseProb, 0);
-            const itemLuckBoost = Math.min(10.0, streak * 0.01); // Max 1000% boost
+            // Increase scaling so higher daily streaks provide a more noticeable
+            // boost to rare item chances. The cap remains 1000% to avoid
+            // excessive probabilities, but each streak day now contributes twice
+            // as much luck and the multiplier used below is higher.
+            const itemLuckBoost = Math.min(10.0, streak * 0.02); // Max 1000% boost
 
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
@@ -1870,7 +1874,9 @@ this.db.prepare(`
                 const baseProbability = item.baseProb / totalBaseProb;
                 // Slightly stronger luck scaling so max boost is more impactful
                 // Increased multiplier so luck gives a bit more item chance
-                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 2) : baseProbability;
+                // Apply a stronger multiplier so the luck bonus has a greater
+                // impact on rare item probability.
+                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 3) : baseProbability;
                 if (isRare) totalRareProb += finalProb;
                 return { ...item, finalProb };
             });
