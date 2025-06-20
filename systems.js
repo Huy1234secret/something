@@ -1870,7 +1870,7 @@ this.db.prepare(`
                 const baseProbability = item.baseProb / totalBaseProb;
                 // Slightly stronger luck scaling so max boost is more impactful
                 // Increased multiplier so luck gives a bit more item chance
-                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 1.5) : baseProbability;
+                const finalProb = isRare ? baseProbability * (1 + itemLuckBoost * 2) : baseProbability;
                 if (isRare) totalRareProb += finalProb;
                 return { ...item, finalProb };
             });
