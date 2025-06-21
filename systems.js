@@ -2063,7 +2063,7 @@ this.db.prepare(`
         }
 
         this.updateUser(userId, guildId, {
-            lastDailyTimestamp: now,
+            // Don't update lastDailyTimestamp so the cooldown timer isn't reset
             dailySkipCount: skipCount + 1
         });
 
