@@ -1384,6 +1384,32 @@ this.db.prepare(`
         return { success: true, message: `Data reset for user ${userId} in guild ${guildId}.` };
     }
 
+    resetUserDataSelective(userId, guildId, options = {}) {
+        let details = [];
+        if (options.doLevelsAndXp) {
+            this.db.prepare('UPDATE users SET xp = 0, level = 0, totalXp = 0, totalVoiceXp = 0 WHERE userId = ? AND guildId = ?').run(userId, guildId);
+            details.push("Levels and XP reset.");
+        }
+        if (options.doBalances) {
+            this.db.prepare('UPDATE users SET coins = 0, gems = 0, robux = 0, bankCoins = 0, bankGems = 0, totalCoinsEarned = 0, totalGemsEarned = 0, totalRobuxEarned = 0, totalVoiceCoins = 0, lastRobuxWithdrawalTimestamp = 0 WHERE userId = ? AND guildId = ?').run(userId, guildId);
+            this.db.prepare(`DELETE FROM robux_withdrawals WHERE guildId = ? AND userId = ?`).run(guildId, userId);
+            details.push("Coin, Gem, and Robux balances (inventory & bank) reset.");
+            details.push("Pending Robux withdrawal requests cleared.");
+        }
+        if (options.doInventory) {
+            this.db.prepare('DELETE FROM userInventory WHERE userId = ? AND guildId = ?').run(userId, guildId);
+            details.push("User inventory cleared.");
+        }
+        if (options.doActiveCharms) {
+            this.db.prepare('DELETE FROM userActiveCharms WHERE userId = ? AND guildId = ?').run(userId, guildId);
+            details.push("Active charms cleared.");
+        }
+        if (details.length === 0) {
+            return { success: false, message: "No data types selected for reset." };
+        }
+        return { success: true, message: `User ${userId} data selectively reset.`, details };
+    }
+
     resetGuildData(guildId, options = {}) {
         let details = [];
         if (options.doLevelsAndXp) {
