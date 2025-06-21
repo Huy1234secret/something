@@ -136,90 +136,181 @@ const config = {
 
         // Loot Boxes
         "common_loot_box": {
-            id: "common_loot_box", name: "Common Loot Box", type: "loot_box_item",
-            directDropWeight: 0.05, 
+            id: "common_loot_box", name: "Common Chest", type: "loot_box_item",
+            directDropWeight: 0.095,
             emoji: "<:common:1373546771216728164>", rarityValue: 100,
-            description: "A common box containing a few items.",
-            basePrice: 250, appearanceChanceInShop: 1.0, stockRangeShop: [10, 40],
-            isRareForShopAlert: false, 
-            isAlertWorthyByIdShop: false, 
+            description: "A common chest containing a few items.",
+            basePrice: 250, appearanceChanceInShop: 1, stockRangeShop: [100, 200],
+            isRareForShopAlert: false,
+            isAlertWorthyByIdShop: false,
             color: 0xBDC3C7, imageUrl: "https://i.ibb.co/Q7R3YPmy/nh4.png", numRolls: 3,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.938888, rarityValue: 10 },
-                { type: "charm_item", id: "coin_charm", probability: 0.00005, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.00005, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.000001, rarityValue: 8000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.05, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, isRareWeekendEligiblePool: true, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00001, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased prob after removing luck_charm
+                { type: "currency", subType: "coins", min: 1, max: 5, probability: 0.8, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.01, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.005, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.000988, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000001, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
             ]
         },
         "rare_loot_box": {
-            id: "rare_loot_box", name: "Rare Loot Box", type: "loot_box_item",
-            directDropWeight: 0.0015, isRareWeekendEligibleChatDrop: true, 
+            id: "rare_loot_box", name: "Rare Chest", type: "loot_box_item",
+            directDropWeight: 0.0045, isRareWeekendEligibleChatDrop: true,
             emoji: "<:rare:1373546796525289533>", rarityValue: 1000,
-            description: "A rare box with better chances for good items.",
-            basePrice: 1500, appearanceChanceInShop: 0.25, stockRangeShop: [7, 25],
+            description: "A rare chest with better chances for good items.",
+            basePrice: 1500, appearanceChanceInShop: 0.35, stockRangeShop: [75, 150],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: false,
             color: 0x0070DD, imageUrl: "https://i.ibb.co/zhmM6cvL/nh3.png", numRolls: 5,
             itemPool: [
-                { type: "currency", subType: "coins", min: 25, max: 50, probability: 0.750001, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.18876, rarityValue: 25 },
-                { type: "charm_item", id: "coin_charm", probability: 0.0001, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.00005, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.000008, rarityValue: 8000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.05, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, isRareWeekendEligiblePool: true, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00008, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "currency", subType: "coins", min: 1, max: 10, probability: 0.8, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00005, rarityValue: 250000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000002, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
             ]
         },
         "epic_loot_box": {
-            id: "epic_loot_box", name: "Epic Loot Box", type: "loot_box_item",
-            directDropWeight: 0.0003, isRareWeekendEligibleChatDrop: true,
+            id: "epic_loot_box", name: "Epic Chest", type: "loot_box_item",
+            directDropWeight: 0.0008, isRareWeekendEligibleChatDrop: true,
             emoji: "<:epic:1373546835355897938>", rarityValue: 50000,
-            description: "An epic box containing valuable treasures.",
-            basePrice: 7500, appearanceChanceInShop: 0.05, stockRangeShop: [3, 12],
+            description: "An epic chest containing valuable treasures.",
+            basePrice: 7500, appearanceChanceInShop: 0.09, stockRangeShop: [50, 100],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0x9400D3, imageUrl: "https://i.ibb.co/LznxMrgN/nh2.png", numRolls: 10,
             itemPool: [
-                { type: "currency", subType: "coins", min: 50, max: 100, probability: 0.6991045, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1938945, rarityValue: 25 },
-                { type: "charm_item", id: "coin_charm", probability: 0.00045, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.0001, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.00005, rarityValue: 8000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.05, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, isRareWeekendEligiblePool: true, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, isRareWeekendEligiblePool: true, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0005, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.8, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 1, max: 2, probability: 0.1, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.000001, rarityValue: 750000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000003, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
             ]
         },
         "legendary_loot_box": {
-            id: "legendary_loot_box", name: "Legendary Loot Box", type: "loot_box_item",
-            directDropWeight: 0.00001, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:legend:1373546812144746596>", rarityValue: 250000,
-            description: "A legendary box of immense power and rarity.",
-            basePrice: 35000, appearanceChanceInShop: 0.001, stockRangeShop: [1, 3],
+            id: "legendary_loot_box", name: "Legendary Chest", type: "loot_box_item",
+            directDropWeight: 0.0001, isRareWeekendEligibleChatDrop: true,
+            emoji: "<:legendarychest:1373546812144746596>", rarityValue: 250000,
+            description: "A legendary chest of immense power and rarity.",
+            basePrice: 35000, appearanceChanceInShop: 0.01, stockRangeShop: [25, 50],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0xFF8C00, imageUrl: "https://i.ibb.co/vx4jNf2x/nh1.png", numRolls: 30,
             itemPool: [
-                { type: "currency", subType: "coins", min: 100, max: 250, probability: 0.80001, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.142089, rarityValue: 25 },
-                { type: "charm_item", id: "coin_charm", probability: 0.001, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.0008, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.0001, rarityValue: 8000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.05, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, isRareWeekendEligiblePool: true, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, isRareWeekendEligiblePool: true, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.001, isRareWeekendEligiblePool: true, rarityValue: 250000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, isRareWeekendEligiblePool: true, rarityValue: 1000000 } // Slightly increased
+                { type: "currency", subType: "coins", min: 1, max: 50, probability: 0.8, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 2, max: 2, probability: 0.1, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0005, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.00001, rarityValue: 750000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000005, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+            ]
+        },
+
+        "mythical_chest": {
+            id: "mythical_chest", name: "Mythical Chest", type: "loot_box_item",
+            directDropWeight: 0.00008,
+            emoji: "<:mythical:0>", rarityValue: 750000,
+            description: "A chest rumored to contain unimaginable riches.",
+            basePrice: 75000, appearanceChanceInShop: 0.0005, stockRangeShop: [10, 25],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0xFFD700, numRolls: 50,
+            itemPool: [
+                { type: "currency", subType: "coins", min: 1, max: 100, probability: 0.8, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 5, max: 5, probability: 0.1, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.15, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0001, rarityValue: 750000 },
+                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.000001, rarityValue: 900000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.001, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+            ]
+        },
+
+        "void_chest": {
+            id: "void_chest", name: "Void Chest", type: "loot_box_item",
+            directDropWeight: 0,
+            emoji: "<:void:0>", rarityValue: 900000,
+            description: "A dark chest from beyond the known world.",
+            basePrice: 150000, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0x000000, numRolls: 10,
+            itemPool: [
+                { type: "currency", subType: "coins", min: 100, max: 1000, probability: 0.35, rarityValue: 10 },
+                { type: "currency", subType: "gems", min: 50, max: 500, probability: 0.2, rarityValue: 25 },
+                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.25, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.14, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.049, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.019, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.001, rarityValue: 750000 },
+                { type: "loot_box_item", id: "gem_chest", quantity: 1, probability: 0.0005, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+            ]
+        },
+
+        "inf_chest": {
+            id: "inf_chest", name: "INF Chest", type: "loot_box_item",
+            directDropWeight: 0,
+            emoji: "<:inf:0>", rarityValue: 1000000,
+            description: "The ultimate chest with endless rewards.",
+            basePrice: 300000, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0xFFFFFF, numRolls: 100,
+            itemPool: [
+                { type: "loot_box_item", id: "common_loot_box", min: 1, max: 10, probability: 0.399989, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", min: 1, max: 5, probability: 0.3, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", min: 1, max: 3, probability: 0.2, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", min: 1, max: 2, probability: 0.09, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0099, rarityValue: 750000 },
+                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.0001, rarityValue: 900000 },
+                { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.00001, rarityValue: 500000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+            ]
+        },
+
+        "gem_chest": {
+            id: "gem_chest", name: "Gem Chest", type: "loot_box_item",
+            directDropWeight: 0,
+            emoji: "<:gemchest:0>", rarityValue: 500000,
+            description: "A chest filled with sparkling gems.",
+            basePrice: 50000, appearanceChanceInShop: 0.00005, stockRangeShop: [1, 3],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0x00FFFF, numRolls: 5,
+            itemPool: [
+                { type: "currency", subType: "gems", min: 10, max: 100, probability: 1, rarityValue: 25 }
+            ]
+        },
+
+        "magic_chest": {
+            id: "magic_chest", name: "Magic Chest", type: "loot_box_item",
+            directDropWeight: 0,
+            emoji: "<:magic:0>", rarityValue: 500000,
+            description: "A chest containing mysterious magical items.",
+            basePrice: 100000, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0x800080, numRolls: 5,
+            itemPool: [
+                { type: "charm_item", id: "coin_charm", probability: 0.5, rarityValue: 3000 },
+                { type: "charm_item", id: "xp_charm", probability: 0.3, rarityValue: 5000 },
+                { type: "charm_item", id: "gem_charm", probability: 0.2, rarityValue: 8000 }
             ]
         },
 
@@ -267,15 +358,14 @@ const config = {
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
-        { itemId: "nothing_drop", directDropWeight: 0.947474 },
-        { itemId: "common_loot_box", directDropWeight: 0.05 },
-        { itemId: "rare_loot_box", directDropWeight: 0.0015 },
-        { itemId: "epic_loot_box", directDropWeight: 0.0003 },
-        { itemId: "legendary_loot_box", directDropWeight: 0.00001 },
-        { itemId: "xp_charm", directDropWeight: 0.0001 },
-        { itemId: "coin_charm", directDropWeight: 0.0006 },
-        { itemId: "gem_charm", directDropWeight: 0.00001 },
-        { itemId: "cosmic_role_token", directDropWeight: 0.000006 } // Slightly increased after removing luck_charm
+        { itemId: "nothing_drop", directDropWeight: 0.900077 },
+        { itemId: "common_loot_box", directDropWeight: 0.095 },
+        { itemId: "rare_loot_box", directDropWeight: 0.0045 },
+        { itemId: "epic_loot_box", directDropWeight: 0.0008 },
+        { itemId: "legendary_loot_box", directDropWeight: 0.0001 },
+        { itemId: "mythical_chest", directDropWeight: 0.00008 },
+        { itemId: "gem_chest", directDropWeight: 0.00001 },
+        { itemId: "cosmic_role_token", directDropWeight: 0.000001 }
     ]
 };
 

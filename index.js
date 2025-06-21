@@ -513,7 +513,7 @@ function buildShopSettingsEmbed(userId, guildId, systemsManager) {
         .setDescription('Configure alerts for shop items. Discount notifications are disabled while weekend boost is active.');
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('shop_setting_lootbox').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('shop_setting_lootbox').setLabel('Chests').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('shop_setting_charm').setLabel('Charms').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('shop_setting_exclusive').setLabel('Exclusive').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('shop_setting_discount').setLabel('Discount').setStyle(ButtonStyle.Primary)
@@ -1575,12 +1575,12 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
                 }
             }
         } else if (currentTab === 'lootboxes') {
-            embed.setTitle('📦 Loot Boxes');
+            embed.setTitle('📦 Chests');
             embed.setColor(0xF5B041); // Orange
             const lootBoxItemsDisplay = categorizedInventory.lootBoxes;
 
             if (lootBoxItemsDisplay.length > 0) {
-                embed.setDescription("Here are the loot boxes you've collected:");
+                embed.setDescription("Here are the chests you've collected:");
                 lootBoxItemsDisplay.forEach(item => {
                     let boxDetails = `Quantity: \`${item.quantity.toLocaleString()}\``;
                     const itemConfig = systemsManager._getItemMasterProperty(item.itemId, null, {}); // Get full config
@@ -1595,7 +1595,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
                     });
                 });
             } else {
-                embed.setDescription("You have no loot boxes. Try chatting, participating in events, or check the shop!");
+                embed.setDescription("You have no chests. Try chatting, participating in events, or check the shop!");
             }
         } else if (currentTab === 'balance') {
             embed.setTitle('💰 Wallet & Bank');
@@ -1650,7 +1650,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
                     let durationText = displayCharm.duration === "Permanent" ? "Permanent" : `${displayCharm.duration} hours`;
                     embed.addFields({ name: `${displayCharm.emoji} ${displayCharm.name} (x${displayCharm.quantity})`, value: `${effectDesc}\n⏳ Duration: ${durationText}`, inline: false });
                 });
-            } else { embed.setDescription("You have no active charms. Use charm items from your inventory or find them in loot boxes/shop!"); }
+            } else { embed.setDescription("You have no active charms. Use charm items from your inventory or find them in chests/shop!"); }
 
             // Calculate total effective boosts
             let totalCoinBoost = 0, totalGemBoost = 0, totalXpBoost = 0;
@@ -1736,7 +1736,7 @@ function getInventoryNavComponents(currentTab, customId = 'inventory_nav_select'
         .setPlaceholder('Select a category')
         .addOptions(
             { label: 'Items', value: 'items', emoji: '🗒️', default: currentTab === 'items' },
-            { label: 'Loot Boxes', value: 'lootboxes', emoji: '📦', default: currentTab === 'lootboxes' },
+            { label: 'Chests', value: 'lootboxes', emoji: '📦', default: currentTab === 'lootboxes' },
             { label: 'Balance', value: 'balance', emoji: '💰', default: currentTab === 'balance' },
             { label: 'Active Charms', value: 'charms', emoji: '✨', default: currentTab === 'charms' },
             { label: 'Perks', value: 'perks', emoji: '🎁', default: currentTab === 'perks' }
@@ -2156,8 +2156,8 @@ client.on('messageCreate', async message => {
                             eventDescription = `Unbelievable! ${message.author} has found a **${itemNameDisplay}**! A true treasure from the depths!`;
                             alertImage = 'https://i.ibb.co/vx4jNf2x/nh1.png'; // Example legendary image
                         }
-                        else if (rarityString === client.levelSystem.itemRarities.EPIC.name && itemConfig.id === 'epic_loot_box') { // Specific for epic loot box
-                            alertTitle = `💜 EPIC LOOT BOX! ${itemEmojiDisplay} ${itemNameDisplay}! 💜`;
+                        else if (rarityString === client.levelSystem.itemRarities.EPIC.name && itemConfig.id === 'epic_loot_box') { // Specific for epic chest
+                            alertTitle = `💜 EPIC CHEST! ${itemEmojiDisplay} ${itemNameDisplay}! 💜`;
                             eventDescription = `What's inside?! ${message.author} found an **${itemNameDisplay}**! This could contain something truly amazing!`;
                             alertImage = 'https://i.ibb.co/LznxMrgN/nh2.png'; // Epic box image
                         }
@@ -2682,7 +2682,7 @@ module.exports = {
                      if (itemType === client.levelSystem.itemTypes.LOOT_BOX || itemType === SHOP_ITEM_TYPES.LOOTBOX) {
                          const maxUnbox = maxUnboxConfig[selectedItemId];
                          if (maxUnbox !== undefined && amount > maxUnbox) return safeEditReply(interaction, { content: `❌ Max ${maxUnbox} ${itemConfig.name || selectedItemId} at a time.`, ephemeral: true });
-                         const waitingEmbed = new EmbedBuilder().setTitle(`Opening ${itemConfig.name || 'Loot Box'}...`).setColor(itemConfig.color || 0xAAAAAA).setThumbnail('https://i.ibb.co/d431dF0G/output-onlinegiftools-2.gif').setDescription("Rolling items...").setTimestamp();
+                         const waitingEmbed = new EmbedBuilder().setTitle(`Opening ${itemConfig.name || 'Chest'}...`).setColor(itemConfig.color || 0xAAAAAA).setThumbnail('https://i.ibb.co/d431dF0G/output-onlinegiftools-2.gif').setDescription("Rolling items...").setTimestamp();
                          await safeEditReply(interaction, { embeds: [waitingEmbed], ephemeral: false }); // Don't delete this one immediately
                      }
                      const result = await client.levelSystem.useItem(interaction.user.id, interaction.guild.id, selectedItemId, amount, WEEKEND_MULTIPLIERS, member, checkAndAwardSpecialRole); // Pass member and function
@@ -2731,7 +2731,7 @@ module.exports = {
                             if (charmAlertChannel && charmAlertChannel.isTextBased()) {
                                 const charmAlertEmbed = new EmbedBuilder().setTitle("🔮 Charm Activation Alert!").setColor(0xDA70D6).setDescription(`${interaction.user} activated charms:`);
                                 result.charmsObtainedDetails.forEach(cd => {
-                                    charmAlertEmbed.addFields({ name: `${cd.emoji} ${cd.name} (x${cd.quantity || 1})`, value: `Source: ${cd.source || 'Loot Box'}`});
+                                    charmAlertEmbed.addFields({ name: `${cd.emoji} ${cd.name} (x${cd.quantity || 1})`, value: `Source: ${cd.source || 'Chest'}`});
                                 });
                                 await charmAlertChannel.send({ embeds: [charmAlertEmbed]}).catch(e => console.warn("Failed to send charm alert: ", e.message));
                             }
@@ -2789,7 +2789,7 @@ module.exports = {
                     else { // Browse functionality
                         const categoryButtons = new ActionRowBuilder()
                             .addComponents(
-                                new ButtonBuilder().setCustomId('item_info_category_select_lootboxes').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+                                new ButtonBuilder().setCustomId('item_info_category_select_lootboxes').setLabel('Chests').setStyle(ButtonStyle.Primary).setEmoji('📦'),
                                 new ButtonBuilder().setCustomId('item_info_category_select_charms').setLabel('Charms').setStyle(ButtonStyle.Primary).setEmoji('✨'),
                                 new ButtonBuilder().setCustomId('item_info_category_select_others').setLabel('Other Items').setStyle(ButtonStyle.Primary).setEmoji('🔖'),
                                 new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger) // Added cancel
@@ -4253,7 +4253,7 @@ module.exports = {
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const categoryButtons = new ActionRowBuilder()
                     .addComponents(
-                        new ButtonBuilder().setCustomId('item_info_category_select_lootboxes').setLabel('Loot Boxes').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+                        new ButtonBuilder().setCustomId('item_info_category_select_lootboxes').setLabel('Chests').setStyle(ButtonStyle.Primary).setEmoji('📦'),
                         new ButtonBuilder().setCustomId('item_info_category_select_charms').setLabel('Charms').setStyle(ButtonStyle.Primary).setEmoji('✨'),
                         new ButtonBuilder().setCustomId('item_info_category_select_others').setLabel('Other Items').setStyle(ButtonStyle.Primary).setEmoji('🔖'),
                         new ButtonBuilder().setCustomId('item_info_cancel_browse').setLabel('Cancel').setStyle(ButtonStyle.Danger)
