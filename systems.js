@@ -2027,7 +2027,7 @@ this.db.prepare(`
         return { success: true, message: claimedRewardMessage };
     }
 
-    skipDailyCooldown(userId, guildId) {
+    skipDailyReward(userId, guildId) {
         const user = this.getUser(userId, guildId);
         const cooldown = 12 * 60 * 60 * 1000;
         const now = Date.now();
@@ -2038,19 +2038,38 @@ this.db.prepare(`
         const skipCount = user.dailySkipCount || 0;
         const cost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
         if (user.gems < cost) {
-            return { success: false, message: `You need ${cost} ${this.gemEmoji} to skip the cooldown.` };
+            return { success: false, message: `You need ${cost} ${this.gemEmoji} to skip.` };
         }
 
         this.addGems(userId, guildId, -cost, 'daily_skip');
-        // Only adjust the lastDailyTimestamp so the user can claim again.
-        // Do NOT modify rewardsLastShiftedAt here, otherwise the reward line
-        // would shift before claiming which results in losing today's reward.
+
+        const rewards = this.getDailyRewards(userId, guildId);
+        const rewardToClaim = rewards[1];
+        let claimedRewardMessage = '';
+        if (rewardToClaim) {
+            const currencyBoost = 1 + (user.dailyStreak * 0.2);
+            const isRobux = rewardToClaim.data.id === this.ROBUX_ID;
+            if (rewardToClaim.type === 'currency') {
+                const finalAmount = isRobux ? rewardToClaim.data.amount : Math.ceil(rewardToClaim.data.amount * currencyBoost);
+                if (rewardToClaim.data.id === this.COINS_ID) this.addCoins(userId, guildId, finalAmount, 'daily_reward');
+                else if (rewardToClaim.data.id === this.GEMS_ID) this.addGems(userId, guildId, finalAmount, 'daily_reward');
+                else if (isRobux) this.addRobux(userId, guildId, finalAmount, 'daily_reward');
+                claimedRewardMessage = `You claimed ${finalAmount.toLocaleString()}${this.getItemEmojiById(rewardToClaim.data.id, guildId)}!`;
+            } else if (rewardToClaim.type === 'item') {
+                const itemConfig = this._getItemMasterProperty(rewardToClaim.data.id, null);
+                this.giveItem(userId, guildId, rewardToClaim.data.id, rewardToClaim.data.amount, itemConfig.type, 'daily_reward');
+                claimedRewardMessage = `You claimed ${rewardToClaim.data.amount}x ${itemConfig.emoji} **${itemConfig.name}**!`;
+            }
+        }
+
         this.updateUser(userId, guildId, {
-            lastDailyTimestamp: user.lastDailyTimestamp - cooldown,
+            lastDailyTimestamp: now,
             dailySkipCount: skipCount + 1
         });
 
-        return { success: true, message: `Cooldown skipped for ${cost} ${this.gemEmoji}. You can now claim.` };
+        this.getDailyRewards(userId, guildId, true);
+
+        return { success: true, message: `Reward skipped for ${cost} ${this.gemEmoji}. ${claimedRewardMessage}` };
     }
 
     // --- End Daily System Methods ---

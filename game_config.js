@@ -59,14 +59,13 @@ const config = {
         WEEKEND_GEM_MULTIPLIER:  2,
         WEEKEND_XP_MULTIPLIER:   2,
         WEEKEND_SHOP_STOCK_MULTIPLIER: 2,
-        // Weekend range is evaluated in UTC.
-        // For UTC+7 this means Friday 17:00 UTC until Sunday 17:00 UTC
-        // (local Saturday 00:00 to Monday 00:00).
+        // Weekend range is defined in UTC+7.
+        // The boost starts Saturday 00:00 UTC+7 and ends Monday 00:00 UTC+7.
         WEEKEND_DATE_RANGE: {
-            startDay: 5,  // Friday
-            startHour: 17,
-            endDay: 0,    // Sunday
-            endHour: 17
+            startDay: 6,  // Saturday
+            startHour: 0,
+            endDay: 1,    // Monday
+            endHour: 0
         },
 
         WEEKEND_SHOP_DISCOUNT_TIERS: [
