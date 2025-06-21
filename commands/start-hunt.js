@@ -11,8 +11,11 @@ module.exports = {
       return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
     }
     const c = client || interaction.client;
-    await interaction.reply({ content: '🔍 Starting the ticket hunt...', ephemeral: true });
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
     try {
+      await interaction.editReply({ content: '🔍 Starting the ticket hunt...' });
       await initializeTicketHunt(c);
       await interaction.editReply({ content: '✅ Ticket hunt started!' });
     } catch (err) {
