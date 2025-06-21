@@ -321,6 +321,12 @@ const commands = [
                 required: true,
             },
             {
+                name: 'user',
+                description: 'Specific user to reset instead of all users',
+                type: ApplicationCommandOptionType.User,
+                required: false,
+            },
+            {
                 name: 'reset_all_users',
                 description: 'MUST BE TRUE to confirm this affects all users in the specified data types.',
                 type: ApplicationCommandOptionType.Boolean,

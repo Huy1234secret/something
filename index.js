@@ -2449,6 +2449,7 @@ client.on('interactionCreate', async interaction => {
                 const targetGuildIdInput = interaction.options.getString('target_guild_id');
                 const confirmationPhrase = interaction.options.getString('confirmation');
                 const expectedConfirmation = "CONFIRM DATA RESET";
+                const targetUser = interaction.options.getUser('user');
                 const resetAllUsers = interaction.options.getBoolean('reset_all_users');
                 const resetOptions = {
                     doLevelsAndXp: interaction.options.getBoolean('reset_levels_xp') || false,
@@ -2457,7 +2458,7 @@ client.on('interactionCreate', async interaction => {
                     doActiveCharms: interaction.options.getBoolean('reset_active_charms') || false,
                 };
                 if (targetGuildIdInput !== interaction.guildId) return sendInteractionError(interaction, "Target Guild ID does not match current server's ID. Reset cancelled.", true);
-                if (resetAllUsers !== true) return sendInteractionError(interaction, "You must explicitly confirm reset applies to ALL users by setting 'reset_all_users' to true. Reset cancelled.", true);
+                if (!targetUser && resetAllUsers !== true) return sendInteractionError(interaction, "You must explicitly confirm reset applies to ALL users by setting 'reset_all_users' to true, or specify a user. Reset cancelled.", true);
                 if (confirmationPhrase !== expectedConfirmation) return sendInteractionError(interaction, `Incorrect confirmation phrase. Must type EXACTLY: "${expectedConfirmation}". Reset cancelled.`, true);
                 if (!resetOptions.doLevelsAndXp && !resetOptions.doBalances && !resetOptions.doInventory && !resetOptions.doActiveCharms) {
                     return sendInteractionError(interaction, "No data types selected for reset. No action taken.", true);
@@ -2465,10 +2466,21 @@ client.on('interactionCreate', async interaction => {
 
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 try {
-                    console.log(`[ADMIN COMMAND] User ${interaction.user.tag} initiated selective data reset for guild ${interaction.guildId} with options:`, resetOptions);
-                    const result = client.levelSystem.resetGuildData(interaction.guild.id, resetOptions);
+                    let result;
+                    if (targetUser) {
+                        console.log(`[ADMIN COMMAND] User ${interaction.user.tag} initiated selective data reset for user ${targetUser.id} in guild ${interaction.guildId} with options:`, resetOptions);
+                        result = client.levelSystem.resetUserDataSelective(targetUser.id, interaction.guild.id, resetOptions);
+                    } else {
+                        console.log(`[ADMIN COMMAND] User ${interaction.user.tag} initiated selective data reset for guild ${interaction.guildId} with options:`, resetOptions);
+                        result = client.levelSystem.resetGuildData(interaction.guild.id, resetOptions);
+                    }
                     if (result.success) {
-                        let replyMessage = `✅ **SUCCESSFULLY PERFORMED SELECTIVE DATA RESET FOR THIS GUILD (${interaction.guild.name}).**\n`;
+                        let replyMessage;
+                        if (targetUser) {
+                            replyMessage = `✅ **SUCCESSFULLY RESET DATA FOR <@${targetUser.id}>.**\n`;
+                        } else {
+                            replyMessage = `✅ **SUCCESSFULLY PERFORMED SELECTIVE DATA RESET FOR THIS GUILD (${interaction.guild.name}).**\n`;
+                        }
                         if (result.details && result.details.length > 0) replyMessage += result.details.map(d => `> - ${d}`).join('\n');
                         else replyMessage += "> - No specific changes were logged, but operation marked successful based on selected options.";
                         replyMessage += `\n\n**THIS ACTION WAS IRREVERSIBLE FOR THE SELECTED DATA TYPES.**`;
