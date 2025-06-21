@@ -138,7 +138,7 @@ const config = {
         "common_loot_box": {
             id: "common_loot_box", name: "Common Loot Box", type: "loot_box_item",
             directDropWeight: 0.05, 
-            emoji: "<:common:1373546771216728164>", rarityValue: 100,
+            emoji: "<:common:1385904265184149525>", rarityValue: 100,
             description: "A common box containing a few items.",
             basePrice: 250, appearanceChanceInShop: 1.0, stockRangeShop: [10, 40],
             isRareForShopAlert: false, 
@@ -159,7 +159,7 @@ const config = {
         "rare_loot_box": {
             id: "rare_loot_box", name: "Rare Loot Box", type: "loot_box_item",
             directDropWeight: 0.0015, isRareWeekendEligibleChatDrop: true, 
-            emoji: "<:rare:1373546796525289533>", rarityValue: 1000,
+            emoji: "<:rare:1385904281424625795>", rarityValue: 1000,
             description: "A rare box with better chances for good items.",
             basePrice: 1500, appearanceChanceInShop: 0.25, stockRangeShop: [7, 25],
             isRareForShopAlert: true,
@@ -181,7 +181,7 @@ const config = {
         "epic_loot_box": {
             id: "epic_loot_box", name: "Epic Loot Box", type: "loot_box_item",
             directDropWeight: 0.0003, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:epic:1373546835355897938>", rarityValue: 50000,
+            emoji: "<:epic:1385904294934609981>", rarityValue: 50000,
             description: "An epic box containing valuable treasures.",
             basePrice: 7500, appearanceChanceInShop: 0.05, stockRangeShop: [3, 12],
             isRareForShopAlert: true,
@@ -203,7 +203,7 @@ const config = {
         "legendary_loot_box": {
             id: "legendary_loot_box", name: "Legendary Loot Box", type: "loot_box_item",
             directDropWeight: 0.00001, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:legend:1373546812144746596>", rarityValue: 250000,
+            emoji: "<:legend:1385904172481773598>", rarityValue: 250000,
             description: "A legendary box of immense power and rarity.",
             basePrice: 35000, appearanceChanceInShop: 0.001, stockRangeShop: [1, 3],
             isRareForShopAlert: true,
