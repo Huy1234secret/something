@@ -1730,9 +1730,9 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
     }
 }
 
-function getInventoryNavComponents(currentTab) {
+function getInventoryNavComponents(currentTab, customId = 'inventory_nav_select') {
     const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('inventory_nav_select')
+        .setCustomId(customId)
         .setPlaceholder('Select a category')
         .addOptions(
             { label: 'Items', value: 'items', emoji: '🗒️', default: currentTab === 'items' },
@@ -2847,7 +2847,24 @@ module.exports = {
 
                     if (infoType === 'inventory') {
                         const { embed } = await buildInventoryEmbed(targetUser, interaction.guild.id, client.levelSystem, 'items');
-                        await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
+                        const customId = `see_user_inventory_nav_select_${targetUser.id}`;
+                        const components = getInventoryNavComponents('items', customId);
+                        const sentMessage = await safeEditReply(interaction, { embeds: [embed], components, fetchReply: true, ephemeral: false }, true);
+                        if (sentMessage?.id) {
+                            const inventoryKey = `${interaction.user.id}_${targetUser.id}_${interaction.guild.id}_seeinv`;
+                            const existingTimeout = inventoryInteractionTimeouts.get(inventoryKey);
+                            if (existingTimeout) clearTimeout(existingTimeout);
+                            const newTimeout = setTimeout(async () => {
+                                try {
+                                    const currentMessage = await interaction.channel.messages.fetch(sentMessage.id).catch(() => null);
+                                    if (currentMessage && currentMessage.editable) {
+                                        await currentMessage.edit({ content: "Inventory session timed out.", embeds: [], components: [] }).catch(e => { if (e.code !== 10008) console.warn("Failed to edit timed out see-user inventory:", e.message); });
+                                    }
+                                } catch (e) { if (e.code !== 10008) console.warn("Error handling see-user inventory timeout edit:", e.message); }
+                                inventoryInteractionTimeouts.delete(inventoryKey);
+                            }, INVENTORY_MESSAGE_TIMEOUT_MS);
+                            inventoryInteractionTimeouts.set(inventoryKey, newTimeout);
+                        }
                     } else if (infoType === 'bank') {
                         const bankEmbed = await buildBankEmbed(targetUser, interaction.guild.id, client.levelSystem);
                         await safeEditReply(interaction, { embeds: [bankEmbed], ephemeral: false }, true);
@@ -4151,6 +4168,26 @@ module.exports = {
                          await safeEditReply(interaction, { embeds: [embed], components: components });
                     }
                 } catch (invNavError) { console.error('[Inventory Nav Error]', invNavError); await sendInteractionError(interaction, "Could not update inventory view.", true, true); } // Pass deferred flag
+                return;
+            }
+
+            if (customId.startsWith('see_user_inventory_nav_select_')) {
+                if (!interaction.guild) return sendInteractionError(interaction, "Inventory interactions require a server context.", true);
+                if (!interaction.isStringSelectMenu()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(e => console.warn("See-user inventory nav deferUpdate failed", e)); }
+                const selectedTab = interaction.values[0];
+                const targetUserId = customId.replace('see_user_inventory_nav_select_', '');
+                try {
+                    const targetUser = await client.users.fetch(targetUserId).catch(() => null);
+                    if (!targetUser) return sendInteractionError(interaction, 'User not found.', true, true);
+                    const { embed } = await buildInventoryEmbed(targetUser, interaction.guild.id, client.levelSystem, selectedTab);
+                    const components = getInventoryNavComponents(selectedTab, customId);
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [embed], components });
+                    } else {
+                        await safeEditReply(interaction, { embeds: [embed], components });
+                    }
+                } catch (invNavError) { console.error('[SeeUser Inventory Nav Error]', invNavError); await sendInteractionError(interaction, 'Could not update inventory view.', true, true); }
                 return;
             }
 
