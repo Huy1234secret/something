@@ -2813,6 +2813,51 @@ module.exports = {
                 } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
                 return;
             }
+            if (commandName === 'see-user') {
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                try {
+                    const targetUser = interaction.options.getUser('user');
+                    const infoType = interaction.options.getString('info');
+                    if (!targetUser) return sendInteractionError(interaction, 'Target user not specified.', true, deferredThisInteraction);
+                    const targetMember = interaction.guild.members.cache.get(targetUser.id) || await interaction.guild.members.fetch(targetUser.id).catch(()=>null);
+                    if (!targetMember) return sendInteractionError(interaction, 'Member not found.', true, deferredThisInteraction);
+
+                    if (infoType === 'inventory') {
+                        const { embed } = await buildInventoryEmbed(targetUser, interaction.guild.id, client.levelSystem, 'items');
+                        await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
+                    } else if (infoType === 'bank') {
+                        const bankEmbed = await buildBankEmbed(targetUser, interaction.guild.id, client.levelSystem);
+                        await safeEditReply(interaction, { embeds: [bankEmbed], ephemeral: false }, true);
+                    } else if (infoType === 'level') {
+                        const levelInfo = client.levelSystem.getLevelInfo(targetUser.id, interaction.guild.id);
+                        const highestRoleNameAndId = client.levelSystem.getHighestCurrentLevelRoleNameAndId(targetMember, levelInfo.level);
+                        let embedColor = LEVEL_ROLE_COLORS.default;
+                        if (highestRoleNameAndId?.id && LEVEL_ROLE_COLORS[highestRoleNameAndId.id]) embedColor = LEVEL_ROLE_COLORS[highestRoleNameAndId.id];
+                        const xpProgress = levelInfo.xp; const xpToNext = levelInfo.xpNeeded;
+                        const maxLevelConfigured = client.levelSystem.gameConfig.globalSettings.MAX_LEVEL || MAX_LEVEL;
+                        const progressPercentage = xpToNext > 0 ? Math.min(100, Math.max(0, (xpProgress / xpToNext) * 100)) : (levelInfo.level >= maxLevelConfigured ? 100 : 0);
+                        const progressBar = '🟩'.repeat(Math.floor(progressPercentage / 10)) + '⬛'.repeat(10 - Math.floor(progressPercentage / 10));
+                        const xpToNextDisplay = levelInfo.level >= maxLevelConfigured ? 'Max Level Reached' : `${(xpToNext - xpProgress).toLocaleString()} XP`;
+                        const levelEmbed = new EmbedBuilder()
+                            .setColor(embedColor).setAuthor({ name: `${targetUser.username}'s Level Progress`, iconURL: targetUser.displayAvatarURL({ dynamic: true })})
+                            .setThumbnail(getImageUrlForLevel(levelInfo.level))
+                            .addFields(
+                                { name: '🏆 Level', value: `\`${levelInfo.level}\``, inline: true },
+                                { name: '✨ XP', value: `\`${levelInfo.xp.toLocaleString()} / ${xpToNext > 0 ? xpToNext.toLocaleString() : '-'}\``, inline: true },
+                                { name: '📈 Rank', value: `\`#${levelInfo.rank}\``, inline: true },
+                                { name: '📊 Progress', value: `${progressBar} \`${progressPercentage.toFixed(1)}%\``, inline: false },
+                                { name: '🎯 XP to Next Level', value: `\`${xpToNextDisplay}\``, inline: false },
+                                { name: '🎖️ Highest Role', value: `${highestRoleNameAndId.name} (<@&${highestRoleNameAndId.id}>)`, inline: false }
+                            )
+                            .setTimestamp()
+                            .setFooter({ text: `Viewing stats in: ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
+                        await safeEditReply(interaction, { embeds: [levelEmbed], ephemeral: false }, true);
+                    } else {
+                        await sendInteractionError(interaction, 'Invalid info type.', true, deferredThisInteraction);
+                    }
+                } catch (seeUserError) { console.error('[SeeUser Command] Error:', seeUserError); await sendInteractionError(interaction, 'Could not fetch user info.', true, deferredThisInteraction); }
+                return;
+            }
             if (commandName === 'export-guild-data') {
                 if (!isAdmin()) return sendInteractionError(interaction, "Admin only.", true, false);
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
