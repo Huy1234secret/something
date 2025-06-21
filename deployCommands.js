@@ -58,6 +58,29 @@ const commands = [
         ]
     },
     {
+        name: 'see-user',
+        description: "View another user's inventory, bank, or level.",
+        options: [
+            {
+                name: 'user',
+                description: 'The user to inspect.',
+                type: ApplicationCommandOptionType.User,
+                required: true
+            },
+            {
+                name: 'info',
+                description: 'What information to view.',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+                choices: [
+                    { name: 'Inventory', value: 'inventory' },
+                    { name: 'Bank', value: 'bank' },
+                    { name: 'Level', value: 'level' }
+                ]
+            }
+        ]
+    },
+    {
         name: 'backup-database',
         description: 'Creates and sends a backup of the level system database (Staff Only).',
         default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString(),
