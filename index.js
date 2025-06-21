@@ -3,7 +3,7 @@ const {
     Client, GatewayIntentBits, Collection, EmbedBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     ChannelType, AttachmentBuilder, MessageFlags, PermissionsBitField, ActivityType, InteractionType, StringSelectMenuBuilder,
-    User
+    User, Partials
 } = require('discord.js');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -82,6 +82,7 @@ const { loadGiveaways, saveGiveaways } = require('./utils/dataManager.js');
 const { handleGiveawaySetupInteraction, handleEnterGiveaway, handleClaimPrize, activeGiveaways, endGiveaway, sendSetupChannelMessage, startInstantGiveaway } = require('./utils/giveawayManager.js');
 const { startGitHubWebhookServer } = require("./githubWebhook.js");
 const deployCommands = require('./deployCommands.js');
+const { initializeTicketHunt } = require('./ticketHunt.js');
 
 
 function normalizePath(filePath) {
@@ -287,7 +288,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.DirectMessages
-    ]
+    ],
+    partials: [Partials.Message, Partials.Reaction, Partials.Channel]
 });
 client.NON_DAILY_NOTIFICATIONS_ENABLED = process.env.DISABLE_NON_DAILY_NOTIFICATIONS !== 'true';
 
@@ -2012,6 +2014,8 @@ scheduleDailyReadyNotifications(client);
             console.error(`[Config Check] CRITICAL: Robux withdrawal log channel ID ${ROBUX_WITHDRAWAL_LOG_CHANNEL_ID} is invalid or bot cannot access it. Withdrawals will fail to log.`);
         }
     }
+
+    await initializeTicketHunt(client);
 });
 
 client.on('messageCreate', async message => {
