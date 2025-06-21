@@ -57,6 +57,7 @@ const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
 const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 1.00 };
 
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
+const WEEKEND_TZ_OFFSET_HOURS = 7; // Hours offset for UTC+7 weekend calculations
 
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
@@ -179,8 +180,17 @@ let WEEKEND_BOOST_ACTIVE = false;
 let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
+function toWeekendTZ(date) {
+    return new Date(date.getTime() + WEEKEND_TZ_OFFSET_HOURS * 60 * 60 * 1000);
+}
+
+function fromWeekendTZ(date) {
+    return new Date(date.getTime() - WEEKEND_TZ_OFFSET_HOURS * 60 * 60 * 1000);
+}
+
 function isDateInWeekendRange(date = new Date()) {
     const range = client?.levelSystem?.gameConfig?.globalSettings?.WEEKEND_DATE_RANGE;
+    const localDate = toWeekendTZ(date);
     if (range) {
         let { startDay = 6, startHour = 0, endDay = 1, endHour = 0 } = range;
         startDay = (startDay + Math.floor(startHour / 24)) % 7;
@@ -189,7 +199,7 @@ function isDateInWeekendRange(date = new Date()) {
         endHour = endHour % 24;
 
         const minutesOfWeek = (d) => d.getUTCDay() * 24 * 60 + d.getUTCHours() * 60 + d.getUTCMinutes();
-        let currentMin = minutesOfWeek(date);
+        let currentMin = minutesOfWeek(localDate);
         let startMin = startDay * 24 * 60 + startHour * 60;
         let endMin = endDay * 24 * 60 + endHour * 60;
 
@@ -198,8 +208,8 @@ function isDateInWeekendRange(date = new Date()) {
 
         return currentMin >= startMin && currentMin < endMin;
     }
-    const day = date.getUTCDay();
-    return day === 6 || day === 0; // Saturday or Sunday UTC
+    const day = localDate.getUTCDay();
+    return day === 6 || day === 0; // Saturday or Sunday in UTC+7
 }
 
 function getCurrentWeekendEndDate(refDate = new Date()) {
@@ -213,18 +223,19 @@ function getCurrentWeekendEndDate(refDate = new Date()) {
     endDay = (endDay + Math.floor(endHour / 24)) % 7;
     endHour = endHour % 24;
 
-    const start = new Date(refDate);
-    const dayDiff = (refDate.getUTCDay() - startDay + 7) % 7;
-    start.setUTCDate(refDate.getUTCDate() - dayDiff);
+    const localRef = toWeekendTZ(refDate);
+    const start = new Date(localRef);
+    const dayDiff = (localRef.getUTCDay() - startDay + 7) % 7;
+    start.setUTCDate(localRef.getUTCDate() - dayDiff);
     start.setUTCHours(startHour, 0, 0, 0);
-    if (start > refDate) start.setUTCDate(start.getUTCDate() - 7);
+    if (start > localRef) start.setUTCDate(start.getUTCDate() - 7);
 
     const end = new Date(start);
     const addDays = (endDay - startDay + 7) % 7 || 7;
     end.setUTCDate(start.getUTCDate() + addDays);
     end.setUTCHours(endHour, 0, 0, 0);
-    if (end <= refDate) end.setUTCDate(end.getUTCDate() + 7);
-    return end;
+    if (end <= localRef) end.setUTCDate(end.getUTCDate() + 7);
+    return fromWeekendTZ(end);
 }
 
 function getNextWeekendStartDate(refDate = new Date()) {
@@ -235,12 +246,13 @@ function getNextWeekendStartDate(refDate = new Date()) {
     }
     startDay = (startDay + Math.floor(startHour / 24)) % 7;
     startHour = startHour % 24;
-    const start = new Date(refDate);
-    const dayDiff = (startDay - refDate.getUTCDay() + 7) % 7;
-    start.setUTCDate(refDate.getUTCDate() + dayDiff);
+    const localRef = toWeekendTZ(refDate);
+    const start = new Date(localRef);
+    const dayDiff = (startDay - localRef.getUTCDay() + 7) % 7;
+    start.setUTCDate(localRef.getUTCDate() + dayDiff);
     start.setUTCHours(startHour, 0, 0, 0);
-    if (start <= refDate) start.setUTCDate(start.getUTCDate() + 7);
-    return start;
+    if (start <= localRef) start.setUTCDate(start.getUTCDate() + 7);
+    return fromWeekendTZ(start);
 }
 
 const dbFilePath = path.resolve(__dirname, 'database.db');
@@ -443,8 +455,8 @@ async function buildDailyEmbed(interaction, client) {
             .setEmoji('🎉')
             .setDisabled(!canClaim),
         new ButtonBuilder()
-            .setCustomId('skip_daily_cooldown')
-            .setLabel(`Skip Cooldown (${skipCost} Gems)`) 
+            .setCustomId('skip_daily_reward')
+            .setLabel(`Skip Reward (${skipCost} Gems)`)
             .setStyle(ButtonStyle.Primary)
             .setEmoji('⏭️')
             .setDisabled(canClaim)
@@ -861,15 +873,14 @@ async function scheduleWeekendBoosts(client) {
 
         const now        = Date.now();
         const current    = new Date();
-        const dayOfWeek  = current.getUTCDay();   // 0 = Sun … 6 = Sat
-        const hourUTC    = current.getUTCHours();
-        const minuteUTC  = current.getUTCMinutes();
+        const local      = toWeekendTZ(current);
+        const dayOfWeek  = local.getUTCDay();   // 0 = Sun … 6 = Sat (UTC+7)
+        const hourLocal  = local.getUTCHours();
+        const minuteLocal = local.getUTCMinutes();
 
-        /*  WEEKEND DEFINITION
-            ──────────────────
-            Boost is ON from 00 : 00 UTC Saturday (day 6)
-            right through 23 : 59 UTC Sunday (day 0).
-
+        /*  WEEKEND DEFINITION (UTC+7)
+            ────────────────────────
+            Boost is ON from 00:00 Saturday to 00:00 Monday UTC+7.
             Any other moment ⇒ boost OFF.
         */
         const isCurrentlyWeekend = isDateInWeekendRange(current);
@@ -939,20 +950,20 @@ async function scheduleWeekendBoosts(client) {
                 });
             }
 
-            /* announcement ­windows
-               start: Sat 00 : 00 - 00 : 14  (UTC)
-               end  : Mon 00 : 00 - 00 : 14  (UTC) — i.e. the first tick *after* the boost has been disabled
+            /* announcement ­windows (UTC+7)
+               start: Sat 00:00 - 00:14
+               end  : Mon 00:00 - 00:14 — first tick *after* boost ends
             */
             let announce = false;
             let announceField = {};
 
             if (isCurrentlyWeekend) {
                 announce = (now - (settings.lastWeekendBoostStartAnnounceTimestamp || 0) > ANNOUNCE_COOLDOWN_MS)
-                        && (dayOfWeek === 6 && hourUTC === 0 && minuteUTC < 15);
+                        && (dayOfWeek === 6 && hourLocal === 0 && minuteLocal < 15);
                 if (announce) announceField.lastWeekendBoostStartAnnounceTimestamp = now;
             } else {
                 announce = (now - (settings.lastWeekendBoostEndAnnounceTimestamp   || 0) > ANNOUNCE_COOLDOWN_MS)
-                        && (dayOfWeek === 1 && hourUTC === 0 && minuteUTC < 15);  // Monday just after midnight
+                        && (dayOfWeek === 1 && hourLocal === 0 && minuteLocal < 15);  // Monday just after midnight
                 if (announce) announceField.lastWeekendBoostEndAnnounceTimestamp   = now;
             }
 
@@ -1961,7 +1972,7 @@ await scheduleWeekendBoosts(client);   // ← moved up (it runs an immediate che
     try {
         const now = new Date();
         const active = isDateInWeekendRange(now);
-        const tzDate = new Date(now.getTime() + 7 * 60 * 60 * 1000); // UTC+7 offset
+        const tzDate = new Date(now.getTime() + WEEKEND_TZ_OFFSET_HOURS * 60 * 60 * 1000); // UTC+7 offset
         const msg = `[Startup] Weekend range check: ${active ? 'IN' : 'OUT'} of weekend at ${tzDate.toUTCString().replace('GMT', 'UTC+7')}`;
         console.log(msg);
         await logToBotLogChannel(msg).catch(()=>{});
@@ -3104,7 +3115,7 @@ module.exports = {
                 } catch (claimError) { console.error('[ClaimDaily Error]', claimError); await sendInteractionError(interaction, "An error occurred while claiming your reward.", true, deferredThisInteraction); }
                 return;
             }
-            if (customId === 'skip_daily_cooldown') {
+            if (customId === 'skip_daily_reward') {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) {
                     const deferOpts = interaction.guild ? { ephemeral: true } : {};
@@ -3112,7 +3123,7 @@ module.exports = {
                     deferredThisInteraction = true;
                 }
                 try {
-                    const result = client.levelSystem.skipDailyCooldown(interaction.user.id, interaction.guild.id);
+                    const result = client.levelSystem.skipDailyReward(interaction.user.id, interaction.guild.id);
                     if (result.success) {
                         await safeEditReply(interaction, { content: `✅ **Success!** ${result.message}`, ephemeral: true });
                         const { embed: newEmbed, components: newComponents } = await buildDailyEmbed(interaction, client);
@@ -3122,7 +3133,7 @@ module.exports = {
                             });
                         }
                     } else {
-                        await sendInteractionError(interaction, result.message || 'Failed to skip cooldown.', true, deferredThisInteraction);
+                        await sendInteractionError(interaction, result.message || 'Failed to skip reward.', true, deferredThisInteraction);
                     }
                 } catch (skipError) {
                     console.error('[SkipDaily Error]', skipError);
