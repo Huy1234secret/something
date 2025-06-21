@@ -56,6 +56,8 @@ const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
 const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 1.00 };
 
+const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
+
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
     COINS: gameConfig.items.coins?.id || 'coins',
@@ -430,7 +432,8 @@ async function buildDailyEmbed(interaction, client) {
     embed.addFields({ name: '⏳ Next Claim', value: nextClaimText, inline: false });
     embed.setFooter({ text: "Rewards shift forward each time you claim. Don't lose your streak!" });
 
-    const skipCost = Math.ceil(10 * Math.pow(1.125, (user.dailyStreak || 0) - 1));
+    const skipCount = user.dailySkipCount || 0;
+    const skipCost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
 
     const components = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
