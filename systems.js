@@ -58,6 +58,7 @@ const DEFAULT_COIN_EMOJI = gameConfig.items.coins?.emoji || '<a:coin:13735688007
 const DEFAULT_GEM_EMOJI = gameConfig.items.gems?.emoji || '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI = gameConfig.items.robux?.emoji || '<a:robux:1378395622683574353>';
 const ROBUX_WITHDRAWAL_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
 
 function formatChanceDisplay(chanceDecimal, context = "", simplePercentageOnly = false) {
     if (simplePercentageOnly) {
@@ -239,6 +240,7 @@ class SystemsManager {
                 lostStreakTimestamp INTEGER DEFAULT 0,
                 rewardsLastShiftedAt INTEGER DEFAULT 0,
                 lastDailyNotifyTimestamp INTEGER DEFAULT 0,
+                dailySkipCount INTEGER DEFAULT 0,
                 PRIMARY KEY (userId, guildId)
             );`,
             `CREATE TABLE IF NOT EXISTS userInventory (
@@ -316,6 +318,9 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'lastDailyNotifyTimestamp')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN lastDailyNotifyTimestamp INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'dailySkipCount')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN dailySkipCount INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'lastInterestTimestamp')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN lastInterestTimestamp INTEGER DEFAULT 0;`);
@@ -658,10 +663,11 @@ this.db.prepare(`
     lostStreakTimestamp,
     rewardsLastShiftedAt,
     lastDailyNotifyTimestamp,
+    dailySkipCount,
     lastInterestTimestamp
   )
   VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, ?);
+          0, 0, 0, 0, 0, 0, 0, 0, 0, ?);
 `).run(userId, guildId, now);
             user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         }
@@ -680,6 +686,7 @@ this.db.prepare(`
         user.lostStreakTimestamp = user.lostStreakTimestamp || 0;
         user.rewardsLastShiftedAt = user.rewardsLastShiftedAt || 0;
         user.lastDailyNotifyTimestamp = user.lastDailyNotifyTimestamp || 0;
+        user.dailySkipCount = user.dailySkipCount || 0;
         return user;
     }
 
@@ -2028,7 +2035,8 @@ this.db.prepare(`
             return { success: false, message: 'Your daily is already ready to claim.' };
         }
 
-        const cost = Math.ceil(10 * Math.pow(1.125, (user.dailyStreak || 1) - 1));
+        const skipCount = user.dailySkipCount || 0;
+        const cost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
         if (user.gems < cost) {
             return { success: false, message: `You need ${cost} ${this.gemEmoji} to skip the cooldown.` };
         }
@@ -2038,14 +2046,11 @@ this.db.prepare(`
         // Do NOT modify rewardsLastShiftedAt here, otherwise the reward line
         // would shift before claiming which results in losing today's reward.
         this.updateUser(userId, guildId, {
-            lastDailyTimestamp: user.lastDailyTimestamp - cooldown
+            lastDailyTimestamp: user.lastDailyTimestamp - cooldown,
+            dailySkipCount: skipCount + 1
         });
 
-        const claimResult = this.claimDailyReward(userId, guildId);
-        if (claimResult.success) {
-            return { success: true, message: `Cooldown skipped for ${cost} ${this.gemEmoji}. ${claimResult.message}` };
-        }
-        return claimResult;
+        return { success: true, message: `Cooldown skipped for ${cost} ${this.gemEmoji}. You can now claim.` };
     }
 
     // --- End Daily System Methods ---
