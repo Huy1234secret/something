@@ -600,8 +600,8 @@ class SystemsManager {
             let totalValue = 0;
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
             inventory.forEach(item => {
-                const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);
-                if (typeof basePrice === 'number') totalValue += basePrice * item.quantity;
+                const rarityValue = this._getItemMasterProperty(item.itemId, 'rarityValue', 0);
+                if (typeof rarityValue === 'number') totalValue += rarityValue * item.quantity;
             });
             return { userId: user.userId, totalValue };
         });
@@ -635,8 +635,8 @@ class SystemsManager {
             let totalValue = 0;
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
             inventory.forEach(item => {
-                const basePrice = this._getItemMasterProperty(item.itemId, 'basePrice', 0);
-                if (typeof basePrice === 'number') totalValue += basePrice * item.quantity;
+                const rarityValue = this._getItemMasterProperty(item.itemId, 'rarityValue', 0);
+                if (typeof rarityValue === 'number') totalValue += rarityValue * item.quantity;
             });
             return { userId: user.userId, totalValue };
         });
