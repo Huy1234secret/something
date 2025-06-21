@@ -14,7 +14,9 @@ const TICKETS = [
   { channelId: '1380834420189298718', messageId: '1380841372814282802' },
   { channelId: '1372572234949853370', messageId: '1384871498258583633' },
   { channelId: '1372572234949853374', messageId: '1385872247490744420' },
-  { channelId: '1372572234949853368', messageId: '1382310864375386293' }
+  { channelId: '1372572234949853368', messageId: '1382310864375386293' },
+  // TODO: Replace with the actual channel and message ID for the final ticket
+  { channelId: 'REPLACE_CHANNEL_ID', messageId: 'REPLACE_MESSAGE_ID' }
 ];
 
 const DATA_FILE = path.join(__dirname, 'data', 'ticket_hunt.json');
