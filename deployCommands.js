@@ -449,11 +449,6 @@ const commands = [
             }
         ],
         default_member_permissions: PermissionsBitField.Flags.Administrator.toString()
-    },
-    {
-        name: 'start-hunt',
-        description: 'Enable the ticket hunt and add reactions to hunt messages.',
-        default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
     }
 ];
 
