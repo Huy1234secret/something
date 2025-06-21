@@ -286,8 +286,13 @@ if (fsSync.existsSync(restoreCandidateDbPath)) {
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.DirectMessages
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildMessageReactions
     ],
     partials: [Partials.Message, Partials.Reaction, Partials.Channel]
 });
