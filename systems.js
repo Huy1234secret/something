@@ -532,6 +532,13 @@ class SystemsManager {
                     itemDetails.name = this._getItemMasterProperty(currencyId, 'name') || currencyId;
                     itemDetails.emoji = this._getItemMasterProperty(currencyId, 'emoji') || '💰';
                     itemDetails.rarityValue = itemDetails.rarityValue || this._getItemMasterProperty(currencyId, 'rarityValue') || 0;
+                } else if (!itemDetails.quantity && (itemDetails.min !== undefined || itemDetails.max !== undefined)) {
+                    const minQty = parseInt(itemDetails.min, 10); const maxQty = parseInt(itemDetails.max, 10);
+                    if (!isNaN(minQty) && !isNaN(maxQty) && maxQty >= minQty) {
+                        quantity = Math.floor(Math.random() * (maxQty - minQty + 1)) + minQty;
+                    } else if (!isNaN(minQty) && isNaN(maxQty)) {
+                        quantity = minQty;
+                    }
                 } else if (itemDetails.quantity) {
                     if (Array.isArray(itemDetails.quantity) && itemDetails.quantity.length === 2) {
                         const minQ = parseInt(itemDetails.quantity[0], 10); const maxQ = parseInt(itemDetails.quantity[1], 10);

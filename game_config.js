@@ -253,12 +253,12 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 100, max: 1000, probability: 0.35, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 50, max: 500, probability: 0.2, rarityValue: 25 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.25, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.14, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.049, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.019, rarityValue: 250000 },
-                { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.001, rarityValue: 750000 },
-                { type: "loot_box_item", id: "gem_chest", quantity: 1, probability: 0.0005, rarityValue: 500000 },
+                { type: "loot_box_item", id: "common_loot_box", min: 25, max: 100, probability: 0.25, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_loot_box", min: 10, max: 50, probability: 0.14, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_loot_box", min: 5, max: 20, probability: 0.049, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_loot_box", min: 2, max: 10, probability: 0.019, rarityValue: 250000 },
+                { type: "loot_box_item", id: "mythical_chest", min: 1, max: 3, probability: 0.001, rarityValue: 750000 },
+                { type: "loot_box_item", id: "gem_chest", min: 1, max: 3, probability: 0.0005, rarityValue: 500000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
             ]
         },
