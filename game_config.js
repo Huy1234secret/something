@@ -55,9 +55,9 @@ const config = {
         /* ---------------------------------------------------------
          *  Weekend multipliers / discounts  🎉
          * --------------------------------------------------------- */
-        WEEKEND_COIN_MULTIPLIER: 2,
-        WEEKEND_GEM_MULTIPLIER:  2,
-        WEEKEND_XP_MULTIPLIER:   2,
+        WEEKEND_COIN_MULTIPLIER: 4,
+        WEEKEND_GEM_MULTIPLIER:  4,
+        WEEKEND_XP_MULTIPLIER:   4,
         WEEKEND_SHOP_STOCK_MULTIPLIER: 2,
         // Weekend range is defined in UTC+7.
         // The boost starts Saturday 00:00 UTC+7 and ends Monday 00:00 UTC+7.

@@ -44,9 +44,9 @@ const BANK_TIERS = {
     10: { coinCap:5_000_000,  gemCap: 15_000,  upgradeCostCoins:       0,  upgradeCostGems:     0,  interestRate:10,  nextTier:null }
 };
 
-const WEEKEND_COIN_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_COIN_MULTIPLIER || 2;
-const WEEKEND_GEM_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_GEM_MULTIPLIER || 2;
-const WEEKEND_XP_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_XP_MULTIPLIER || 2;
+const WEEKEND_COIN_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_COIN_MULTIPLIER || 4;
+const WEEKEND_GEM_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_GEM_MULTIPLIER || 4;
+const WEEKEND_XP_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_XP_MULTIPLIER || 4;
 // Luck related multipliers removed
 const WEEKEND_SHOP_STOCK_MULTIPLIER = gameConfig.globalSettings?.WEEKEND_SHOP_STOCK_MULTIPLIER || 1;
 
