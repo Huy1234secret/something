@@ -138,7 +138,7 @@ const config = {
         "common_loot_box": {
             id: "common_loot_box", name: "Common Chest", type: "loot_box_item",
             directDropWeight: 0.095,
-            emoji: "<:common:1373546771216728164>", rarityValue: 100,
+            emoji: "<:common:1385904265184149525>", rarityValue: 100,
             description: "A common chest containing a few items.",
             basePrice: 250, appearanceChanceInShop: 1, stockRangeShop: [100, 200],
             isRareForShopAlert: false,
@@ -158,7 +158,7 @@ const config = {
         "rare_loot_box": {
             id: "rare_loot_box", name: "Rare Chest", type: "loot_box_item",
             directDropWeight: 0.0045, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:rare:1373546796525289533>", rarityValue: 1000,
+            emoji: "<:rare:1385904281424625795>", rarityValue: 1000,
             description: "A rare chest with better chances for good items.",
             basePrice: 1500, appearanceChanceInShop: 0.35, stockRangeShop: [75, 150],
             isRareForShopAlert: true,
@@ -178,7 +178,7 @@ const config = {
         "epic_loot_box": {
             id: "epic_loot_box", name: "Epic Chest", type: "loot_box_item",
             directDropWeight: 0.0008, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:epic:1373546835355897938>", rarityValue: 50000,
+            emoji: "<:epic:1385904294934609981>", rarityValue: 50000,
             description: "An epic chest containing valuable treasures.",
             basePrice: 7500, appearanceChanceInShop: 0.09, stockRangeShop: [50, 100],
             isRareForShopAlert: true,
@@ -199,7 +199,7 @@ const config = {
         "legendary_loot_box": {
             id: "legendary_loot_box", name: "Legendary Chest", type: "loot_box_item",
             directDropWeight: 0.0001, isRareWeekendEligibleChatDrop: true,
-            emoji: "<:legendarychest:1373546812144746596>", rarityValue: 250000,
+            emoji: "<:legend:1385904172481773598>", rarityValue: 250000,
             description: "A legendary chest of immense power and rarity.",
             basePrice: 35000, appearanceChanceInShop: 0.01, stockRangeShop: [25, 50],
             isRareForShopAlert: true,
@@ -221,7 +221,7 @@ const config = {
         "mythical_chest": {
             id: "mythical_chest", name: "Mythical Chest", type: "loot_box_item",
             directDropWeight: 0.00008,
-            emoji: "<:mythical:0>", rarityValue: 750000,
+            emoji: "<:mythical:1385905307619950602>", rarityValue: 750000,
             description: "A chest rumored to contain unimaginable riches.",
             basePrice: 75000, appearanceChanceInShop: 0.0005, stockRangeShop: [10, 25],
             isRareForShopAlert: true,
@@ -244,7 +244,7 @@ const config = {
         "void_chest": {
             id: "void_chest", name: "Void Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:void:0>", rarityValue: 900000,
+            emoji: "<:void:1385904203712696440>", rarityValue: 900000,
             description: "A dark chest from beyond the known world.",
             basePrice: 150000, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -266,7 +266,7 @@ const config = {
         "inf_chest": {
             id: "inf_chest", name: "INF Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:inf:0>", rarityValue: 1000000,
+            emoji: "<:inf:1385908034286518352>", rarityValue: 1000000,
             description: "The ultimate chest with endless rewards.",
             basePrice: 300000, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -287,7 +287,7 @@ const config = {
         "gem_chest": {
             id: "gem_chest", name: "Gem Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:gemchest:0>", rarityValue: 500000,
+            emoji: "<:gemchest:1385904250059624552>", rarityValue: 500000,
             description: "A chest filled with sparkling gems.",
             basePrice: 50000, appearanceChanceInShop: 0.00005, stockRangeShop: [1, 3],
             isRareForShopAlert: true,
@@ -301,7 +301,7 @@ const config = {
         "magic_chest": {
             id: "magic_chest", name: "Magic Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:magic:0>", rarityValue: 500000,
+            emoji: "<:magic:1385904234012213268>", rarityValue: 500000,
             description: "A chest containing mysterious magical items.",
             basePrice: 100000, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
