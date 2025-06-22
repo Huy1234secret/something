@@ -82,7 +82,6 @@ const { loadGiveaways, saveGiveaways } = require('./utils/dataManager.js');
 const { handleGiveawaySetupInteraction, handleEnterGiveaway, handleClaimPrize, activeGiveaways, endGiveaway, sendSetupChannelMessage, startInstantGiveaway } = require('./utils/giveawayManager.js');
 const { startGitHubWebhookServer } = require("./githubWebhook.js");
 const deployCommands = require('./deployCommands.js');
-const { initializeTicketHunt } = require('./ticketHunt.js');
 
 
 function normalizePath(filePath) {
@@ -2020,7 +2019,6 @@ scheduleDailyReadyNotifications(client);
         }
     }
 
-    await initializeTicketHunt(client);
 });
 
 client.on('messageCreate', async message => {
@@ -3089,30 +3087,54 @@ module.exports = {
                 else { console.error(`[Giveaway Command] start-giveaway not found.`); await sendInteractionError(interaction, "Giveaway command not loaded.", true); }
                 return;
             }
-             if (commandName === 'delete-all-commands') {
-                 if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                 const scope = interaction.options.getString('scope');
-                 const confirmation = interaction.options.getString('confirmation');
-                 if (confirmation !== "CONFIRM DELETE ALL") {
+            if (commandName === 'delete-all-commands') {
+                if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const scope = interaction.options.getString('scope');
+                const confirmation = interaction.options.getString('confirmation');
+                if (confirmation !== "CONFIRM DELETE ALL") {
                     return sendInteractionError(interaction, 'Confirmation phrase incorrect. Deletion cancelled.', true, deferredThisInteraction);
-                 }
-                 try {
-                     if (scope === 'global') {
-                         await client.application.commands.set([]);
-                         console.log('[DELETE CMDS] All global application commands deleted.');
-                         await safeEditReply(interaction, { content: 'All GLOBAL application (/) commands have been requested for deletion. It might take up to an hour to reflect.', ephemeral: true });
-                     } else if (scope === 'guild' && interaction.guild) {
-                         await interaction.guild.commands.set([]);
-                         console.log(`[DELETE CMDS] All commands for guild ${interaction.guild.name} deleted.`);
-                         await safeEditReply(interaction, { content: `All GUILD application (/) commands for ${interaction.guild.name} have been requested for deletion.`, ephemeral: true });
-                     } else {
-                         await sendInteractionError(interaction, 'Invalid scope or guild context missing for guild-specific deletion.', true, deferredThisInteraction);
-                     }
-                 } catch (delCmdError) { console.error('[DELETE CMDS] Error deleting commands:', delCmdError); await sendInteractionError(interaction, 'Failed to delete commands.', true, deferredThisInteraction); }
-                 return;
+                }
+                try {
+                    if (scope === 'global') {
+                        await client.application.commands.set([]);
+                        console.log('[DELETE CMDS] All global application commands deleted.');
+                        await safeEditReply(interaction, { content: 'All GLOBAL application (/) commands have been requested for deletion. It might take up to an hour to reflect.', ephemeral: true });
+                    } else if (scope === 'guild' && interaction.guild) {
+                        await interaction.guild.commands.set([]);
+                        console.log(`[DELETE CMDS] All commands for guild ${interaction.guild.name} deleted.`);
+                        await safeEditReply(interaction, { content: `All GUILD application (/) commands for ${interaction.guild.name} have been requested for deletion.`, ephemeral: true });
+                    } else {
+                        await sendInteractionError(interaction, 'Invalid scope or guild context missing for guild-specific deletion.', true, deferredThisInteraction);
+                    }
+                } catch (delCmdError) {
+                    console.error('[DELETE CMDS] Error deleting commands:', delCmdError);
+                    await sendInteractionError(interaction, 'Failed to delete commands.', true, deferredThisInteraction);
+                }
+                return;
             }
 
+            if (commandName === 'deploy-commands') {
+                if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const scope = interaction.options.getString('scope');
+                try {
+                    if (scope === 'global') {
+                        await deployCommands(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, null);
+                        await safeEditReply(interaction, { content: 'Global slash commands redeployed (can take up to an hour).', ephemeral: true });
+                    } else if (scope === 'guild' && interaction.guild) {
+                        await deployCommands(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, interaction.guild.id);
+                        await safeEditReply(interaction, { content: `Guild slash commands redeployed for ${interaction.guild.name}.`, ephemeral: true });
+                    } else {
+                        await deployCommands();
+                        await safeEditReply(interaction, { content: 'Slash commands redeployed using default scope.', ephemeral: true });
+                    }
+                } catch (deployErr) {
+                    console.error('[DEPLOY CMDS] Error redeploying commands:', deployErr);
+                    await sendInteractionError(interaction, 'Failed to deploy commands.', true, deferredThisInteraction);
+                }
+                return;
+            }
             const unhandledCommand = client.commands.get(commandName);
             if(unhandledCommand) {
                  if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ephemeral: true}); deferredThisInteraction = true;}

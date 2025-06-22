@@ -397,6 +397,23 @@ const commands = [
         ]
     },
     {
+        name: 'deploy-commands',
+        description: 'Force update all slash commands for this bot.',
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+        options: [
+            {
+                name: 'scope',
+                description: 'Where to deploy the commands.',
+                type: ApplicationCommandOptionType.String,
+                required: false,
+                choices: [
+                    { name: 'Global Commands (all servers)', value: 'global' },
+                    { name: 'Guild Commands (this server)', value: 'guild' }
+                ]
+            }
+        ]
+    },
+    {
         name: 'export-guild-data',
         description: 'Exports all user stats, inventory, and related data for this guild (Admin Only).',
         default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
