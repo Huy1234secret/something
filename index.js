@@ -873,6 +873,39 @@ async function scheduleStreakLossCheck(client) {
     setInterval(checkStreaks, STREAK_LOSS_CHECK_INTERVAL_MS);
 }
 
+async function fullWeekendBoostReset(client) {
+    if (!client.levelSystem) return;
+    const shopMgr = client.levelSystem.shopManager;
+    const now = Date.now();
+
+    for (const [guildId, guild] of client.guilds.cache) {
+        try {
+            const settings = client.levelSystem.getGuildSettings(guildId);
+            const hasWeekendSpecial = shopMgr
+                ? shopMgr.getShopItems(guildId).some(i => i.isWeekendSpecial === 1)
+                : false;
+
+            if (settings.weekendBoostActive || hasWeekendSpecial) {
+                if (shopMgr) {
+                    const changed = await shopMgr.updateWeekendStatus(guildId, false);
+                    if (changed) await refreshShopDisplayForGuild(guildId, client);
+                }
+                client.levelSystem.setGuildSettings(guildId, {
+                    weekendBoostActive: 0,
+                    lastWeekendToggleTimestamp: now,
+                });
+                console.log(`[Weekend Reset] Guild ${guild.name} fully reset.`);
+            }
+        } catch (err) {
+            console.warn(`[Weekend Reset] Failed for guild ${guildId}: ${err.message}`);
+        }
+    }
+
+    WEEKEND_BOOST_ACTIVE = false;
+    WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
+    client.levelSystem.globalWeekendMultipliers = WEEKEND_MULTIPLIERS;
+}
+
 async function scheduleWeekendBoosts(client) {
     console.log("[Weekend Boost Scheduler] Initialising weekend boost checks.");
     const ANNOUNCE_COOLDOWN_MS = 12 * 60 * 60 * 1000;   // 12 h
@@ -892,6 +925,10 @@ async function scheduleWeekendBoosts(client) {
             Any other moment ⇒ boost OFF.
         */
         const isCurrentlyWeekend = isDateInWeekendRange(current);
+
+        if (!isCurrentlyWeekend) {
+            await fullWeekendBoostReset(client);
+        }
 
         WEEKEND_BOOST_ACTIVE = isCurrentlyWeekend;
 
