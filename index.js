@@ -2151,17 +2151,17 @@ client.on('messageCreate', async message => {
                         else if (rarityString === client.levelSystem.itemRarities.MYTHIC.name) {
                             alertTitle = `🌟 MYTHIC ITEM FOUND! ${itemEmojiDisplay} ${itemNameDisplay}! 🌟`;
                             eventDescription = `By the ancient gods! ${message.author} has unearthed a **${itemNameDisplay}**! A discovery of legendary proportions!`;
-                            alertImage = 'https://i.ibb.co/LznxMrgN/nh2.png'; // Example mythic image
+                            alertImage = 'https://i.ibb.co/6KJJ6fP/nh1.png'; // Example mythic image
                         }
                         else if (rarityString === client.levelSystem.itemRarities.LEGENDARY.name) {
                             alertTitle = `👑 LEGENDARY DROP! ${itemEmojiDisplay} ${itemNameDisplay}! 👑`;
                             eventDescription = `Unbelievable! ${message.author} has found a **${itemNameDisplay}**! A true treasure from the depths!`;
-                            alertImage = 'https://i.ibb.co/vx4jNf2x/nh1.png'; // Example legendary image
+                            alertImage = 'https://i.ibb.co/MyCXX90z/nh7.png'; // Example legendary image
                         }
                         else if (rarityString === client.levelSystem.itemRarities.EPIC.name && itemConfig.id === 'epic_loot_box') { // Specific for epic chest
                             alertTitle = `💜 EPIC CHEST! ${itemEmojiDisplay} ${itemNameDisplay}! 💜`;
                             eventDescription = `What's inside?! ${message.author} found an **${itemNameDisplay}**! This could contain something truly amazing!`;
-                            alertImage = 'https://i.ibb.co/LznxMrgN/nh2.png'; // Epic box image
+                            alertImage = 'https://i.ibb.co/TMfz2f6Q/nh6.png'; // Epic box image
                         }
                         // Ensure image is set if one was determined
                         if (!alertImage && itemConfig.imageUrl) alertImage = itemConfig.imageUrl;

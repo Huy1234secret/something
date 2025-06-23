@@ -143,7 +143,7 @@ const config = {
             basePrice: 250, appearanceChanceInShop: 1, stockRangeShop: [100, 200],
             isRareForShopAlert: false,
             isAlertWorthyByIdShop: false,
-            color: 0xBDC3C7, imageUrl: "https://i.ibb.co/Q7R3YPmy/nh4.png", numRolls: 3,
+            color: 0xBDC3C7, imageUrl: "https://i.ibb.co/kVp9p2x9/nh4.png", numRolls: 3,
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 5, probability: 0.8, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
@@ -163,7 +163,7 @@ const config = {
             basePrice: 1500, appearanceChanceInShop: 0.35, stockRangeShop: [75, 150],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: false,
-            color: 0x0070DD, imageUrl: "https://i.ibb.co/zhmM6cvL/nh3.png", numRolls: 5,
+            color: 0x0070DD, imageUrl: "https://i.ibb.co/ynZN3pNd/nh5.png", numRolls: 5,
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 10, probability: 0.8, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
@@ -183,7 +183,7 @@ const config = {
             basePrice: 7500, appearanceChanceInShop: 0.09, stockRangeShop: [50, 100],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
-            color: 0x9400D3, imageUrl: "https://i.ibb.co/LznxMrgN/nh2.png", numRolls: 10,
+            color: 0x9400D3, imageUrl: "https://i.ibb.co/TMfz2f6Q/nh6.png", numRolls: 10,
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.8, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 1, max: 2, probability: 0.1, rarityValue: 25 },
@@ -204,7 +204,7 @@ const config = {
             basePrice: 35000, appearanceChanceInShop: 0.01, stockRangeShop: [25, 50],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
-            color: 0xFF8C00, imageUrl: "https://i.ibb.co/vx4jNf2x/nh1.png", numRolls: 30,
+            color: 0xFF8C00, imageUrl: "https://i.ibb.co/MyCXX90z/nh7.png", numRolls: 30,
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 50, probability: 0.8, rarityValue: 10 },
                 { type: "currency", subType: "gems", min: 2, max: 2, probability: 0.1, rarityValue: 25 },
