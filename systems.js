@@ -606,9 +606,12 @@ class SystemsManager {
         const results = users.map(user => {
             let totalValue = 0;
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
+            const counted = new Set();
             inventory.forEach(item => {
+                if (counted.has(item.itemId)) return; // Count each unique item only once
+                counted.add(item.itemId);
                 const rarityValue = this._getItemMasterProperty(item.itemId, 'rarityValue', 0);
-                if (typeof rarityValue === 'number') totalValue += rarityValue * item.quantity;
+                if (typeof rarityValue === 'number') totalValue += rarityValue;
             });
             return { userId: user.userId, totalValue };
         });
@@ -641,9 +644,12 @@ class SystemsManager {
         const results = users.map(user => {
             let totalValue = 0;
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
+            const counted = new Set();
             inventory.forEach(item => {
+                if (counted.has(item.itemId)) return; // Count each unique item only once
+                counted.add(item.itemId);
                 const rarityValue = this._getItemMasterProperty(item.itemId, 'rarityValue', 0);
-                if (typeof rarityValue === 'number') totalValue += rarityValue * item.quantity;
+                if (typeof rarityValue === 'number') totalValue += rarityValue;
             });
             return { userId: user.userId, totalValue };
         });
