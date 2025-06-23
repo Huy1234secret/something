@@ -122,6 +122,8 @@ const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
+// Skip weekend boost failsafe logic when this env var is set to "1"
+const DISABLE_WEEKEND_FAILSAFE = process.env.DISABLE_WEEKEND_FAILSAFE === '1';
 
 const INVENTORY_MESSAGE_TIMEOUT_MS = 60000;
 const USE_ITEM_REPLY_TIMEOUT_MS = 60000;
@@ -916,29 +918,31 @@ async function scheduleWeekendBoosts(client) {
 
             
             if (!shouldToggle) {
-                // 🩹 Weekend boost failsafe — keep shop & DB in sync even after bot restarts
-                try {
-                    if (client.levelSystem?.shopManager) {
-                        const shopMgr = client.levelSystem.shopManager;
-                        const hasWeekendSpecial = shopMgr
-                            .getShopItems(guildId)
-                            .some(i => i.isWeekendSpecial === 1);
-                        if (hasWeekendSpecial !== isCurrentlyWeekend) {
-                            const changed = await shopMgr.updateWeekendStatus(guildId, isCurrentlyWeekend);
-                            if (changed) {
-                                await refreshShopDisplayForGuild(guildId, client);
+                if (!DISABLE_WEEKEND_FAILSAFE) {
+                    // 🩹 Weekend boost failsafe — keep shop & DB in sync even after bot restarts
+                    try {
+                        if (client.levelSystem?.shopManager) {
+                            const shopMgr = client.levelSystem.shopManager;
+                            const hasWeekendSpecial = shopMgr
+                                .getShopItems(guildId)
+                                .some(i => i.isWeekendSpecial === 1);
+                            if (hasWeekendSpecial !== isCurrentlyWeekend) {
+                                const changed = await shopMgr.updateWeekendStatus(guildId, isCurrentlyWeekend);
+                                if (changed) {
+                                    await refreshShopDisplayForGuild(guildId, client);
+                                }
                             }
                         }
-                    }
 
-                    if (wasBoostActive !== isCurrentlyWeekend) {
-                        client.levelSystem.setGuildSettings(guildId, {
-                            weekendBoostActive: isCurrentlyWeekend ? 1 : 0,
-                            lastWeekendToggleTimestamp: now,
-                        });
+                        if (wasBoostActive !== isCurrentlyWeekend) {
+                            client.levelSystem.setGuildSettings(guildId, {
+                                weekendBoostActive: isCurrentlyWeekend ? 1 : 0,
+                                lastWeekendToggleTimestamp: now,
+                            });
+                        }
+                    } catch (err) {
+                        console.warn(`[Weekend Boost Sync] ${guild.name}: ${err.message}`);
                     }
-                } catch (err) {
-                    console.warn(`[Weekend Boost Sync] ${guild.name}: ${err.message}`);
                 }
 
                 continue;
