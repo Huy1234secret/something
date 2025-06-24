@@ -2185,8 +2185,8 @@ client.on('messageCreate', async message => {
                             eventDescription = `${message.author} has uncovered a **${itemNameDisplay}**! This is an EXTREMELY rare, almost mythical find!`;
                             alertImage = 'https://i.ibb.co/Sx21B4G/output-onlinegiftools-3.gif'; // Example GIF
                         }
-                        else if (rarityString === client.levelSystem.itemRarities.MYTHIC.name) {
-                            alertTitle = `🌟 MYTHIC ITEM FOUND! ${itemEmojiDisplay} ${itemNameDisplay}! 🌟`;
+                        else if (rarityString === client.levelSystem.itemRarities.MYTHICAL.name) {
+                            alertTitle = `🌟 MYTHICAL ITEM FOUND! ${itemEmojiDisplay} ${itemNameDisplay}! 🌟`;
                             eventDescription = `By the ancient gods! ${message.author} has unearthed a **${itemNameDisplay}**! A discovery of legendary proportions!`;
                             alertImage = 'https://i.ibb.co/6KJJ6fP/nh1.png'; // Example mythic image
                         }
