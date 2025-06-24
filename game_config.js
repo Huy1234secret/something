@@ -69,15 +69,15 @@ const config = {
         },
 
         WEEKEND_SHOP_DISCOUNT_TIERS: [
-            { discount: 1.00, probability: 0.001, label: "🎉 FREE! (Weekend Deal)" },
-            { discount: 0.50, probability: 0.019, label: "🎉 50% OFF (Weekend Deal)" },
-            { discount: 0.25, probability: 0.130, label: "🎉 25% OFF (Weekend Deal)" },
-            { discount: 0.10, probability: 0.850, label: "🎉 10% OFF (Weekend Deal)" }
+            { discount: 1.00, probability: 0.001, label: "FREE! (WD)" },
+            { discount: 0.50, probability: 0.019, label: "50% OFF (WD)" },
+            { discount: 0.25, probability: 0.130, label: "25% OFF (WD)" },
+            { discount: 0.10, probability: 0.850, label: "10% OFF (WD)" }
         ],
         NORMAL_SHOP_DISCOUNT_TIERS: [
-            { discount: 0.50, probability: 0.010, label: "🔥 50% OFF!"      },
-            { discount: 0.25, probability: 0.090, label: "✨ 25% OFF"       },
-            { discount: 0.10, probability: 0.450, label: "💸 10% OFF"       },
+            { discount: 0.50, probability: 0.010, label: "50% OFF!"      },
+            { discount: 0.25, probability: 0.090, label: "25% OFF"       },
+            { discount: 0.10, probability: 0.450, label: "10% OFF"       },
             { discount: 0.00, probability: 0.450, label: ""                }
         ],
 
@@ -101,7 +101,11 @@ const config = {
             common_loot_box:     300,
             rare_loot_box:       200,
             epic_loot_box:       100,
-            legendary_loot_box:   50
+            legendary_loot_box:   50,
+            mythical_chest: 25,
+            void_chest: 10,
+            magic_chest: 50,
+            inf_chest: 10
         }
     },
 
@@ -140,7 +144,7 @@ const config = {
             directDropWeight: 0.095,
             emoji: "<:common:1385904265184149525>", rarityValue: 100,
             description: "A common chest containing a few items.",
-            basePrice: 250, appearanceChanceInShop: 1, stockRangeShop: [100, 200],
+            basePrice: 100, appearanceChanceInShop: 1, stockRangeShop: [100, 200],
             isRareForShopAlert: false,
             isAlertWorthyByIdShop: false,
             color: 0xBDC3C7, imageUrl: "https://i.ibb.co/kVp9p2x9/nh4.png", numRolls: 3,
@@ -160,7 +164,7 @@ const config = {
             directDropWeight: 0.0045, isRareWeekendEligibleChatDrop: true,
             emoji: "<:rare:1385904281424625795>", rarityValue: 1000,
             description: "A rare chest with better chances for good items.",
-            basePrice: 1500, appearanceChanceInShop: 0.35, stockRangeShop: [75, 150],
+            basePrice: 900, appearanceChanceInShop: 0.35, stockRangeShop: [75, 150],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: false,
             color: 0x0070DD, imageUrl: "https://i.ibb.co/ynZN3pNd/nh5.png", numRolls: 5,
@@ -180,7 +184,7 @@ const config = {
             directDropWeight: 0.0008, isRareWeekendEligibleChatDrop: true,
             emoji: "<:epic:1385904294934609981>", rarityValue: 50000,
             description: "An epic chest containing valuable treasures.",
-            basePrice: 7500, appearanceChanceInShop: 0.09, stockRangeShop: [50, 100],
+            basePrice: 4500, appearanceChanceInShop: 0.09, stockRangeShop: [50, 100],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0x9400D3, imageUrl: "https://i.ibb.co/TMfz2f6Q/nh6.png", numRolls: 10,
@@ -201,7 +205,7 @@ const config = {
             directDropWeight: 0.0001, isRareWeekendEligibleChatDrop: true,
             emoji: "<:legend:1385904172481773598>", rarityValue: 250000,
             description: "A legendary chest of immense power and rarity.",
-            basePrice: 35000, appearanceChanceInShop: 0.01, stockRangeShop: [25, 50],
+            basePrice: 11111, appearanceChanceInShop: 0.01, stockRangeShop: [25, 50],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0xFF8C00, imageUrl: "https://i.ibb.co/MyCXX90z/nh7.png", numRolls: 30,
@@ -223,7 +227,7 @@ const config = {
             directDropWeight: 0.00008,
             emoji: "<:mythical:1385905307619950602>", rarityValue: 750000,
             description: "A chest rumored to contain unimaginable riches.",
-            basePrice: 75000, appearanceChanceInShop: 0.0005, stockRangeShop: [10, 25],
+            basePrice: 55555, appearanceChanceInShop: 0.0005, stockRangeShop: [10, 25],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0xFFD700, numRolls: 50,
@@ -246,7 +250,7 @@ const config = {
             directDropWeight: 0,
             emoji: "<:void:1385904203712696440>", rarityValue: 900000,
             description: "A dark chest from beyond the known world.",
-            basePrice: 150000, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
+            basePrice: 999999, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0x000000, numRolls: 10,
@@ -268,7 +272,7 @@ const config = {
             directDropWeight: 0,
             emoji: "<:inf:1385908034286518352>", rarityValue: 1000000,
             description: "The ultimate chest with endless rewards.",
-            basePrice: 300000, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
+            basePrice: 0, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
             color: 0xFFFFFF, numRolls: 100,
@@ -294,7 +298,7 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x00FFFF, numRolls: 5,
             itemPool: [
-                { type: "currency", subType: "gems", min: 10, max: 100, probability: 1, rarityValue: 25 }
+                { type: "currency", subType: "gems", min: 1, max: 10000, probability: 1, rarityValue: 25 }
             ]
         },
 
@@ -308,9 +312,9 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x800080, numRolls: 5,
             itemPool: [
-                { type: "charm_item", id: "coin_charm", probability: 0.5, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.3, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.2, rarityValue: 8000 }
+                { type: "charm_item", id: "coin_charm", probability: 0.9, rarityValue: 3000 },
+                { type: "charm_item", id: "xp_charm", probability: 0.09, rarityValue: 5000 },
+                { type: "charm_item", id: "gem_charm", probability: 0.01, rarityValue: 8000 }
             ]
         },
 
