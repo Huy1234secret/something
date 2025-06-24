@@ -58,6 +58,8 @@ const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 
 
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
 const WEEKEND_TZ_OFFSET_HOURS = 7; // Hours offset for UTC+7 weekend calculations
+const BATTLE_PASS_START = new Date('2024-07-01T00:00:00+07:00').getTime();
+const BATTLE_PASS_END = new Date('2024-07-29T00:00:00+07:00').getTime();
 
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
@@ -74,6 +76,7 @@ const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
 const { restoreDataFromFiles } = require('./utils/dataRestorer.js'); // Import the new restore function
+const BattlePassManager = require('./utils/battlePassManager.js');
 
 const commandsPath = path.join(__dirname, normalizePath('commands'));
 const packageJson = require('./package.json');
@@ -306,6 +309,11 @@ console.log(`[DATABASE] Bot is attempting to use database file at: ${dbFilePath}
 try {
     client.levelSystem = new SystemsManager(dbFilePath);
     client.levelSystem.globalWeekendMultipliers = WEEKEND_MULTIPLIERS;
+    const bpDataFile = path.join(__dirname, 'data', 'battlepass.json');
+    client.battlePass = new BattlePassManager(bpDataFile, BATTLE_PASS_START, BATTLE_PASS_END);
+    if (typeof client.levelSystem.setBattlePassManager === 'function') {
+        client.levelSystem.setBattlePassManager(client.battlePass);
+    }
     if (!client.levelSystem || !client.levelSystem.db) {
         console.error("CRITICAL: SystemsManager or its DB failed to initialize. Exiting.");
         process.exit(1);
@@ -1446,6 +1454,28 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
     return { embed, shopItems };
 }
 
+function buildBattlePassCountdownEmbed() {
+    const embed = new EmbedBuilder()
+        .setColor(0xF1C40F)
+        .setTitle('⏳ Battle Pass Countdown')
+        .setDescription(`The battle pass begins <t:${Math.floor(BATTLE_PASS_START/1000)}:R>!`)
+        .setFooter({ text: 'Get ready for the challenge!' });
+    return embed;
+}
+
+function buildBattlePassEmbed(userId, guildId, client) {
+    const progress = client.battlePass.getProgress(userId, guildId);
+    const bar = '🟦'.repeat(Math.floor(progress.percent / 10)) + '⬜'.repeat(10 - Math.floor(progress.percent / 10));
+    const embed = new EmbedBuilder()
+        .setColor(0xF39C12)
+        .setAuthor({ name: 'Guide of Legends' })
+        .setTitle('🔥 Cosmic Battle Pass')
+        .setDescription(`Level **${progress.level}** | ${progress.points.toLocaleString()} BP\n${bar} \`${progress.percent.toFixed(1)}%\``)
+        .addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` })
+        .setTimestamp();
+    return embed;
+}
+
 function getShopComponents(shopItems, systemsManager) {
     const rows = [];
     const mainControls = new ActionRowBuilder();
@@ -2150,6 +2180,10 @@ client.on('messageCreate', async message => {
             if (rolePerkData.totals.gemPerMessage > 0) {
                 client.levelSystem.addGems(message.author.id, message.guild.id, rolePerkData.totals.gemPerMessage, "role_perk_chat", WEEKEND_MULTIPLIERS, true);
             }
+        }
+        if (client.battlePass) {
+            const bpPts = Math.floor(Math.random() * 5) + 1;
+            client.battlePass.addPoints(message.author.id, message.guild.id, bpPts);
         }
     }
     // Direct Drop Logic
@@ -2886,8 +2920,21 @@ module.exports = {
                             { name: '🎯 XP to Next Level', value: `\`${xpToNextDisplay}\``, inline: false },
                             { name: '🎖️ Highest Role', value: `${highestRoleNameAndId.name} (<@&${highestRoleNameAndId.id}>)`, inline: false}
                         ).setTimestamp().setFooter({ text: `Viewing stats in: ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-                    await safeEditReply(interaction, { embeds: [levelEmbed], ephemeral: false }, true);
-                } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
+                await safeEditReply(interaction, { embeds: [levelEmbed], ephemeral: false }, true);
+            } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
+                return;
+            }
+            if (commandName === 'battle-pass') {
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                try {
+                    if (Date.now() < BATTLE_PASS_START) {
+                        const embed = buildBattlePassCountdownEmbed();
+                        await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
+                    } else {
+                        const embed = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
+                        await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
+                    }
+                } catch (bpErr) { console.error('[BattlePass Command] Error:', bpErr); await sendInteractionError(interaction, 'Error displaying battle pass.', true, deferredThisInteraction); }
                 return;
             }
             if (commandName === 'see-user') {

@@ -179,6 +179,10 @@ class SystemsManager {
         }
     }
 
+    setBattlePassManager(bpManager) {
+        this.battlePass = bpManager;
+    }
+
     _getItemMasterProperty(itemId, propertyName, defaultValue = null) {
         const item = this.gameConfig.items[itemId];
         if (item) {
@@ -241,6 +245,7 @@ class SystemsManager {
                 rewardsLastShiftedAt INTEGER DEFAULT 0,
                 lastDailyNotifyTimestamp INTEGER DEFAULT 0,
                 dailySkipCount INTEGER DEFAULT 0,
+                bpPoints INTEGER DEFAULT 0,
                 PRIMARY KEY (userId, guildId)
             );`,
             `CREATE TABLE IF NOT EXISTS userInventory (
@@ -321,6 +326,9 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'dailySkipCount')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN dailySkipCount INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'bpPoints')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN bpPoints INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'lastInterestTimestamp')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN lastInterestTimestamp INTEGER DEFAULT 0;`);
@@ -565,6 +573,12 @@ class SystemsManager {
                 } else {
                     this.giveItem(userId, guildId, itemDetails.id, quantity, itemDetails.type || this.itemTypes.ITEM, `loot_box_open_${boxId}`);
                 }
+                if (this.client && this.client.battlePass) {
+                    const rarity = this._getItemRarityString(itemDetails.id, itemDetails, itemDetails.type).toUpperCase();
+                    const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
+                    const pts = map[rarity] || 0;
+                    if (pts > 0) this.client.battlePass.addPoints(userId, guildId, pts);
+                }
                 allRolledItems.push({
                     id: itemDetails.id, name: itemDetails.name, emoji: itemDetails.emoji, quantity: quantity, type: itemDetails.type,
                     rarityValue: itemDetails.rarityValue || this._getItemMasterProperty(itemDetails.id, 'rarityValue') || 0,
@@ -677,10 +691,11 @@ this.db.prepare(`
     rewardsLastShiftedAt,
     lastDailyNotifyTimestamp,
     dailySkipCount,
+    bpPoints,
     lastInterestTimestamp
   )
   VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, ?);
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ?);
 `).run(userId, guildId, now);
             user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         }
@@ -700,6 +715,7 @@ this.db.prepare(`
         user.rewardsLastShiftedAt = user.rewardsLastShiftedAt || 0;
         user.lastDailyNotifyTimestamp = user.lastDailyNotifyTimestamp || 0;
         user.dailySkipCount = user.dailySkipCount || 0;
+        user.bpPoints = user.bpPoints || 0;
         return user;
     }
 
@@ -1201,6 +1217,12 @@ this.db.prepare(`
         } else {
             this.giveItem(userId, guildId, lootItemConfig.id, 1, effectiveType, source);
         }
+        if (this.client && this.client.battlePass) {
+            const rarity = this._getItemRarityString(lootItemConfig.id, lootItemConfig, effectiveType).toUpperCase();
+            const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
+            const pts = map[rarity] || 0;
+            if (pts > 0) this.client.battlePass.addPoints(userId, guildId, pts);
+        }
         return { grantedSpecialRole };
     }
     async useItem(userId, guildId, itemId, amount, weekendMultipliers, member, checkAndAwardSpecialRoleFn) {
@@ -1224,6 +1246,9 @@ this.db.prepare(`
                 }
                 const singleBoxOpeningResult = await this.openLootBox(userId, guildId, itemId, effectiveWeekendMultipliers, member, checkAndAwardSpecialRoleFn);
                 if (singleBoxOpeningResult.success && singleBoxOpeningResult.rewards) {
+                    if (this.client && this.client.battlePass) {
+                        this.client.battlePass.addPoints(userId, guildId, 5);
+                    }
                     allRewardsFromOpening.push(...singleBoxOpeningResult.rewards);
                     if (singleBoxOpeningResult.grantedSpecialRole) anySpecialRoleGrantedThisOpening = true;
                     if (singleBoxOpeningResult.charmsObtainedDetails) charmsObtainedDetailsAccumulated.push(...singleBoxOpeningResult.charmsObtainedDetails);
@@ -1556,6 +1581,11 @@ this.db.prepare(`
                 if (VOICE_COIN_PER_INTERVAL && VOICE_COIN_PER_INTERVAL.length === 2) {
                     const coinsEarned = Math.floor(Math.random() * (VOICE_COIN_PER_INTERVAL[1] - VOICE_COIN_PER_INTERVAL[0] + 1)) + VOICE_COIN_PER_INTERVAL[0];
                     if (coinsEarned > 0) this.addCoins(userId, guildId, coinsEarned, "voice_activity", effectiveWeekendMultipliers);
+                }
+                if (this.client && this.client.battlePass) {
+                    const minutes = VOICE_ACTIVITY_INTERVAL_MS / 60000;
+                    const pts = (Math.floor(Math.random() * 31) + 30) * minutes;
+                    this.client.battlePass.addPoints(userId, guildId, pts);
                 }
                 // Removed luck-based voice drop chance calculation
                 const baseVoiceDropChance = this.gameConfig.globalSettings.VOICE_DROP_BASE_CHANCE;
@@ -2067,6 +2097,10 @@ this.db.prepare(`
 
         // Shift rewards forward now that today's reward was claimed
         this.getDailyRewards(userId, guildId, true);
+
+        if (this.client && this.client.battlePass) {
+            this.client.battlePass.addPoints(userId, guildId, 120);
+        }
 
         return { success: true, message: claimedRewardMessage };
     }
