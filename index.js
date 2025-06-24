@@ -81,7 +81,10 @@ const packageJson = require('./package.json');
 const { loadGiveaways, saveGiveaways } = require('./utils/dataManager.js');
 const { handleGiveawaySetupInteraction, handleEnterGiveaway, handleClaimPrize, activeGiveaways, endGiveaway, sendSetupChannelMessage, startInstantGiveaway } = require('./utils/giveawayManager.js');
 const { startGitHubWebhookServer } = require("./githubWebhook.js");
-const deployCommands = require('./deployCommands.js');
+function getDeployCommands() {
+    delete require.cache[require.resolve('./deployCommands.js')];
+    return require('./deployCommands.js');
+}
 
 
 function normalizePath(filePath) {
@@ -1833,7 +1836,7 @@ client.once('ready', async c => {
     startGitHubWebhookServer(c);
 
     try {
-        await deployCommands();
+        await getDeployCommands()();
         console.log('[Startup] Slash commands deployed.');
     } catch (deployErr) {
         console.error('[Startup] Failed to deploy slash commands:', deployErr);
@@ -3161,13 +3164,13 @@ module.exports = {
                 const scope = interaction.options.getString('scope');
                 try {
                     if (scope === 'global') {
-                        await deployCommands(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, null);
+                        await getDeployCommands()(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, null);
                         await safeEditReply(interaction, { content: 'Global slash commands redeployed (can take up to an hour).', ephemeral: true });
                     } else if (scope === 'guild' && interaction.guild) {
-                        await deployCommands(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, interaction.guild.id);
+                        await getDeployCommands()(process.env.DISCORD_TOKEN, process.env.CLIENT_ID, interaction.guild.id);
                         await safeEditReply(interaction, { content: `Guild slash commands redeployed for ${interaction.guild.name}.`, ephemeral: true });
                     } else {
-                        await deployCommands();
+                        await getDeployCommands()();
                         await safeEditReply(interaction, { content: 'Slash commands redeployed using default scope.', ephemeral: true });
                     }
                 } catch (deployErr) {
