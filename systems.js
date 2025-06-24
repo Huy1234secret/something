@@ -139,14 +139,14 @@ class SystemsManager {
         };
 
         this.itemRarities = gameConfig.globalSettings.rarityTiers || {
-            SECRET:   { name: "SECRET",    color: 0xFF4500, value: 2000000 }, 
-            MYTHIC:   { name: "MYTHIC",    color: 0xFFD700, value: 1000000 }, 
-            LEGENDARY:{ name: "Legendary", color: 0xFF8C00, value: 200000  }, 
-            EPIC:     { name: "Epic",      color: 0x9400D3, value: 20000   }, 
-            RARE:     { name: "Rare",      color: 0x0070DD, value: 1000    }, 
-            UNCOMMON: { name: "Uncommon",  color: 0x00A86B, value: 100     }, 
-            COMMON:   { name: "Common",    color: 0x95A5A6, value: 10      }, 
-            STANDARD: { name: "Standard",  color: 0xBDC3C7, value: 1       }  
+            SECRET:   { name: "SECRET",    color: 0xB700FF, value: 2000000 },
+            GODLY:    { name: "Godly",     color: 0xFF0000, value: 1500000 },
+            MYTHICAL: { name: "Mythical",  color: 0xFF4D00, value: 1000000 },
+            LEGENDARY:{ name: "Legendary", color: 0xFFFF00, value: 200000  },
+            EPIC:     { name: "Epic",      color: 0xFF94FF, value: 20000   },
+            RARE:     { name: "Rare",      color: 0x94CAFF, value: 1000    },
+            COMMON:   { name: "Common",    color: 0xFFFFFF, value: 10      },
+            STANDARD: { name: "Standard",  color: 0xBDC3C7, value: 1       }
         };
 
         console.log("[SystemsManager] Initializing ShopManager with gameConfig...");
@@ -1654,8 +1654,13 @@ this.db.prepare(`
             for (const [key, rarityTier] of sortedRarities) { if (itemRarityValue >= rarityTier.value) return rarityTier.name; }
         }
         if (itemId && typeof itemId === 'string') {
-            if (itemId.includes('legendary')) return this.itemRarities.LEGENDARY.name; if (itemId.includes('epic')) return this.itemRarities.EPIC.name;
-            if (itemId.includes('rare')) return this.itemRarities.RARE.name; if (itemId.includes('common')) return this.itemRarities.COMMON.name;
+            if (itemId.includes('secret')) return this.itemRarities.SECRET.name;
+            if (itemId.includes('godly')) return this.itemRarities.GODLY.name;
+            if (itemId.includes('mythic')) return this.itemRarities.MYTHICAL.name;
+            if (itemId.includes('legendary')) return this.itemRarities.LEGENDARY.name;
+            if (itemId.includes('epic')) return this.itemRarities.EPIC.name;
+            if (itemId.includes('rare')) return this.itemRarities.RARE.name;
+            if (itemId.includes('common')) return this.itemRarities.COMMON.name;
         }
         return this.itemRarities.COMMON.name;
     }
