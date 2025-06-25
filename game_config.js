@@ -11,7 +11,7 @@ const config = {
         CHAT_DROP_BASE_CHANCE: 1,       // 1  ≘ 100 % base chance (tweak as needed)
         VOICE_DROP_BASE_CHANCE: 1,      // 1  ≘ 100 %
 
-        SHOP_RESTOCK_INTERVAL_MINUTES: parseInt(process.env.SHOP_RESTOCK_INTERVAL_MINUTES, 10) || 20,
+        SHOP_RESTOCK_INTERVAL_MINUTES: parseInt(process.env.SHOP_RESTOCK_INTERVAL_MINUTES, 10) || 5,
         ALERT_WORTHY_DISCOUNT_PERCENT: 0.25,   // DM users if an item is ≥ 25 % off
         MAX_SHOP_SLOTS: 10,
 

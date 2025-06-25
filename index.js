@@ -822,7 +822,7 @@ async function scheduleShopRestock(client) {
                 }
                 const shopManagerInstance = client.levelSystem.shopManager;
                 const guildShopSettings = shopManagerInstance.getGuildShopSettings(guildId);
-                const currentShopIntervalMinutes = client.levelSystem.gameConfig.globalSettings.SHOP_RESTOCK_INTERVAL_MINUTES || 20;
+                const currentShopIntervalMinutes = client.levelSystem.gameConfig.globalSettings.SHOP_RESTOCK_INTERVAL_MINUTES || 5;
                 const currentShopIntervalMs = currentShopIntervalMinutes * 60 * 1000;
 
                 const lastRestockTime = guildShopSettings.lastRestockTimestamp || 0;
@@ -1019,7 +1019,7 @@ async function scheduleWeekendBoosts(client) {
             // Refresh shop timers when the weekend starts
             if (isCurrentlyWeekend && client.levelSystem.shopManager) {
                 const shopMgr    = client.levelSystem.shopManager;
-                const restockMs  = (client.levelSystem.gameConfig.globalSettings.SHOP_RESTOCK_INTERVAL_MINUTES || 20) * 60 * 1000;
+                const restockMs  = (client.levelSystem.gameConfig.globalSettings.SHOP_RESTOCK_INTERVAL_MINUTES || 5) * 60 * 1000;
                 shopMgr.updateGuildShopSettings(guildId, {
                     nextRestockTimestamp : now + restockMs,
                     lastRestockTimestamp : now
@@ -1366,7 +1366,7 @@ async function checkAndAwardSpecialRole(member, reason, purchasedItemName = null
 async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
     const shopItems = shopManagerInstance.getShopItems(guildId);
     const guildShopSettings = shopManagerInstance.getGuildShopSettings(guildId);
-    const currentShopIntervalMinutes = systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 20;
+    const currentShopIntervalMinutes = systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 5;
     const currentShopIntervalSeconds = currentShopIntervalMinutes * 60;
     const embed = new EmbedBuilder()
         .setTitle(guildShopSettings.shopTitle || '🛒 Server Shop')
