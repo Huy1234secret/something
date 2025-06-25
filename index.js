@@ -58,8 +58,10 @@ const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 
 
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
 const WEEKEND_TZ_OFFSET_HOURS = 7; // Hours offset for UTC+7 weekend calculations
+// Battle Pass starts at 24:00 on June 30th UTC+7 (July 1st 00:00)
 const BATTLE_PASS_START = new Date('2024-07-01T00:00:00+07:00').getTime();
-const BATTLE_PASS_END = new Date('2024-07-29T00:00:00+07:00').getTime();
+// Battle Pass ends at 24:00 on July 31st UTC+7
+const BATTLE_PASS_END = new Date('2024-08-01T00:00:00+07:00').getTime();
 
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
