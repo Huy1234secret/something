@@ -3242,7 +3242,9 @@ module.exports = {
                 return;
             }
             if (commandName === 'delete-all-commands') {
-                if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
+                if (process.env.OWNER_ID && interaction.user.id !== process.env.OWNER_ID) {
+                    return sendInteractionError(interaction, 'Owner only.', true, false);
+                }
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const scope = interaction.options.getString('scope');
                 const confirmation = interaction.options.getString('confirmation');
@@ -3269,7 +3271,9 @@ module.exports = {
             }
 
             if (commandName === 'deploy-commands') {
-                if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
+                if (process.env.OWNER_ID && interaction.user.id !== process.env.OWNER_ID) {
+                    return sendInteractionError(interaction, 'Owner only.', true, false);
+                }
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const scope = interaction.options.getString('scope');
                 try {
