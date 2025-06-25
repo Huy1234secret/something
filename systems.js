@@ -120,6 +120,11 @@ class SystemsManager {
         this.COIN_CHARM_ID = this.gameConfig.items.coin_charm?.id || 'coin_charm';
         this.GEM_CHARM_ID = this.gameConfig.items.gem_charm?.id || 'gem_charm';
         this.XP_CHARM_ID = this.gameConfig.items.xp_charm?.id || 'xp_charm';
+        this.DISCOUNT_TICKET_10_ID = this.gameConfig.items.discount_ticket_10?.id || 'discount_ticket_10';
+        this.DISCOUNT_TICKET_25_ID = this.gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25';
+        this.DISCOUNT_TICKET_50_ID = this.gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50';
+        this.DISCOUNT_TICKET_100_ID = this.gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100';
+        this.DAILY_SKIP_TICKET_ID = this.gameConfig.items.daily_skip_ticket?.id || 'daily_skip_ticket';
         this.xpCooldowns = new Map();
         this.itemTypes = {
             CURRENCY: 'currency',
@@ -2148,6 +2153,51 @@ this.db.prepare(`
         this.getDailyRewards(userId, guildId, true);
 
         return { success: true, message: `Reward skipped for ${cost} ${this.gemEmoji}. ${claimedRewardMessage}` };
+    }
+
+    skipDailyRewardWithTicket(userId, guildId) {
+        const user = this.getUser(userId, guildId);
+        const cooldown = 12 * 60 * 60 * 1000;
+        const now = Date.now();
+        if (now - (user.lastDailyTimestamp || 0) >= cooldown) {
+            return { success: false, message: 'Your daily is already ready to claim.' };
+        }
+
+        const ticket = this.getItemFromInventory(userId, guildId, this.DAILY_SKIP_TICKET_ID);
+        if (!ticket || ticket.quantity < 1) {
+            return { success: false, message: 'You do not have a Daily Skip Ticket.' };
+        }
+        const removed = this.takeItem(userId, guildId, this.DAILY_SKIP_TICKET_ID, 1);
+        if (!removed) return { success: false, message: 'Failed to use ticket.' };
+
+        const skipCount = user.dailySkipCount || 0;
+
+        const rewards = this.getDailyRewards(userId, guildId);
+        const rewardToClaim = rewards[1];
+        let claimedRewardMessage = '';
+        if (rewardToClaim) {
+            const currencyBoost = 1 + (user.dailyStreak * 0.2);
+            const isRobux = rewardToClaim.data.id === this.ROBUX_ID;
+            if (rewardToClaim.type === 'currency') {
+                const finalAmount = isRobux ? rewardToClaim.data.amount : Math.ceil(rewardToClaim.data.amount * currencyBoost);
+                if (rewardToClaim.data.id === this.COINS_ID) this.addCoins(userId, guildId, finalAmount, 'daily_reward');
+                else if (rewardToClaim.data.id === this.GEMS_ID) this.addGems(userId, guildId, finalAmount, 'daily_reward');
+                else if (isRobux) this.addRobux(userId, guildId, finalAmount, 'daily_reward');
+                claimedRewardMessage = `You claimed ${finalAmount.toLocaleString()}${this.getItemEmojiById(rewardToClaim.data.id, guildId)}!`;
+            } else if (rewardToClaim.type === 'item') {
+                const itemConfig = this._getItemMasterProperty(rewardToClaim.data.id, null);
+                this.giveItem(userId, guildId, rewardToClaim.data.id, rewardToClaim.data.amount, itemConfig.type, 'daily_reward');
+                claimedRewardMessage = `You claimed ${rewardToClaim.data.amount}x ${itemConfig.emoji} **${itemConfig.name}**!`;
+            }
+        }
+
+        this.updateUser(userId, guildId, {
+            dailySkipCount: skipCount + 1
+        });
+
+        this.getDailyRewards(userId, guildId, true);
+
+        return { success: true, message: `Reward skipped using a ticket. ${claimedRewardMessage}` };
     }
 
     // --- End Daily System Methods ---

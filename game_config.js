@@ -351,14 +351,40 @@ const config = {
         },
 
         "cosmic_role_token": {
-            id: "cosmic_role_token", name: "Cosmic Role Token", type: "cosmic_token", 
+            id: "cosmic_role_token", name: "Cosmic Role Token", type: "cosmic_token",
             directDropWeight: 0.000001, isRareWeekendEligibleChatDrop: true,
             emoji: "🌌", rarityValue: 1000000,
             description: "An extremely rare token that grants a special cosmic role.",
-            basePrice: 77777, appearanceChanceInShop: 0.0000001, stockRangeShop: [1, 1], 
+            basePrice: 77777, appearanceChanceInShop: 0.0000001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
             isAlertWorthyByIdShop: true,
-            roleIdToGrant: "1372583188320227348" 
+            roleIdToGrant: "1372583188320227348"
+        },
+
+        "discount_ticket_10": {
+            id: "discount_ticket_10", name: "10% Discount Ticket", type: "item",
+            emoji: "<:copper10:1387285573177442457>", rarityValue: 0,
+            description: "Apply a 10% discount to a shop purchase."
+        },
+        "discount_ticket_25": {
+            id: "discount_ticket_25", name: "25% Discount Ticket", type: "item",
+            emoji: "<silver25:1387285550997831720>", rarityValue: 0,
+            description: "Apply a 25% discount to a shop purchase."
+        },
+        "discount_ticket_50": {
+            id: "discount_ticket_50", name: "50% Discount Ticket", type: "item",
+            emoji: "<:golden50:1387285563052392488>", rarityValue: 0,
+            description: "Apply a 50% discount to a shop purchase."
+        },
+        "discount_ticket_100": {
+            id: "discount_ticket_100", name: "100% Discount Ticket", type: "item",
+            emoji: "<:rainbow100:1387285530865176687>", rarityValue: 0,
+            description: "Apply a 100% discount to a shop purchase."
+        },
+        "daily_skip_ticket": {
+            id: "daily_skip_ticket", name: "Daily Skip Ticket", type: "item",
+            emoji: "<:dailyskip:1387286893338693764>", rarityValue: 0,
+            description: "Skip the daily reward cooldown without spending gems."
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
