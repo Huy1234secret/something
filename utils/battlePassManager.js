@@ -5,7 +5,7 @@ class BattlePassManager {
         this.dataFile = dataFile;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.data = { users: {} };
+        this.data = { users: {}, level100RobuxClaimed: false };
         this.fs = require('node:fs');
         this.path = require('node:path');
         this.load();
@@ -15,6 +15,9 @@ class BattlePassManager {
             if (this.fs.existsSync(this.dataFile)) {
                 const raw = this.fs.readFileSync(this.dataFile, 'utf8');
                 this.data = JSON.parse(raw);
+                if (typeof this.data.level100RobuxClaimed !== 'boolean') {
+                    this.data.level100RobuxClaimed = false;
+                }
                 // Upgrade from old format if necessary
                 if (this.data.userPoints) {
                     const upgraded = { users: {} };
@@ -75,12 +78,26 @@ class BattlePassManager {
         return { points: pts, lastClaim: user.lastClaim, ...this.progressInfo(pts) };
     }
 
+    getRewardSet(level) {
+        const base = REWARDS[level] ? [...REWARDS[level]] : null;
+        if (!base) return null;
+        if (level === 100) {
+            if (this.data.level100RobuxClaimed) {
+                const filtered = base.filter(r => !(r.currency === 'robux'));
+                filtered.push({ item: 'daily_skip_ticket', amount: 10 });
+                return filtered;
+            }
+        }
+        return base;
+    }
+
     getNextRewards(userId, guildId, count = 3) {
         const user = this._getUser(this._key(userId, guildId));
         const rewards = [];
         for (let i = 1; i <= count; i++) {
             const lvl = user.lastClaim + i;
-            if (REWARDS[lvl]) rewards.push({ level: lvl, rewards: REWARDS[lvl] });
+            const set = this.getRewardSet(lvl);
+            if (set) rewards.push({ level: lvl, rewards: set });
         }
         return rewards;
     }
@@ -95,7 +112,7 @@ class BattlePassManager {
         if (user.level < nextLevel) {
             return { success: false, message: `Reach level ${nextLevel} to claim this reward.` };
         }
-        const rewardSet = REWARDS[nextLevel];
+        const rewardSet = this.getRewardSet(nextLevel);
         if (!rewardSet) return { success: false, message: 'No reward available.' };
         const messages = [];
         for (const r of rewardSet) {
@@ -105,6 +122,11 @@ class BattlePassManager {
             } else if (r.currency === 'gems') {
                 systemsManager.addGems(userId, guildId, r.amount, 'bp_reward');
                 messages.push(`${r.amount.toLocaleString()} Gems`);
+            } else if (r.currency === 'robux') {
+                const result = systemsManager.addRobux(userId, guildId, r.amount, 'bp_reward');
+                if (result.success) {
+                    messages.push(`${r.amount.toLocaleString()} Robux`);
+                }
             } else if (r.item) {
                 const itemCfg = systemsManager._getItemMasterProperty(r.item, null);
                 systemsManager.giveItem(userId, guildId, r.item, r.amount, itemCfg.type, 'bp_reward');
@@ -117,6 +139,9 @@ class BattlePassManager {
             }
         }
         user.lastClaim = nextLevel;
+        if (nextLevel === 100 && !this.data.level100RobuxClaimed) {
+            this.data.level100RobuxClaimed = true;
+        }
         this.save();
         return { success: true, message: messages.join(', ') };
     }
