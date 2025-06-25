@@ -1130,16 +1130,22 @@ async function scheduleDailyReadyNotifications(client) {
     setInterval(checkReady, DAILY_READY_CHECK_INTERVAL_MS);
 }
 
+async function safeDeferReply(interaction, options = {}) {
+    if (!interaction.isRepliable() || interaction.deferred || interaction.replied) return;
+    try {
+        await interaction.deferReply(options);
+    } catch (e) {
+        if (e.code !== 40060 && e.code !== 10062) {
+            console.warn(`[safeDeferReply] Failed for ${interaction.id}: ${e.message} (Code: ${e.code})`);
+        }
+    }
+}
+
 async function safeEditReply(interaction, options, deleteAfter = false, timeout = DEFAULT_REPLY_DELETE_TIMEOUT) {
     let message;
     try {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ ephemeral: options.ephemeral || false }).catch(e => {
-                // If defer fails because it's already replied/deferred, that's okay for editReply path.
-                if (e.code !== 40060 && e.code !== 10062) { // 40060: Interaction already acknowledged, 10062: Unknown interaction (token expired)
-                    console.warn(`[Helper safeEditReply] Failed to deferReply for ${interaction.id} prior to edit: ${e.message} (Code: ${e.code})`);
-                }
-            });
+            await safeDeferReply(interaction, { ephemeral: options.ephemeral || false });
         }
 
         message = await interaction.editReply(options).catch(async (e) => {
@@ -2431,7 +2437,7 @@ client.on('interactionCreate', async interaction => {
                 const subcommand = interaction.options.getSubcommand();
                 if (subcommand === 'check') {
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: false });
+                        await safeDeferReply(interaction, { ephemeral: false });
                         deferredThisInteraction = true;
                     }
                     try {
@@ -2444,7 +2450,7 @@ client.on('interactionCreate', async interaction => {
                 } else if (subcommand === 'restore-streak') {
                      if (!interaction.replied && !interaction.deferred) {
                         const deferOpts = interaction.guild ? { ephemeral: true } : {};
-                    await interaction.deferReply(deferOpts);
+                    await safeDeferReply(interaction, deferOpts);
                         deferredThisInteraction = true;
                     }
                     const result = client.levelSystem.attemptStreakRestore(interaction.user.id, interaction.guild.id);
@@ -2521,7 +2527,7 @@ client.on('interactionCreate', async interaction => {
 
                 if (!interaction.replied && !interaction.deferred) {
                     const deferOpts = interaction.guild ? { ephemeral: true } : {};
-                    await interaction.deferReply(deferOpts);
+                    await safeDeferReply(interaction, deferOpts);
                     deferredThisInteraction = true;
                 }
 
@@ -2570,7 +2576,7 @@ client.on('interactionCreate', async interaction => {
                     }, USER_MANAGEMENT_PANEL_TIMEOUT_MS);
                     sessionData.timeoutInstance = timeout;
                 } else { // If panelMessage failed to send
-                    if (!deferredThisInteraction) await interaction.deferReply({ephemeral: true}); // Ensure deferred if not already
+                    if (!deferredThisInteraction) await safeDeferReply(interaction, {ephemeral: true}); // Ensure deferred if not already
                     await sendInteractionError(interaction, "Failed to initialize user management panel message.", true, true);
                 }
                 return;
@@ -2597,7 +2603,7 @@ client.on('interactionCreate', async interaction => {
                     return sendInteractionError(interaction, "No data types selected for reset. No action taken.", true);
                 }
 
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     let result;
                     if (targetUser) {
@@ -2628,7 +2634,7 @@ client.on('interactionCreate', async interaction => {
             }
             if (commandName === 'add-xp' || commandName === 'add-level' || commandName === 'set-level' || commandName === 'add-coin' || commandName === 'add-gem' || commandName === 'add-robux') {
                 if (!isStaff()) return sendInteractionError(interaction, "You don't have permission.", true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const targetUser = interaction.options.getUser('user');
                     const amount = interaction.options.getInteger('amount');
@@ -2676,7 +2682,7 @@ client.on('interactionCreate', async interaction => {
             }
             if (commandName === 'give-item') {
                 if (!isStaff()) return sendInteractionError(interaction, "You don't have permission.", true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const targetUser = interaction.options.getUser('user');
                     const itemId = interaction.options.getString('item_id');
@@ -2729,7 +2735,7 @@ module.exports = {
 };
             if (commandName === 'adminshop') {
                 if (!isStaff()) return sendInteractionError(interaction, "No permission for admin shop.", true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const subcommand = interaction.options.getSubcommand();
                 try {
                     if (!client.levelSystem || !client.levelSystem.shopManager) return sendInteractionError(interaction, "Shop system not initialized.", true, deferredThisInteraction);
@@ -2757,7 +2763,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'bank') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
                     const bankEmbed = await buildBankEmbed(interaction.user, interaction.guild.id, client.levelSystem);
                     const bankComponents = getBankComponents(interaction.user.id, interaction.guild.id, client.levelSystem);
@@ -2768,7 +2774,7 @@ module.exports = {
             }
             if (commandName === 'shop') {
                 let targetChannelForShop = interaction.options.getChannel('channel');
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: !targetChannelForShop }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: !targetChannelForShop }); deferredThisInteraction = true; }
                 if (!targetChannelForShop) targetChannelForShop = interaction.channel;
                 else if (!targetChannelForShop.isTextBased()) return sendInteractionError(interaction, "Shop can only be in text channels.", true, deferredThisInteraction);
                 try {
@@ -2787,7 +2793,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'inventory') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
                     const { embed } = await buildInventoryEmbed(interaction.user, interaction.guild.id, client.levelSystem, 'items');
                     const components = getInventoryNavComponents('items');
@@ -2811,7 +2817,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'use-item') {
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                  try {
                      const selectedItemId = interaction.options.getString('item');
                      const amount = interaction.options.getInteger('amount') || 1;
@@ -2886,7 +2892,7 @@ module.exports = {
                  return;
             }
             if (commandName === 'usersettings') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const subcommand = interaction.options.getSubcommand();
                 const userId = interaction.user.id; const guildId = interaction.guild.id;
                 try {
@@ -2916,7 +2922,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'set-setting') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const { embed, components } = buildSettingsEmbed(interaction.user.id, interaction.guild.id, client.levelSystem);
                     await safeEditReply(interaction, { embeds: [embed], components, ephemeral: true });
@@ -2925,7 +2931,7 @@ module.exports = {
             }
             if (commandName === 'item-info') {
                 const itemNameInput = interaction.options.getString('item_name', false); // Optional
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; } // This reply will be public
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; } // This reply will be public
                 try {
                     if (itemNameInput) { // Direct search
                         const itemEmbed = await client.levelSystem.buildItemInfoEmbed(itemNameInput, null, interaction.user.id, interaction.guild.id, client);
@@ -2945,12 +2951,12 @@ module.exports = {
                 return;
             }
             if (commandName === 'ping') {
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply(); deferredThisInteraction = true; }
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, ); deferredThisInteraction = true; }
                  await safeEditReply(interaction, { content: `Pong! Latency: ${client.ws.ping}ms`}, true);
                  return;
             }
             if (commandName === 'level') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
                     const targetUser = interaction.options.getUser('user') || interaction.user;
                     const targetMemberForLevel = interaction.guild.members.cache.get(targetUser.id) || await interaction.guild.members.fetch(targetUser.id).catch(()=>null);
@@ -2982,7 +2988,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'battle-pass') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
                     if (Date.now() < BATTLE_PASS_START) {
                         const { embed, components } = buildBattlePassCountdownEmbed();
@@ -2995,7 +3001,7 @@ module.exports = {
                 return;
             }
             if (commandName === 'see-user') {
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: false }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
                     const targetUser = interaction.options.getUser('user');
                     const infoType = interaction.options.getString('info');
@@ -3058,7 +3064,7 @@ module.exports = {
             }
             if (commandName === 'export-guild-data') {
                 if (!isAdmin()) return sendInteractionError(interaction, "Admin only.", true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const guildData = client.levelSystem.exportAllGuildUserData(interaction.guild.id);
                     if (guildData.success && guildData.data) {
@@ -3072,7 +3078,7 @@ module.exports = {
             }
             if (commandName === 'backup-database') {
                  if (!isAdmin()) return sendInteractionError(interaction, "Admin only.", true, false);
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                  const backupDir = path.resolve(__dirname, 'backups');
                  const backupFilePath = path.join(backupDir, `database_backup_${Date.now()}.db`);
                  try {
@@ -3084,7 +3090,7 @@ module.exports = {
                  return;
             }
             if (commandName === 'botinfo') {
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ephemeral: false}); deferredThisInteraction = true; }
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, {ephemeral: false}); deferredThisInteraction = true; }
                 const uptime = process.uptime(); const days = Math.floor(uptime / 86400); const hours = Math.floor((uptime % 86400) / 3600);
                 const minutes = Math.floor((uptime % 3600) / 60); const seconds = Math.floor(uptime % 60);
                 const uptimeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
@@ -3110,7 +3116,7 @@ module.exports = {
                 const targetChannel = interaction.options.getChannel('channel');
                 const roleToMention = interaction.options.getRole('mention_role');
                 if (!targetChannel || !targetChannel.isTextBased()) return sendInteractionError(interaction, "Invalid text channel.", true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
 
                 const sessionId = `${interaction.user.id}_${Date.now()}`;
                 const sessionData = {
@@ -3157,7 +3163,7 @@ module.exports = {
                     if (subcommand === 'channel') {
                         const newChannel = interaction.options.getChannel('set');
                         if (!interaction.replied && !interaction.deferred) {
-                            await interaction.deferReply({ ephemeral: true });
+                            await safeDeferReply(interaction, { ephemeral: true });
                             deferredByThisLogic = true;
                         }
 
@@ -3171,7 +3177,7 @@ module.exports = {
                     }
                 } else if (subcommand === 'view') {
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: false });
+                        await safeDeferReply(interaction, { ephemeral: false });
                         deferredByThisLogic = true;
                     }
                     const leaderboardData = client.levelSystem.getLeaderboard(guildId, LEADERBOARD_LIMIT);
@@ -3196,7 +3202,7 @@ module.exports = {
                         return sendInteractionError(interaction, "You do not have permission to force a leaderboard update.", true);
                     }
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: true });
+                        await safeDeferReply(interaction, { ephemeral: true });
                         deferredByThisLogic = true;
                     }
                     const result = await postOrUpdateLeaderboard(client, guildId, client.levelSystem, LEADERBOARD_LIMIT, true);
@@ -3207,7 +3213,7 @@ module.exports = {
                     }
                 } else {
                      if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferReply({ ephemeral: true });
+                        await safeDeferReply(interaction, { ephemeral: true });
                         deferredByThisLogic = true;
                     }
                     await sendInteractionError(interaction, "Unknown or incomplete leaderboard command.", true, deferredByThisLogic || interaction.deferred);
@@ -3216,7 +3222,7 @@ module.exports = {
             }
             if (commandName === 'database') {
                 if (!isAdmin()) return sendInteractionError(interaction, "Admin only.", true, false);
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const tableName = interaction.options.getString('table');
                 try {
                     const data = client.levelSystem.getAllTableData(tableName);
@@ -3237,7 +3243,7 @@ module.exports = {
             }
             if (commandName === 'delete-all-commands') {
                 if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const scope = interaction.options.getString('scope');
                 const confirmation = interaction.options.getString('confirmation');
                 if (confirmation !== "CONFIRM DELETE ALL") {
@@ -3264,7 +3270,7 @@ module.exports = {
 
             if (commandName === 'deploy-commands') {
                 if (interaction.user.id !== process.env.OWNER_ID) return sendInteractionError(interaction, 'Owner only.', true, false);
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const scope = interaction.options.getString('scope');
                 try {
                     if (scope === 'global') {
@@ -3285,7 +3291,7 @@ module.exports = {
             }
             const unhandledCommand = client.commands.get(commandName);
             if(unhandledCommand) {
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ephemeral: true}); deferredThisInteraction = true;}
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, {ephemeral: true}); deferredThisInteraction = true;}
                  if (commandName === 'add-user' || commandName === 'withdraw-robux') { /* Already handled by new logic */ }
                  else { await unhandledCommand.execute(interaction, client); } // Ensure client is passed if needed by command
                  return;
@@ -3302,7 +3308,7 @@ module.exports = {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) {
                     const deferOpts = interaction.guild ? { ephemeral: true } : {};
-                    await interaction.deferReply(deferOpts);
+                    await safeDeferReply(interaction, deferOpts);
                     deferredThisInteraction = true;
                 }
                 try {
@@ -3325,7 +3331,7 @@ module.exports = {
             }
             if (customId === 'skip_daily_gems' || customId === 'skip_daily_ticket') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     let result;
                     if (customId === 'skip_daily_gems') {
@@ -3350,7 +3356,7 @@ module.exports = {
             }
             if (customId === 'bp_claim_reward') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const member = interaction.guild ? await interaction.guild.members.fetch(interaction.user.id).catch(() => null) : null;
                     const result = client.battlePass.claimReward(interaction.user.id, interaction.guild.id, client.levelSystem, member);
@@ -3400,7 +3406,7 @@ module.exports = {
             }
             if (customId === 'setting_rarity_modal') {
                 if (!interaction.isModalSubmit()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const rawVal = interaction.fields.getTextInputValue('rarity_threshold_input');
                 const cleaned = rawVal.replace(/,/g, '');
                 const val = parseInt(cleaned);
@@ -3471,7 +3477,7 @@ module.exports = {
             }
             if (customId.startsWith('shop_change_submit_')) {
                 if (!interaction.isModalSubmit()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const rawCategory = customId.replace('shop_change_submit_', '');
                 const itemIdInput = interaction.fields.getTextInputValue('item_id').trim();
                 const itemId = itemIdInput.toLowerCase();
@@ -3512,7 +3518,7 @@ module.exports = {
 
                 if (!interaction.replied && !interaction.deferred) {
                     const deferOpts = interaction.guild ? { ephemeral: true } : {};
-                    await interaction.deferReply(deferOpts);
+                    await safeDeferReply(interaction, deferOpts);
                     deferredThisInteraction = true;
                 }
 
@@ -3530,7 +3536,7 @@ module.exports = {
                 if (!interaction.guild) return sendInteractionError(interaction, "Withdrawals must be initiated from a server.", true);
 
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
+                    await safeDeferReply(interaction, { ephemeral: true });
                     deferredThisInteraction = true;
                 }
 
@@ -3655,7 +3661,7 @@ module.exports = {
                 if (!isStaff()) return sendInteractionError(interaction, "You do not have permission to process withdrawal requests.", true);
 
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ ephemeral: true });
+                    await safeDeferReply(interaction, { ephemeral: true });
                     deferredThisInteraction = true;
                 }
 
@@ -3938,7 +3944,7 @@ module.exports = {
                     if (!interaction.isButton()) return;
                     let deferredThisProcess = false;
                     if (!interaction.replied && !interaction.deferred) {
-                         await interaction.deferReply({ ephemeral: true });
+                         await safeDeferReply(interaction, { ephemeral: true });
                          deferredThisProcess = true;
                     }
 
@@ -4122,7 +4128,7 @@ module.exports = {
             if (customId === 'shop_buy_item_modal') {
                 if (!interaction.guild) return sendInteractionError(interaction, "Shop interactions require a server context.", true);
                 if (!interaction.isModalSubmit()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const itemIdToBuy = interaction.fields.getTextInputValue('shop_item_id_input').trim();
                     const amountStr = interaction.fields.getTextInputValue('shop_amount_input').trim();
@@ -4180,7 +4186,7 @@ module.exports = {
             }
             if (customId.startsWith('shop_confirm|')) {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const parts = customId.split('|');
                     const itemId = parts[1];
@@ -4254,7 +4260,7 @@ module.exports = {
             }
             if (customId.startsWith('shop_discount_modal|')) {
                 if (!interaction.isModalSubmit()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const parts = customId.split('|');
                     const itemId = parts[1];
@@ -4349,7 +4355,7 @@ module.exports = {
             if (customId === 'shop_instant_restock_modal') {
                 if (!interaction.guild) return sendInteractionError(interaction, "Shop interactions require a server context.", true);
                 if (!interaction.isModalSubmit()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const confirmation = interaction.fields.getTextInputValue('shop_restock_confirmation_input');
                     if (confirmation.trim().toLowerCase() !== "confirm") {
@@ -4458,7 +4464,7 @@ module.exports = {
         return; // This return is correct and was already here.
     }
                 } else if (interaction.isModalSubmit()) { // Modal submission for deposit/withdraw
-                     if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                     if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                     try {
                         const modalAction = customId.split('_')[1];
                         const modalCurrency = customId.split('_')[2];
@@ -4784,7 +4790,7 @@ module.exports = {
             if (customId.startsWith('check_rank_')) {
                 if (!interaction.guild) return sendInteractionError(interaction, 'Rank check requires a server context.', true);
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 const type = customId.replace('check_rank_', '');
                 await interaction.guild.members.fetch().catch(()=>{});
                 const blacklistSet = new Set();
