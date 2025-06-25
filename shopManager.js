@@ -121,7 +121,7 @@ class ShopManager {
         const stmt = this.db.prepare(`SELECT * FROM guildShopSettings WHERE guildId = ?`);
         let settings = stmt.get(guildId);
         const defaultShopTitle = this.systemsManager.gameConfig.globalSettings?.DEFAULT_SHOP_TITLE || '🛒 Server Shop';
-        const defaultRestockIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 20; 
+        const defaultRestockIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 5;
         const defaultRestockIntervalMs = defaultRestockIntervalMinutes * 60 * 1000;
 
          if (!settings) {
@@ -140,7 +140,7 @@ class ShopManager {
 
     setGuildShopSettings(guildId, settings) {
         const defaultShopTitle = this.systemsManager.gameConfig.globalSettings?.DEFAULT_SHOP_TITLE || '🛒 Server Shop';
-        const defaultRestockIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 20;
+        const defaultRestockIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 5;
         const defaultRestockIntervalMs = defaultRestockIntervalMinutes * 60 * 1000;
 
          const stmt = this.db.prepare(`
@@ -166,7 +166,7 @@ class ShopManager {
         try {
             const guildSettings = this.getGuildShopSettings(guildId);
             const nowMs = Date.now();
-            const configuredIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 20;
+            const configuredIntervalMinutes = this.systemsManager.gameConfig.globalSettings?.SHOP_RESTOCK_INTERVAL_MINUTES || 5;
             const actualRestockIntervalMs = configuredIntervalMinutes * 60 * 1000;
             const lastRestockMs = guildSettings.lastRestockTimestamp || 0;
             const nextScheduledRestockBasedOnConfigMs = lastRestockMs + actualRestockIntervalMs;
