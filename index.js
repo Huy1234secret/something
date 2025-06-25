@@ -3270,20 +3270,31 @@ module.exports = {
             }
             if (customId === 'skip_daily_reward') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) {
-                    const deferOpts = interaction.guild ? { ephemeral: true } : {};
-                    await interaction.deferReply(deferOpts);
-                    deferredThisInteraction = true;
-                }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                const userData = client.levelSystem.getUser(interaction.user.id, interaction.guild.id);
+                const skipCount = userData.dailySkipCount || 0;
+                const cost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
+                const gemBtn = new ButtonBuilder().setCustomId('skip_daily_gems').setLabel(`Use ${cost} Gems`).setStyle(ButtonStyle.Primary).setEmoji('💎');
+                const ticketBtn = new ButtonBuilder().setCustomId('skip_daily_ticket').setLabel('Use Ticket').setStyle(ButtonStyle.Secondary).setEmoji('<:dailyskip:1387286893338693764>');
+                const row = new ActionRowBuilder().addComponents(gemBtn, ticketBtn);
+                await safeEditReply(interaction, { content: 'How would you like to skip your reward?', components: [row], ephemeral: true }, false);
+                return;
+            }
+            if (customId === 'skip_daily_gems' || customId === 'skip_daily_ticket') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 try {
-                    const result = client.levelSystem.skipDailyReward(interaction.user.id, interaction.guild.id);
+                    let result;
+                    if (customId === 'skip_daily_gems') {
+                        result = client.levelSystem.skipDailyReward(interaction.user.id, interaction.guild.id);
+                    } else {
+                        result = client.levelSystem.skipDailyRewardWithTicket(interaction.user.id, interaction.guild.id);
+                    }
                     if (result.success) {
                         await safeEditReply(interaction, { content: `✅ **Success!** ${result.message}`, ephemeral: true });
                         const { embed: newEmbed, components: newComponents } = await buildDailyEmbed(interaction, client);
                         if (interaction.message && interaction.message.editable) {
-                            await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => {
-                                console.warn('Failed to edit daily embed after skip:', e.message);
-                            });
+                            await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => { console.warn('Failed to edit daily embed after skip:', e.message); });
                         }
                     } else {
                         await sendInteractionError(interaction, result.message || 'Failed to skip reward.', true, deferredThisInteraction);
@@ -4061,38 +4072,31 @@ module.exports = {
                         return sendInteractionError(interaction, `Invalid amount. Must be a number between 1 and ${maxPurchaseLimit}.`, true, deferredThisInteraction);
                     }
                     if (!itemIdToBuy) return sendInteractionError(interaction, "Item ID cannot be empty.", true, deferredThisInteraction);
-                    const purchaseResult = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemIdToBuy, amountToBuy, member);
+                    const purchaseResult = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemIdToBuy, amountToBuy, member, { simulateOnly: true });
                     if (purchaseResult.success) {
-                        const updatedBalance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
-                        const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
-                        const gemEmoji  = client.levelSystem.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
-                        const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
                         const originalTotal = purchaseResult.totalCost + purchaseResult.discountAmount;
                         let discountLine = `Discount Applied: ${purchaseResult.discountAmount.toLocaleString()} ${purchaseResult.currencyEmoji}`;
-                        if (purchaseResult.discountAmount > 0) {
-                            discountLine += ` (${purchaseResult.discountPercent}%)`;
-                        }
-                        let summaryValue = `${discountLine}\nTotal Paid: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}`;
-                        if (purchaseResult.discountAmount > 0) {
-                            summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${purchaseResult.currencyEmoji}`;
-                        }
+                        if (purchaseResult.discountAmount > 0) discountLine += ` (${purchaseResult.discountPercent}%)`;
+                        let summaryValue = `${discountLine}\nTotal: ${purchaseResult.totalCost.toLocaleString()} ${purchaseResult.currencyEmoji}`;
+                        if (purchaseResult.discountAmount > 0) summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${purchaseResult.currencyEmoji}`;
                         summaryValue += `\nRemaining Stock: ${purchaseResult.newStock}`;
                         const receiptEmbed = new EmbedBuilder()
                             .setColor(0x2ecc71)
                             .setTitle('🧾 Purchase Receipt')
-                            .setDescription('Thank you for your purchase! Here is your receipt.')
+                            .setDescription('Review your purchase below.')
                             .addFields(
-                                { name: 'Item Purchased', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nQuantity: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
-                                { name: 'Summary', value: summaryValue },
-                                { name: 'Your Balance', value: `${coinEmoji} ${updatedBalance.coins.toLocaleString()} | ${gemEmoji} ${updatedBalance.gems.toLocaleString()} | ${robuxEmoji} ${updatedBalance.robux.toLocaleString()}` }
+                                { name: 'Item', value: `${purchaseResult.emoji} ${purchaseResult.itemName} (ID: ${purchaseResult.itemId})\nQuantity: ${purchaseResult.amount}\nPrice Each: ${purchaseResult.pricePerItem.toLocaleString()} ${purchaseResult.currencyEmoji}` },
+                                { name: 'Summary', value: summaryValue }
                             )
                             .setTimestamp();
-                        await safeEditReply(interaction, { embeds: [receiptEmbed], ephemeral: true }, false);
-                        await refreshShopDisplayForGuild(interaction.guild.id, client);
-                        if (itemIdToBuy === client.levelSystem.COSMIC_ROLE_TOKEN_ID || client.levelSystem._getItemMasterProperty(itemIdToBuy, 'id') === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
-                            const itemConfig = client.levelSystem._getItemMasterProperty(itemIdToBuy, null);
-                            await checkAndAwardSpecialRole(member, `purchasing ${itemConfig?.name || itemIdToBuy}`, itemConfig?.name || itemIdToBuy);
-                        }
+
+                        const row = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId(`shop_confirm|${purchaseResult.itemId}|${purchaseResult.amount}|0|`).setLabel('Confirm').setStyle(ButtonStyle.Success),
+                            new ButtonBuilder().setCustomId(`shop_apply_discount|${purchaseResult.itemId}|${purchaseResult.amount}`).setLabel('Apply Discount').setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder().setCustomId('shop_cancel').setLabel('Deny').setStyle(ButtonStyle.Danger)
+                        );
+
+                        await safeEditReply(interaction, { embeds: [receiptEmbed], components: [row], ephemeral: true }, false);
                     } else if (purchaseResult.itemId) {
                         const failedEmbed = new EmbedBuilder()
                             .setColor(0xe74c3c)
@@ -4108,6 +4112,127 @@ module.exports = {
                         await sendInteractionError(interaction, purchaseResult.message || "Purchase failed.", true, deferredThisInteraction);
                     }
                 } catch (shopBuyError) { console.error('[ShopBuyModal Process Error]', shopBuyError); await sendInteractionError(interaction, "Error processing purchase.", true, deferredThisInteraction); }
+                return;
+            }
+            if (customId.startsWith('shop_confirm|')) {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const parts = customId.split('|');
+                    const itemId = parts[1];
+                    const amt = parseInt(parts[2]);
+                    const extraDisc = parseFloat(parts[3]) || 0;
+                    const ticketId = parts[4] || '';
+                    const result = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemId, amt, member, { extraDiscountPercent: extraDisc });
+                    if (result.success) {
+                        if (ticketId) client.levelSystem.takeItem(interaction.user.id, interaction.guild.id, ticketId, 1);
+                        const updatedBalance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                        const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
+                        const gemEmoji  = client.levelSystem.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
+                        const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
+                        const originalTotal = result.totalCost + result.discountAmount;
+                        let discountLine = `Discount Applied: ${result.discountAmount.toLocaleString()} ${result.currencyEmoji}`;
+                        if (result.discountAmount > 0) discountLine += ` (${result.discountPercent}%)`;
+                        let summaryValue = `${discountLine}\nTotal Paid: ${result.totalCost.toLocaleString()} ${result.currencyEmoji}`;
+                        if (result.discountAmount > 0) summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${result.currencyEmoji}`;
+                        summaryValue += `\nRemaining Stock: ${result.newStock}`;
+                        const receiptEmbed = new EmbedBuilder()
+                            .setColor(0x2ecc71)
+                            .setTitle('🧾 Purchase Receipt')
+                            .setDescription('Thank you for your purchase!')
+                            .addFields(
+                                { name: 'Item Purchased', value: `${result.emoji} ${result.itemName} (ID: ${result.itemId})\nQuantity: ${result.amount}\nPrice Each: ${result.pricePerItem.toLocaleString()} ${result.currencyEmoji}` },
+                                { name: 'Summary', value: summaryValue },
+                                { name: 'Your Balance', value: `${coinEmoji} ${updatedBalance.coins.toLocaleString()} | ${gemEmoji} ${updatedBalance.gems.toLocaleString()} | ${robuxEmoji} ${updatedBalance.robux.toLocaleString()}` }
+                            )
+                            .setTimestamp();
+                        await safeEditReply(interaction, { embeds: [receiptEmbed], components: [], ephemeral: true }, false);
+                        await refreshShopDisplayForGuild(interaction.guild.id, client);
+                        if (itemId === client.levelSystem.COSMIC_ROLE_TOKEN_ID || client.levelSystem._getItemMasterProperty(itemId, 'id') === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
+                            const itemCfg = client.levelSystem._getItemMasterProperty(itemId, null);
+                            await checkAndAwardSpecialRole(member, `purchasing ${itemCfg?.name || itemId}`, itemCfg?.name || itemId);
+                        }
+                    } else if (result.itemId) {
+                        const failedEmbed = new EmbedBuilder()
+                            .setColor(0xe74c3c)
+                            .setTitle('❌ Purchase Failed')
+                            .setDescription(result.message || 'Purchase failed.')
+                            .addFields(
+                                { name: 'Item', value: `${result.emoji}${result.itemName} (ID: ${result.itemId})\nAmount: ${result.amount}\nPrice Each: ${result.pricePerItem.toLocaleString()} ${result.currencyEmoji}` },
+                                { name: 'SUMMARY', value: `Discount: ${result.discountAmount.toLocaleString()} ${result.currencyEmoji}\nTotal Price: ${result.totalCost.toLocaleString()} ${result.currencyEmoji}\nYou need more funds.` }
+                            )
+                            .setTimestamp();
+                        await safeEditReply(interaction, { embeds: [failedEmbed], components: [], ephemeral: true }, true);
+                    } else {
+                        await sendInteractionError(interaction, result.message || 'Purchase failed.', true, deferredThisInteraction);
+                    }
+                } catch (confirmErr) { console.error('[ShopConfirm Error]', confirmErr); await sendInteractionError(interaction, 'Error processing purchase.', true, deferredThisInteraction); }
+                return;
+            }
+            if (customId.startsWith('shop_apply_discount|')) {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const parts = customId.split('|');
+                    const itemId = parts[1];
+                    const amt = parseInt(parts[2]);
+                    const tickets = [
+                        { id: client.levelSystem.DISCOUNT_TICKET_100_ID, pct: 100 },
+                        { id: client.levelSystem.DISCOUNT_TICKET_50_ID, pct: 50 },
+                        { id: client.levelSystem.DISCOUNT_TICKET_25_ID, pct: 25 },
+                        { id: client.levelSystem.DISCOUNT_TICKET_10_ID, pct: 10 }
+                    ];
+                    let chosen = null;
+                    for (const t of tickets) { const inv = client.levelSystem.getItemFromInventory(interaction.user.id, interaction.guild.id, t.id); if (inv && inv.quantity > 0) { chosen = t; break; } }
+                    if (!chosen) {
+                        return sendInteractionError(interaction, 'You do not have any discount tickets.', true, deferredThisInteraction);
+                    }
+                    const preview = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemId, amt, member, { simulateOnly: true, extraDiscountPercent: chosen.pct });
+                    if (!preview.success) {
+                        if (preview.itemId) {
+                            const failEmbed = new EmbedBuilder()
+                                .setColor(0xe74c3c)
+                                .setTitle('❌ Purchase Failed')
+                                .setDescription(preview.message || 'Purchase failed.')
+                                .addFields(
+                                    { name: 'Item', value: `${preview.emoji}${preview.itemName} (ID: ${preview.itemId})\nAmount: ${preview.amount}\nPrice Each: ${preview.pricePerItem.toLocaleString()} ${preview.currencyEmoji}` },
+                                    { name: 'SUMMARY', value: `Discount: ${preview.discountAmount.toLocaleString()} ${preview.currencyEmoji}\nTotal Price: ${preview.totalCost.toLocaleString()} ${preview.currencyEmoji}\nYou need more funds.` }
+                                )
+                                .setTimestamp();
+                            await safeEditReply(interaction, { embeds: [failEmbed], components: [], ephemeral: true }, true);
+                        } else {
+                            await sendInteractionError(interaction, preview.message || 'Purchase failed.', true, deferredThisInteraction);
+                        }
+                        return;
+                    }
+
+                    const originalTotal = preview.totalCost + preview.discountAmount;
+                    let discountLine = `Discount Applied: ${preview.discountAmount.toLocaleString()} ${preview.currencyEmoji}`;
+                    if (preview.discountAmount > 0) discountLine += ` (${preview.discountPercent}%)`;
+                    let summaryValue = `${discountLine}\nTotal: ${preview.totalCost.toLocaleString()} ${preview.currencyEmoji}`;
+                    if (preview.discountAmount > 0) summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${preview.currencyEmoji}`;
+                    summaryValue += `\nRemaining Stock: ${preview.newStock}`;
+                    const receiptEmbed = new EmbedBuilder()
+                        .setColor(0x2ecc71)
+                        .setTitle('🧾 Purchase Receipt')
+                        .setDescription(`Using ${chosen.pct}% discount ticket.`)
+                        .addFields(
+                            { name: 'Item', value: `${preview.emoji} ${preview.itemName} (ID: ${preview.itemId})\nQuantity: ${preview.amount}\nPrice Each: ${preview.pricePerItem.toLocaleString()} ${preview.currencyEmoji}` },
+                            { name: 'Summary', value: summaryValue }
+                        )
+                        .setTimestamp();
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`shop_confirm|${preview.itemId}|${preview.amount}|${chosen.pct}|${chosen.id}`).setLabel('Confirm').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('shop_cancel').setLabel('Deny').setStyle(ButtonStyle.Danger)
+                    );
+                    await safeEditReply(interaction, { embeds: [receiptEmbed], components: [row], ephemeral: true }, false);
+                } catch (applyErr) { console.error('[ShopApplyDiscount Error]', applyErr); await sendInteractionError(interaction, 'Error applying discount.', true, deferredThisInteraction); }
+                return;
+            }
+            if (customId === 'shop_cancel') {
+                if (!interaction.isButton()) return;
+                await interaction.reply({ content: 'Purchase cancelled.', ephemeral: true }).catch(() => {});
                 return;
             }
             if (customId === 'shop_instant_restock_prompt') {

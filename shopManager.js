@@ -332,7 +332,7 @@ class ShopManager {
         stmt.run(guildId, slotId, itemId, currentPrice, originalPrice, stock, isWeekendSpecial, discountLabel, discountPercent);
     }
 
-    async purchaseItem(userId, guildId, itemIdToPurchase, amountToPurchase, member) {
+    async purchaseItem(userId, guildId, itemIdToPurchase, amountToPurchase, member, options = {}) {
         const itemMasterConfigGlobal = this.systemsManager._getItemMasterProperty(itemIdToPurchase, null);
         const maxPurchaseAmount = itemMasterConfigGlobal?.maxPurchaseAmountPerTransactionOverride || this.systemsManager.gameConfig.globalSettings.MAX_PURCHASE_AMOUNT_PER_TRANSACTION || 99;
 
@@ -364,9 +364,11 @@ class ShopManager {
         const userBalance = this.systemsManager.getBalance(userId, guildId);
         const baseCost = shopItemEntry.currentPrice * amountToPurchase;
         const rolePerks = this.systemsManager.getActiveRolePerks(userId, guildId);
-        const discountPercent = rolePerks.totals.discountPercent || 0;
-        const discountAmount = discountPercent > 0 ? Math.round(baseCost * (discountPercent / 100)) : 0;
-        const totalCost = Math.round(baseCost - discountAmount);
+        const baseDiscount = rolePerks.totals.discountPercent || 0;
+        const extraDiscount = options.extraDiscountPercent || 0;
+        const totalDiscountPercent = Math.min(100, baseDiscount + extraDiscount);
+        const discountAmount = totalDiscountPercent > 0 ? Math.round(baseCost * (totalDiscountPercent / 100)) : 0;
+        const totalCost = Math.max(0, Math.round(baseCost - discountAmount));
 
         // --- START OF CORRECTION FOR CURRENCY DEDUCTION ---
         let currencyToDeduct = itemConfigMaster.priceCurrency || this.systemsManager.COINS_ID; // Get from master config
@@ -392,12 +394,29 @@ class ShopManager {
                 amount: amountToPurchase,
                 pricePerItem: shopItemEntry.currentPrice,
                 discountAmount,
-                discountPercent,
+                discountPercent: totalDiscountPercent,
                 totalCost,
                 currencyEmoji: currencyEmojiForMessage
             };
         }
         // --- END OF CORRECTION FOR CURRENCY DEDUCTION ---
+
+        if (options.simulateOnly) {
+            return {
+                success: true,
+                itemId: shopItemEntry.itemId,
+                itemName: itemConfigMaster.name,
+                emoji: itemConfigMaster.emoji || '❓',
+                amount: amountToPurchase,
+                pricePerItem: shopItemEntry.currentPrice,
+                discountAmount,
+                discountPercent: totalDiscountPercent,
+                totalCost,
+                currencyEmoji: currencyEmojiForMessage,
+                newStock: shopItemEntry.stock - amountToPurchase,
+                slotId: shopItemEntry.slotId
+            };
+        }
 
         const purchaseTransaction = this.db.transaction(() => {
             let deductionResult;
@@ -433,7 +452,7 @@ class ShopManager {
                 amount: amountToPurchase,
                 pricePerItem: shopItemEntry.currentPrice,
                 discountAmount,
-                discountPercent,
+                discountPercent: totalDiscountPercent,
                 totalCost,
                 currencyEmoji: currencyEmojiForMessage,
                 newStock: newStock,
