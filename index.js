@@ -476,10 +476,16 @@ async function buildDailyEmbed(interaction, client) {
             .setEmoji('🎉')
             .setDisabled(!canClaim),
         new ButtonBuilder()
-            .setCustomId('skip_daily_reward')
+            .setCustomId('skip_daily_gems')
             .setLabel(`Skip Reward (${skipCost} Gems)`)
             .setStyle(ButtonStyle.Primary)
             .setEmoji('⏭️')
+            .setDisabled(canClaim),
+        new ButtonBuilder()
+            .setCustomId('skip_daily_ticket')
+            .setLabel('Skip Reward (1 Ticket)')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('<:dailyskip:1387286893338693764>')
             .setDisabled(canClaim)
     );
 
@@ -3268,18 +3274,6 @@ module.exports = {
                 } catch (claimError) { console.error('[ClaimDaily Error]', claimError); await sendInteractionError(interaction, "An error occurred while claiming your reward.", true, deferredThisInteraction); }
                 return;
             }
-            if (customId === 'skip_daily_reward') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
-                const userData = client.levelSystem.getUser(interaction.user.id, interaction.guild.id);
-                const skipCount = userData.dailySkipCount || 0;
-                const cost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
-                const gemBtn = new ButtonBuilder().setCustomId('skip_daily_gems').setLabel(`Use ${cost} Gems`).setStyle(ButtonStyle.Primary).setEmoji('💎');
-                const ticketBtn = new ButtonBuilder().setCustomId('skip_daily_ticket').setLabel('Use Ticket').setStyle(ButtonStyle.Secondary).setEmoji('<:dailyskip:1387286893338693764>');
-                const row = new ActionRowBuilder().addComponents(gemBtn, ticketBtn);
-                await safeEditReply(interaction, { content: 'How would you like to skip your reward?', components: [row], ephemeral: true }, false);
-                return;
-            }
             if (customId === 'skip_daily_gems' || customId === 'skip_daily_ticket') {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
@@ -4171,23 +4165,48 @@ module.exports = {
             }
             if (customId.startsWith('shop_apply_discount|')) {
                 if (!interaction.isButton()) return;
+                const parts = customId.split('|');
+                const itemId = parts[1];
+                const amt = parseInt(parts[2]);
+
+                const modal = new ModalBuilder()
+                    .setCustomId(`shop_discount_modal|${itemId}|${amt}`)
+                    .setTitle('Apply Discount Ticket');
+                const input = new TextInputBuilder()
+                    .setCustomId('discount_type_input')
+                    .setLabel('Discount Percent (10 / 25 / 50 / 100)')
+                    .setPlaceholder('10 / 25 / 50 / 100')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                await interaction.showModal(modal).catch(async e => { console.error('Show modal error', e); await sendInteractionError(interaction, 'Failed to open input.', true); });
+                return;
+            }
+            if (customId.startsWith('shop_discount_modal|')) {
+                if (!interaction.isModalSubmit()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferReply({ ephemeral: true }); deferredThisInteraction = true; }
                 try {
                     const parts = customId.split('|');
                     const itemId = parts[1];
                     const amt = parseInt(parts[2]);
-                    const tickets = [
-                        { id: client.levelSystem.DISCOUNT_TICKET_100_ID, pct: 100 },
-                        { id: client.levelSystem.DISCOUNT_TICKET_50_ID, pct: 50 },
-                        { id: client.levelSystem.DISCOUNT_TICKET_25_ID, pct: 25 },
-                        { id: client.levelSystem.DISCOUNT_TICKET_10_ID, pct: 10 }
-                    ];
-                    let chosen = null;
-                    for (const t of tickets) { const inv = client.levelSystem.getItemFromInventory(interaction.user.id, interaction.guild.id, t.id); if (inv && inv.quantity > 0) { chosen = t; break; } }
-                    if (!chosen) {
-                        return sendInteractionError(interaction, 'You do not have any discount tickets.', true, deferredThisInteraction);
+                    const pctStr = interaction.fields.getTextInputValue('discount_type_input');
+                    const pct = parseInt(pctStr);
+                    const pctMap = {
+                        10: client.levelSystem.DISCOUNT_TICKET_10_ID,
+                        25: client.levelSystem.DISCOUNT_TICKET_25_ID,
+                        50: client.levelSystem.DISCOUNT_TICKET_50_ID,
+                        100: client.levelSystem.DISCOUNT_TICKET_100_ID
+                    };
+                    const ticketId = pctMap[pct];
+                    if (!ticketId) {
+                        return sendInteractionError(interaction, 'Invalid discount type.', true, deferredThisInteraction);
                     }
-                    const preview = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemId, amt, member, { simulateOnly: true, extraDiscountPercent: chosen.pct });
+                    const inv = client.levelSystem.getItemFromInventory(interaction.user.id, interaction.guild.id, ticketId);
+                    if (!inv || inv.quantity < 1) {
+                        return sendInteractionError(interaction, 'You do not have that discount ticket.', true, deferredThisInteraction);
+                    }
+
+                    const preview = await client.levelSystem.shopManager.purchaseItem(interaction.user.id, interaction.guild.id, itemId, amt, member, { simulateOnly: true, extraDiscountPercent: pct });
                     if (!preview.success) {
                         if (preview.itemId) {
                             const failEmbed = new EmbedBuilder()
@@ -4212,10 +4231,11 @@ module.exports = {
                     let summaryValue = `${discountLine}\nTotal: ${preview.totalCost.toLocaleString()} ${preview.currencyEmoji}`;
                     if (preview.discountAmount > 0) summaryValue += `\n-# Original Total: ${originalTotal.toLocaleString()} ${preview.currencyEmoji}`;
                     summaryValue += `\nRemaining Stock: ${preview.newStock}`;
+
                     const receiptEmbed = new EmbedBuilder()
                         .setColor(0x2ecc71)
                         .setTitle('🧾 Purchase Receipt')
-                        .setDescription(`Using ${chosen.pct}% discount ticket.`)
+                        .setDescription(`Using ${pct}% discount ticket.`)
                         .addFields(
                             { name: 'Item', value: `${preview.emoji} ${preview.itemName} (ID: ${preview.itemId})\nQuantity: ${preview.amount}\nPrice Each: ${preview.pricePerItem.toLocaleString()} ${preview.currencyEmoji}` },
                             { name: 'Summary', value: summaryValue }
@@ -4223,7 +4243,8 @@ module.exports = {
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId(`shop_confirm|${preview.itemId}|${preview.amount}|${chosen.pct}|${chosen.id}`).setLabel('Confirm').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId(`shop_confirm|${preview.itemId}|${preview.amount}|${pct}|${ticketId}`).setLabel('Confirm').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId(`shop_apply_discount|${preview.itemId}|${preview.amount}`).setLabel('Apply Discount').setStyle(ButtonStyle.Secondary).setDisabled(true),
                         new ButtonBuilder().setCustomId('shop_cancel').setLabel('Deny').setStyle(ButtonStyle.Danger)
                     );
                     await safeEditReply(interaction, { embeds: [receiptEmbed], components: [row], ephemeral: true }, false);
