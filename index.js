@@ -82,6 +82,7 @@ const ITEM_IDS = {
     DISCOUNT_25: gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25',
     DISCOUNT_50: gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50',
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
+    GIFT_CARD_25: gameConfig.items.gift_card_25?.id || 'gift_card_25',
 };
 
 const fs = require('node:fs').promises;
@@ -1512,6 +1513,7 @@ function buildBattlePassEmbed(userId, guildId, client) {
         embed.addFields({ name: `${info.level}`, value: text, inline: true });
     }
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
+    embed.addFields({ name: 'How to gain BP XP', value: 'Earn BP XP by chatting, opening loot boxes, and claiming daily rewards.' });
     const claimDisabled = progress.level <= progress.lastClaim;
     const button = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁')
