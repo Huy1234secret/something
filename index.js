@@ -2602,6 +2602,11 @@ client.on('interactionCreate', async interaction => {
                     .filter(item => item.name.toLowerCase().includes(searchTerm) || item.id.toLowerCase().includes(searchTerm))
                     .map(item => ({ name: `${item.name} (ID: ${item.id})`, value: item.id }))
                     .slice(0, 25);
+            } else if (commandName === 'award-badge' && focusedValue.name === 'badge') {
+                choices = Object.values(client.levelSystem.getAllBadges())
+                    .filter(b => b.name.toLowerCase().includes(searchTerm) || b.id.toLowerCase().includes(searchTerm))
+                    .map(b => ({ name: `${b.name} (ID: ${b.id})`, value: b.id }))
+                    .slice(0, 25);
             }
             if (!interaction.responded) {
                 await interaction.respond(choices).catch(e => console.error(`[Autocomplete ${commandName}] Error responding for ${focusedValue.name}:`, e.message));
