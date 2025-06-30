@@ -349,6 +349,7 @@ try {
 client.commands = new Collection();
 client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
+client.SCAVENGER_JOIN_ENABLED = true;
 
 let embedBuildingSessions = new Map();
 let inventoryInteractionTimeouts = new Map();
@@ -1156,6 +1157,7 @@ async function schedulePuzzleAnnouncement(client) {
                     )
                     .setFooter({ text: 'Bot never know you use command unless you use a prefix' });
                 await ch.send({ content: '<@&1389139331272409110>', embeds: [embed] }).catch(console.error);
+                client.SCAVENGER_JOIN_ENABLED = false;
             } else {
                 console.warn(`[PuzzleAnnouncement] Channel ${PUZZLE_ANNOUNCEMENT_CHANNEL_ID} not found or not text-based.`);
             }
@@ -3446,6 +3448,10 @@ module.exports = {
                 if (!interaction.replied && !interaction.deferred) {
                     await safeDeferReply(interaction, { ephemeral: true });
                     deferredThisInteraction = true;
+                }
+                if (client.SCAVENGER_JOIN_ENABLED === false) {
+                    await safeEditReply(interaction, { content: 'The scavenger hunt can no longer be joined.', ephemeral: true });
+                    return;
                 }
                 const baseName = interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, '');
                 const channelName = `scavenger-${baseName}`;
