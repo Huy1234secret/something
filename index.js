@@ -203,6 +203,9 @@ let WEEKEND_BOOST_ACTIVE = false;
 let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
+// Flag to disable the secret puzzle once completed
+let PUZZLE_COMPLETED = false;
+
 function toWeekendTZ(date) {
     return new Date(date.getTime() + WEEKEND_TZ_OFFSET_HOURS * 60 * 60 * 1000);
 }
@@ -2224,7 +2227,7 @@ client.on('messageCreate', async message => {
 
     const content = message.content.trim();
 
-    if (content === '.begin') {
+    if (!PUZZLE_COMPLETED && content === '.begin') {
         if (!restrictedRoles.some(r => member.roles.cache.has(r))) {
             const embed = new EmbedBuilder()
                 .setColor(0x2f3136)
@@ -2237,7 +2240,7 @@ client.on('messageCreate', async message => {
         return;
     }
 
-    if (content === '.Curator' && member.roles.cache.has(step1Role)) {
+    if (!PUZZLE_COMPLETED && content === '.Curator' && member.roles.cache.has(step1Role)) {
         const embed = new EmbedBuilder()
             .setColor(0x2f3136)
             .setDescription('https://www.youware.com/project/dk9npng257')
@@ -2248,7 +2251,7 @@ client.on('messageCreate', async message => {
         return;
     }
 
-    if (content === '.1987shadow317' && member.roles.cache.has(step2Role)) {
+    if (!PUZZLE_COMPLETED && content === '.1987shadow317' && member.roles.cache.has(step2Role)) {
         const embed = new EmbedBuilder()
             .setColor(0x2f3136)
             .setTitle('Ready for your finale?')
@@ -2260,14 +2263,14 @@ client.on('messageCreate', async message => {
         return;
     }
 
-    if (content === '.entropy' && member.roles.cache.has(step3Role)) {
+    if (!PUZZLE_COMPLETED && content === '.entropy' && member.roles.cache.has(step3Role)) {
         await member.roles.add(step4Role).catch(e => console.warn('Failed to add role step4:', e));
         await member.roles.remove(step3Role).catch(() => {});
         await message.channel.send('hey what is 101 + 11?').catch(() => {});
         return;
     }
 
-    if (content === '.1000' && member.roles.cache.has(step4Role)) {
+    if (!PUZZLE_COMPLETED && content === '.1000' && member.roles.cache.has(step4Role)) {
         const announceChannel = await client.channels.fetch('1372572234949853367').catch(() => null);
         if (announceChannel && announceChannel.isTextBased()) {
             const embed = new EmbedBuilder()
@@ -2277,6 +2280,7 @@ client.on('messageCreate', async message => {
                 .setTimestamp();
             await announceChannel.send({ content: '@here', embeds: [embed] }).catch(() => {});
         }
+        PUZZLE_COMPLETED = true;
         return;
     }
 
