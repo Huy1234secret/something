@@ -1062,7 +1062,7 @@ this.db.prepare(`
         if (itemId === this.ROBUX_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const robuxResult = this.addRobux(userId, guildId, quantity, source);
             if (robuxResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1070,7 +1070,7 @@ this.db.prepare(`
         } else if (itemId === this.COINS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const coinResult = this.addCoins(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (coinResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1078,7 +1078,7 @@ this.db.prepare(`
         } else if (itemId === this.GEMS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const gemResult = this.addGems(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (gemResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) to your balance.` };
