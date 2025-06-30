@@ -389,6 +389,24 @@ const config = {
             description: "Skip the daily reward cooldown without spending gems."
         }
     },
+    badges: {
+        bp1_champion: {
+            id: "bp1_champion",
+            name: "Battle-Pass 1# Champion",
+            emoji: "<:season1c:1389126156439261264>",
+            obtainment: "Be the first to complete July 2025 Batte Pass",
+            type: "limited - obtainable",
+            perk: "increase coin by 100%, gem by 25%, xp by 1"
+        },
+        bp1_complete: {
+            id: "bp1_complete",
+            name: "Battle-Pass 1#",
+            emoji: "<:season1t:1389126139297140766>",
+            obtainment: "complete July 2025 Battle Pass",
+            type: "limited - obtainable",
+            perk: "increase coin by 20%, gem by 5%"
+        }
+    },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
         { itemId: "nothing_drop", directDropWeight: 0.900077 },
         { itemId: "common_loot_box", directDropWeight: 0.095 },
