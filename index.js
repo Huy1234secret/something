@@ -3288,6 +3288,35 @@ module.exports = {
                 else { console.error(`[Giveaway Command] start-giveaway not found.`); await sendInteractionError(interaction, "Giveaway command not loaded.", true); }
                 return;
             }
+            if (commandName === 'join-scavenger') {
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: true });
+                    deferredThisInteraction = true;
+                }
+                const baseName = interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                const channelName = `scavenger-${baseName}`;
+                const existing = interaction.guild.channels.cache.find(ch => ch.name === channelName);
+                if (existing) {
+                    await safeEditReply(interaction, { content: `You already have a scavenger channel: <#${existing.id}>`, ephemeral: true });
+                } else {
+                    try {
+                        const channel = await interaction.guild.channels.create({
+                            name: channelName,
+                            type: ChannelType.GuildText,
+                            permissionOverwrites: [
+                                { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                                { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                                { id: interaction.client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageChannels] }
+                            ]
+                        });
+                        await safeEditReply(interaction, { content: `Private channel created: <#${channel.id}>`, ephemeral: true });
+                    } catch (err) {
+                        console.error('[JoinScavenger] Channel creation failed:', err);
+                        await sendInteractionError(interaction, 'Failed to create your scavenger channel.', true, deferredThisInteraction);
+                    }
+                }
+                return;
+            }
             if (commandName === 'delete-all-commands') {
                 if (process.env.OWNER_ID && interaction.user.id !== process.env.OWNER_ID) {
                     return sendInteractionError(interaction, 'Owner only.', true, false);

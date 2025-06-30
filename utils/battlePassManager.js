@@ -86,7 +86,7 @@ class BattlePassManager {
             if (this.data.level100PrizeClaimed) {
                 const replaced = [];
                 for (const r of base) {
-                    if (r.text && r.text.includes('Gift Card')) {
+                    if (r.currency === 'robux' || (r.text && r.text.includes('Gift Card'))) {
                         replaced.push({ item: 'void_chest', amount: 3 });
                     } else {
                         replaced.push(r);
