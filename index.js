@@ -51,6 +51,7 @@ const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
 const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
 const DISCOUNT_BOOST_EMOJI = '<:sdiscount:1384506117895225355>';
 const GEM_CHAT_BOOST_EMOJI = '<:sultragemmulti:1384512368708423781>';
+const BATTLE_TOKEN_EMOJI = '<:battletoken:1389109195374203030>';
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
@@ -1506,7 +1507,7 @@ function buildBattlePassEmbed(userId, guildId, client) {
         .setColor(0xF39C12)
         .setAuthor({ name: 'Guide of Legends' })
         .setTitle('🔥 Cosmic Battle Pass')
-        .setDescription(`Level **${progress.level}** | ${progress.points.toLocaleString()} BP\n${bar} \`${progress.percent.toFixed(1)}%\``)
+        .setDescription(`Level **${progress.level}** | ${BATTLE_TOKEN_EMOJI} ${progress.points.toLocaleString()} BP\n${bar} \`${progress.percent.toFixed(1)}%\``)
         .setTimestamp();
     const nextRewards = client.battlePass.getNextRewards(userId, guildId, 3);
     for (const info of nextRewards) {
@@ -1514,7 +1515,7 @@ function buildBattlePassEmbed(userId, guildId, client) {
         embed.addFields({ name: `${info.level}`, value: text, inline: true });
     }
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
-    embed.addFields({ name: 'How to gain BP XP', value: 'Earn BP XP by chatting, opening loot boxes, and claiming daily rewards. BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 BP XP).' });
+    embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by chatting, opening loot boxes, and claiming daily rewards. ${BATTLE_TOKEN_EMOJI} BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 ${BATTLE_TOKEN_EMOJI} BP XP).` });
     const claimDisabled = progress.level <= progress.lastClaim;
     const button = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁')
