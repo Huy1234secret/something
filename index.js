@@ -1514,7 +1514,7 @@ function buildBattlePassEmbed(userId, guildId, client) {
         embed.addFields({ name: `${info.level}`, value: text, inline: true });
     }
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
-    embed.addFields({ name: 'How to gain BP XP', value: 'Earn BP XP by chatting, opening loot boxes, and claiming daily rewards.' });
+    embed.addFields({ name: 'How to gain BP XP', value: 'Earn BP XP by chatting, opening loot boxes, and claiming daily rewards. BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 BP XP).' });
     const claimDisabled = progress.level <= progress.lastClaim;
     const button = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁')
