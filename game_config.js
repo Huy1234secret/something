@@ -396,7 +396,7 @@ const config = {
             emoji: "<:season1c:1389126156439261264>",
             obtainment: "Be the first to complete July 2025 Batte Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
-            perk: "increase coin by 100%, gem by 25%, xp by 1"
+            perk: "Coin +100%, Gem +25%, XP +1"
         },
         bp1_complete: {
             id: "bp1_complete",
@@ -404,7 +404,7 @@ const config = {
             emoji: "<:season1t:1389126139297140766>",
             obtainment: "complete July 2025 Battle Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
-            perk: "increase coin by 20%, gem by 5%"
+            perk: "Coin +20%, Gem +5%"
         },
         puzzle_champion_2025: {
             id: "puzzle_champion_2025",
@@ -412,7 +412,7 @@ const config = {
             emoji: "<:pccbdage:1389237940353241098>",
             obtainment: "Be the first to solve all puzzle in Puzzle Competiton 2025",
             type: "limited - obtainable",
-            perk: "increase coin gain by 100%, gem by 25%, xp by 1"
+            perk: "Coin +100%, Gem +25%, XP +1"
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
