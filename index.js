@@ -139,6 +139,7 @@ const LOOTBOX_DROP_CHANNEL_ID = process.env.LOOTBOX_DROP_CHANNEL_ID;
 const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
+const PUZZLE_ANNOUNCEMENT_CHANNEL_ID = process.env.PUZZLE_ANNOUNCEMENT_CHANNEL_ID || WEEKEND_ANNOUNCEMENT_CHANNEL_ID;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
@@ -1129,6 +1130,42 @@ async function scheduleDailyReadyNotifications(client) {
     };
     await checkReady();
     setInterval(checkReady, DAILY_READY_CHECK_INTERVAL_MS);
+}
+
+async function schedulePuzzleAnnouncement(client) {
+    console.log("[Puzzle Announcement Scheduler] Scheduling puzzle announcement...");
+    const targetTimestamp = BATTLE_PASS_START;
+    const sendAnnouncement = async () => {
+        try {
+            const ch = await client.channels.fetch(PUZZLE_ANNOUNCEMENT_CHANNEL_ID).catch(() => null);
+            if (ch?.isTextBased?.()) {
+                const embed = new EmbedBuilder()
+                    .setColor(0x3498DB)
+                    .setTitle('HEY!')
+                    .setDescription(
+                        'Thought the scavenger hunt ended peacefully? Think again. \uD83E\uDD29\n' +
+                        'The real puzzle starts now\u2014and the clock is already ticking. \u23F0\n\n' +
+                        'I launch every quest before the first clue appears, yet vanish the instant your search is underway.\n' +
+                        'Remove my head and you flirt with fault; drop my tail and you\u2019re tucked within.\n' +
+                        'Add two letters and I become the spark that sets things in motion.\n' +
+                        'Name me.\n\nGood luck, players! \uD83D\uDE80'
+                    )
+                    .setFooter({ text: 'Bot never know you use command unless you use a prefix' });
+                await ch.send({ content: '@here', embeds: [embed] }).catch(console.error);
+            } else {
+                console.warn(`[PuzzleAnnouncement] Channel ${PUZZLE_ANNOUNCEMENT_CHANNEL_ID} not found or not text-based.`);
+            }
+        } catch (e) {
+            console.error('[PuzzleAnnouncement] Failed to send announcement:', e);
+        }
+    };
+
+    const delay = targetTimestamp - Date.now();
+    if (delay <= 0) {
+        await sendAnnouncement();
+    } else {
+        setTimeout(sendAnnouncement, delay);
+    }
 }
 
 async function safeDeferReply(interaction, options = {}) {
@@ -2141,6 +2178,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
+schedulePuzzleAnnouncement(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
