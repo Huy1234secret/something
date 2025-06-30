@@ -1172,6 +1172,25 @@ async function schedulePuzzleAnnouncement(client) {
     }
 }
 
+async function scheduleBattlePassBadgeUpdate(client) {
+    const updateBadges = () => {
+        if (!client.levelSystem) return;
+        if (Date.now() > BATTLE_PASS_END) {
+            if (client.levelSystem.gameConfig?.badges?.bp1_champion) {
+                client.levelSystem.gameConfig.badges.bp1_champion.type = 'limited - unobtainable';
+            }
+            if (client.levelSystem.gameConfig?.badges?.bp1_complete) {
+                client.levelSystem.gameConfig.badges.bp1_complete.type = 'limited - unobtainable';
+            }
+        }
+    };
+    updateBadges();
+    const delay = BATTLE_PASS_END - Date.now();
+    if (delay > 0) {
+        setTimeout(updateBadges, delay);
+    }
+}
+
 async function safeDeferReply(interaction, options = {}) {
     if (!interaction.isRepliable() || interaction.deferred || interaction.replied) return;
     try {
@@ -2229,6 +2248,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 schedulePuzzleAnnouncement(client);
+scheduleBattlePassBadgeUpdate(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");

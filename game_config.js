@@ -394,7 +394,7 @@ const config = {
             id: "bp1_champion",
             name: "Battle-Pass 1# Champion",
             emoji: "<:season1c:1389126156439261264>",
-            obtainment: "Be the first to complete July 2025 Batte Pass",
+            obtainment: "Be the first to complete July 2025 Batte Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
             perk: "increase coin by 100%, gem by 25%, xp by 1"
         },
@@ -402,7 +402,7 @@ const config = {
             id: "bp1_complete",
             name: "Battle-Pass 1#",
             emoji: "<:season1t:1389126139297140766>",
-            obtainment: "complete July 2025 Battle Pass",
+            obtainment: "complete July 2025 Battle Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
             perk: "increase coin by 20%, gem by 5%"
         },
