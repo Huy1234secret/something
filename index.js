@@ -2216,6 +2216,70 @@ client.on('messageCreate', async message => {
     }
     if (!member) return; // If still no member, cannot proceed
 
+    const step1Role = '1389139316399144961';
+    const step2Role = '1389139329762332682';
+    const step3Role = '1389139330517434378';
+    const step4Role = '1389139330852978698';
+    const restrictedRoles = [step1Role, step2Role, step3Role, step4Role, '1389139331272409110', '1389139332064870431'];
+
+    const content = message.content.trim();
+
+    if (content === '.begin') {
+        if (!restrictedRoles.some(r => member.roles.cache.has(r))) {
+            const embed = new EmbedBuilder()
+                .setColor(0x2f3136)
+                .setTitle('SECRET')
+                .setDescription('==gCkVnYuZXdPByawdkCsAHbxNWblVmRKogLnV3ZgIndvJ3aqBScw9mc0NGI5BXapByavFXaslWd2hHIo5WbgwiajJGchBiI6h3YnlmcgEmegonc6VkIgEXepVGbwVWepNGIphmZgEXayR3cgsTZ1pnYm9GZhdHIhVGIoZ2blBScpZXb49WYpBichVHbgIHb0Bydr1mRg4CchpHetdWagMXa1R3cgI3b1pXal1GclRXcgIndlR3YgEmbpRWdgQXbnh3bzh3dzBiavBya4lWZmlGegsGcnByc0BiYnVHInlmcvtWYg4GI3VWdyBSY5NnY5VWYgI3dlRnegYndsRXdjBidyhGZ15EIuIGcpxGerJWYtBCZ6dGItBnclZWexZmdlJGIrR3bltGZnVnc2BCZxpXalh3c6VXdyhGI5B3ZtVGchBScilWdgk3brBCL5FXd4ByZ69GbulmcgEHepBCazlHIy9kCKwiey9WZxlHIhRncpZ2atV2S')
+                .setFooter({ text: 'who is the last person in this letter?' });
+            await message.channel.send({ embeds: [embed] }).catch(() => {});
+            await member.roles.add(step1Role).catch(e => console.warn('Failed to add role step1:', e));
+        }
+        return;
+    }
+
+    if (content === '.Curator' && member.roles.cache.has(step1Role)) {
+        const embed = new EmbedBuilder()
+            .setColor(0x2f3136)
+            .setDescription('https://www.youware.com/project/dk9npng257')
+            .setFooter({ text: 'Well done, your next mission is inside the link, tell me the final MASTER code' });
+        await message.channel.send({ embeds: [embed] }).catch(() => {});
+        await member.roles.add(step2Role).catch(e => console.warn('Failed to add role step2:', e));
+        await member.roles.remove(step1Role).catch(() => {});
+        return;
+    }
+
+    if (content === '.1987shadow317' && member.roles.cache.has(step2Role)) {
+        const embed = new EmbedBuilder()
+            .setColor(0x2f3136)
+            .setTitle('Ready for your finale?')
+            .setDescription('https://www.youware.com/project/xdht2k7u44')
+            .setFooter({ text: 'decrypt it and tell us the final word' });
+        await message.channel.send({ embeds: [embed] }).catch(() => {});
+        await member.roles.add(step3Role).catch(e => console.warn('Failed to add role step3:', e));
+        await member.roles.remove(step2Role).catch(() => {});
+        return;
+    }
+
+    if (content === '.entropy' && member.roles.cache.has(step3Role)) {
+        await member.roles.add(step4Role).catch(e => console.warn('Failed to add role step4:', e));
+        await member.roles.remove(step3Role).catch(() => {});
+        await message.channel.send('hey what is 101 + 11?').catch(() => {});
+        return;
+    }
+
+    if (content === '.1000' && member.roles.cache.has(step4Role)) {
+        const announceChannel = await client.channels.fetch('1372572234949853367').catch(() => null);
+        if (announceChannel && announceChannel.isTextBased()) {
+            const embed = new EmbedBuilder()
+                .setColor(0xFFD700)
+                .setTitle('🎉 Congratulations!')
+                .setDescription(`Give it up for <@${member.id}> for completing the secret quest!`)
+                .setTimestamp();
+            await announceChannel.send({ content: '@here', embeds: [embed] }).catch(() => {});
+        }
+        return;
+    }
+
     // Award special role on message send chance
     await checkAndAwardSpecialRole(member, 'sending a message');
 
