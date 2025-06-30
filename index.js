@@ -2293,12 +2293,16 @@ client.on('messageCreate', async message => {
     const step2Role = '1389139329762332682';
     const step3Role = '1389139330517434378';
     const step4Role = '1389139330852978698';
-    const restrictedRoles = [step1Role, step2Role, step3Role, step4Role, '1389139331272409110', '1389139332064870431'];
 
     const content = message.content.trim();
 
     if (!PUZZLE_COMPLETED && content === '.begin') {
-        if (!restrictedRoles.some(r => member.roles.cache.has(r))) {
+        if (!member.roles.cache.has(step1Role) &&
+            !member.roles.cache.has(step2Role) &&
+            !member.roles.cache.has(step3Role) &&
+            !member.roles.cache.has(step4Role) &&
+            !member.roles.cache.has('1389139331272409110') &&
+            !member.roles.cache.has('1389139332064870431')) {
             const embed = new EmbedBuilder()
                 .setColor(0x2f3136)
                 .setTitle('SECRET')
