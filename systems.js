@@ -578,12 +578,6 @@ class SystemsManager {
                 } else {
                     this.giveItem(userId, guildId, itemDetails.id, quantity, itemDetails.type || this.itemTypes.ITEM, `loot_box_open_${boxId}`);
                 }
-                if (this.client && this.client.battlePass) {
-                    const rarity = this._getItemRarityString(itemDetails.id, itemDetails, itemDetails.type).toUpperCase();
-                    const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
-                    const pts = map[rarity] || 0;
-                    if (pts > 0) this.client.battlePass.addPoints(userId, guildId, pts);
-                }
                 allRolledItems.push({
                     id: itemDetails.id, name: itemDetails.name, emoji: itemDetails.emoji, quantity: quantity, type: itemDetails.type,
                     rarityValue: itemDetails.rarityValue || this._getItemMasterProperty(itemDetails.id, 'rarityValue') || 0,
@@ -1057,10 +1051,18 @@ this.db.prepare(`
         const itemName = itemMasterConfig.name || itemId; // Fallback to ID if name is missing
         const itemEmoji = itemMasterConfig.emoji; // Will be undefined if not set, handled by fallback in message
 
+        let bpPts = 0;
+        if (this.client && this.client.battlePass) {
+            const rarity = this._getItemRarityString(itemId, itemMasterConfig, effectiveItemType).toUpperCase();
+            const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
+            bpPts = map[rarity] || 0;
+        }
+
         // Handle currency types first
         if (itemId === this.ROBUX_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const robuxResult = this.addRobux(userId, guildId, quantity, source);
             if (robuxResult.success) {
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1068,6 +1070,7 @@ this.db.prepare(`
         } else if (itemId === this.COINS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const coinResult = this.addCoins(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (coinResult.success) {
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1075,6 +1078,7 @@ this.db.prepare(`
         } else if (itemId === this.GEMS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const gemResult = this.addGems(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (gemResult.success) {
+                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1085,10 +1089,12 @@ this.db.prepare(`
 
         if (effectiveItemType === this.itemTypes.CHARM && !isAdminSource) { // Auto-activate only if NOT admin source
             for (let i = 0; i < quantity; i++) { this.activateCharm(userId, guildId, { charmId: itemId, source: source }); }
+            if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
             return { success: true, activated: true, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) activated immediately!` };
         } else { // This 'else' now handles normal items AND charms from admin sources (which get added to inventory)
             this._addToUserInventorySQL(userId, guildId, itemId, quantity, effectiveItemType);
             // For charms added to inventory by admin, ensure the message doesn't say "activated"
+            if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
             if (effectiveItemType === this.itemTypes.CHARM && isAdminSource) {
                  return { success: true, activated: false, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) added to inventory.` };
             }
@@ -1222,12 +1228,6 @@ this.db.prepare(`
         } else {
             this.giveItem(userId, guildId, lootItemConfig.id, 1, effectiveType, source);
         }
-        if (this.client && this.client.battlePass) {
-            const rarity = this._getItemRarityString(lootItemConfig.id, lootItemConfig, effectiveType).toUpperCase();
-            const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
-            const pts = map[rarity] || 0;
-            if (pts > 0) this.client.battlePass.addPoints(userId, guildId, pts);
-        }
         return { grantedSpecialRole };
     }
     async useItem(userId, guildId, itemId, amount, weekendMultipliers, member, checkAndAwardSpecialRoleFn) {
@@ -1251,9 +1251,6 @@ this.db.prepare(`
                 }
                 const singleBoxOpeningResult = await this.openLootBox(userId, guildId, itemId, effectiveWeekendMultipliers, member, checkAndAwardSpecialRoleFn);
                 if (singleBoxOpeningResult.success && singleBoxOpeningResult.rewards) {
-                    if (this.client && this.client.battlePass) {
-                        this.client.battlePass.addPoints(userId, guildId, 5);
-                    }
                     allRewardsFromOpening.push(...singleBoxOpeningResult.rewards);
                     if (singleBoxOpeningResult.grantedSpecialRole) anySpecialRoleGrantedThisOpening = true;
                     if (singleBoxOpeningResult.charmsObtainedDetails) charmsObtainedDetailsAccumulated.push(...singleBoxOpeningResult.charmsObtainedDetails);
