@@ -1155,7 +1155,7 @@ async function schedulePuzzleAnnouncement(client) {
                         'Name me.\n\nGood luck, players! \uD83D\uDE80'
                     )
                     .setFooter({ text: 'Bot never know you use command unless you use a prefix' });
-                await ch.send({ content: '@here', embeds: [embed] }).catch(console.error);
+                await ch.send({ content: '<@&1389139331272409110>', embeds: [embed] }).catch(console.error);
             } else {
                 console.warn(`[PuzzleAnnouncement] Channel ${PUZZLE_ANNOUNCEMENT_CHANNEL_ID} not found or not text-based.`);
             }
