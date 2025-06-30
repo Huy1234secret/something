@@ -3500,7 +3500,10 @@ module.exports = {
             }
             const unhandledCommand = client.commands.get(commandName);
             if(unhandledCommand) {
-                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, {ephemeral: true}); deferredThisInteraction = true;}
+                 if (commandName !== 'check-badge' && !interaction.replied && !interaction.deferred) {
+                     await safeDeferReply(interaction, {ephemeral: true});
+                     deferredThisInteraction = true;
+                 }
                  if (commandName === 'add-user' || commandName === 'withdraw-robux') { /* Already handled by new logic */ }
                  else { await unhandledCommand.execute(interaction, client); } // Ensure client is passed if needed by command
                  return;
