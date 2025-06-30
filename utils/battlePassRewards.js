@@ -203,7 +203,7 @@ const REWARDS = [
     [
         { currency: 'coins', amount: 10000 },
         { currency: 'gems', amount: 2500 },
-        { item: 'gift_card_25', amount: 1 },
+        { item: '25giftcard', amount: 1 },
         { item: 'void_chest', amount: 2 },
         { item: 'discount_ticket_100', amount: 2 },
         { item: 'inf_chest', amount: 1 },

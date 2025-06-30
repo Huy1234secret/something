@@ -388,6 +388,12 @@ const config = {
             emoji: "<a:robux:1378395622683574353>", rarityValue: 0,
             description: "A $25 gift card."
         },
+        "25giftcard": {
+            id: "25giftcard", name: "25$ Giftcard Voucher", type: "item",
+            emoji: "<a:robux:1378395622683574353>", rarityValue: 0,
+            description: "Redeem to receive a $25 gift card.",
+            expiresAfterMs: 24 * 60 * 60 * 1000
+        },
         "daily_skip_ticket": {
             id: "daily_skip_ticket", name: "Daily Skip Ticket", type: "item",
             emoji: "<:dailyskip:1387286893338693764>", rarityValue: 0,
