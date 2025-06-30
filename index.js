@@ -51,7 +51,7 @@ const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
 const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
 const DISCOUNT_BOOST_EMOJI = '<:sdiscount:1384506117895225355>';
 const GEM_CHAT_BOOST_EMOJI = '<:sultragemmulti:1384512368708423781>';
-const BATTLE_TOKEN_EMOJI = '<:battletoken:1389109195374203030>';
+const BATTLE_TOKEN_EMOJI = '<:bppoint:1389238189671321672>';
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
@@ -501,7 +501,7 @@ async function buildDailyEmbed(interaction, client) {
             .setCustomId('skip_daily_ticket')
             .setLabel('Skip Reward (1 Ticket)')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji('<:dailyskip:1387286893338693764>')
+            .setEmoji('<:skipdailyticket:1389239150703673448>')
             .setDisabled(canClaim)
     );
 
@@ -2325,6 +2325,20 @@ client.on('messageCreate', async message => {
                 .setDescription(`Give it up for <@${member.id}> for completing the secret quest!`)
                 .setTimestamp();
             await announceChannel.send({ content: '@here', embeds: [embed] }).catch(() => {});
+        }
+
+        const champ = client.levelSystem.getAllBadges().puzzle_champion_2025;
+        if (champ) {
+            const res = client.levelSystem.awardBadge(member.id, message.guild.id, champ.id);
+            if (res.success) {
+                const dmEmbed = new EmbedBuilder()
+                    .setColor(0xF1C40F)
+                    .setTitle('CONGRATULATION')
+                    .setDescription(`hey <@${member.id}> you have obtained ${champ.name} ${champ.emoji} badge!`)
+                    .addFields({ name: 'perk gained', value: champ.perk });
+                await member.send({ embeds: [dmEmbed] }).catch(() => {});
+                client.levelSystem.gameConfig.badges.puzzle_champion_2025.type = 'limited - unobtainable';
+            }
         }
         PUZZLE_COMPLETED = true;
         return;

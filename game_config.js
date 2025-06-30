@@ -385,7 +385,7 @@ const config = {
         },
         "daily_skip_ticket": {
             id: "daily_skip_ticket", name: "Daily Skip Ticket", type: "item",
-            emoji: "<:dailyskip:1387286893338693764>", rarityValue: 0,
+            emoji: "<:skipdailyticket:1389239150703673448>", rarityValue: 0,
             description: "Skip the daily reward cooldown without spending gems."
         }
     },
@@ -405,6 +405,14 @@ const config = {
             obtainment: "complete July 2025 Battle Pass",
             type: "limited - obtainable",
             perk: "increase coin by 20%, gem by 5%"
+        },
+        puzzle_champion_2025: {
+            id: "puzzle_champion_2025",
+            name: "Puzzle Champion 2025",
+            emoji: "<:pccbdage:1389237940353241098>",
+            obtainment: "Be the first to solve all puzzle in Puzzle Competiton 2025",
+            type: "limited - obtainable",
+            perk: "increase coin gain by 100%, gem by 25%, xp by 1"
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
