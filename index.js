@@ -83,6 +83,7 @@ const ITEM_IDS = {
     DISCOUNT_50: gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50',
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
     GIFT_CARD_25: gameConfig.items.gift_card_25?.id || 'gift_card_25',
+    GIFT_CARD_25_VOUCHER: gameConfig.items['25giftcard']?.id || '25giftcard',
 };
 
 const fs = require('node:fs').promises;
