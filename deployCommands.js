@@ -476,6 +476,10 @@ const commands = [
             }
         ],
         default_member_permissions: PermissionsBitField.Flags.Administrator.toString()
+    },
+    {
+        name: 'join-scavenger',
+        description: 'Join the scavenger hunt and receive a private channel.'
     }
 ];
 
