@@ -306,6 +306,13 @@ class SystemsManager {
                 processedByUserId TEXT, -- Staff member who processed
                 processedTimestamp INTEGER,
                 reasonOrEvidence TEXT -- Reason for denial or evidence for acceptance
+            );`,
+            `CREATE TABLE IF NOT EXISTS userBadges (
+                userId TEXT NOT NULL,
+                guildId TEXT NOT NULL,
+                badgeId TEXT NOT NULL,
+                obtainedAt INTEGER DEFAULT 0,
+                PRIMARY KEY (userId, guildId, badgeId)
             );`
         ];
         this.db.transaction(() => { initialTableStatements.forEach(sql => this.db.exec(sql)); })();
@@ -2256,6 +2263,30 @@ this.db.prepare(`
             console.error("Error updating Robux withdrawal request:", error);
             return { success: false, message: "Database error updating request." };
         }
+    }
+
+    getAllBadges() {
+        return this.gameConfig.badges || {};
+    }
+
+    getUserBadgeIds(userId, guildId) {
+        const rows = this.db.prepare('SELECT badgeId FROM userBadges WHERE userId = ? AND guildId = ?').all(userId, guildId);
+        return rows.map(r => r.badgeId);
+    }
+
+    hasBadge(userId, guildId, badgeId) {
+        const row = this.db.prepare('SELECT 1 FROM userBadges WHERE userId = ? AND guildId = ? AND badgeId = ?').get(userId, guildId, badgeId);
+        return !!row;
+    }
+
+    awardBadge(userId, guildId, badgeId) {
+        this.getUser(userId, guildId);
+        if (this.hasBadge(userId, guildId, badgeId)) {
+            return { success: false, message: 'Badge already awarded.' };
+        }
+        this.db.prepare('INSERT INTO userBadges (userId, guildId, badgeId, obtainedAt) VALUES (?, ?, ?, ?)')
+            .run(userId, guildId, badgeId, Math.floor(Date.now() / 1000));
+        return { success: true };
     }
 
     canUserWithdrawRobux(userId, guildId, amount) {

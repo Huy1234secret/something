@@ -478,6 +478,18 @@ const commands = [
         default_member_permissions: PermissionsBitField.Flags.Administrator.toString()
     },
     {
+        name: 'check-badge',
+        description: 'View your obtained and unobtained badges'
+    },
+    {
+        name: 'award-badge',
+        description: 'Award a badge to a user (Owner only)',
+        options: [
+            { name: 'user', description: 'Target user', type: ApplicationCommandOptionType.User, required: true },
+            { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true }
+        ]
+    },
+    {
         name: 'join-scavenger',
         description: 'Join the scavenger hunt and receive a private channel.'
     }

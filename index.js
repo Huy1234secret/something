@@ -1566,6 +1566,52 @@ function buildBattlePassEmbed(userId, guildId, client) {
     return { embed, components: [button] };
 }
 
+function buildBadgeEmbed(userId, guildId, client, view = 'obtained', page = 1) {
+    const systems = client.levelSystem;
+    const allBadges = systems.getAllBadges();
+    const obtainedIds = systems.getUserBadgeIds(userId, guildId);
+    const obtainedList = Object.values(allBadges).filter(b => obtainedIds.includes(b.id));
+    const unobtainedList = Object.values(allBadges).filter(b => !obtainedIds.includes(b.id));
+    const list = view === 'obtained' ? obtainedList : unobtainedList;
+    const pageCount = Math.max(1, Math.ceil(list.length / 25));
+    page = Math.min(Math.max(page, 1), pageCount);
+    const embed = new EmbedBuilder()
+        .setColor(view === 'obtained' ? 0x2ecc71 : 0xe74c3c)
+        .setTitle(view === 'obtained' ? 'Obtained Badges' : 'Unobtained Badges')
+        .setDescription(`### Page ${page}/${pageCount}`);
+    const start = (page - 1) * 25;
+    for (const b of list.slice(start, start + 25)) {
+        const typeLine = b.type.includes('limited') ? `<:limites:1389227936569233458> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
+        embed.addFields({ name: `${b.name} ${b.emoji || ''}`, value: `* Obtainment: ${b.obtainment}\n* Perk: ${b.perk}\n- ${typeLine}` });
+    }
+    embed.setFooter({ text: `You have obtained ${obtainedList.length} out of ${Object.keys(allBadges).length} badges` });
+    return { embed, pageCount, page };
+}
+
+function getBadgeComponents(view, page, pageCount) {
+    const prev = new ButtonBuilder()
+        .setCustomId(`badge_goto_${view}_${page-1}`)
+        .setLabel(`⬅️ - ${page-1}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page <= 1);
+    const next = new ButtonBuilder()
+        .setCustomId(`badge_goto_${view}_${page+1}`)
+        .setLabel(`${page} - ➡️`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page >= pageCount);
+    const obtainedBtn = new ButtonBuilder()
+        .setCustomId(`badge_view_obtained_${page}`)
+        .setLabel('obtained')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(view === 'obtained');
+    const unobtainedBtn = new ButtonBuilder()
+        .setCustomId(`badge_view_unobtained_${page}`)
+        .setLabel('unobtained')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(view === 'unobtained');
+    return [new ActionRowBuilder().addComponents(prev, obtainedBtn, unobtainedBtn, next)];
+}
+
 function formatBpReward(r, systemsManager) {
     if (r.currency === 'coins') {
         const emoji = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
@@ -3526,6 +3572,36 @@ module.exports = {
                                 await ch.send({ content: `<@&1382309927283986602>`, embeds: [announceEmbed] }).catch(e => console.warn('Failed to send level 100 announcement:', e.message));
                             }
                         }
+                        const progress = client.battlePass.getProgress(interaction.user.id, interaction.guild.id);
+                        if (progress.lastClaim >= 100) {
+                            const regular = client.levelSystem.getAllBadges().bp1_complete;
+                            if (regular) {
+                                const res = client.levelSystem.awardBadge(interaction.user.id, interaction.guild.id, regular.id);
+                                if (res.success) {
+                                    const embed = new EmbedBuilder()
+                                        .setColor(0xF1C40F)
+                                        .setTitle('CONGRATULATION')
+                                        .setDescription(`hey <@${interaction.user.id}> you have obtained ${regular.name} ${regular.emoji} badge!`)
+                                        .addFields({ name: 'perk gained', value: regular.perk });
+                                    await interaction.user.send({ embeds: [embed] }).catch(() => {});
+                                }
+                            }
+                            if (result.firstClaim) {
+                                const champ = client.levelSystem.getAllBadges().bp1_champion;
+                                if (champ) {
+                                    const res2 = client.levelSystem.awardBadge(interaction.user.id, interaction.guild.id, champ.id);
+                                    if (res2.success) {
+                                        const embed2 = new EmbedBuilder()
+                                            .setColor(0xF1C40F)
+                                            .setTitle('CONGRATULATION')
+                                            .setDescription(`hey <@${interaction.user.id}> you have obtained ${champ.name} ${champ.emoji} badge!`)
+                                            .addFields({ name: 'perk gained', value: champ.perk });
+                                        await interaction.user.send({ embeds: [embed2] }).catch(() => {});
+                                        client.levelSystem.gameConfig.badges.bp1_champion.type = 'limited - unobtainable';
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         await sendInteractionError(interaction, result.message || 'Failed to claim reward.', true, deferredThisInteraction);
                     }
@@ -4800,6 +4876,27 @@ module.exports = {
                     )
                 ];
                 await safeEditReply(interaction, { components, embeds: [], content: 'Select an item:', ephemeral: false }, true);
+                return;
+            }
+            if (customId.startsWith('badge_goto_') || customId.startsWith('badge_view_')) {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
+                const parts = customId.split('_');
+                let view, page;
+                if (parts[1] === 'goto') {
+                    view = parts[2];
+                    page = parseInt(parts[3]) || 1;
+                } else {
+                    view = parts[2];
+                    page = parseInt(parts[3]) || 1;
+                }
+                const { embed, pageCount, page: curPage } = buildBadgeEmbed(interaction.user.id, interaction.guild.id, client, view, page);
+                const components = getBadgeComponents(view, curPage, pageCount);
+                if (interaction.message && interaction.message.editable) {
+                    await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
+                } else {
+                    await safeEditReply(interaction, { embeds: [embed], components }, true);
+                }
                 return;
             }
             if (customId.startsWith('eb_')) {
