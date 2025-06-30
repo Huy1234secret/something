@@ -1,5 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+const COIN_BOOST_EMOJI = '<:scoinmulti:1384503519330959380>';
+const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
+const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('check-badge')
@@ -23,9 +27,15 @@ module.exports = {
             const start = (page - 1) * 25;
             for (const b of list.slice(start, start + 25)) {
                 const typeLine = b.type.includes('limited') ? `<:limites:1389227936569233458> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
+
+                const perkWithEmojis = (b.perk || '')
+                    .replace(/\bcoin\b/gi, `coin ${COIN_BOOST_EMOJI}`)
+                    .replace(/\bgem\b/gi, `gem ${GEM_BOOST_EMOJI}`)
+                    .replace(/\bxp\b/gi, `xp ${XP_BOOST_EMOJI}`);
+
                 embed.addFields({
                     name: `${b.name} ${b.emoji || ''}`,
-                    value: `* Obtainment: ${b.obtainment}\n* Perk: ${b.perk}\n- ${typeLine}`,
+                    value: `* **Obtainment:** ${b.obtainment}\n* **Perk:** ${perkWithEmojis}\n**- ${typeLine}**`,
                     inline: false
                 });
             }
