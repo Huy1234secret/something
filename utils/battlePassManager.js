@@ -5,7 +5,7 @@ class BattlePassManager {
         this.dataFile = dataFile;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.data = { users: {}, level100RobuxClaimed: false };
+        this.data = { users: {}, level100PrizeClaimed: false };
         this.fs = require('node:fs');
         this.path = require('node:path');
         this.load();
@@ -15,8 +15,9 @@ class BattlePassManager {
             if (this.fs.existsSync(this.dataFile)) {
                 const raw = this.fs.readFileSync(this.dataFile, 'utf8');
                 this.data = JSON.parse(raw);
-                if (typeof this.data.level100RobuxClaimed !== 'boolean') {
-                    this.data.level100RobuxClaimed = false;
+                if (typeof this.data.level100PrizeClaimed !== 'boolean') {
+                    // backwards compatibility with older field name
+                    this.data.level100PrizeClaimed = this.data.level100RobuxClaimed || false;
                 }
                 // Upgrade from old format if necessary
                 if (this.data.userPoints) {
@@ -82,10 +83,16 @@ class BattlePassManager {
         const base = REWARDS[level] ? [...REWARDS[level]] : null;
         if (!base) return null;
         if (level === 100) {
-            if (this.data.level100RobuxClaimed) {
-                const filtered = base.filter(r => !(r.currency === 'robux'));
-                filtered.push({ item: 'daily_skip_ticket', amount: 10 });
-                return filtered;
+            if (this.data.level100PrizeClaimed) {
+                const replaced = [];
+                for (const r of base) {
+                    if (r.text && r.text.includes('Gift Card')) {
+                        replaced.push({ item: 'void_chest', amount: 3 });
+                    } else {
+                        replaced.push(r);
+                    }
+                }
+                return replaced;
             }
         }
         return base;
@@ -97,7 +104,7 @@ class BattlePassManager {
         for (let i = 1; i <= count; i++) {
             const lvl = user.lastClaim + i;
             const set = this.getRewardSet(lvl);
-            if (set) rewards.push({ level: lvl, rewards: set });
+            rewards.push({ level: lvl, rewards: set });
         }
         return rewards;
     }
@@ -131,6 +138,9 @@ class BattlePassManager {
                 const itemCfg = systemsManager._getItemMasterProperty(r.item, null);
                 systemsManager.giveItem(userId, guildId, r.item, r.amount, itemCfg.type, 'bp_reward');
                 messages.push(`${r.amount}x ${itemCfg.name}`);
+            } else if (r.text) {
+                // text-only reward (e.g., external gift card)
+                messages.push(r.text);
             } else if (r.role) {
                 if (member && member.manageable) {
                     member.roles.add(r.role).catch(e => console.warn('[BattlePassManager] role add error', e.message));
@@ -139,11 +149,13 @@ class BattlePassManager {
             }
         }
         user.lastClaim = nextLevel;
-        if (nextLevel === 100 && !this.data.level100RobuxClaimed) {
-            this.data.level100RobuxClaimed = true;
+        let firstClaim = false;
+        if (nextLevel === 100 && !this.data.level100PrizeClaimed) {
+            this.data.level100PrizeClaimed = true;
+            firstClaim = true;
         }
         this.save();
-        return { success: true, message: messages.join(', ') };
+        return { success: true, message: messages.join(', '), firstClaim };
     }
 
     isEnded() {

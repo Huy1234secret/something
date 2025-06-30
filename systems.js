@@ -1286,13 +1286,6 @@ this.db.prepare(`
             if (!takeResult) return { success: false, message: `Not enough ${itemName} to use.`};
             for (let i = 0; i < amount; i++) { this.activateCharm(userId, guildId, { charmId: itemId, source: `inventory_use_${itemId}` }); }
             return { success: true, message: `Activated ${amount}x ${itemEmoji} **${itemName}** from inventory.` };
-        } else if (itemId === '25giftcard') {
-            const takeResult = this.takeItem(userId, guildId, itemId, amount);
-            if (!takeResult) return { success: false, message: `Not enough ${itemName} to use.` };
-            for (let i = 0; i < amount; i++) {
-                this.giveItem(userId, guildId, this.gameConfig.items.gift_card_25?.id || 'gift_card_25', 1, this.itemTypes.ITEM, 'giftcard_redeem');
-            }
-            return { success: true, message: `Redeemed ${amount}x ${itemEmoji} **${itemName}**! Check your inventory for the gift card.` };
         } else if ([this.itemTypes.ITEM, this.itemTypes.JUNK, this.itemTypes.COLLECTIBLE, this.itemTypes.SPECIAL_ROLE_ITEM].includes(effectiveItemType)) {
             const takeResult = this.takeItem(userId, guildId, itemId, amount);
             if (!takeResult) return { success: false, message: `Not enough ${itemEmoji} **${itemName}** (x${amount}) to use.` };

@@ -83,8 +83,6 @@ const ITEM_IDS = {
     DISCOUNT_25: gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25',
     DISCOUNT_50: gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50',
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
-    GIFT_CARD_25: gameConfig.items.gift_card_25?.id || 'gift_card_25',
-    GIFT_CARD_25_VOUCHER: gameConfig.items['25giftcard']?.id || '25giftcard',
 };
 
 const fs = require('node:fs').promises;
@@ -1511,8 +1509,12 @@ function buildBattlePassEmbed(userId, guildId, client) {
         .setTimestamp();
     const nextRewards = client.battlePass.getNextRewards(userId, guildId, 3);
     for (const info of nextRewards) {
-        const text = info.rewards.map(r => formatBpReward(r, systemsManager)).join('\n');
-        embed.addFields({ name: `${info.level}`, value: text, inline: true });
+        const fieldName = info.level > 100 ? '-' : `${info.level}`;
+        let fieldValue = '-';
+        if (info.rewards && info.rewards.length) {
+            fieldValue = info.rewards.map(r => formatBpReward(r, systemsManager)).join('\n');
+        }
+        embed.addFields({ name: fieldName, value: fieldValue, inline: true });
     }
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
     embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by chatting, opening loot boxes, and claiming daily rewards. ${BATTLE_TOKEN_EMOJI} BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 ${BATTLE_TOKEN_EMOJI} BP XP).` });
@@ -1536,6 +1538,9 @@ function formatBpReward(r, systemsManager) {
         const cfg = systemsManager._getItemMasterProperty(r.item, null);
         const emoji = cfg?.emoji || '❔';
         return `${emoji} x${r.amount} ${cfg?.name || r.item}`;
+    }
+    if (r.text) {
+        return r.text;
     }
     if (r.role) {
         return `Role <@&${r.role}>`;
@@ -3373,6 +3378,17 @@ module.exports = {
                         const { embed: newEmbed, components: newComponents } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
                         if (interaction.message && interaction.message.editable) {
                             await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => console.warn('Failed to edit battle pass embed:', e.message));
+                        }
+                        if (result.firstClaim) {
+                            const ch = await client.channels.fetch('1372572234949853367').catch(() => null);
+                            if (ch?.isTextBased?.()) {
+                                const announceEmbed = new EmbedBuilder()
+                                    .setColor(0xFFD700)
+                                    .setTitle('🏆 Battle Pass Champion!')
+                                    .setDescription(`<@${interaction.user.id}> has claimed the Level 100 reward first and wins the grand prize!`)
+                                    .setTimestamp();
+                                await ch.send({ content: `<@&1382309927283986602>`, embeds: [announceEmbed] }).catch(e => console.warn('Failed to send level 100 announcement:', e.message));
+                            }
                         }
                     } else {
                         await sendInteractionError(interaction, result.message || 'Failed to claim reward.', true, deferredThisInteraction);
