@@ -1313,7 +1313,7 @@ this.db.prepare(`
     }
 
     getActiveRolePerks(userId, guildId) {
-        const base = { roles: [], totals: { gemPerMessage: 0, discountPercent: 0, xpPerMessage: 0, coinMultiplier: 1.0, gemMultiplier: 1.0 } };
+        const base = { roles: [], badges: [], totals: { gemPerMessage: 0, discountPercent: 0, xpPerMessage: 0, coinMultiplier: 1.0, gemMultiplier: 1.0 } };
         if (!this.client) return base;
         const guild = this.client.guilds.cache.get(guildId);
         if (!guild) return base;
@@ -1330,6 +1330,23 @@ this.db.prepare(`
             if (perk.gemMultiplier) base.totals.gemMultiplier *= perk.gemMultiplier;
         });
         base.roles = matched;
+
+        // --- Badge perks ---
+        try {
+            const badgeIds = this.getUserBadgeIds(userId, guildId);
+            base.badges = badgeIds;
+            for (const id of badgeIds) {
+                const badge = this.gameConfig.badges?.[id];
+                if (!badge || !badge.boosts) continue;
+                const boosts = badge.boosts;
+                if (boosts.gemPerMessage) base.totals.gemPerMessage += boosts.gemPerMessage;
+                if (boosts.discountPercent) base.totals.discountPercent += boosts.discountPercent;
+                if (boosts.xpPerMessage) base.totals.xpPerMessage += boosts.xpPerMessage;
+                if (boosts.coinMultiplier) base.totals.coinMultiplier *= boosts.coinMultiplier;
+                if (boosts.gemMultiplier) base.totals.gemMultiplier *= boosts.gemMultiplier;
+            }
+        } catch {}
+
         return base;
     }
     

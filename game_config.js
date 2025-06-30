@@ -396,7 +396,8 @@ const config = {
             emoji: "<:season1c:1389126156439261264>",
             obtainment: "Be the first to complete July 2025 Batte Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
-            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1"
+            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1",
+            boosts: { coinMultiplier: 2.0, gemMultiplier: 1.25, xpPerMessage: 1 }
         },
         bp1_complete: {
             id: "bp1_complete",
@@ -404,7 +405,8 @@ const config = {
             emoji: "<:season1t:1389126139297140766>",
             obtainment: "complete July 2025 Battle Pass (unobtainable after the Battle Pass ends)",
             type: "limited - obtainable",
-            perk: "<:scoinmulti:1384503519330959380> Coin +20%, <:sgemmulti:1384507113048506428> Gem +5%"
+            perk: "<:scoinmulti:1384503519330959380> Coin +20%, <:sgemmulti:1384507113048506428> Gem +5%",
+            boosts: { coinMultiplier: 1.2, gemMultiplier: 1.05 }
         },
         puzzle_champion_2025: {
             id: "puzzle_champion_2025",
@@ -412,7 +414,8 @@ const config = {
             emoji: "<:pccbdage:1389237940353241098>",
             obtainment: "Be the first to solve all puzzle in Puzzle Competiton 2025",
             type: "limited - obtainable",
-            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1"
+            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1",
+            boosts: { coinMultiplier: 2.0, gemMultiplier: 1.25, xpPerMessage: 1 }
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only

@@ -1957,6 +1957,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             }
 
             const roleList = rolePerkInfo.roles.map(id => `<@&${id}>`).join(', ') || 'None';
+            const badgeList = rolePerkInfo.badges.map(id => systemsManager.getAllBadges()?.[id]?.emoji || id).join(' ') || 'None';
             const perkLines = [];
             if (coinBoost > 0) perkLines.push(`${COIN_BOOST_EMOJI} Coin Boost: \`+${coinBoost.toFixed(0)}%\``);
             if (gemBoost > 0) perkLines.push(`${GEM_BOOST_EMOJI} Gem Boost: \`+${gemBoost.toFixed(0)}%\``);
@@ -1966,6 +1967,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
 
             embed.addFields(
                 { name: 'Active Role Perks', value: roleList },
+                { name: 'Active Badge Perks', value: badgeList },
                 { name: 'Total Perks', value: perkLines.join('\n') || 'None' }
             );
         }
