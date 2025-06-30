@@ -5,6 +5,9 @@ module.exports = {
         .setName('join-scavenger')
         .setDescription('Join the scavenger hunt and receive a private channel.'),
     async execute(interaction) {
+        if (interaction.client.SCAVENGER_JOIN_ENABLED === false) {
+            return interaction.reply({ content: 'The scavenger hunt can no longer be joined.', ephemeral: true });
+        }
         if (!interaction.guild) {
             return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
         }
