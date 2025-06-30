@@ -6,14 +6,12 @@ module.exports = {
         .setName('award-badge')
         .setDescription('Award a badge to a user (Owner only)')
         .addUserOption(o => o.setName('user').setDescription('Target user').setRequired(true))
-        .addStringOption(o => {
-            o.setName('badge').setDescription('Badge ID').setRequired(true).setAutocomplete(true);
-            const badges = gameConfig.badges || {};
-            Object.values(badges).slice(0, 25).forEach(b => {
-                o.addChoices({ name: b.name, value: b.id });
-            });
-            return o;
-        }),
+        .addStringOption(o =>
+            o.setName('badge')
+                .setDescription('Badge ID')
+                .setRequired(true)
+                .setAutocomplete(true)
+        ),
     async execute(interaction, client) {
         if (interaction.user.id !== '902736357766594611') {
             const replyOpts = { content: 'Owner only.', ephemeral: true };

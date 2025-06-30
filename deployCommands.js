@@ -486,7 +486,7 @@ const commands = [
         description: 'Award a badge to a user (Owner only)',
         options: [
             { name: 'user', description: 'Target user', type: ApplicationCommandOptionType.User, required: true },
-            { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true }
+            { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true, autocomplete: true }
         ]
     },
     {
