@@ -151,14 +151,14 @@ const config = {
             isAlertWorthyByIdShop: false,
             color: 0xBDC3C7, imageUrl: "https://i.ibb.co/kVp9p2x9/nh4.png", numRolls: 3,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 5, probability: 0.8, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 1, max: 5, probability: 0.8, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.01, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.005, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.000988, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000001, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
         "rare_loot_box": {
@@ -171,14 +171,14 @@ const config = {
             isAlertWorthyByIdShop: false,
             color: 0x0070DD, imageUrl: "https://i.ibb.co/ynZN3pNd/nh5.png", numRolls: 5,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 10, probability: 0.8, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 1, max: 10, probability: 0.8, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00005, rarityValue: 250000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000002, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
         "epic_loot_box": {
@@ -191,15 +191,15 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x9400D3, imageUrl: "https://i.ibb.co/TMfz2f6Q/nh6.png", numRolls: 10,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.8, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 1, max: 2, probability: 0.1, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.8, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 1, max: 2, probability: 0.1, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.000001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000003, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
         "legendary_loot_box": {
@@ -212,15 +212,15 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0xFF8C00, imageUrl: "https://i.ibb.co/MyCXX90z/nh7.png", numRolls: 30,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 50, probability: 0.8, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 2, max: 2, probability: 0.1, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 1, max: 50, probability: 0.8, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 2, max: 2, probability: 0.1, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0005, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.00001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000005, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
 
@@ -234,16 +234,16 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0xFFD700, numRolls: 50,
             itemPool: [
-                { type: "currency", subType: "coins", min: 1, max: 100, probability: 0.8, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 5, max: 5, probability: 0.1, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 1, max: 100, probability: 0.8, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 5, max: 5, probability: 0.1, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.15, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0001, rarityValue: 750000 },
-                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.000001, rarityValue: 900000 },
+                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.000001, rarityValue: 1700000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.001, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
 
@@ -257,15 +257,15 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x000000, numRolls: 10,
             itemPool: [
-                { type: "currency", subType: "coins", min: 100, max: 1000, probability: 0.35, rarityValue: 10 },
-                { type: "currency", subType: "gems", min: 50, max: 500, probability: 0.2, rarityValue: 25 },
+                { type: "currency", subType: "coins", min: 100, max: 1000, probability: 0.35, rarityValue: 0 },
+                { type: "currency", subType: "gems", min: 50, max: 500, probability: 0.2, rarityValue: 1000 },
                 { type: "loot_box_item", id: "common_loot_box", min: 25, max: 100, probability: 0.25, rarityValue: 100 },
                 { type: "loot_box_item", id: "rare_loot_box", min: 10, max: 50, probability: 0.14, rarityValue: 1000 },
                 { type: "loot_box_item", id: "epic_loot_box", min: 5, max: 20, probability: 0.049, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", min: 2, max: 10, probability: 0.019, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", min: 1, max: 3, probability: 0.001, rarityValue: 750000 },
-                { type: "loot_box_item", id: "gem_chest", min: 1, max: 3, probability: 0.0005, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "loot_box_item", id: "gem_chest", min: 1, max: 3, probability: 0.0005, rarityValue: 1200000 },
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
 
@@ -284,9 +284,9 @@ const config = {
                 { type: "loot_box_item", id: "epic_loot_box", min: 1, max: 3, probability: 0.2, rarityValue: 50000 },
                 { type: "loot_box_item", id: "legendary_loot_box", min: 1, max: 2, probability: 0.09, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0099, rarityValue: 750000 },
-                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.0001, rarityValue: 900000 },
+                { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.0001, rarityValue: 1700000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.00001, rarityValue: 500000 },
-                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 1000000 }
+                { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
 
@@ -300,7 +300,7 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x00FFFF, numRolls: 5,
             itemPool: [
-                { type: "currency", subType: "gems", min: 1, max: 10000, probability: 1, rarityValue: 25 }
+                { type: "currency", subType: "gems", min: 1, max: 10000, probability: 1, rarityValue: 1000 }
             ]
         },
 
@@ -314,9 +314,9 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0x800080, numRolls: 5,
             itemPool: [
-                { type: "charm_item", id: "coin_charm", probability: 0.9, rarityValue: 3000 },
-                { type: "charm_item", id: "xp_charm", probability: 0.09, rarityValue: 5000 },
-                { type: "charm_item", id: "gem_charm", probability: 0.01, rarityValue: 8000 }
+                { type: "charm_item", id: "coin_charm", probability: 0.9, rarityValue: 200001 },
+                { type: "charm_item", id: "xp_charm", probability: 0.09, rarityValue: 200001 },
+                { type: "charm_item", id: "gem_charm", probability: 0.01, rarityValue: 1200000 }
             ]
         },
 
