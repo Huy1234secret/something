@@ -123,13 +123,13 @@ const config = {
         },
         gems: {
             id: "gems", name: "Gems", type: "currency",
-            emoji: "<a:gem:1374405019918401597>", rarityValue: 0,
+            emoji: "<a:gem:1374405019918401597>", rarityValue: 1000,
             description: "A valuable currency used for special purchases and shop restocks."
         },
         robux: {                                     // Example extra currency
             id: "robux", name: "Robux", type: "currency",
             emoji: "<a:robux:1378395622683574353>",
-            rarityValue: 5_000,
+            rarityValue: 200001,
             description: "A premium-grade currency from another realm."
         },
 
@@ -227,7 +227,7 @@ const config = {
         "mythical_chest": {
             id: "mythical_chest", name: "Mythical Chest", type: "loot_box_item",
             directDropWeight: 0.00008,
-            emoji: "<:mythical:1385905307619950602>", rarityValue: 1000000,
+            emoji: "<:mythical:1385905307619950602>", rarityValue: 1200000,
             description: "A chest rumored to contain unimaginable riches.",
             basePrice: 80000, appearanceChanceInShop: 0.005, stockRangeShop: [10, 25],
             isRareForShopAlert: true,
@@ -250,7 +250,7 @@ const config = {
         "void_chest": {
             id: "void_chest", name: "Void Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:void:1385904203712696440>", rarityValue: 1500000,
+            emoji: "<:void:1385904203712696440>", rarityValue: 1700000,
             description: "A dark chest from beyond the known world.",
             basePrice: 999999, appearanceChanceInShop: 0.0001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -272,7 +272,7 @@ const config = {
         "inf_chest": {
             id: "inf_chest", name: "INF Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:inf:1385908034286518352>", rarityValue: 2000000,
+            emoji: "<:inf:1385908034286518352>", rarityValue: 3000000,
             description: "The ultimate chest with endless rewards.",
             basePrice: 0, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -293,7 +293,7 @@ const config = {
         "gem_chest": {
             id: "gem_chest", name: "Gem Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:gemchest:1385904250059624552>", rarityValue: 1000000,
+            emoji: "<:gemchest:1385904250059624552>", rarityValue: 1200000,
             description: "A chest filled with sparkling gems.",
             basePrice: 50000, appearanceChanceInShop: 0.00005, stockRangeShop: [1, 3],
             isRareForShopAlert: true,
@@ -324,7 +324,7 @@ const config = {
             id: "xp_charm", name: "XP Charm", type: "charm_item",
             directDropWeight: 0.0001,
             emoji: "<:xpcharm:1373574621311402074>",
-            rarityValue: 200000,
+            rarityValue: 200001,
             description: "A charm that boosts your XP gain per message.",
             basePrice: 4000, appearanceChanceInShop: 0.00025, stockRangeShop: [1, 3],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -335,7 +335,7 @@ const config = {
             id: "coin_charm", name: "Coin Charm", type: "charm_item",
             directDropWeight: 0.0006,
             emoji: "<:coincharm:1373574436342730782>",
-            rarityValue: 200000,
+            rarityValue: 200001,
             description: "A charm that boosts your coin earnings.",
             basePrice: 6000, appearanceChanceInShop: 0.0009, stockRangeShop: [1, 2],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -345,7 +345,7 @@ const config = {
             id: "gem_charm", name: "Gem Charm", type: "charm_item",
             directDropWeight: 0.00001,
             emoji: "<:gemcharm:1373574605310001184>",
-            rarityValue: 1000000,
+            rarityValue: 1200000,
             description: "A charm that increases your gem earnings from boxes.",
             basePrice: 10000, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -355,7 +355,7 @@ const config = {
         "cosmic_role_token": {
             id: "cosmic_role_token", name: "Cosmic Role Token", type: "cosmic_token",
             directDropWeight: 0.000001, isRareWeekendEligibleChatDrop: true,
-            emoji: "🌌", rarityValue: 1000000,
+            emoji: "🌌", rarityValue: 2400000,
             description: "An extremely rare token that grants a special cosmic role.",
             basePrice: 77777, appearanceChanceInShop: 0.0000001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -365,22 +365,22 @@ const config = {
 
         "discount_ticket_10": {
             id: "discount_ticket_10", name: "10% Discount Ticket", type: "item",
-            emoji: "<:copper10:1387285573177442457>", rarityValue: 0,
+            emoji: "<:copper10:1387285573177442457>", rarityValue: 2000,
             description: "Apply a 10% discount to a shop purchase."
         },
         "discount_ticket_25": {
             id: "discount_ticket_25", name: "25% Discount Ticket", type: "item",
-            emoji: "<silver25:1387285550997831720>", rarityValue: 0,
+            emoji: "<silver25:1387285550997831720>", rarityValue: 35000,
             description: "Apply a 25% discount to a shop purchase."
         },
         "discount_ticket_50": {
             id: "discount_ticket_50", name: "50% Discount Ticket", type: "item",
-            emoji: "<:golden50:1387285563052392488>", rarityValue: 0,
+            emoji: "<:golden50:1387285563052392488>", rarityValue: 300000,
             description: "Apply a 50% discount to a shop purchase."
         },
         "discount_ticket_100": {
             id: "discount_ticket_100", name: "100% Discount Ticket", type: "item",
-            emoji: "<:rainbow100:1387285530865176687>", rarityValue: 0,
+            emoji: "<:rainbow100:1387285530865176687>", rarityValue: 2000000,
             description: "Apply a 100% discount to a shop purchase."
         },
         "daily_skip_ticket": {
