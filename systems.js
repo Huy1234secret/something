@@ -1069,7 +1069,7 @@ this.db.prepare(`
         if (itemId === this.ROBUX_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const robuxResult = this.addRobux(userId, guildId, quantity, source);
             if (robuxResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1077,7 +1077,7 @@ this.db.prepare(`
         } else if (itemId === this.COINS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const coinResult = this.addCoins(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (coinResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1085,7 +1085,7 @@ this.db.prepare(`
         } else if (itemId === this.GEMS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const gemResult = this.addGems(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (gemResult.success) {
-                if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1096,12 +1096,12 @@ this.db.prepare(`
 
         if (effectiveItemType === this.itemTypes.CHARM && !isAdminSource) { // Auto-activate only if NOT admin source
             for (let i = 0; i < quantity; i++) { this.activateCharm(userId, guildId, { charmId: itemId, source: source }); }
-            if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
+            if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
             return { success: true, activated: true, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) activated immediately!` };
         } else { // This 'else' now handles normal items AND charms from admin sources (which get added to inventory)
             this._addToUserInventorySQL(userId, guildId, itemId, quantity, effectiveItemType);
             // For charms added to inventory by admin, ensure the message doesn't say "activated"
-            if (bpPts > 0) this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
+            if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
             if (effectiveItemType === this.itemTypes.CHARM && isAdminSource) {
                  return { success: true, activated: false, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) added to inventory.` };
             }

@@ -227,7 +227,7 @@ const config = {
         "mythical_chest": {
             id: "mythical_chest", name: "Mythical Chest", type: "loot_box_item",
             directDropWeight: 0.00008,
-            emoji: "<:mythical:1385905307619950602>", rarityValue: 750000,
+            emoji: "<:mythical:1385905307619950602>", rarityValue: 1000000,
             description: "A chest rumored to contain unimaginable riches.",
             basePrice: 80000, appearanceChanceInShop: 0.005, stockRangeShop: [10, 25],
             isRareForShopAlert: true,
@@ -250,7 +250,7 @@ const config = {
         "void_chest": {
             id: "void_chest", name: "Void Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:void:1385904203712696440>", rarityValue: 900000,
+            emoji: "<:void:1385904203712696440>", rarityValue: 1500000,
             description: "A dark chest from beyond the known world.",
             basePrice: 999999, appearanceChanceInShop: 0.0001, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -272,7 +272,7 @@ const config = {
         "inf_chest": {
             id: "inf_chest", name: "INF Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:inf:1385908034286518352>", rarityValue: 1000000,
+            emoji: "<:inf:1385908034286518352>", rarityValue: 2000000,
             description: "The ultimate chest with endless rewards.",
             basePrice: 0, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
             isRareForShopAlert: true,
@@ -293,7 +293,7 @@ const config = {
         "gem_chest": {
             id: "gem_chest", name: "Gem Chest", type: "loot_box_item",
             directDropWeight: 0,
-            emoji: "<:gemchest:1385904250059624552>", rarityValue: 500000,
+            emoji: "<:gemchest:1385904250059624552>", rarityValue: 1000000,
             description: "A chest filled with sparkling gems.",
             basePrice: 50000, appearanceChanceInShop: 0.00005, stockRangeShop: [1, 3],
             isRareForShopAlert: true,
@@ -324,7 +324,7 @@ const config = {
             id: "xp_charm", name: "XP Charm", type: "charm_item",
             directDropWeight: 0.0001,
             emoji: "<:xpcharm:1373574621311402074>",
-            rarityValue: 5000,
+            rarityValue: 200000,
             description: "A charm that boosts your XP gain per message.",
             basePrice: 4000, appearanceChanceInShop: 0.00025, stockRangeShop: [1, 3],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -335,7 +335,7 @@ const config = {
             id: "coin_charm", name: "Coin Charm", type: "charm_item",
             directDropWeight: 0.0006,
             emoji: "<:coincharm:1373574436342730782>",
-            rarityValue: 3000,
+            rarityValue: 200000,
             description: "A charm that boosts your coin earnings.",
             basePrice: 6000, appearanceChanceInShop: 0.0009, stockRangeShop: [1, 2],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -345,7 +345,7 @@ const config = {
             id: "gem_charm", name: "Gem Charm", type: "charm_item",
             directDropWeight: 0.00001,
             emoji: "<:gemcharm:1373574605310001184>",
-            rarityValue: 8000,
+            rarityValue: 1000000,
             description: "A charm that increases your gem earnings from boxes.",
             basePrice: 10000, appearanceChanceInShop: 0.00001, stockRangeShop: [1, 1],
             isRareForShopAlert: true, isAlertWorthyByIdShop: true,
@@ -385,7 +385,7 @@ const config = {
         },
         "daily_skip_ticket": {
             id: "daily_skip_ticket", name: "Daily Skip Ticket", type: "item",
-            emoji: "<:skipdailyticket:1389239150703673448>", rarityValue: 0,
+            emoji: "<:skipdailyticket:1389239150703673448>", rarityValue: 1000,
             description: "Skip the daily reward cooldown without spending gems."
         }
     },
