@@ -370,7 +370,7 @@ const config = {
         },
         "discount_ticket_25": {
             id: "discount_ticket_25", name: "25% Discount Ticket", type: "item",
-            emoji: "<silver25:1387285550997831720>", rarityValue: 35000,
+            emoji: "<:silver25:1387285550997831720>", rarityValue: 35000,
             description: "Apply a 25% discount to a shop purchase."
         },
         "discount_ticket_50": {
