@@ -1562,6 +1562,8 @@ function buildBattlePassEmbed(userId, guildId, client) {
     if (Date.now() > BATTLE_PASS_END) return buildBattlePassEndedEmbed();
     const progress = client.battlePass.getProgress(userId, guildId);
     const bar = '🟦'.repeat(Math.floor(progress.percent / 10)) + '⬜'.repeat(10 - Math.floor(progress.percent / 10));
+    const bpToNext = progress.level >= 100 ? 0 : Math.max(0, progress.needed - progress.progress);
+    const bpToNextDisplay = progress.level >= 100 ? 'Max Level Reached' : `${bpToNext.toLocaleString()} BP`;
     const systemsManager = client.levelSystem;
     const embed = new EmbedBuilder()
         .setColor(0xF39C12)
@@ -1578,6 +1580,7 @@ function buildBattlePassEmbed(userId, guildId, client) {
         }
         embed.addFields({ name: fieldName, value: fieldValue, inline: true });
     }
+    embed.addFields({ name: 'BP to Next Level', value: `\`${bpToNextDisplay}\`` });
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
     embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by chatting, opening loot boxes, and claiming daily rewards. ${BATTLE_TOKEN_EMOJI} BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 ${BATTLE_TOKEN_EMOJI} BP XP).` });
     const claimDisabled = progress.level <= progress.lastClaim;
