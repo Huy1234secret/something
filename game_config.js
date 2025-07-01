@@ -449,6 +449,27 @@ function populateItemDetailsInPools(cfg) {
     }
 }
 
+// Ensure every entry inside itemPool arrays uses the rarityValue from the
+// canonical item definition. This keeps the pools in sync if an item's
+// rarity changes in the future.
+function syncItemPoolRarityValues(cfg) {
+    if (!cfg.items) return;
+    for (const itemKey of Object.keys(cfg.items)) {
+        const item = cfg.items[itemKey];
+        if (!item.itemPool || !Array.isArray(item.itemPool)) continue;
+
+        item.itemPool.forEach(entry => {
+            let referencedId = entry.id || entry.subType;
+            if (!referencedId) return;
+            const refItem = cfg.items[referencedId];
+            if (refItem && typeof refItem.rarityValue !== 'undefined') {
+                entry.rarityValue = refItem.rarityValue;
+            }
+        });
+    }
+}
+
+syncItemPoolRarityValues(config);
 populateItemDetailsInPools(config);
 
 module.exports = config;
