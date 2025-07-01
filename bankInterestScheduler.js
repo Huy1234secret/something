@@ -40,7 +40,6 @@ const BANK_TIERS = [
 // Export so other files (e.g. bank.js / systems.js) can `require()` it
 module.exports.BANK_TIERS = BANK_TIERS;
 
-const { INVENTORY_COIN_CAP, INVENTORY_GEM_CAP } = require('./systems.js');
 
 /* ------------------------------------------------------------------ */
 /*  2.  Public entry – call once after the bot is ready                */
@@ -112,21 +111,6 @@ async function applyInterest(client, systemsManager) {
         let newCoins = u.coins + addCoins;
         let newGems  = u.gems  + addGems;
 
-        const coinCap = systemsManager.gameConfig.globalSettings.INVENTORY_COIN_CAP || INVENTORY_COIN_CAP;
-        const gemCap  = systemsManager.gameConfig.globalSettings.INVENTORY_GEM_CAP  || INVENTORY_GEM_CAP;
-
-        let cappedCoins = false,
-            cappedGems  = false;
-
-        if (newCoins > coinCap) {
-            newCoins    = coinCap;
-            cappedCoins = true;
-        }
-        if (newGems > gemCap) {
-            newGems   = gemCap;
-            cappedGems = true;
-        }
-
         update.run(newCoins, newGems, now, u.userId, u.guildId);
 
         /* ---- DM the user a polite summary -------------------------------- */
@@ -138,10 +122,6 @@ async function applyInterest(client, systemsManager) {
             let msg  = `🏦 **Daily Bank Interest** – ${tier.name} (+${ratePct}%):\n`;
             msg     += `${coinEmoji} **+${addCoins.toLocaleString()}** coins to your balance\n`;
             msg     += `${gemEmoji} **+${addGems.toLocaleString()}** gems to your balance`;
-
-            if (cappedCoins || cappedGems)
-                msg +=
-                    '\n⚠️ Your inventory was full; some interest was lost.';
 
             await dm.send(msg).catch(() => {});
         } catch {
