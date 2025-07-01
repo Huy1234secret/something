@@ -24,9 +24,6 @@ User.prototype.send = function (...args) {
 const {
     SystemsManager,
     BANK_TIERS, // Used in bank button handler
-    INVENTORY_COIN_CAP, // Used in bank/inventory embeds
-    INVENTORY_GEM_CAP, // Used in bank/inventory embeds
-    INVENTORY_ROBUX_CAP, // New: Used in bank/inventory embeds
     LEVEL_ROLES, // Used by SystemsManager, not directly here beyond config
     WEEKEND_COIN_MULTIPLIER, // Used for setting WEEKEND_MULTIPLIERS
     WEEKEND_GEM_MULTIPLIER,  // Used for setting WEEKEND_MULTIPLIERS
@@ -91,6 +88,7 @@ const fsSync = require('node:fs');
 const path = require('node:path');
 const { restoreDataFromFiles } = require('./utils/dataRestorer.js'); // Import the new restore function
 const BattlePassManager = require('./utils/battlePassManager.js');
+const { formatNumber } = require('./utils/numberFormatter.js');
 
 const commandsPath = path.join(__dirname, normalizePath('commands'));
 const packageJson = require('./package.json');
@@ -1690,8 +1688,6 @@ async function buildBankEmbed(user, guildId, systemsManager) {
     const coinEmoji    = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
     const gemEmoji     = systemsManager.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
 
-    const inventoryCoinCap = systemsManager.gameConfig.globalSettings.INVENTORY_COIN_CAP || INVENTORY_COIN_CAP;
-    const inventoryGemCap  = systemsManager.gameConfig.globalSettings.INVENTORY_GEM_CAP  || INVENTORY_GEM_CAP;
 
     /* ------------------------------------------------------------------
      * 2.  NEW – Calculate interest figures
@@ -1719,14 +1715,14 @@ const nextInterestTs = baseTs + ONE_DAY_MS;
         .addFields(
             {
                 name: '💰 Your Inventory',
-                value: `${coinEmoji} Coins: \`${balance.coins.toLocaleString()} / ${inventoryCoinCap.toLocaleString()}\`\n` +
-                       `${gemEmoji} Gems:  \`${balance.gems.toLocaleString()} / ${inventoryGemCap.toLocaleString()}\``,
+                value: `${coinEmoji} Coins: \`${formatNumber(balance.coins)}\`\n` +
+                       `${gemEmoji} Gems:  \`${formatNumber(balance.gems)}\``,
                 inline: false
             },
             {
                 name: '🏛️ Your Bank',
-                value: `${coinEmoji} Coins: \`${bankInfo.bankCoins.toLocaleString()} / ${bankCapacity.coinCap.toLocaleString()}\`\n` +
-                       `${gemEmoji} Gems:  \`${bankInfo.bankGems.toLocaleString()} / ${bankCapacity.gemCap.toLocaleString()}\``,
+                value: `${coinEmoji} Coins: \`${formatNumber(bankInfo.bankCoins)}\`\n` +
+                       `${gemEmoji} Gems:  \`${formatNumber(bankInfo.bankGems)}\``,
                 inline: false
             }
         )
@@ -1735,7 +1731,7 @@ const nextInterestTs = baseTs + ONE_DAY_MS;
             name: '📈 Daily Interest',
             value:
                 `Rate: **${interestRate}%**\n` +
-                `Est. Credit: **+${coinInterestGain.toLocaleString()}** ${coinEmoji}, **+${gemInterestGain.toLocaleString()}** ${gemEmoji}\n` +
+                `Est. Credit: **+${formatNumber(coinInterestGain)}** ${coinEmoji}, **+${formatNumber(gemInterestGain)}** ${gemEmoji}\n` +
                 `Next Credit: <t:${Math.floor(nextInterestTs / 1000)}:R>`,
             inline: false
         })
@@ -1750,10 +1746,10 @@ const nextInterestTs = baseTs + ONE_DAY_MS;
         const nextTierStats = BANK_TIERS_CFG[nextTierInfo.nextTier];
         embed.addFields({
             name: `✨ Upgrade to Tier ${nextTierInfo.nextTier}`,
-            value: `Cost: **${nextTierInfo.upgradeCostCoins.toLocaleString()}** ${coinEmoji}, ` +
-                   `**${nextTierInfo.upgradeCostGems.toLocaleString()}** ${gemEmoji}\n` +
-                   `New Capacity: **${nextTierStats.coinCap.toLocaleString()}** coins / ` +
-                   `**${nextTierStats.gemCap.toLocaleString()}** gems`,
+            value: `Cost: **${formatNumber(nextTierInfo.upgradeCostCoins)}** ${coinEmoji}, ` +
+                   `**${formatNumber(nextTierInfo.upgradeCostGems)}** ${gemEmoji}\n` +
+                   `New Capacity: **${formatNumber(nextTierStats.coinCap)}** coins / ` +
+                   `**${formatNumber(nextTierStats.gemCap)}** gems`,
             inline: false
         });
     } else {
@@ -1782,9 +1778,6 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
         const balance = systemsManager.getBalance(user.id, guildId);
         const categorizedInventory = systemsManager.getUserInventory(user.id, guildId); // This should already be filtered
         const activeCharmInstances = systemsManager.getActiveCharms(user.id, guildId);
-        const inventoryCoinCap = systemsManager.gameConfig.globalSettings.INVENTORY_COIN_CAP || INVENTORY_COIN_CAP;
-        const inventoryGemCap = systemsManager.gameConfig.globalSettings.INVENTORY_GEM_CAP || INVENTORY_GEM_CAP;
-        const inventoryRobuxCap = systemsManager.gameConfig.globalSettings.INVENTORY_ROBUX_CAP || INVENTORY_ROBUX_CAP;
 
         const coinEmoji = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
         const gemEmoji = systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
@@ -1862,12 +1855,12 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
 
             embed.setDescription("Your current currency holdings.")
                  .addFields(
-                    { name: `${coinEmoji} Wallet Coins`, value: `\`${balance.coins.toLocaleString()} / ${inventoryCoinCap.toLocaleString()}\``, inline: true },
-                    { name: `${gemEmoji} Wallet Gems`, value: `\`${balance.gems.toLocaleString()} / ${inventoryGemCap.toLocaleString()}\``, inline: true },
-                    { name: `${robuxEmoji} Wallet Robux`, value: `\`${balance.robux.toLocaleString()} / ${inventoryRobuxCap.toLocaleString()}\``, inline: true }, // New
+                    { name: `${coinEmoji} Wallet Coins`, value: `\`${formatNumber(balance.coins)}\``, inline: true },
+                    { name: `${gemEmoji} Wallet Gems`, value: `\`${formatNumber(balance.gems)}\``, inline: true },
+                    { name: `${robuxEmoji} Wallet Robux`, value: `\`${formatNumber(balance.robux)}\``, inline: true },
                     { name: '\u200B', value: '\u200B', inline: false }, // Spacer
-                    { name: `🏛️ Bank Coins`, value: `\`${bankInfo.bankCoins.toLocaleString()} / ${bankCapacity.coinCap.toLocaleString()}\``, inline: true },
-                    { name: `🏛️ Bank Gems`, value: `\`${bankInfo.bankGems.toLocaleString()} / ${bankCapacity.gemCap.toLocaleString()}\``, inline: true },
+                    { name: `🏛️ Bank Coins`, value: `\`${formatNumber(bankInfo.bankCoins)}\``, inline: true },
+                    { name: `🏛️ Bank Gems`, value: `\`${formatNumber(bankInfo.bankGems)}\``, inline: true },
                     // Robux not bankable, so no bank display for it yet
                     { name: `🏦 Bank Tier`, value: `\`${bankInfo.bankTier}\``, inline: true }
                  );

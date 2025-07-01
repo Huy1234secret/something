@@ -4,6 +4,7 @@ const { EmbedBuilder } = require('discord.js');
 
 const gameConfig = require('./game_config.js');
 const { ShopManager, SHOP_ITEM_TYPES, CHARM_TYPES: CHARM_TYPES_FROM_SHOPMANAGER } = require('./shopManager.js');
+const { formatNumber } = require('./utils/numberFormatter.js');
 
 const BASE_COINS_PER_MESSAGE = gameConfig.globalSettings?.BASE_COINS_PER_MESSAGE || [1, 3];
 const BASE_XP_PER_MESSAGE = gameConfig.globalSettings?.BASE_XP_PER_MESSAGE || 1;
@@ -20,9 +21,9 @@ const LEVEL_ROLES = gameConfig.globalSettings?.LEVEL_ROLES || {
     "35": "1374410304456495296", "40": "1372583187653595297",
 };
 
-const INVENTORY_COIN_CAP = gameConfig.globalSettings?.INVENTORY_COIN_CAP || 1000000;
-const INVENTORY_GEM_CAP = gameConfig.globalSettings?.INVENTORY_GEM_CAP || 100000;
-const INVENTORY_ROBUX_CAP = gameConfig.globalSettings?.INVENTORY_ROBUX_CAP || 400;
+const INVENTORY_COIN_CAP = Infinity;
+const INVENTORY_GEM_CAP = Infinity;
+const INVENTORY_ROBUX_CAP = Infinity;
 
 const ROLE_PERKS = {
     '1374410303931945020': { gemPerMessage: 1, discountPercent: 8, xpPerMessage: 3, coinMultiplier: 2.0, gemMultiplier: 1.2 },
@@ -428,10 +429,7 @@ class SystemsManager {
         let newGems = user.gems + finalAmount;
         let actualAdded = finalAmount;
 
-        if (newGems > INVENTORY_GEM_CAP) {
-            actualAdded = INVENTORY_GEM_CAP - user.gems; newGems = INVENTORY_GEM_CAP;
-            if (actualAdded < 0) actualAdded = 0;
-        } else if (newGems < 0) {
+        if (newGems < 0) {
             actualAdded = -user.gems; newGems = 0;
         }
         
@@ -451,11 +449,7 @@ class SystemsManager {
         let newRobux = user.robux + finalAmount;
         let actualAdded = finalAmount;
 
-        if (newRobux > INVENTORY_ROBUX_CAP) {
-            actualAdded = INVENTORY_ROBUX_CAP - user.robux;
-            newRobux = INVENTORY_ROBUX_CAP;
-            if (actualAdded < 0) actualAdded = 0;
-        } else if (newRobux < 0) {
+        if (newRobux < 0) {
             actualAdded = -user.robux;
             newRobux = 0;
         }
@@ -1006,29 +1000,25 @@ this.db.prepare(`
             const balance = this.getBalance(userId, guildId);
             const bankBalance = this.getBankBalance(userId, guildId);
             let currencyEmoji = '💰';
-            let currencyCap = 0;
             let currentWallet = 0;
             let currentBank = 0;
             let bankCap = 0;
 
             if (itemId === this.COINS_ID || itemConfig.id === this.COINS_ID) {
                 currencyEmoji = this.coinEmoji;
-                currencyCap = INVENTORY_COIN_CAP;
                 currentWallet = balance.coins;
                 currentBank = bankBalance.bankCoins;
                 bankCap = BANK_TIERS[bankBalance.bankTier]?.coinCap || 0;
             } else if (itemId === this.GEMS_ID || itemConfig.id === this.GEMS_ID) {
                 currencyEmoji = this.gemEmoji;
-                currencyCap = INVENTORY_GEM_CAP;
                 currentWallet = balance.gems;
                 currentBank = bankBalance.bankGems;
                 bankCap = BANK_TIERS[bankBalance.bankTier]?.gemCap || 0;
             } else if (itemId === this.ROBUX_ID || itemConfig.id === this.ROBUX_ID) {
                 currencyEmoji = this.robuxEmoji;
-                currencyCap = INVENTORY_ROBUX_CAP;
                 currentWallet = balance.robux;
             }
-            embed.addFields({ name: 'Balance', value: `Wallet: \`${currentWallet.toLocaleString()} / ${currencyCap.toLocaleString()}\` ${currencyEmoji}${ (itemId === this.COINS_ID || itemId === this.GEMS_ID) ? `\nBank: \`${currentBank.toLocaleString()} / ${bankCap.toLocaleString()}\` ${currencyEmoji}` : ''}`, inline: false });
+            embed.addFields({ name: 'Balance', value: `Wallet: \`${formatNumber(currentWallet)}\` ${currencyEmoji}${ (itemId === this.COINS_ID || itemId === this.GEMS_ID) ? `\nBank: \`${formatNumber(currentBank)}\` ${currencyEmoji}` : ''}`, inline: false });
         }
         const waysToObtain = await this._getWaysToObtainFormatted(itemId, itemConfig, userId, guildId);
         if (waysToObtain.length > 0) embed.addFields({ name: '🗺️ Ways to Obtain', value: waysToObtain.join('\n'), inline: false });
@@ -1377,23 +1367,23 @@ this.db.prepare(`
     getBankCapacity(userId, guildId) { const user = this.getUser(userId, guildId); const tier = user.bankTier || 0; const tierInfo = BANK_TIERS[tier] || BANK_TIERS[0]; return { coinCap: tierInfo.coinCap, gemCap: tierInfo.gemCap }; }
 
     depositToBank(userId, guildId, currencyType, amount) {
-        const user = this.getUser(userId, guildId); const bankCapacity = this.getBankCapacity(userId, guildId);
+        const user = this.getUser(userId, guildId);
         const guildEmojis = this.getGuildSettings(guildId); let success = false; let message = "";
         if (currencyType === this.COINS_ID) {
             if (user.coins < amount) message = `❌ Not enough coins. You have ${user.coins.toLocaleString()} ${guildEmojis.coinEmoji}.`;
             else if (amount <=0 ) message = "❌ Deposit amount must be positive.";
             else {
-                const spaceAvailable = bankCapacity.coinCap - user.bankCoins; const amountToDeposit = Math.min(amount, spaceAvailable);
-                if (amountToDeposit <= 0 && amount > 0) message = `❌ Bank coin storage is full.`;
-                else { this.updateUser(userId, guildId, { coins: user.coins - amountToDeposit, bankCoins: user.bankCoins + amountToDeposit }); message = `✅ Deposited ${amountToDeposit.toLocaleString()} ${guildEmojis.coinEmoji}.`; if (amountToDeposit < amount) message += ` (Bank was full)`; success = true; }
+                this.updateUser(userId, guildId, { coins: user.coins - amount, bankCoins: user.bankCoins + amount });
+                message = `✅ Deposited ${formatNumber(amount)} ${guildEmojis.coinEmoji}.`;
+                success = true;
             }
         } else if (currencyType === this.GEMS_ID) {
             if (user.gems < amount) message = `❌ Not enough gems. You have ${user.gems.toLocaleString()} ${guildEmojis.gemEmoji}.`;
             else if (amount <=0 ) message = "❌ Deposit amount must be positive.";
             else {
-                const spaceAvailable = bankCapacity.gemCap - user.bankGems; const amountToDeposit = Math.min(amount, spaceAvailable);
-                 if (amountToDeposit <= 0 && amount > 0) message = `❌ Bank gem storage is full.`;
-                else { this.updateUser(userId, guildId, { gems: user.gems - amountToDeposit, bankGems: user.bankGems + amountToDeposit }); message = `✅ Deposited ${amountToDeposit.toLocaleString()} ${guildEmojis.gemEmoji}.`; if (amountToDeposit < amount) message += ` (Bank was full)`; success = true; }
+                this.updateUser(userId, guildId, { gems: user.gems - amount, bankGems: user.bankGems + amount });
+                message = `✅ Deposited ${formatNumber(amount)} ${guildEmojis.gemEmoji}.`;
+                success = true;
             }
         } else message = "❌ Invalid currency type.";
         return { success, message };
@@ -1406,17 +1396,17 @@ this.db.prepare(`
             if (user.bankCoins < amount) message = `❌ Not enough coins in bank. You have ${user.bankCoins.toLocaleString()} ${guildEmojis.coinEmoji}.`;
             else if (amount <=0 ) message = "❌ Withdraw amount must be positive.";
             else {
-                const spaceAvailable = INVENTORY_COIN_CAP - user.coins; const amountToWithdraw = Math.min(amount, spaceAvailable);
-                if (amountToWithdraw <= 0 && amount > 0) message = `❌ Inventory coin storage is full.`;
-                else { this.updateUser(userId, guildId, { bankCoins: user.bankCoins - amountToWithdraw, coins: user.coins + amountToWithdraw }); message = `✅ Withdrew ${amountToWithdraw.toLocaleString()} ${guildEmojis.coinEmoji}.`; if (amountToWithdraw < amount) message += ` (Inventory was full)`; success = true; }
+                this.updateUser(userId, guildId, { bankCoins: user.bankCoins - amount, coins: user.coins + amount });
+                message = `✅ Withdrew ${formatNumber(amount)} ${guildEmojis.coinEmoji}.`;
+                success = true;
             }
         } else if (currencyType === this.GEMS_ID) {
             if (user.bankGems < amount) message = `❌ Not enough gems in bank. You have ${user.bankGems.toLocaleString()} ${guildEmojis.gemEmoji}.`;
             else if (amount <=0 ) message = "❌ Withdraw amount must be positive.";
             else {
-                const spaceAvailable = INVENTORY_GEM_CAP - user.gems; const amountToWithdraw = Math.min(amount, spaceAvailable);
-                if (amountToWithdraw <= 0 && amount > 0) message = `❌ Inventory gem storage is full.`;
-                else { this.updateUser(userId, guildId, { bankGems: user.bankGems - amountToWithdraw, gems: user.gems + amountToWithdraw }); message = `✅ Withdrew ${amountToWithdraw.toLocaleString()} ${guildEmojis.gemEmoji}.`; if (amountToWithdraw < amount) message += ` (Inventory was full)`; success = true; }
+                this.updateUser(userId, guildId, { bankGems: user.bankGems - amount, gems: user.gems + amount });
+                message = `✅ Withdrew ${formatNumber(amount)} ${guildEmojis.gemEmoji}.`;
+                success = true;
             }
         } else message = "❌ Invalid currency type.";
         return { success, message };
@@ -1895,8 +1885,7 @@ this.db.prepare(`
             }
         }
         finalAmount = Math.round(finalAmount); let newCoins = user.coins + finalAmount; let actualAdded = finalAmount;
-        if (newCoins > INVENTORY_COIN_CAP) { actualAdded = INVENTORY_COIN_CAP - user.coins; newCoins = INVENTORY_COIN_CAP; if (actualAdded < 0) actualAdded = 0; }
-        else if (newCoins < 0) { actualAdded = -user.coins; newCoins = 0; }
+        if (newCoins < 0) { actualAdded = -user.coins; newCoins = 0; }
         let totalCoinsEarnedUpdate = {};
         if (actualAdded > 0 && source !== "admin_command" && !source.startsWith("bank_") && source !== "shop_restock_refund") {
             totalCoinsEarnedUpdate = { totalCoinsEarned: (user.totalCoinsEarned || 0) + actualAdded };
