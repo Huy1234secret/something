@@ -1160,10 +1160,6 @@ async function scheduleVoiceActivityRewards(client) {
             try {
                 const result = await client.levelSystem.handleVoiceStateUpdate(voiceState, voiceState, checkAndAwardSpecialRole, WEEKEND_MULTIPLIERS);
 
-                if (result && result.battlePassPoints && result.battlePassPoints > 0) {
-                    logToBotLogChannel(`${userData.member.user.tag} has gain ${result.battlePassPoints} in voicechat`).catch(() => {});
-                }
-
                 if (result && result.droppedItem) {
                     const { droppedItem, config, shouldAnnounce, grantedSpecialRole } = result;
                     const guildForVoice = userData.member.guild;
