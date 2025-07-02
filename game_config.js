@@ -413,7 +413,7 @@ const config = {
             name: "Puzzle Champion 2025",
             emoji: "<:pccbdage:1389237940353241098>",
             obtainment: "Be the first to solve all puzzle in Puzzle Competiton 2025",
-            type: "limited - obtainable",
+            type: "limited - unobtainable",
             perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1",
             boosts: { coinMultiplier: 2.0, gemMultiplier: 1.25, xpPerMessage: 1 }
         }
