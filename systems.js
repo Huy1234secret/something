@@ -1609,15 +1609,18 @@ this.db.prepare(`
                     const coinsEarned = Math.floor(Math.random() * (VOICE_COIN_PER_INTERVAL[1] - VOICE_COIN_PER_INTERVAL[0] + 1)) + VOICE_COIN_PER_INTERVAL[0];
                     if (coinsEarned > 0) this.addCoins(userId, guildId, coinsEarned, "voice_activity", effectiveWeekendMultipliers);
                 }
+
+                let battlePassPoints = 0;
                 if (this.client && this.client.battlePass) {
                     const minutes = VOICE_ACTIVITY_INTERVAL_MS / 60000;
                     const pts = (Math.floor(Math.random() * 31) + 30) * minutes;
                     this.client.battlePass.addPoints(userId, guildId, pts);
+                    battlePassPoints = pts;
                 }
                 // Removed luck-based voice drop chance calculation
                 const baseVoiceDropChance = this.gameConfig.globalSettings.VOICE_DROP_BASE_CHANCE;
                 if (Math.random() < baseVoiceDropChance) { // Simplified: just use base chance
-                    const chosenDropSpec = this._performWeightedRandomPick(this.gameConfig.directChatDropTable, 'directDropWeight'); 
+                    const chosenDropSpec = this._performWeightedRandomPick(this.gameConfig.directChatDropTable, 'directDropWeight');
                     if (chosenDropSpec && chosenDropSpec.itemId) {
                         const finalVoiceDropItem = this._getItemMasterProperty(chosenDropSpec.itemId, null);
                         if (finalVoiceDropItem) {
@@ -1628,11 +1631,12 @@ this.db.prepare(`
                             const shouldAnnounce = itemSpecificAlertSetting.enableAlert && ((userGlobalAlertSettings.alertRarityThreshold > 0 && itemRarityValue >= userGlobalAlertSettings.alertRarityThreshold) || finalVoiceDropItem.id === this.COSMIC_ROLE_TOKEN_ID);
                             if (grantedSpecialRole && checkAndAwardSpecialRoleFn) { try { await checkAndAwardSpecialRoleFn(userData.member, `receiving a ${finalVoiceDropItem.name} from voice activity`, finalVoiceDropItem.name); } catch (e) { console.error("Error in checkAndAwardSpecialRoleFn from voice drop:", e); } }
                             userData.lastRewardTimestamp = now; this.activeVoiceUsers.set(voiceStateKey, userData);
-                            return { droppedItem: finalVoiceDropItem, config: finalVoiceDropItem, shouldAnnounce, grantedSpecialRole, source: 'voice' };
+                            return { droppedItem: finalVoiceDropItem, config: finalVoiceDropItem, shouldAnnounce, grantedSpecialRole, source: 'voice', battlePassPoints };
                         }
                     }
                 }
                 userData.lastRewardTimestamp = now; this.activeVoiceUsers.set(voiceStateKey, userData);
+                return { battlePassPoints };
             }
         }
         return null;
