@@ -83,6 +83,14 @@ const ITEM_IDS = {
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
 };
 
+const BLOCKED_USE_ITEM_IDS = new Set([
+    ITEM_IDS.DAILY_SKIP_TICKET,
+    ITEM_IDS.DISCOUNT_10,
+    ITEM_IDS.DISCOUNT_25,
+    ITEM_IDS.DISCOUNT_50,
+    ITEM_IDS.DISCOUNT_100,
+]);
+
 const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -138,7 +146,6 @@ const LOOTBOX_DROP_CHANNEL_ID = process.env.LOOTBOX_DROP_CHANNEL_ID;
 const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
-const PUZZLE_ANNOUNCEMENT_CHANNEL_ID = process.env.PUZZLE_ANNOUNCEMENT_CHANNEL_ID || WEEKEND_ANNOUNCEMENT_CHANNEL_ID;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
@@ -201,8 +208,6 @@ let WEEKEND_BOOST_ACTIVE = false;
 let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
-// Flag to disable the secret puzzle once completed
-let PUZZLE_COMPLETED = false;
 
 function toWeekendTZ(date) {
     return new Date(date.getTime() + WEEKEND_TZ_OFFSET_HOURS * 60 * 60 * 1000);
@@ -347,7 +352,6 @@ try {
 client.commands = new Collection();
 client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
-client.SCAVENGER_JOIN_ENABLED = true;
 
 let embedBuildingSessions = new Map();
 let inventoryInteractionTimeouts = new Map();
@@ -1135,42 +1139,6 @@ async function scheduleDailyReadyNotifications(client) {
     setInterval(checkReady, DAILY_READY_CHECK_INTERVAL_MS);
 }
 
-async function schedulePuzzleAnnouncement(client) {
-    console.log("[Puzzle Announcement Scheduler] Scheduling puzzle announcement...");
-    const targetTimestamp = BATTLE_PASS_START;
-    const sendAnnouncement = async () => {
-        try {
-            const ch = await client.channels.fetch(PUZZLE_ANNOUNCEMENT_CHANNEL_ID).catch(() => null);
-            if (ch?.isTextBased?.()) {
-                const embed = new EmbedBuilder()
-                    .setColor(0x3498DB)
-                    .setTitle('HEY!')
-                    .setDescription(
-                        'Thought the scavenger hunt ended peacefully? Think again. \uD83E\uDD29\n' +
-                        'The real puzzle starts now\u2014and the clock is already ticking. \u23F0\n\n' +
-                        'I launch every quest before the first clue appears, yet vanish the instant your search is underway.\n' +
-                        'Remove my head and you flirt with fault; drop my tail and you\u2019re tucked within.\n' +
-                        'Add two letters and I become the spark that sets things in motion.\n' +
-                        'Name me.\n\nGood luck, players! \uD83D\uDE80'
-                    )
-                    .setFooter({ text: 'Bot never know you use command unless you use a prefix' });
-                await ch.send({ content: '<@&1389139331272409110>', embeds: [embed] }).catch(console.error);
-                client.SCAVENGER_JOIN_ENABLED = false;
-            } else {
-                console.warn(`[PuzzleAnnouncement] Channel ${PUZZLE_ANNOUNCEMENT_CHANNEL_ID} not found or not text-based.`);
-            }
-        } catch (e) {
-            console.error('[PuzzleAnnouncement] Failed to send announcement:', e);
-        }
-    };
-
-    const delay = targetTimestamp - Date.now();
-    if (delay <= 0) {
-        await sendAnnouncement();
-    } else {
-        setTimeout(sendAnnouncement, delay);
-    }
-}
 
 async function scheduleBattlePassBadgeUpdate(client) {
     const updateBadges = () => {
@@ -2247,7 +2215,6 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
-schedulePuzzleAnnouncement(client);
 scheduleBattlePassBadgeUpdate(client);
 
     // Config checks
@@ -2285,88 +2252,7 @@ client.on('messageCreate', async message => {
     }
     if (!member) return; // If still no member, cannot proceed
 
-    const step1Role = '1389139316399144961';
-    const step2Role = '1389139329762332682';
-    const step3Role = '1389139330517434378';
-    const step4Role = '1389139330852978698';
 
-    const content = message.content.trim();
-
-    if (!PUZZLE_COMPLETED && content === '.begin') {
-        if (!member.roles.cache.has(step1Role) &&
-            !member.roles.cache.has(step2Role) &&
-            !member.roles.cache.has(step3Role) &&
-            !member.roles.cache.has(step4Role) &&
-            !member.roles.cache.has('1389139331272409110') &&
-            !member.roles.cache.has('1389139332064870431')) {
-            const embed = new EmbedBuilder()
-                .setColor(0x2f3136)
-                .setTitle('SECRET')
-                .setDescription('==gCkVnYuZXdPByawdkCsAHbxNWblVmRKogLnV3ZgIndvJ3aqBScw9mc0NGI5BXapByavFXaslWd2hHIo5WbgwiajJGchBiI6h3YnlmcgEmegonc6VkIgEXepVGbwVWepNGIphmZgEXayR3cgsTZ1pnYm9GZhdHIhVGIoZ2blBScpZXb49WYpBichVHbgIHb0Bydr1mRg4CchpHetdWagMXa1R3cgI3b1pXal1GclRXcgIndlR3YgEmbpRWdgQXbnh3bzh3dzBiavBya4lWZmlGegsGcnByc0BiYnVHInlmcvtWYg4GI3VWdyBSY5NnY5VWYgI3dlRnegYndsRXdjBidyhGZ15EIuIGcpxGerJWYtBCZ6dGItBnclZWexZmdlJGIrR3bltGZnVnc2BCZxpXalh3c6VXdyhGI5B3ZtVGchBScilWdgk3brBCL5FXd4ByZ69GbulmcgEHepBCazlHIy9kCKwiey9WZxlHIhRncpZ2atV2S')
-                .setFooter({ text: 'who is the last person in this letter?' });
-            await message.channel.send({ embeds: [embed] }).catch(() => {});
-            await member.roles.add(step1Role).catch(e => console.warn('Failed to add role step1:', e));
-        }
-        return;
-    }
-
-    if (!PUZZLE_COMPLETED && content === '.Curator' && member.roles.cache.has(step1Role)) {
-        const embed = new EmbedBuilder()
-            .setColor(0x2f3136)
-            .setDescription('https://www.youware.com/project/dk9npng257')
-            .setFooter({ text: 'Well done, your next mission is inside the link, tell me the final MASTER code' });
-        await message.channel.send({ embeds: [embed] }).catch(() => {});
-        await member.roles.add(step2Role).catch(e => console.warn('Failed to add role step2:', e));
-        await member.roles.remove(step1Role).catch(() => {});
-        return;
-    }
-
-    if (!PUZZLE_COMPLETED && content === '.1987shadow317' && member.roles.cache.has(step2Role)) {
-        const embed = new EmbedBuilder()
-            .setColor(0x2f3136)
-            .setTitle('Ready for your finale?')
-            .setDescription('https://www.youware.com/project/xdht2k7u44')
-            .setFooter({ text: 'decrypt it and tell us the final word' });
-        await message.channel.send({ embeds: [embed] }).catch(() => {});
-        await member.roles.add(step3Role).catch(e => console.warn('Failed to add role step3:', e));
-        await member.roles.remove(step2Role).catch(() => {});
-        return;
-    }
-
-    if (!PUZZLE_COMPLETED && content === '.entropy' && member.roles.cache.has(step3Role)) {
-        await member.roles.add(step4Role).catch(e => console.warn('Failed to add role step4:', e));
-        await member.roles.remove(step3Role).catch(() => {});
-        await message.channel.send('hey what is 101 + 11?').catch(() => {});
-        return;
-    }
-
-    if (!PUZZLE_COMPLETED && content === '.1000' && member.roles.cache.has(step4Role)) {
-        const announceChannel = await client.channels.fetch('1372572234949853367').catch(() => null);
-        if (announceChannel && announceChannel.isTextBased()) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFFD700)
-                .setTitle('🎉 Congratulations!')
-                .setDescription(`Give it up for <@${member.id}> for completing the secret quest!`)
-                .setTimestamp();
-            await announceChannel.send({ content: '@here', embeds: [embed] }).catch(() => {});
-        }
-
-        const champ = client.levelSystem.getAllBadges().puzzle_champion_2025;
-        if (champ) {
-            const res = client.levelSystem.awardBadge(member.id, message.guild.id, champ.id);
-            if (res.success) {
-                const dmEmbed = new EmbedBuilder()
-                    .setColor(0xF1C40F)
-                    .setTitle('CONGRATULATION')
-                    .setDescription(`hey <@${member.id}> you have obtained ${champ.name} ${champ.emoji} badge!`)
-                    .addFields({ name: 'perk gained', value: champ.perk });
-                await member.send({ embeds: [dmEmbed] }).catch(() => {});
-                client.levelSystem.gameConfig.badges.puzzle_champion_2025.type = 'limited - unobtainable';
-            }
-        }
-        PUZZLE_COMPLETED = true;
-        return;
-    }
 
     // Award special role on message send chance
     await checkAndAwardSpecialRole(member, 'sending a message');
@@ -2587,9 +2473,11 @@ client.on('interactionCreate', async interaction => {
             if (commandName === 'use-item' && focusedValue.name === 'item') {
                 const userInventoryCategorized = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
                 const usableItems = [
-                    ...userInventoryCategorized.generalItems, ...userInventoryCategorized.lootBoxes,
-                    ...userInventoryCategorized.cosmicTokens, ...userInventoryCategorized.charms
-                ];
+                    ...userInventoryCategorized.generalItems,
+                    ...userInventoryCategorized.lootBoxes,
+                    ...userInventoryCategorized.cosmicTokens,
+                    ...userInventoryCategorized.charms
+                ].filter(it => !BLOCKED_USE_ITEM_IDS.has(it.itemId));
                 choices = usableItems
                     .filter(item => item.name.toLowerCase().includes(searchTerm) || item.itemId.toLowerCase().includes(searchTerm))
                     .map(item => ({ name: `${item.name} (Qty: ${item.quantity}, ID: ${item.itemId})`, value: item.itemId }))
@@ -3026,6 +2914,9 @@ module.exports = {
                  try {
                      const selectedItemId = interaction.options.getString('item');
                      const amount = interaction.options.getInteger('amount') || 1;
+                     if (BLOCKED_USE_ITEM_IDS.has(selectedItemId)) {
+                         return safeEditReply(interaction, { content: '❌ That item cannot be used with this command.', ephemeral: true });
+                     }
                      const itemConfig = client.levelSystem._getItemMasterProperty(selectedItemId, null, {});
                      if (!itemConfig || !itemConfig.id) return safeEditReply(interaction, { content: `❌ Item config for ID "${selectedItemId}" not found.`, ephemeral: true });
                      const userInventoryCategorized = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
@@ -3444,39 +3335,6 @@ module.exports = {
                 const command = client.commands.get(commandName);
                 if (command) await command.execute(interaction);
                 else { console.error(`[Giveaway Command] start-giveaway not found.`); await sendInteractionError(interaction, "Giveaway command not loaded.", true); }
-                return;
-            }
-            if (commandName === 'join-scavenger') {
-                if (!interaction.replied && !interaction.deferred) {
-                    await safeDeferReply(interaction, { ephemeral: true });
-                    deferredThisInteraction = true;
-                }
-                if (client.SCAVENGER_JOIN_ENABLED === false) {
-                    await safeEditReply(interaction, { content: 'The scavenger hunt can no longer be joined.', ephemeral: true });
-                    return;
-                }
-                const baseName = interaction.user.username.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                const channelName = `scavenger-${baseName}`;
-                const existing = interaction.guild.channels.cache.find(ch => ch.name === channelName);
-                if (existing) {
-                    await safeEditReply(interaction, { content: `You already have a scavenger channel: <#${existing.id}>`, ephemeral: true });
-                } else {
-                    try {
-                        const channel = await interaction.guild.channels.create({
-                            name: channelName,
-                            type: ChannelType.GuildText,
-                            permissionOverwrites: [
-                                { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                                { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
-                                { id: interaction.client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageChannels] }
-                            ]
-                        });
-                        await safeEditReply(interaction, { content: `Private channel created: <#${channel.id}>`, ephemeral: true });
-                    } catch (err) {
-                        console.error('[JoinScavenger] Channel creation failed:', err);
-                        await sendInteractionError(interaction, 'Failed to create your scavenger channel.', true, deferredThisInteraction);
-                    }
-                }
                 return;
             }
             if (commandName === 'delete-all-commands') {

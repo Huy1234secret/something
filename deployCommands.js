@@ -489,10 +489,6 @@ const commands = [
             { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true, autocomplete: true }
         ]
     },
-    {
-        name: 'join-scavenger',
-        description: 'Join the scavenger hunt and receive a private channel.'
-    }
 ];
 
 async function deployCommands(token = process.env.DISCORD_TOKEN, clientId = process.env.CLIENT_ID, guildId = process.env.GUILD_ID) {

@@ -60,15 +60,19 @@ class BattlePassManager {
     getPoints(userId, guildId) {
         return this._getUser(this._key(userId, guildId)).xp;
     }
-    pointsForLevel(level) { return 25 * level * (level + 1); }
+    pointsForLevel(level) { return Math.floor(10 * Math.pow(level, 3)); }
     levelFromPoints(points) {
-        const n = Math.floor((Math.sqrt(1 + 4 * (points / 25)) - 1) / 2);
-        return Math.min(100, Math.max(0, n));
+        let lvl = 0;
+        for (let i = 1; i <= 100; i++) {
+            if (points >= this.pointsForLevel(i)) lvl = i; else break;
+        }
+        return lvl;
     }
     progressInfo(points) {
         const level = this.levelFromPoints(points);
         const prevTotal = this.pointsForLevel(level);
-        const needed = 50 * (level + 1);
+        const nextTotal = this.pointsForLevel(level + 1);
+        const needed = nextTotal - prevTotal;
         const progress = points - prevTotal;
         const percent = needed > 0 ? Math.min(100, (progress / needed) * 100) : 100;
         return { level, progress, needed, percent };
