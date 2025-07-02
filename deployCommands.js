@@ -488,10 +488,6 @@ const commands = [
             { name: 'user', description: 'Target user', type: ApplicationCommandOptionType.User, required: true },
             { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true, autocomplete: true }
         ]
-    },
-    {
-        name: 'join-scavenger',
-        description: 'Join the scavenger hunt and receive a private channel.'
     }
 ];
 
