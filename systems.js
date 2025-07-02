@@ -1586,9 +1586,20 @@ this.db.prepare(`
         const member = newState.member || oldState.member;
         if (!userId || !guildId || member?.user?.bot) return null;
         const now = Date.now(); const voiceStateKey = `${userId}-${guildId}`;
-        if (newState.channel && (!newState.serverMute && !newState.serverDeaf && !newState.selfMute && !newState.selfDeaf)) {
-            if (!this.activeVoiceUsers.has(voiceStateKey)) this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member: member, joinedTimestamp: now, lastRewardTimestamp: now });
-        } else { if (this.activeVoiceUsers.has(voiceStateKey)) this.activeVoiceUsers.delete(voiceStateKey); }
+        if (newState.channel && !newState.serverMute && !newState.serverDeaf) {
+            // Allow users to accrue rewards even while self-muted or deafened
+            if (!this.activeVoiceUsers.has(voiceStateKey)) {
+                this.activeVoiceUsers.set(voiceStateKey, {
+                    userId,
+                    guildId,
+                    member,
+                    joinedTimestamp: now,
+                    lastRewardTimestamp: now
+                });
+            }
+        } else {
+            if (this.activeVoiceUsers.has(voiceStateKey)) this.activeVoiceUsers.delete(voiceStateKey);
+        }
         if (this.activeVoiceUsers.has(voiceStateKey)) {
             const userData = this.activeVoiceUsers.get(voiceStateKey);
             if (now - userData.lastRewardTimestamp >= VOICE_ACTIVITY_INTERVAL_MS) {
