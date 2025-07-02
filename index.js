@@ -1151,6 +1151,60 @@ async function scheduleBattlePassBadgeUpdate(client) {
     }
 }
 
+async function scheduleVoiceActivityRewards(client) {
+    console.log("[Voice Scheduler] Initializing periodic voice reward processing...");
+    const processVoiceRewards = async () => {
+        for (const [key, userData] of client.levelSystem.activeVoiceUsers.entries()) {
+            const voiceState = userData.member.voice;
+            if (!voiceState || !voiceState.channel) continue;
+            try {
+                const result = await client.levelSystem.handleVoiceStateUpdate(voiceState, voiceState, checkAndAwardSpecialRole, WEEKEND_MULTIPLIERS);
+                if (result && result.droppedItem) {
+                    const { droppedItem, config, shouldAnnounce, grantedSpecialRole } = result;
+                    const guildForVoice = userData.member.guild;
+                    const memberForVoice = userData.member;
+                    if (grantedSpecialRole && droppedItem.id === client.levelSystem.COSMIC_ROLE_TOKEN_ID) {
+                        // Announcement handled by checkAndAwardSpecialRole
+                    } else if (shouldAnnounce) {
+                        const guildLootDropChannelId = client.levelSystem.getGuildSettings(guildForVoice.id).lootDropAlertChannelId || LOOTBOX_DROP_CHANNEL_ID;
+                        if (guildLootDropChannelId) {
+                            const alertChannel = await client.channels.fetch(guildLootDropChannelId).catch(() => null);
+                            if (alertChannel && alertChannel.isTextBased()) {
+                                const botMemberForLoot = guildForVoice.members.me;
+                                if (botMemberForLoot && alertChannel.permissionsFor(botMemberForLoot).has([PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks])) {
+                                    const itemConfig = config;
+                                    const itemNameDisplay = droppedItem.name || client.levelSystem.getItemNameById(droppedItem.id, guildForVoice.id);
+                                    const itemEmojiDisplay = droppedItem.emoji || client.levelSystem.getItemEmojiById(droppedItem.id, guildForVoice.id);
+                                    const rarityString = client.levelSystem._getItemRarityString(droppedItem.id, itemConfig, itemConfig.type);
+                                    const rarityDetails = client.levelSystem.itemRarities[rarityString.toUpperCase()] || client.levelSystem.itemRarities.COMMON;
+                                    const embedColor = rarityDetails.color;
+                                    const alertTitle = `${itemEmojiDisplay} A Wild ${itemNameDisplay} Appeared! 🎉`;
+                                    const eventDescription = `${memberForVoice.user} received a **${itemNameDisplay}** from voice activity!`;
+                                    const lootEmbed = new EmbedBuilder()
+                                        .setColor(embedColor)
+                                        .setTitle(alertTitle)
+                                        .setDescription(eventDescription)
+                                        .setThumbnail(itemConfig.imageUrl || null)
+                                        .addFields(
+                                            { name: '🎤 Recipient', value: `${memberForVoice.user.tag}`, inline: true },
+                                            { name: '💎 Rarity Tier', value: `**${rarityString}**`, inline: true }
+                                        )
+                                        .setTimestamp()
+                                        .setFooter({ text: `Obtained from: Voice Activity in ${guildForVoice.name}`, iconURL: guildForVoice.iconURL({ dynamic: true }) });
+                                    await alertChannel.send({ embeds: [lootEmbed] });
+                                } else console.warn(`[Voice Loot Drop] Bot missing SendMessages or EmbedLinks permission in configured loot drop channel: ${guildLootDropChannelId}`);
+                            } else console.warn(`[Voice Loot Drop] Configured loot drop channel ${guildLootDropChannelId} not found or not text-based.`);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[Voice Scheduler] Error processing voice rewards:', err);
+            }
+        }
+    };
+    setInterval(processVoiceRewards, VOICE_ACTIVITY_INTERVAL_MS);
+}
+
 async function safeDeferReply(interaction, options = {}) {
     if (!interaction.isRepliable() || interaction.deferred || interaction.replied) return;
     try {
@@ -2208,6 +2262,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 scheduleBattlePassBadgeUpdate(client);
+scheduleVoiceActivityRewards(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
