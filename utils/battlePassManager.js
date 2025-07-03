@@ -72,7 +72,8 @@ class BattlePassManager {
         else if (next <= 60) base = 40 * next;
         else base = 60 * next;
         const mult = Math.pow(1.35, rebirths);
-        return Math.ceil(base * mult);
+        // Nerf level requirements by 50%
+        return Math.ceil(base * mult * 0.5);
     }
     pointsForLevel(level, rebirths = 0) {
         let total = 0;
