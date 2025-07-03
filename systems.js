@@ -1613,7 +1613,8 @@ this.db.prepare(`
                 let battlePassPoints = 0;
                 if (this.client && this.client.battlePass) {
                     const minutes = VOICE_ACTIVITY_INTERVAL_MS / 60000;
-                    const pts = (Math.floor(Math.random() * 31) + 30) * minutes;
+                    const basePts = (Math.floor(Math.random() * 31) + 30) * minutes;
+                    const pts = Math.floor(basePts / 5);
                     this.client.battlePass.addPoints(userId, guildId, pts);
                     battlePassPoints = pts;
                 }
