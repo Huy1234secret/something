@@ -45,7 +45,9 @@ class BattlePassManager {
     _key(userId, guildId) { return `${userId}-${guildId}`; }
     _getUser(key) {
         if (!this.data.users[key]) {
-            this.data.users[key] = { xp: 0, level: 0, lastClaim: 0 };
+            this.data.users[key] = { xp: 0, level: 0, lastClaim: 0, rebirths: 0 };
+        } else {
+            if (typeof this.data.users[key].rebirths !== 'number') this.data.users[key].rebirths = 0;
         }
         return this.data.users[key];
     }
@@ -54,38 +56,44 @@ class BattlePassManager {
         const key = this._key(userId, guildId);
         const user = this._getUser(key);
         user.xp += points;
-        user.level = this.levelFromPoints(user.xp);
+        user.level = this.levelFromPoints(user.xp, user.rebirths);
         this.save();
     }
     getPoints(userId, guildId) {
         return this._getUser(this._key(userId, guildId)).xp;
     }
-    pointsNeededForLevel(level) {
-        const next = level + 1;
-        if (next <= 30) return 20 * next; // Early levels
-        if (next <= 60) return 40 * next; // Mid levels
-        return 60 * next;                 // Late levels
+    getRebirths(userId, guildId) {
+        return this._getUser(this._key(userId, guildId)).rebirths || 0;
     }
-    pointsForLevel(level) {
+    pointsNeededForLevel(level, rebirths = 0) {
+        const next = level + 1;
+        let base;
+        if (next <= 30) base = 20 * next;
+        else if (next <= 60) base = 40 * next;
+        else base = 60 * next;
+        const mult = Math.pow(1.35, rebirths);
+        return Math.ceil(base * mult);
+    }
+    pointsForLevel(level, rebirths = 0) {
         let total = 0;
-        for (let i = 0; i < level; i++) total += this.pointsNeededForLevel(i);
+        for (let i = 0; i < level; i++) total += this.pointsNeededForLevel(i, rebirths);
         return total;
     }
-    levelFromPoints(points) {
+    levelFromPoints(points, rebirths = 0) {
         let level = 0;
         let total = 0;
         while (level < 100) {
-            const need = this.pointsNeededForLevel(level);
+            const need = this.pointsNeededForLevel(level, rebirths);
             if (points < total + need) break;
             total += need;
             level++;
         }
         return level;
     }
-    progressInfo(points) {
-        const level = this.levelFromPoints(points);
-        const prevTotal = this.pointsForLevel(level);
-        const needed = this.pointsNeededForLevel(level);
+    progressInfo(points, rebirths = 0) {
+        const level = this.levelFromPoints(points, rebirths);
+        const prevTotal = this.pointsForLevel(level, rebirths);
+        const needed = this.pointsNeededForLevel(level, rebirths);
         const progress = points - prevTotal;
         const percent = needed > 0 ? Math.min(100, (progress / needed) * 100) : 100;
         return { level, progress, needed, percent };
@@ -93,7 +101,8 @@ class BattlePassManager {
     getProgress(userId, guildId) {
         const pts = this.getPoints(userId, guildId);
         const user = this._getUser(this._key(userId, guildId));
-        return { points: pts, lastClaim: user.lastClaim, ...this.progressInfo(pts) };
+        const reb = user.rebirths || 0;
+        return { points: pts, lastClaim: user.lastClaim, rebirths: reb, ...this.progressInfo(pts, reb) };
     }
 
     getRewardSet(level) {
@@ -138,23 +147,28 @@ class BattlePassManager {
         }
         const rewardSet = this.getRewardSet(nextLevel);
         if (!rewardSet) return { success: false, message: 'No reward available.' };
+        const mult = Math.pow(2, user.rebirths || 0);
         const messages = [];
         for (const r of rewardSet) {
             if (r.currency === 'coins') {
-                systemsManager.addCoins(userId, guildId, r.amount, 'bp_reward');
-                messages.push(`${r.amount.toLocaleString()} Coins`);
+                const amt = r.amount * mult;
+                systemsManager.addCoins(userId, guildId, amt, 'bp_reward');
+                messages.push(`${amt.toLocaleString()} Coins`);
             } else if (r.currency === 'gems') {
-                systemsManager.addGems(userId, guildId, r.amount, 'bp_reward');
-                messages.push(`${r.amount.toLocaleString()} Gems`);
+                const amt = r.amount * mult;
+                systemsManager.addGems(userId, guildId, amt, 'bp_reward');
+                messages.push(`${amt.toLocaleString()} Gems`);
             } else if (r.currency === 'robux') {
-                const result = systemsManager.addRobux(userId, guildId, r.amount, 'bp_reward');
+                const amt = r.amount * mult;
+                const result = systemsManager.addRobux(userId, guildId, amt, 'bp_reward');
                 if (result.success) {
-                    messages.push(`${r.amount.toLocaleString()} Robux`);
+                    messages.push(`${amt.toLocaleString()} Robux`);
                 }
             } else if (r.item) {
                 const itemCfg = systemsManager._getItemMasterProperty(r.item, null);
-                systemsManager.giveItem(userId, guildId, r.item, r.amount, itemCfg.type, 'bp_reward');
-                messages.push(`${r.amount}x ${itemCfg.name}`);
+                const amt = r.amount * mult;
+                systemsManager.giveItem(userId, guildId, r.item, amt, itemCfg.type, 'bp_reward');
+                messages.push(`${amt}x ${itemCfg.name}`);
             } else if (r.text) {
                 // text-only reward (e.g., external gift card)
                 messages.push(r.text);
@@ -173,6 +187,16 @@ class BattlePassManager {
         }
         this.save();
         return { success: true, message: messages.join(', '), firstClaim };
+    }
+
+    rebirth(userId, guildId) {
+        const key = this._key(userId, guildId);
+        const user = this._getUser(key);
+        user.xp = 0;
+        user.level = 0;
+        user.lastClaim = 0;
+        user.rebirths = (user.rebirths || 0) + 1;
+        this.save();
     }
 
     isEnded() {

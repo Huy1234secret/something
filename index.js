@@ -1594,13 +1594,16 @@ function buildBattlePassEmbed(userId, guildId, client) {
         embed.addFields({ name: fieldName, value: fieldValue, inline: true });
     }
     embed.addFields({ name: 'BP to Next Level', value: `\`${bpToNextDisplay}\`` });
+    embed.addFields({ name: 'Rebirths', value: `${progress.rebirths}` });
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
     embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by chatting, opening loot boxes, and claiming daily rewards. ${BATTLE_TOKEN_EMOJI} BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 ${BATTLE_TOKEN_EMOJI} BP XP).` });
     const claimDisabled = progress.level <= progress.lastClaim;
-    const button = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁')
-    );
-    return { embed, components: [button] };
+    const row = new ActionRowBuilder();
+    row.addComponents(new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁'));
+    if (progress.lastClaim >= 100) {
+        row.addComponents(new ButtonBuilder().setCustomId('bp_rebirth').setLabel('REBIRTH').setStyle(ButtonStyle.Danger));
+    }
+    return { embed, components: [row] };
 }
 
 function buildBadgeEmbed(userId, guildId, client, view = 'obtained', page = 1) {
@@ -3567,6 +3570,51 @@ module.exports = {
                     console.error('[BattlePass Claim Error]', bpClaimErr);
                     await sendInteractionError(interaction, 'An error occurred while claiming.', true, deferredThisInteraction);
                 }
+                return;
+            }
+            if (customId === 'bp_rebirth') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const rebCount = client.battlePass.getRebirths(interaction.user.id, interaction.guild.id);
+                    const embed = new EmbedBuilder()
+                        .setColor(0xe67e22)
+                        .setTitle('Hey!')
+                        .setDescription(`${interaction.user}, are you sure you want to rebirth?`)
+                        .addFields(
+                            { name: 'Pros', value: `Get **${Math.pow(2, rebCount + 1)}x** prize from battle pass (stacks)` },
+                            { name: 'Cons', value: 'Battle point requirement increased by **35%**' }
+                        );
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('bp_rebirth_confirm_yes').setLabel('Yes').setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder().setCustomId('bp_rebirth_confirm_no').setLabel('No').setStyle(ButtonStyle.Secondary)
+                    );
+                    await safeEditReply(interaction, { embeds: [embed], components: [row], ephemeral: true });
+                } catch (err) {
+                    console.error('[BP Rebirth Prompt Error]', err);
+                    await sendInteractionError(interaction, 'Failed to prompt rebirth.', true, deferredThisInteraction);
+                }
+                return;
+            }
+            if (customId === 'bp_rebirth_confirm_yes') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    client.battlePass.rebirth(interaction.user.id, interaction.guild.id);
+                    await safeEditReply(interaction, { content: '✅ Rebirth complete!', embeds: [], components: [], ephemeral: true });
+                    const { embed: newEmbed, components: newComponents } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => console.warn('Failed to edit battle pass embed after rebirth:', e.message));
+                    }
+                } catch (err) {
+                    console.error('[BP Rebirth Error]', err);
+                    await sendInteractionError(interaction, 'Failed to rebirth.', true, deferredThisInteraction);
+                }
+                return;
+            }
+            if (customId === 'bp_rebirth_confirm_no') {
+                if (!interaction.isButton()) return;
+                await safeEditReply(interaction, { content: 'Rebirth cancelled.', ephemeral: true });
                 return;
             }
             if (customId === 'setting_toggle_daily') {
