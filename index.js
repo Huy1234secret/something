@@ -353,6 +353,9 @@ let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawa
 
 let slotsSessions = new Map();
 let slotsCooldowns = new Map();
+let slotsLuckBoosts = new Map();
+const SLOT_LUCK_BOOST_DURATION_MS = 5 * 60 * 1000;
+const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_bar','lucky_clover'];
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
 const SLOT_SYMBOLS = [
@@ -385,6 +388,24 @@ function pickRandomSymbol() {
     let acc = 0;
     for (const sym of SLOT_SYMBOLS) {
         acc += sym.chance;
+        if (r <= acc) return sym;
+    }
+    return SLOT_SYMBOLS[SLOT_SYMBOLS.length - 1];
+}
+
+function pickRandomSymbolForUser(key) {
+    const boost = slotsLuckBoosts.get(key);
+    const boostActive = boost && boost.expiry > Date.now();
+    if (!boostActive && boost) slotsLuckBoosts.delete(key);
+    const total = SLOT_SYMBOLS.reduce((acc, s) => {
+        const mod = boostActive && RARE_SLOT_IDS.includes(s.id) ? s.chance * 2 : s.chance;
+        return acc + mod;
+    }, 0);
+    const r = Math.random() * total;
+    let acc = 0;
+    for (const sym of SLOT_SYMBOLS) {
+        const mod = boostActive && RARE_SLOT_IDS.includes(sym.id) ? sym.chance * 2 : sym.chance;
+        acc += mod;
         if (r <= acc) return sym;
     }
     return SLOT_SYMBOLS[SLOT_SYMBOLS.length - 1];
@@ -4959,7 +4980,11 @@ module.exports = {
                     await interaction.message.edit({ embeds:[rollingEmbed], components: disabledComponents }).catch(()=>{});
                 }
                 setTimeout(async () => {
-                    const symbols = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
+                    const symbols = [
+                        pickRandomSymbolForUser(key),
+                        pickRandomSymbolForUser(key),
+                        pickRandomSymbolForUser(key)
+                    ];
                     const multiplier = calculateMultiplier(symbols);
                     const prize = session.bet.amount * multiplier;
                     if (prize > 0) {
@@ -5000,6 +5025,16 @@ module.exports = {
                         else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_loss');
                     }
                     const finalEmbed = buildSlotsEmbed(interaction.user, session.bet, symbols, multiplier, prize);
+                    if (symbols.every(s => s.id === 'shoe')) {
+                        slotsLuckBoosts.set(key, {
+                            multiplier: 1,
+                            expiry: Date.now() + SLOT_LUCK_BOOST_DURATION_MS
+                        });
+                        finalEmbed.addFields({
+                            name: 'Luck Boost Activated! 🍀',
+                            value: 'Boost lasts 5 minutes. Rare symbols are 100% easier to roll.'
+                        });
+                    }
                     try {
                         if (interaction.message && interaction.message.editable) await interaction.message.edit({ embeds:[finalEmbed], components: enabledComponents });
                     } catch {}
