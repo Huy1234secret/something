@@ -443,6 +443,18 @@ function calculateMultiplier(symbols) {
     return 0;
 }
 
+function buildSlotsPrizeEmbed() {
+    const lines = SLOT_SYMBOLS.map(sym => `${sym.emoji}${sym.emoji}${sym.emoji} ➜ x${sym.payout}`);
+    const cherries = SLOT_SYMBOLS.find(s => s.id === 'cherries');
+    if (cherries) lines.push(`${cherries.emoji}${cherries.emoji}❓ ➜ x2`);
+    const barEmojis = BAR_SYMBOLS.map(id => SLOT_SYMBOLS.find(s => s.id === id)?.emoji).filter(Boolean);
+    if (barEmojis.length === 3) lines.push(`${barEmojis.join(' ')} (any mix) ➜ x20`);
+    return new EmbedBuilder()
+        .setColor(randomColor())
+        .setTitle('SLOTS PRIZES')
+        .setDescription(lines.join('\n'));
+}
+
 
 
 // --- Helper Functions for /add-user ---
@@ -3069,7 +3081,8 @@ module.exports = {
                 const embed = buildSlotsEmbed(interaction.user, null);
                 const components = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary)
                 )];
                 const sent = await safeEditReply(interaction, { embeds: [embed], components, fetchReply: true });
                 if (sent?.id) {
@@ -4740,6 +4753,13 @@ module.exports = {
                 return;
             }
 
+            if (customId === 'slots_prize') {
+                if (!interaction.isButton()) return;
+                const embed = buildSlotsPrizeEmbed();
+                await interaction.reply({ embeds: [embed], ephemeral: true }).catch(() => {});
+                return;
+            }
+
             if (customId === 'slots_bet') {
                 if (!interaction.isButton()) return;
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
@@ -4801,7 +4821,8 @@ module.exports = {
                 const embed = buildSlotsEmbed(interaction.user, session.bet);
                 const components = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary)
                 )];
                 try {
                     const msg = await interaction.channel.messages.fetch(session.messageId).catch(() => null);
@@ -4823,7 +4844,8 @@ module.exports = {
                 const embed = buildSlotsEmbed(interaction.user, session.bet);
                 const components = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary)
                 )];
                 try {
                     const msg = await interaction.channel.messages.fetch(session.messageId).catch(() => null);
@@ -4860,11 +4882,13 @@ module.exports = {
                 ]);
                 const disabledComponents = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success).setDisabled(true),
-                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary).setDisabled(true)
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary).setDisabled(true),
+                    new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary).setDisabled(true)
                 )];
                 const enabledComponents = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary)
                 )];
                 if (interaction.message && interaction.message.editable) {
                     await interaction.message.edit({ embeds:[rollingEmbed], components: disabledComponents }).catch(()=>{});
