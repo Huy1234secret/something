@@ -314,6 +314,12 @@ class SystemsManager {
                 badgeId TEXT NOT NULL,
                 obtainedAt INTEGER DEFAULT 0,
                 PRIMARY KEY (userId, guildId, badgeId)
+            );`,
+            `CREATE TABLE IF NOT EXISTS activeVoiceSessions (
+                userId TEXT NOT NULL,
+                guildId TEXT NOT NULL,
+                joinedAt INTEGER NOT NULL,
+                PRIMARY KEY (userId, guildId)
             );`
         ];
         this.db.transaction(() => { initialTableStatements.forEach(sql => this.db.exec(sql)); })();
@@ -1581,46 +1587,44 @@ this.db.prepare(`
         this.db.prepare('DELETE FROM embed_sessions WHERE sessionId = ?').run(sessionId);
     }
     async handleVoiceStateUpdate(oldState, newState, checkAndAwardSpecialRoleFn, weekendMultipliers) {
-        const effectiveWeekendMultipliers = weekendMultipliers || this.globalWeekendMultipliers || { currency: 1.0, xp: 1.0 }; // Removed luck from default
-        const userId = newState.id || oldState.id; const guildId = newState.guild?.id || oldState.guild?.id;
+        const effectiveWeekendMultipliers = weekendMultipliers || this.globalWeekendMultipliers || { currency: 1.0, xp: 1.0 };
+        const userId = newState.id || oldState.id;
+        const guildId = newState.guild?.id || oldState.guild?.id;
         const member = newState.member || oldState.member;
         if (!userId || !guildId || member?.user?.bot) return null;
-        const now = Date.now(); const voiceStateKey = `${userId}-${guildId}`;
-        if (newState.channel && !newState.serverMute && !newState.serverDeaf) {
-            // Allow users to accrue rewards even while self-muted or deafened
-            if (!this.activeVoiceUsers.has(voiceStateKey)) {
-                this.activeVoiceUsers.set(voiceStateKey, {
-                    userId,
-                    guildId,
-                    member,
-                    joinedTimestamp: now,
-                    lastRewardTimestamp: now
-                });
+
+        const now = Date.now();
+        const voiceStateKey = `${userId}-${guildId}`;
+
+        // Detect joins, leaves and moves
+        if (!oldState.channel && newState.channel && !newState.serverMute && !newState.serverDeaf) {
+            // Joined voice
+            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now });
+            if (this.db) this.db.prepare('INSERT OR REPLACE INTO activeVoiceSessions (userId, guildId, joinedAt) VALUES (?, ?, ?)').run(userId, guildId, now);
+        } else if (oldState.channel && !newState.channel) {
+            // Left voice
+            if (this.activeVoiceUsers.has(voiceStateKey)) {
+                await this._finalizeVoiceSession(userId, guildId, member, effectiveWeekendMultipliers);
             }
-        } else {
-            if (this.activeVoiceUsers.has(voiceStateKey)) this.activeVoiceUsers.delete(voiceStateKey);
+        } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+            // Moved channels
+            if (this.activeVoiceUsers.has(voiceStateKey)) {
+                await this._finalizeVoiceSession(userId, guildId, member, effectiveWeekendMultipliers);
+            }
+            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now });
+            if (this.db) this.db.prepare('INSERT OR REPLACE INTO activeVoiceSessions (userId, guildId, joinedAt) VALUES (?, ?, ?)').run(userId, guildId, now);
         }
+
         if (this.activeVoiceUsers.has(voiceStateKey)) {
             const userData = this.activeVoiceUsers.get(voiceStateKey);
             if (now - userData.lastRewardTimestamp >= VOICE_ACTIVITY_INTERVAL_MS) {
-                const effectiveWeekendXpMultiplierForVoice = effectiveWeekendMultipliers.xp || (this.gameConfig.globalSettings?.WEEKEND_XP_MULTIPLIER || WEEKEND_XP_MULTIPLIER);
-                this.addXP(userId, guildId, VOICE_XP_PER_INTERVAL, userData.member, true, effectiveWeekendXpMultiplierForVoice);
                 if (VOICE_COIN_PER_INTERVAL && VOICE_COIN_PER_INTERVAL.length === 2) {
                     const coinsEarned = Math.floor(Math.random() * (VOICE_COIN_PER_INTERVAL[1] - VOICE_COIN_PER_INTERVAL[0] + 1)) + VOICE_COIN_PER_INTERVAL[0];
-                    if (coinsEarned > 0) this.addCoins(userId, guildId, coinsEarned, "voice_activity", effectiveWeekendMultipliers);
+                    if (coinsEarned > 0) this.addCoins(userId, guildId, coinsEarned, 'voice_activity', effectiveWeekendMultipliers);
                 }
 
-                let battlePassPoints = 0;
-                if (this.client && this.client.battlePass) {
-                    const minutes = VOICE_ACTIVITY_INTERVAL_MS / 60000;
-                    const basePts = (Math.floor(Math.random() * 31) + 30) * minutes;
-                    const pts = Math.floor(basePts / 5);
-                    this.client.battlePass.addPoints(userId, guildId, pts);
-                    battlePassPoints = pts;
-                }
-                // Removed luck-based voice drop chance calculation
                 const baseVoiceDropChance = this.gameConfig.globalSettings.VOICE_DROP_BASE_CHANCE;
-                if (Math.random() < baseVoiceDropChance) { // Simplified: just use base chance
+                if (Math.random() < baseVoiceDropChance) {
                     const chosenDropSpec = this._performWeightedRandomPick(this.gameConfig.directChatDropTable, 'directDropWeight');
                     if (chosenDropSpec && chosenDropSpec.itemId) {
                         const finalVoiceDropItem = this._getItemMasterProperty(chosenDropSpec.itemId, null);
@@ -1630,17 +1634,71 @@ this.db.prepare(`
                             const itemSpecificAlertSetting = this.getUserItemLootAlertSetting(userId, guildId, finalVoiceDropItem.id);
                             const itemRarityValue = finalVoiceDropItem.rarityValue || 0;
                             const shouldAnnounce = itemSpecificAlertSetting.enableAlert && ((userGlobalAlertSettings.alertRarityThreshold > 0 && itemRarityValue >= userGlobalAlertSettings.alertRarityThreshold) || finalVoiceDropItem.id === this.COSMIC_ROLE_TOKEN_ID);
-                            if (grantedSpecialRole && checkAndAwardSpecialRoleFn) { try { await checkAndAwardSpecialRoleFn(userData.member, `receiving a ${finalVoiceDropItem.name} from voice activity`, finalVoiceDropItem.name); } catch (e) { console.error("Error in checkAndAwardSpecialRoleFn from voice drop:", e); } }
-                            userData.lastRewardTimestamp = now; this.activeVoiceUsers.set(voiceStateKey, userData);
-                            return { droppedItem: finalVoiceDropItem, config: finalVoiceDropItem, shouldAnnounce, grantedSpecialRole, source: 'voice', battlePassPoints };
+                            if (grantedSpecialRole && checkAndAwardSpecialRoleFn) {
+                                try { await checkAndAwardSpecialRoleFn(userData.member, `receiving a ${finalVoiceDropItem.name} from voice activity`, finalVoiceDropItem.name); } catch (e) { console.error('Error in checkAndAwardSpecialRoleFn from voice drop:', e); }
+                            }
+                            userData.lastRewardTimestamp = now;
+                            this.activeVoiceUsers.set(voiceStateKey, userData);
+                            return { droppedItem: finalVoiceDropItem, config: finalVoiceDropItem, shouldAnnounce, grantedSpecialRole, source: 'voice' };
                         }
                     }
                 }
-                userData.lastRewardTimestamp = now; this.activeVoiceUsers.set(voiceStateKey, userData);
-                return { battlePassPoints };
+                userData.lastRewardTimestamp = now;
+                this.activeVoiceUsers.set(voiceStateKey, userData);
             }
         }
+
         return null;
+    }
+
+    async _finalizeVoiceSession(userId, guildId, member, weekendMultipliers) {
+        const key = `${userId}-${guildId}`;
+        const session = this.activeVoiceUsers.get(key);
+        if (!session) return;
+
+        this.activeVoiceUsers.delete(key);
+        if (this.db) this.db.prepare('DELETE FROM activeVoiceSessions WHERE userId = ? AND guildId = ?').run(userId, guildId);
+
+        const durationSeconds = Math.floor((Date.now() - session.joinedTimestamp) / 1000);
+        const minutes = durationSeconds / 60;
+        const xpAmount = Math.floor(minutes * 15);
+        const bpAmount = Math.floor(minutes * 30);
+        const effectiveWeekendXpMultiplier = weekendMultipliers?.xp || this.globalWeekendMultipliers?.xp || (this.gameConfig.globalSettings?.WEEKEND_XP_MULTIPLIER || WEEKEND_XP_MULTIPLIER);
+
+        const xpResult = this.addXP(userId, guildId, xpAmount, member, true, effectiveWeekendXpMultiplier);
+        if (this.client && this.client.battlePass && bpAmount > 0) {
+            this.client.battlePass.addPoints(userId, guildId, bpAmount);
+        }
+
+        let userObj = member?.user;
+        if (!userObj && this.client) {
+            try { userObj = await this.client.users.fetch(userId); } catch {}
+        }
+        if (userObj) {
+            const msg = `You earned **${xpResult.xpEarned} XP** and **${bpAmount} battle pass points** from voice chat.`;
+            userObj.send({ content: msg }).catch(e => { if (e.code !== 50007) console.warn(`[Voice Reward DM] Failed to DM ${userId}: ${e.message}`); });
+        }
+    }
+
+    async resumeVoiceSessions() {
+        if (!this.client) return;
+        const rows = this.db.prepare('SELECT userId, guildId, joinedAt FROM activeVoiceSessions').all();
+        for (const row of rows) {
+            const key = `${row.userId}-${row.guildId}`;
+            let guild = this.client.guilds.cache.get(row.guildId);
+            if (!guild) {
+                try { guild = await this.client.guilds.fetch(row.guildId); } catch { guild = null; }
+            }
+            let member = null;
+            if (guild) {
+                try { member = await guild.members.fetch(row.userId); } catch { member = null; }
+            }
+            if (member && member.voice && member.voice.channel) {
+                this.activeVoiceUsers.set(key, { userId: row.userId, guildId: row.guildId, member, joinedTimestamp: row.joinedAt, lastRewardTimestamp: Date.now() });
+            } else {
+                await this._finalizeVoiceSession(row.userId, row.guildId, member, this.globalWeekendMultipliers);
+            }
+        }
     }
     getUsersForShopAlert(guildId) {
         if (!this.db) return [];
