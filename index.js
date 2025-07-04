@@ -369,7 +369,7 @@ const SLOT_SYMBOLS = [
     { id: 'club', emoji: '<:sclub:1390578715469156473>', chance: 0.0397, payout: 40 },
     { id: 'horseshoe', emoji: '<:shorseshoe:1390578857438089326>', chance: 0.0454, payout: 35 },
     { id: 'watermelon', emoji: '<:swatermelon:1390578936370696294>', chance: 0.0635, payout: 25 },
-    { id: 'grapes', emoji: '🍇', chance: 0.0794, payout: 20 },
+    { id: 'grapes', emoji: '<:sgrape:1390635596422320160>', chance: 0.0794, payout: 20 },
     { id: 'plum', emoji: '<:splum:1390578903214587988>', chance: 0.1059, payout: 15 },
     { id: 'orange', emoji: '<:sorange:1390578893110382602>', chance: 0.1059, payout: 15 },
     { id: 'lemon', emoji: '<:slemon:1390578869647442030>', chance: 0.1589, payout: 10 },
