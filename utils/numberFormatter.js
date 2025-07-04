@@ -40,4 +40,18 @@ function formatNumber(value) {
     }
     return value.toLocaleString();
 }
-module.exports = { formatNumber };
+
+function parseAbbreviatedNumber(str) {
+    if (typeof str !== 'string') return NaN;
+    const cleaned = str.replace(/,/g, '').trim().toLowerCase();
+    const match = cleaned.match(/^(-?\d+(?:\.\d+)?)([a-z]*)$/i);
+    if (!match) return NaN;
+    let [, numStr, suffix] = match;
+    let num = parseFloat(numStr);
+    if (isNaN(num)) return NaN;
+    const multipliers = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 };
+    if (suffix && multipliers[suffix]) num *= multipliers[suffix];
+    return Math.floor(num);
+}
+
+module.exports = { formatNumber, parseAbbreviatedNumber };

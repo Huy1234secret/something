@@ -88,7 +88,7 @@ const fsSync = require('node:fs');
 const path = require('node:path');
 const { restoreDataFromFiles } = require('./utils/dataRestorer.js'); // Import the new restore function
 const BattlePassManager = require('./utils/battlePassManager.js');
-const { formatNumber } = require('./utils/numberFormatter.js');
+const { formatNumber, parseAbbreviatedNumber } = require('./utils/numberFormatter.js');
 
 const commandsPath = path.join(__dirname, normalizePath('commands'));
 const packageJson = require('./package.json');
@@ -3080,10 +3080,7 @@ module.exports = {
                 const last = slotsCooldowns.get(key);
                 if (last && Date.now() - last < SLOTS_COOLDOWN_MS) {
                     const remaining = Math.ceil((SLOTS_COOLDOWN_MS - (Date.now() - last)) / 60000);
-                    const errEmbed = buildSlotsEmbed(interaction.user, null, null, null, null,
-                        `<:serror:1390640264392998942> Please wait ${remaining}m before using /slots again.`);
-                    await safeEditReply(interaction, { embeds: [errEmbed], ephemeral: true });
-                    return;
+                    return sendInteractionError(interaction, `Please wait ${remaining}m before using /slots again.`, true);
                 }
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 const embed = buildSlotsEmbed(interaction.user, null);
@@ -3918,7 +3915,7 @@ module.exports = {
                 const robloxUsername = interaction.fields.getTextInputValue('roblox_username');
                 const amountStr = interaction.fields.getTextInputValue('robux_amount');
                 const gamepassLink = interaction.fields.getTextInputValue('gamepass_link');
-                const amount = parseInt(amountStr);
+                const amount = parseAbbreviatedNumber(amountStr);
 
                 if (isNaN(amount) || amount <= 0) {
                     return sendInteractionError(interaction, "Invalid Robux amount. Please enter a positive number.", true, deferredThisInteraction);
@@ -4507,7 +4504,7 @@ module.exports = {
                 try {
                     const itemIdToBuy = interaction.fields.getTextInputValue('shop_item_id_input').trim();
                     const amountStr = interaction.fields.getTextInputValue('shop_amount_input').trim();
-                    const amountToBuy = parseInt(amountStr);
+                    const amountToBuy = parseAbbreviatedNumber(amountStr);
 
                     const itemMasterConfigForMax = client.levelSystem._getItemMasterProperty(itemIdToBuy, null);
                     const maxPurchaseLimit = itemMasterConfigForMax?.maxPurchaseAmountPerTransactionOverride || client.levelSystem.gameConfig.globalSettings.MAX_PURCHASE_AMOUNT_PER_TRANSACTION || 99;
@@ -4805,7 +4802,7 @@ module.exports = {
                 const currencyRaw = interaction.fields.getTextInputValue('slots_currency').toLowerCase();
                 const amountRaw = interaction.fields.getTextInputValue('slots_amount').replace(/,/g, '');
                 const isAllBet = amountRaw.trim().toLowerCase() === 'all';
-                const parsedAmount = parseInt(amountRaw);
+                const parsedAmount = parseAbbreviatedNumber(amountRaw);
                 if (!isAllBet && (isNaN(parsedAmount) || parsedAmount <= 0)) {
                     const errEmbed = buildSlotsEmbed(interaction.user, session.bet, null, null, null,
                         '<:serror:1390640264392998942> Invalid bet amount.');
@@ -5093,8 +5090,8 @@ module.exports = {
                                 amount = modalCurrency === 'coins' ? user.bankCoins : user.bankGems;
                             }
                         } else {
-                            amount = parseInt(amountStr);
-                            if (isNaN(amount)) return sendInteractionError(interaction, "Invalid amount. Please enter a number or 'all'.", true, deferredThisInteraction);
+                            amount = parseAbbreviatedNumber(amountStr);
+                            if (isNaN(amount) || amount <= 0) return sendInteractionError(interaction, "Invalid amount. Please enter a number or 'all'.", true, deferredThisInteraction);
                         }
 
                         let result;
