@@ -470,7 +470,12 @@ function calculateMultiplier(symbols) {
 }
 
 function buildSlotsPrizeEmbed() {
-    const lines = SLOT_SYMBOLS.map(sym => `${sym.emoji}${sym.emoji}${sym.emoji} ➜ x${sym.payout}`);
+    const lines = SLOT_SYMBOLS.map(sym => {
+        if (sym.id === 'shoe') {
+            return `${sym.emoji}${sym.emoji}${sym.emoji} ➜ Luck Boost (100% for 5 min)`;
+        }
+        return `${sym.emoji}${sym.emoji}${sym.emoji} ➜ x${sym.payout}`;
+    });
     const cherries = SLOT_SYMBOLS.find(s => s.id === 'cherries');
     if (cherries) lines.push(`${cherries.emoji}${cherries.emoji}❓ ➜ x2`);
     const barEmojis = BAR_SYMBOLS.map(id => SLOT_SYMBOLS.find(s => s.id === id)?.emoji).filter(Boolean);
