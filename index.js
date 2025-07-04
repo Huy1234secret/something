@@ -400,12 +400,22 @@ function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = n
     if (results) {
         line = `■■■┇${results[0].emoji}┇${results[1].emoji}┇${results[2].emoji}┇■■■`;
     }
-    const desc = [
-        `Hey ${mention}, you have rolled:`,
-        '────────────────────',
-        line,
-        '────────────────────'
-    ].join('\n');
+    let desc;
+    if (!bet) {
+        desc = [
+            `Hey ${mention}, please make a bet before gambling!`,
+            '────────────────────',
+            line,
+            '────────────────────'
+        ].join('\n');
+    } else {
+        desc = [
+            `Hey ${mention}, you have rolled:`,
+            '────────────────────',
+            line,
+            '────────────────────'
+        ].join('\n');
+    }
 
     const wonField = `* Multi: ${multiplier !== null ? multiplier : '❓'}\n➜ ${prize !== null ? `${formatNumber(prize)} ${bet ? bet.currencyEmoji : ''}` : '❓'}`;
     const betField = bet ? `${formatNumber(bet.amount)} ${bet.currencyEmoji}` : '❓';
@@ -4795,9 +4805,9 @@ module.exports = {
                 }
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const rollingEmbed = buildSlotsEmbed(interaction.user, session.bet, [
-                    {emoji:'<:randomslots:1390621328586833960>',id:'r'},
-                    {emoji:'<:randomslots:1390621328586833960>',id:'r'},
-                    {emoji:'<:randomslots:1390621328586833960>',id:'r'}
+                    {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
+                    {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
+                    {emoji:'<a:randomslots:1390621328586833960>',id:'r'}
                 ]);
                 const components = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
