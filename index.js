@@ -4771,15 +4771,31 @@ module.exports = {
                 if (!session) return sendInteractionError(interaction, 'Start a slots game first using /slots.', true, deferredThisInteraction);
                 const currencyRaw = interaction.fields.getTextInputValue('slots_currency').toLowerCase();
                 const amountRaw = interaction.fields.getTextInputValue('slots_amount').replace(/,/g, '');
-                const amount = parseInt(amountRaw);
-                if (isNaN(amount) || amount <= 0) return sendInteractionError(interaction, 'Invalid bet amount.', true, deferredThisInteraction);
+                const isAllBet = amountRaw.trim().toLowerCase() === 'all';
+                const parsedAmount = parseInt(amountRaw);
+                if (!isAllBet && (isNaN(parsedAmount) || parsedAmount <= 0)) return sendInteractionError(interaction, 'Invalid bet amount.', true, deferredThisInteraction);
                 if (currencyRaw.includes('robux')) return sendInteractionError(interaction, 'You cannot bet Robux.', true, deferredThisInteraction);
                 const currency = currencyRaw.includes('gem') ? 'gems' : 'coins';
                 const balance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
                 const bank = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
                 const total = currency === 'coins' ? balance.coins + bank.bankCoins : balance.gems + bank.bankGems;
+                const amount = isAllBet ? total : parsedAmount;
                 if (total < amount) return sendInteractionError(interaction, 'Insufficient funds for that bet.', true, deferredThisInteraction);
                 const emoji = currency === 'coins' ? client.levelSystem.coinEmoji : client.levelSystem.gemEmoji;
+                if (isAllBet) {
+                    session.pendingBet = { currency, amount, currencyEmoji: emoji, currencyId: currency === 'coins' ? client.levelSystem.COINS_ID : client.levelSystem.GEMS_ID };
+                    slotsSessions.set(key, session);
+                    const confirmEmbed = new EmbedBuilder()
+                        .setColor(0xe67e22)
+                        .setTitle('All In Bet')
+                        .setDescription(`${interaction.user}, you are about to bet **${formatNumber(amount)}** ${emoji}.`);
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('slots_all_confirm').setLabel('Confirm').setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder().setCustomId('slots_all_deny').setLabel('Deny').setStyle(ButtonStyle.Secondary)
+                    );
+                    await safeEditReply(interaction, { embeds: [confirmEmbed], components: [row], ephemeral: true });
+                    return;
+                }
                 session.bet = { currency, amount, currencyEmoji: emoji, currencyId: currency === 'coins' ? client.levelSystem.COINS_ID : client.levelSystem.GEMS_ID };
                 slotsSessions.set(key, session);
                 const embed = buildSlotsEmbed(interaction.user, session.bet);
@@ -4795,6 +4811,39 @@ module.exports = {
                 return;
             }
 
+            if (customId === 'slots_all_confirm') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = slotsSessions.get(key);
+                if (!session || !session.pendingBet) return sendInteractionError(interaction, 'No all-in bet pending.', true, deferredThisInteraction);
+                session.bet = session.pendingBet;
+                delete session.pendingBet;
+                slotsSessions.set(key, session);
+                const embed = buildSlotsEmbed(interaction.user, session.bet);
+                const components = [new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                )];
+                try {
+                    const msg = await interaction.channel.messages.fetch(session.messageId).catch(() => null);
+                    if (msg && msg.editable) await msg.edit({ embeds: [embed], components });
+                } catch {}
+                await safeEditReply(interaction, { content: 'Bet updated!', embeds: [], components: [], ephemeral: true });
+                return;
+            }
+            if (customId === 'slots_all_deny') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = slotsSessions.get(key);
+                if (session && session.pendingBet) {
+                    delete session.pendingBet;
+                    slotsSessions.set(key, session);
+                }
+                await safeEditReply(interaction, { content: 'Bet cancelled.', embeds: [], components: [], ephemeral: true });
+                return;
+            }
             if (customId === 'slots_roll') {
                 if (!interaction.isButton()) return;
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
