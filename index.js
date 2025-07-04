@@ -359,25 +359,25 @@ const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
 const SLOT_SYMBOLS = [
-    { id: 'lucky7', emoji: '<:slucky7:1390578652118388796>', chance: 0.0016, payout: 1000 },
-    { id: 'diamond_gem', emoji: '<:sdiamond:1390578741335560235>', chance: 0.0032, payout: 500 },
-    { id: 'triple_bar', emoji: '<:s3BAR:1390578638461734954>', chance: 0.0064, payout: 250 },
-    { id: 'double_bar', emoji: '<:s2BAR:1390578627305017375>', chance: 0.0127, payout: 125 },
-    { id: 'single_bar', emoji: '<:s1BAR:1390578615225286776>', chance: 0.0265, payout: 60 },
-    { id: 'lucky_clover', emoji: '<:sluckyclover:1390578880401899581>', chance: 0.0212, payout: 75 },
-    { id: 'bell', emoji: '<:sbell:1390578681705140262>', chance: 0.0318, payout: 50 },
-    { id: 'heart', emoji: '<:sheart:1390578817680150539>', chance: 0.0397, payout: 40 },
-    { id: 'spade', emoji: '<:sspade:1390578921631907891>', chance: 0.0397, payout: 40 },
-    { id: 'diamond_card', emoji: '<:ssgem:1390578803956252742>', chance: 0.0397, payout: 40 },
-    { id: 'club', emoji: '<:sclub:1390578715469156473>', chance: 0.0397, payout: 40 },
-    { id: 'horseshoe', emoji: '<:shorseshoe:1390578857438089326>', chance: 0.0454, payout: 35 },
-    { id: 'watermelon', emoji: '<:swatermelon:1390578936370696294>', chance: 0.0635, payout: 25 },
-    { id: 'grapes', emoji: '<:sgrape:1390635596422320160>', chance: 0.0794, payout: 20 },
-    { id: 'plum', emoji: '<:splum:1390578903214587988>', chance: 0.1059, payout: 15 },
-    { id: 'orange', emoji: '<:sorange:1390578893110382602>', chance: 0.1059, payout: 15 },
-    { id: 'lemon', emoji: '<:slemon:1390578869647442030>', chance: 0.1589, payout: 10 },
-    { id: 'cherries', emoji: '<:scherries:1390578728551190638>', chance: 0.1589, payout: 10 },
-    { id: 'shoe', emoji: '<:sshoe:1390580210151198740>', chance: 0.02, payout: -2 }
+    { id: 'lucky7', emoji: '<:slucky7:1390578652118388796>', chance: 0.01, payout: 1000 },
+    { id: 'diamond_gem', emoji: '<:sdiamond:1390578741335560235>', chance: 0.02, payout: 500 },
+    { id: 'triple_bar', emoji: '<:s3BAR:1390578638461734954>', chance: 0.03, payout: 250 },
+    { id: 'double_bar', emoji: '<:s2BAR:1390578627305017375>', chance: 0.04, payout: 125 },
+    { id: 'single_bar', emoji: '<:s1BAR:1390578615225286776>', chance: 0.05, payout: 60 },
+    { id: 'lucky_clover', emoji: '<:sluckyclover:1390578880401899581>', chance: 0.05, payout: 75 },
+    { id: 'bell', emoji: '<:sbell:1390578681705140262>', chance: 0.06, payout: 50 },
+    { id: 'heart', emoji: '<:sheart:1390578817680150539>', chance: 0.06, payout: 40 },
+    { id: 'spade', emoji: '<:sspade:1390578921631907891>', chance: 0.06, payout: 40 },
+    { id: 'diamond_card', emoji: '<:ssgem:1390578803956252742>', chance: 0.06, payout: 40 },
+    { id: 'club', emoji: '<:sclub:1390578715469156473>', chance: 0.06, payout: 40 },
+    { id: 'horseshoe', emoji: '<:shorseshoe:1390578857438089326>', chance: 0.06, payout: 35 },
+    { id: 'watermelon', emoji: '<:swatermelon:1390578936370696294>', chance: 0.07, payout: 25 },
+    { id: 'grapes', emoji: '<:sgrape:1390635596422320160>', chance: 0.07, payout: 20 },
+    { id: 'plum', emoji: '<:splum:1390578903214587988>', chance: 0.07, payout: 15 },
+    { id: 'orange', emoji: '<:sorange:1390578893110382602>', chance: 0.07, payout: 15 },
+    { id: 'lemon', emoji: '<:slemon:1390578869647442030>', chance: 0.07, payout: 10 },
+    { id: 'cherries', emoji: '<:scherries:1390578728551190638>', chance: 0.06, payout: 10 },
+    { id: 'shoe', emoji: '<:sshoe:1390580210151198740>', chance: 0.03, payout: -2 }
 ];
 
 const BAR_SYMBOLS = ['single_bar', 'double_bar', 'triple_bar'];
