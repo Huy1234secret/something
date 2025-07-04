@@ -532,7 +532,7 @@ async function buildDailyEmbed(interaction, client) {
         .addFields(
             {
                 name: '🔥 Daily Streak',
-                value: `**Streak:** \`${user.dailyStreak} days\`\n**Currency Boost:** \`x${currencyBoost}\`\n**Item Luck:** \`+${itemLuckBoost}%\``,
+                value: `**Streak:** \`${user.dailyStreak}\`\n**Currency Boost:** \`x${currencyBoost}\`\n**Item Luck:** \`+${itemLuckBoost}%\``,
                 inline: false
             }
         );
@@ -3357,8 +3357,7 @@ module.exports = {
                         { name: 'Servers', value: `${client.guilds.cache.size}`, inline: true },
                         { name: 'Node.js', value: process.version, inline: true },
                         { name: 'Discord.js', value: `v${require('discord.js').version}`, inline: true },
-                        { name: 'Developer', value: `\`Skyyy#6969\``, inline: false},
-                        { name: 'GitHub Repo', value: '[Click Here](https://github.com/Skyyy69/Bot-Template-DJS-V14)', inline: false}
+                        { name: 'Developer', value: '<@902736357766594611>', inline: false }
                     ).setTimestamp().setFooter({ text: `Requested by ${interaction.user.tag}` });
                 await safeEditReply(interaction, { embeds: [infoEmbed] }, true);
                 return;
