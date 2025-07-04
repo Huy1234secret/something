@@ -2255,6 +2255,11 @@ client.once('ready', async c => {
         console.log('[Startup] Recalculated luck bonuses for all users.');
     }
 
+    if (client.levelSystem && typeof client.levelSystem.resumeVoiceSessions === 'function') {
+        await client.levelSystem.resumeVoiceSessions();
+        console.log('[Startup] Resumed voice sessions.');
+    }
+
     console.log('Attempting to load and restore previous giveaway states...');
     const { activeGiveaways: loadedActiveGiveaways, giveawaySetups: loadedGiveawaySetups } = await loadGiveaways();
 
@@ -5633,8 +5638,8 @@ client.on('guildMemberRemove', async member => {
         // Clear from active voice users
         const voiceStateKey = `${member.id}-${member.guild.id}`;
         if (client.levelSystem.activeVoiceUsers.has(voiceStateKey)) {
-            client.levelSystem.activeVoiceUsers.delete(voiceStateKey);
-             console.log(`[GuildMemberRemove] Removed ${member.user.tag} from active voice users upon leaving.`);
+            await client.levelSystem._finalizeVoiceSession(member.id, member.guild.id, member, WEEKEND_MULTIPLIERS);
+            console.log(`[GuildMemberRemove] Processed voice session for ${member.user.tag} upon leaving.`);
         }
 
         // New: Clean up user management sessions if the admin leaves or target user leaves
