@@ -351,6 +351,89 @@ client.activeBankMessages = new Map();
 let userManagementSessions = new Map(); // New: For /add-user panel
 let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawal log messages { withdrawalId: messageId }
 
+let slotsSessions = new Map();
+let slotsCooldowns = new Map();
+const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
+
+const SLOT_SYMBOLS = [
+    { id: 'lucky7', emoji: '<:slucky7:1390578652118388796>', chance: 0.0016, payout: 1000 },
+    { id: 'diamond_gem', emoji: '<:sdiamond:1390578741335560235>', chance: 0.0032, payout: 500 },
+    { id: 'triple_bar', emoji: '<:s3BAR:1390578638461734954>', chance: 0.0064, payout: 250 },
+    { id: 'double_bar', emoji: '<:s2BAR:1390578627305017375>', chance: 0.0127, payout: 125 },
+    { id: 'single_bar', emoji: '<:s1BAR:1390578615225286776>', chance: 0.0265, payout: 60 },
+    { id: 'lucky_clover', emoji: '<:sluckyclover:1390578880401899581>', chance: 0.0212, payout: 75 },
+    { id: 'bell', emoji: '<:sbell:1390578681705140262>', chance: 0.0318, payout: 50 },
+    { id: 'heart', emoji: '<:sheart:1390578817680150539>', chance: 0.0397, payout: 40 },
+    { id: 'spade', emoji: '<:sspade:1390578921631907891>', chance: 0.0397, payout: 40 },
+    { id: 'diamond_card', emoji: '<:ssgem:1390578803956252742>', chance: 0.0397, payout: 40 },
+    { id: 'club', emoji: '<:sclub:1390578715469156473>', chance: 0.0397, payout: 40 },
+    { id: 'horseshoe', emoji: '<:shorseshoe:1390578857438089326>', chance: 0.0454, payout: 35 },
+    { id: 'watermelon', emoji: '<:swatermelon:1390578936370696294>', chance: 0.0635, payout: 25 },
+    { id: 'grapes', emoji: '🍇', chance: 0.0794, payout: 20 },
+    { id: 'plum', emoji: '<:splum:1390578903214587988>', chance: 0.1059, payout: 15 },
+    { id: 'orange', emoji: '<:sorange:1390578893110382602>', chance: 0.1059, payout: 15 },
+    { id: 'lemon', emoji: '<:slemon:1390578869647442030>', chance: 0.1589, payout: 10 },
+    { id: 'cherries', emoji: '<:scherries:1390578728551190638>', chance: 0.1589, payout: 10 },
+    { id: 'shoe', emoji: '<:sshoe:1390580210151198740>', chance: 0.02, payout: -2 }
+];
+
+const BAR_SYMBOLS = ['single_bar', 'double_bar', 'triple_bar'];
+
+function pickRandomSymbol() {
+    const total = SLOT_SYMBOLS.reduce((acc, s) => acc + s.chance, 0);
+    const r = Math.random() * total;
+    let acc = 0;
+    for (const sym of SLOT_SYMBOLS) {
+        acc += sym.chance;
+        if (r <= acc) return sym;
+    }
+    return SLOT_SYMBOLS[SLOT_SYMBOLS.length - 1];
+}
+
+function randomColor() {
+    return Math.floor(Math.random() * 0xffffff);
+}
+
+function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = null) {
+    const mention = `<@${user.id}>`;
+    let line = '■■■┇❓┇❓┇❓┇■■■';
+    if (results) {
+        line = `■■■┇${results[0].emoji}┇${results[1].emoji}┇${results[2].emoji}┇■■■`;
+    }
+    const desc = [
+        `Hey ${mention}, you have rolled:`,
+        '────────────────────',
+        line,
+        '────────────────────'
+    ].join('\n');
+
+    const wonField = `* Multi: ${multiplier !== null ? multiplier : '❓'}\n➜ ${prize !== null ? `${formatNumber(prize)} ${bet ? bet.currencyEmoji : ''}` : '❓'}`;
+    const betField = bet ? `${formatNumber(bet.amount)} ${bet.currencyEmoji}` : '❓';
+
+    return new EmbedBuilder()
+        .setColor(randomColor())
+        .setTitle('SLOTS MACHINE <:slots:1390588524725796954>')
+        .setDescription(desc)
+        .addFields(
+            { name: 'Won 🎁', value: wonField, inline: true },
+            { name: 'Bet 💸', value: betField, inline: true },
+            { name: '\u200b', value: '\u200b', inline: true }
+        );
+}
+
+function calculateMultiplier(symbols) {
+    if (symbols[0].id === symbols[1].id && symbols[1].id === symbols[2].id) {
+        return symbols[0].payout;
+    }
+    if (BAR_SYMBOLS.includes(symbols[0].id) && BAR_SYMBOLS.includes(symbols[1].id) && BAR_SYMBOLS.includes(symbols[2].id)) {
+        return 20;
+    }
+    const cherriesCount = symbols.filter(s => s.id === 'cherries').length;
+    if (cherriesCount === 2) return 2;
+    return 0;
+}
+
+
 
 // --- Helper Functions for /add-user ---
 function buildUserManagementPanelEmbed(targetUser, operations = []) {
@@ -2965,6 +3048,26 @@ module.exports = {
                 } catch (invError) { console.error(`[Inventory Command] Error:`, invError); await sendInteractionError(interaction, "Could not display inventory.", true, deferredThisInteraction); }
                 return;
             }
+            if (commandName === 'slots') {
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const last = slotsCooldowns.get(key);
+                if (last && Date.now() - last < SLOTS_COOLDOWN_MS) {
+                    const remaining = Math.ceil((SLOTS_COOLDOWN_MS - (Date.now() - last)) / 60000);
+                    return sendInteractionError(interaction, `Please wait ${remaining}m before using /slots again.`, true);
+                }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
+                const embed = buildSlotsEmbed(interaction.user, null);
+                const components = [new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                )];
+                const sent = await safeEditReply(interaction, { embeds: [embed], components, fetchReply: true });
+                if (sent?.id) {
+                    slotsSessions.set(key, { messageId: sent.id, bet: null });
+                    slotsCooldowns.set(key, Date.now());
+                }
+                return;
+            }
             if (commandName === 'use-item') {
                  if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                  try {
@@ -4625,6 +4728,134 @@ module.exports = {
                         await sendInteractionError(interaction, `Failed to instantly restock: ${restockResult.message}. Gems refunded.`, true, deferredThisInteraction);
                     }
                 } catch (shopRestockError) { console.error('[ShopInstantRestockModal Process Error]', shopRestockError); await sendInteractionError(interaction, "Error processing instant restock.", true, deferredThisInteraction); }
+                return;
+            }
+
+            if (customId === 'slots_bet') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = slotsSessions.get(key);
+                if (!session || session.messageId !== interaction.message.id) return;
+                const modal = new ModalBuilder()
+                    .setCustomId('slots_bet_modal')
+                    .setTitle('Place Your Bet');
+                const curInput = new TextInputBuilder()
+                    .setCustomId('slots_currency')
+                    .setLabel('Currency (coin/gem)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+                const amtInput = new TextInputBuilder()
+                    .setCustomId('slots_amount')
+                    .setLabel('Amount')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(curInput), new ActionRowBuilder().addComponents(amtInput));
+                await interaction.showModal(modal).catch(() => {});
+                return;
+            }
+
+            if (customId === 'slots_bet_modal') {
+                if (!interaction.isModalSubmit()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = slotsSessions.get(key);
+                if (!session) return sendInteractionError(interaction, 'Start a slots game first using /slots.', true, deferredThisInteraction);
+                const currencyRaw = interaction.fields.getTextInputValue('slots_currency').toLowerCase();
+                const amountRaw = interaction.fields.getTextInputValue('slots_amount').replace(/,/g, '');
+                const amount = parseInt(amountRaw);
+                if (isNaN(amount) || amount <= 0) return sendInteractionError(interaction, 'Invalid bet amount.', true, deferredThisInteraction);
+                if (currencyRaw.includes('robux')) return sendInteractionError(interaction, 'You cannot bet Robux.', true, deferredThisInteraction);
+                const currency = currencyRaw.includes('gem') ? 'gems' : 'coins';
+                const balance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                const bank = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                const total = currency === 'coins' ? balance.coins + bank.bankCoins : balance.gems + bank.bankGems;
+                if (total < amount) return sendInteractionError(interaction, 'Insufficient funds for that bet.', true, deferredThisInteraction);
+                const emoji = currency === 'coins' ? client.levelSystem.coinEmoji : client.levelSystem.gemEmoji;
+                session.bet = { currency, amount, currencyEmoji: emoji, currencyId: currency === 'coins' ? client.levelSystem.COINS_ID : client.levelSystem.GEMS_ID };
+                slotsSessions.set(key, session);
+                const embed = buildSlotsEmbed(interaction.user, session.bet);
+                const components = [new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                )];
+                try {
+                    const msg = await interaction.channel.messages.fetch(session.messageId).catch(() => null);
+                    if (msg && msg.editable) await msg.edit({ embeds: [embed], components });
+                } catch {}
+                await interaction.editReply({ content: 'Bet updated!', embeds: [], components: [] }).catch(() => {});
+                return;
+            }
+
+            if (customId === 'slots_roll') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = slotsSessions.get(key);
+                if (!session || session.messageId !== interaction.message.id || !session.bet) {
+                    await interaction.reply({ content: 'You need to set a bet first.', ephemeral: true }).catch(() => {});
+                    return;
+                }
+                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
+                const rollingEmbed = buildSlotsEmbed(interaction.user, session.bet, [
+                    {emoji:'<:randomslots:1390621328586833960>',id:'r'},
+                    {emoji:'<:randomslots:1390621328586833960>',id:'r'},
+                    {emoji:'<:randomslots:1390621328586833960>',id:'r'}
+                ]);
+                const components = [new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
+                )];
+                if (interaction.message && interaction.message.editable) {
+                    await interaction.message.edit({ embeds:[rollingEmbed], components }).catch(()=>{});
+                }
+                setTimeout(async () => {
+                    const symbols = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
+                    const multiplier = calculateMultiplier(symbols);
+                    const prize = session.bet.amount * multiplier;
+                    if (prize !== 0) {
+                        if (prize > 0) {
+                            if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, prize, 'slots_win');
+                            else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, prize, 'slots_win');
+                        } else {
+                            let cost = -prize;
+                            const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                            const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                            let wallet = session.bet.currency === 'coins' ? bal.coins : bal.gems;
+                            if (wallet < cost) {
+                                const need = cost - wallet;
+                                client.levelSystem.withdrawFromBank(interaction.user.id, interaction.guild.id, session.bet.currency, need);
+                            }
+                            if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
+                            else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
+                        }
+                    } else {
+                        const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                        const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                        let wallet = session.bet.currency === 'coins' ? bal.coins : bal.gems;
+                        if (wallet < session.bet.amount) {
+                            const need = session.bet.amount - wallet;
+                            client.levelSystem.withdrawFromBank(interaction.user.id, interaction.guild.id, session.bet.currency, need);
+                        }
+                        if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_loss');
+                        else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_loss');
+                    }
+                    const finalEmbed = buildSlotsEmbed(interaction.user, session.bet, symbols, multiplier, prize);
+                    try {
+                        if (interaction.message && interaction.message.editable) await interaction.message.edit({ embeds:[finalEmbed], components });
+                    } catch {}
+                    if (symbols.every(s => s.id === 'lucky7')) {
+                        const ch = await client.channels.fetch('1373564899199811625').catch(() => null);
+                        if (ch?.isTextBased?.()) {
+                            const e = new EmbedBuilder().setColor(randomColor()).setTitle('JACKPOT!').setDescription(`${interaction.user} rolled 3 Lucky 7s!`);
+                            await ch.send({ embeds:[e] }).catch(()=>{});
+                        }
+                    } else if (symbols.every(s => s.id === 'diamond_gem')) {
+                        const ch = await client.channels.fetch('1373564899199811625').catch(() => null);
+                        if (ch?.isTextBased?.()) {
+                            const e = new EmbedBuilder().setColor(randomColor()).setTitle('Luxury Win!').setDescription(`${interaction.user} rolled 3 Diamonds!`);
+                            await ch.send({ embeds:[e] }).catch(()=>{});
+                        }
+                    }
+                }, 2000);
                 return;
             }
 
