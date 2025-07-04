@@ -185,7 +185,7 @@ const commands = [
         name: 'inventory',
         description: 'Access your inventory, balance, and charms.',
     },
-     {
+    {
         name: 'use-item',
         description: 'Use an item from your inventory.',
         options: [
@@ -204,6 +204,10 @@ const commands = [
                 minValue: 1,
             }
         ]
+    },
+    {
+        name: 'slots',
+        description: 'Play the slots machine game.'
     },
     {
         name: 'database',
