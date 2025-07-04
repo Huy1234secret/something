@@ -4926,6 +4926,19 @@ module.exports = {
                     if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                     return;
                 }
+                const balCheck = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                const bankCheck = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                const walletCheck = session.bet.currency === 'coins' ? balCheck.coins : balCheck.gems;
+                const bankAmountCheck = session.bet.currency === 'coins' ? bankCheck.bankCoins : bankCheck.bankGems;
+                if (walletCheck + bankAmountCheck < session.bet.amount) {
+                    const errEmbed = buildSlotsEmbed(interaction.user, session.bet, null, null, null,
+                        '<:serror:1390640264392998942> Bet too high.');
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [errEmbed] }).catch(() => {});
+                    }
+                    if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
+                    return;
+                }
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const rollingEmbed = buildSlotsEmbed(interaction.user, session.bet, [
                     {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
@@ -4949,22 +4962,32 @@ module.exports = {
                     const symbols = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
                     const multiplier = calculateMultiplier(symbols);
                     const prize = session.bet.amount * multiplier;
-                    if (prize !== 0) {
-                        if (prize > 0) {
-                            if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, prize, 'slots_win');
-                            else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, prize, 'slots_win');
-                        } else {
-                            let cost = -prize;
-                            const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
-                            const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
-                            let wallet = session.bet.currency === 'coins' ? bal.coins : bal.gems;
-                            if (wallet < cost) {
-                                const need = cost - wallet;
-                                client.levelSystem.withdrawFromBank(interaction.user.id, interaction.guild.id, session.bet.currency, need);
-                            }
-                            if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
-                            else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
+                    if (prize > 0) {
+                        const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                        const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                        let wallet = session.bet.currency === 'coins' ? bal.coins : bal.gems;
+                        if (wallet < session.bet.amount) {
+                            const need = session.bet.amount - wallet;
+                            client.levelSystem.withdrawFromBank(interaction.user.id, interaction.guild.id, session.bet.currency, need);
                         }
+                        if (session.bet.currency === 'coins') {
+                            client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_bet');
+                            client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, prize, 'slots_win', { currency: 1.0 }, true);
+                        } else {
+                            client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_bet');
+                            client.levelSystem.addGems(interaction.user.id, interaction.guild.id, prize, 'slots_win', { gem: 1.0 }, true);
+                        }
+                    } else if (prize < 0) {
+                        let cost = -prize;
+                        const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                        const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
+                        let wallet = session.bet.currency === 'coins' ? bal.coins : bal.gems;
+                        if (wallet < cost) {
+                            const need = cost - wallet;
+                            client.levelSystem.withdrawFromBank(interaction.user.id, interaction.guild.id, session.bet.currency, need);
+                        }
+                        if (session.bet.currency === 'coins') client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
+                        else client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -cost, 'slots_loss');
                     } else {
                         const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
                         const bankBal = client.levelSystem.getBankBalance(interaction.user.id, interaction.guild.id);
