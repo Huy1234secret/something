@@ -4858,12 +4858,16 @@ module.exports = {
                     {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
                     {emoji:'<a:randomslots:1390621328586833960>',id:'r'}
                 ]);
-                const components = [new ActionRowBuilder().addComponents(
+                const disabledComponents = [new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success).setDisabled(true),
+                    new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary).setDisabled(true)
+                )];
+                const enabledComponents = [new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('slots_roll').setLabel('ROLL').setStyle(ButtonStyle.Success),
                     new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary)
                 )];
                 if (interaction.message && interaction.message.editable) {
-                    await interaction.message.edit({ embeds:[rollingEmbed], components }).catch(()=>{});
+                    await interaction.message.edit({ embeds:[rollingEmbed], components: disabledComponents }).catch(()=>{});
                 }
                 setTimeout(async () => {
                     const symbols = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
@@ -4898,7 +4902,7 @@ module.exports = {
                     }
                     const finalEmbed = buildSlotsEmbed(interaction.user, session.bet, symbols, multiplier, prize);
                     try {
-                        if (interaction.message && interaction.message.editable) await interaction.message.edit({ embeds:[finalEmbed], components });
+                        if (interaction.message && interaction.message.editable) await interaction.message.edit({ embeds:[finalEmbed], components: enabledComponents });
                     } catch {}
                     if (symbols.every(s => s.id === 'lucky7')) {
                         const ch = await client.channels.fetch('1373564899199811625').catch(() => null);
