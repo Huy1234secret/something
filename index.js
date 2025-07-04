@@ -394,7 +394,7 @@ function randomColor() {
     return Math.floor(Math.random() * 0xffffff);
 }
 
-function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = null) {
+function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = null, errorMessage = null) {
     const mention = `<@${user.id}>`;
     let line = '■■■┇❓┇❓┇❓┇■■■';
     if (results) {
@@ -403,7 +403,7 @@ function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = n
     let desc;
     if (!bet) {
         desc = [
-            `Hey ${mention}, please make a bet before gambling!`,
+            `Hey ${mention},`,
             '────────────────────',
             line,
             '────────────────────'
@@ -420,15 +420,20 @@ function buildSlotsEmbed(user, bet, results = null, multiplier = null, prize = n
     const wonField = `* Multi: ${multiplier !== null ? multiplier : '❓'}\n➜ ${prize !== null ? `${formatNumber(prize)} ${bet ? bet.currencyEmoji : ''}` : '❓'}`;
     const betField = bet ? `${formatNumber(bet.amount)} ${bet.currencyEmoji}` : '❓';
 
+    const fields = [
+        { name: 'Won 🎁', value: wonField, inline: true },
+        { name: 'Bet 💸', value: betField, inline: true },
+        { name: '\u200b', value: '\u200b', inline: true }
+    ];
+    if (errorMessage) {
+        fields.push({ name: 'HEY', value: errorMessage });
+    }
+
     return new EmbedBuilder()
         .setColor(randomColor())
         .setTitle('SLOTS MACHINE <:slots:1390588524725796954>')
         .setDescription(desc)
-        .addFields(
-            { name: 'Won 🎁', value: wonField, inline: true },
-            { name: 'Bet 💸', value: betField, inline: true },
-            { name: '\u200b', value: '\u200b', inline: true }
-        );
+        .addFields(fields);
 }
 
 function calculateMultiplier(symbols) {
@@ -4871,7 +4876,11 @@ module.exports = {
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 const session = slotsSessions.get(key);
                 if (!session || session.messageId !== interaction.message.id || !session.bet) {
-                    await interaction.reply({ content: 'You need to set a bet first.', ephemeral: true }).catch(() => {});
+                    const errEmbed = buildSlotsEmbed(interaction.user, null, null, null, null, '<:serror:1390640264392998942> You didn\'t place a bet');
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [errEmbed] }).catch(() => {});
+                    }
+                    if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                     return;
                 }
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
