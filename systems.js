@@ -1651,6 +1651,7 @@ this.db.prepare(`
 
         const xpResult = this.addXP(userId, guildId, xpAmount, member, true, effectiveWeekendXpMultiplier);
 
+        let userObj = member?.user || null;
         if (!userObj && this.client) {
             try { userObj = await this.client.users.fetch(userId); } catch {}
         }
