@@ -5010,10 +5010,11 @@ module.exports = {
                 const session = slotsSessions.get(key);
                 if (!session || session.messageId !== interaction.message.id || !session.bet) {
                     const errEmbed = buildSlotsEmbed(interaction.user, null, null, null, null, '<:serror:1390640264392998942> You didn\'t place a bet');
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [errEmbed] }).catch(() => {});
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.update({ embeds: [errEmbed], components: [] }).catch(() => {});
+                    } else if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [errEmbed], components: [] }).catch(() => {});
                     }
-                    if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                     return;
                 }
                 const balCheck = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
@@ -5023,13 +5024,13 @@ module.exports = {
                 if (walletCheck + bankAmountCheck < session.bet.amount) {
                     const errEmbed = buildSlotsEmbed(interaction.user, session.bet, null, null, null,
                         '<:serror:1390640264392998942> Bet too high.');
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [errEmbed] }).catch(() => {});
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.update({ embeds: [errEmbed], components: [] }).catch(() => {});
+                    } else if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [errEmbed], components: [] }).catch(() => {});
                     }
-                    if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                     return;
                 }
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const rollingEmbed = buildSlotsEmbed(interaction.user, session.bet, [
                     {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
                     {emoji:'<a:randomslots:1390621328586833960>',id:'r'},
@@ -5045,8 +5046,10 @@ module.exports = {
                     new ButtonBuilder().setCustomId('slots_bet').setLabel('BET').setStyle(ButtonStyle.Primary),
                     new ButtonBuilder().setCustomId('slots_prize').setLabel('PRIZE').setStyle(ButtonStyle.Secondary)
                 )];
-                if (interaction.message && interaction.message.editable) {
-                    await interaction.message.edit({ embeds:[rollingEmbed], components: disabledComponents }).catch(()=>{});
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.update({ embeds: [rollingEmbed], components: disabledComponents }).catch(() => {});
+                } else if (interaction.message && interaction.message.editable) {
+                    await interaction.message.edit({ embeds: [rollingEmbed], components: disabledComponents }).catch(() => {});
                 }
                 setTimeout(async () => {
                     const symbols = [
@@ -5141,7 +5144,7 @@ module.exports = {
                 if (interaction.isButton()) {
     const action = customId.split('_')[1];
     if (action === 'upgrade') {
-        // Defer the update to acknowledge the interaction immediately
+        // Acknowledge the interaction and update the panel at the end
         if (!interaction.replied && !interaction.deferred) {
             await interaction.deferUpdate().catch(e => console.warn("Bank upgrade button deferUpdate failed:", e.message));
         }
@@ -5169,8 +5172,11 @@ module.exports = {
         try {
             const updatedBankEmbed = await buildBankEmbed(interaction.user, interaction.guild.id, client.levelSystem);
             const updatedBankComponents = getBankComponents(interaction.user.id, interaction.guild.id, client.levelSystem);
-            if (interaction.message && interaction.message.editable) {
-                await interaction.message.edit({ embeds: [updatedBankEmbed], components: updatedBankComponents });
+            if (interaction.deferred) {
+                await interaction.editReply({ embeds: [updatedBankEmbed], components: updatedBankComponents }).catch(() => {});
+                await setBankMessageTimeout(interaction, interaction.message.id, bankMessageKey);
+            } else if (interaction.message && interaction.message.editable) {
+                await interaction.message.edit({ embeds: [updatedBankEmbed], components: updatedBankComponents }).catch(() => {});
                 await setBankMessageTimeout(interaction, interaction.message.id, bankMessageKey);
             }
         } catch (e) {
@@ -5245,51 +5251,33 @@ module.exports = {
             if (customId === 'inventory_nav_select') {
                 if (!interaction.guild) return sendInteractionError(interaction, "Inventory interactions require a server context.", true);
                 if (!interaction.isStringSelectMenu()) return;
-                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(e => console.warn("Inventory nav deferUpdate failed", e)); }
                 const selectedTab = interaction.values[0];
                 try {
                     const { embed } = await buildInventoryEmbed(interaction.user, interaction.guild.id, client.levelSystem, selectedTab);
                     const components = getInventoryNavComponents(selectedTab);
-                    if (interaction.message && interaction.message.editable) { // Ensure message exists and is editable
-                        await interaction.message.edit({ embeds: [embed], components: components });
-                    } else { // Fallback if original message isn't editable (should not happen with deferUpdate)
-                         await safeEditReply(interaction, { embeds: [embed], components: components });
-                    }
-                } catch (invNavError) { console.error('[Inventory Nav Error]', invNavError); await sendInteractionError(interaction, "Could not update inventory view.", true, true); } // Pass deferred flag
+                    await interaction.update({ embeds: [embed], components });
+                } catch (invNavError) { console.error('[Inventory Nav Error]', invNavError); await sendInteractionError(interaction, "Could not update inventory view.", true); }
                 return;
             }
 
             if (customId.startsWith('see_user_inventory_nav_select_')) {
                 if (!interaction.guild) return sendInteractionError(interaction, "Inventory interactions require a server context.", true);
                 if (!interaction.isStringSelectMenu()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(e => console.warn("See-user inventory nav deferUpdate failed", e)); }
                 const selectedTab = interaction.values[0];
                 const targetUserId = customId.replace('see_user_inventory_nav_select_', '');
                 try {
                     const targetUser = await client.users.fetch(targetUserId).catch(() => null);
-                    if (!targetUser) return sendInteractionError(interaction, 'User not found.', true, true);
+                    if (!targetUser) return sendInteractionError(interaction, 'User not found.', true);
                     const { embed } = await buildInventoryEmbed(targetUser, interaction.guild.id, client.levelSystem, selectedTab);
                     const components = getInventoryNavComponents(selectedTab, customId);
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [embed], components });
-                    } else {
-                        await safeEditReply(interaction, { embeds: [embed], components });
-                    }
-                } catch (invNavError) { console.error('[SeeUser Inventory Nav Error]', invNavError); await sendInteractionError(interaction, 'Could not update inventory view.', true, true); }
+                    await interaction.update({ embeds: [embed], components });
+                } catch (invNavError) { console.error('[SeeUser Inventory Nav Error]', invNavError); await sendInteractionError(interaction, 'Could not update inventory view.', true); }
                 return;
             }
 
             if (customId === 'item_info_cancel_browse') {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate(); }
-                if (interaction.message.deletable) {
-                    await interaction.message.delete().catch(() => {});
-                }
-                return;
-            }
-            if (customId === 'item_info_cancel_browse') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate(); }
+                await interaction.update({}).catch(() => {});
                 if (interaction.message.deletable) {
                     await interaction.message.delete().catch(() => {});
                 }
@@ -5383,7 +5371,6 @@ module.exports = {
             }
             if (customId.startsWith('badge_goto_') || customId.startsWith('badge_view_')) {
                 if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(() => {}); }
                 const parts = customId.split('_');
                 let view, page;
                 if (parts[1] === 'goto') {
@@ -5395,11 +5382,7 @@ module.exports = {
                 }
                 const { embed, pageCount, page: curPage } = buildBadgeEmbed(interaction.user.id, interaction.guild.id, client, view, page);
                 const components = getBadgeComponents(view, curPage, pageCount);
-                if (interaction.message && interaction.message.editable) {
-                    await interaction.message.edit({ embeds: [embed], components }).catch(() => {});
-                } else {
-                    await safeEditReply(interaction, { embeds: [embed], components }, true);
-                }
+                await interaction.update({ embeds: [embed], components }).catch(() => {});
                 return;
             }
             if (customId.startsWith('eb_')) {
