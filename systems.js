@@ -189,6 +189,10 @@ class SystemsManager {
         this.battlePass = bpManager;
     }
 
+    setQuestManager(qm) {
+        this.questManager = qm;
+    }
+
     _getItemMasterProperty(itemId, propertyName, defaultValue = null) {
         const item = this.gameConfig.items[itemId];
         if (item) {
@@ -591,6 +595,9 @@ class SystemsManager {
                     baseProbability: itemDetails.probability, rolledChance: itemDetails.finalPickChance 
                 });
             }
+        }
+        if (this.client && this.client.questManager) {
+            this.client.questManager.addProgress(userId, guildId, 'openLootBox', numRolls);
         }
         return { success: true, rewards: allRolledItems, openedBoxId: boxId, grantedSpecialRole: grantedSpecialRoleInThisOpen };
     }
@@ -1054,18 +1061,18 @@ this.db.prepare(`
         const itemName = itemMasterConfig.name || itemId; // Fallback to ID if name is missing
         const itemEmoji = itemMasterConfig.emoji; // Will be undefined if not set, handled by fallback in message
 
-        let bpPts = 0;
-        if (this.client && this.client.battlePass) {
+        let rarityEvent = null;
+        if (this.client && this.client.questManager) {
             const rarity = this._getItemRarityString(itemId, itemMasterConfig, effectiveItemType).toUpperCase();
-            const map = { COMMON:1, RARE:3, EPIC:10, LEGENDARY:50, MYTHICAL:200, GODLY:1000, SECRET:5000 };
-            bpPts = map[rarity] || 0;
+            const map = { COMMON:'rarityCommon', RARE:'rarityRare', EPIC:'rarityEpic', LEGENDARY:'rarityLegendary', MYTHICAL:'rarityMythical', GODLY:'rarityMythical', SECRET:'raritySecret' };
+            rarityEvent = map[rarity] || null;
         }
 
         // Handle currency types first
         if (itemId === this.ROBUX_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const robuxResult = this.addRobux(userId, guildId, quantity, source);
             if (robuxResult.success) {
-                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (rarityEvent && this.client.questManager) this.client.questManager.addProgress(userId, guildId, rarityEvent, quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.robuxEmoji || '💸'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1073,7 +1080,7 @@ this.db.prepare(`
         } else if (itemId === this.COINS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const coinResult = this.addCoins(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (coinResult.success) {
-                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (rarityEvent && this.client.questManager) this.client.questManager.addProgress(userId, guildId, rarityEvent, quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.coinEmoji || '💰'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1081,7 +1088,7 @@ this.db.prepare(`
         } else if (itemId === this.GEMS_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
             const gemResult = this.addGems(userId, guildId, quantity, source, this.globalWeekendMultipliers);
             if (gemResult.success) {
-                if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts);
+                if (rarityEvent && this.client.questManager) this.client.questManager.addProgress(userId, guildId, rarityEvent, quantity);
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) to your balance.` };
@@ -1092,12 +1099,12 @@ this.db.prepare(`
 
         if (effectiveItemType === this.itemTypes.CHARM && !isAdminSource) { // Auto-activate only if NOT admin source
             for (let i = 0; i < quantity; i++) { this.activateCharm(userId, guildId, { charmId: itemId, source: source }); }
-            if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
+            if (rarityEvent && this.client.questManager) this.client.questManager.addProgress(userId, guildId, rarityEvent, quantity);
             return { success: true, activated: true, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) activated immediately!` };
         } else { // This 'else' now handles normal items AND charms from admin sources (which get added to inventory)
             this._addToUserInventorySQL(userId, guildId, itemId, quantity, effectiveItemType);
             // For charms added to inventory by admin, ensure the message doesn't say "activated"
-            if (bpPts > 0 && source !== 'bp_reward') this.client.battlePass.addPoints(userId, guildId, bpPts * quantity);
+            if (rarityEvent && this.client.questManager) this.client.questManager.addProgress(userId, guildId, rarityEvent, quantity);
             if (effectiveItemType === this.itemTypes.CHARM && isAdminSource) {
                  return { success: true, activated: false, message: `${itemEmoji || '✨'} **${itemName}** (x${quantity}) added to inventory.` };
             }
@@ -1662,12 +1669,11 @@ this.db.prepare(`
         const durationSeconds = Math.floor((Date.now() - session.joinedTimestamp) / 1000);
         const minutes = durationSeconds / 60;
         const xpAmount = Math.floor(minutes * 15);
-        const bpAmount = Math.floor(minutes * 30);
         const effectiveWeekendXpMultiplier = weekendMultipliers?.xp || this.globalWeekendMultipliers?.xp || (this.gameConfig.globalSettings?.WEEKEND_XP_MULTIPLIER || WEEKEND_XP_MULTIPLIER);
 
         const xpResult = this.addXP(userId, guildId, xpAmount, member, true, effectiveWeekendXpMultiplier);
-        if (this.client && this.client.battlePass && bpAmount > 0) {
-            this.client.battlePass.addPoints(userId, guildId, bpAmount);
+        if (this.client && this.client.questManager && minutes > 0) {
+            this.client.questManager.addProgress(userId, guildId, 'voiceMinutes', Math.floor(minutes));
         }
 
         let userObj = member?.user;
@@ -1675,7 +1681,7 @@ this.db.prepare(`
             try { userObj = await this.client.users.fetch(userId); } catch {}
         }
         if (userObj) {
-            const msg = `You earned **${xpResult.xpEarned} XP** and **${bpAmount} battle pass points** from voice chat.`;
+            const msg = `You earned **${xpResult.xpEarned} XP** from voice chat.`;
             userObj.send({ content: msg }).catch(e => { if (e.code !== 50007) console.warn(`[Voice Reward DM] Failed to DM ${userId}: ${e.message}`); });
         }
     }
@@ -2187,9 +2193,7 @@ this.db.prepare(`
         // Shift rewards forward now that today's reward was claimed
         this.getDailyRewards(userId, guildId, true);
 
-        if (this.client && this.client.battlePass) {
-            this.client.battlePass.addPoints(userId, guildId, 120);
-        }
+
 
         return { success: true, message: claimedRewardMessage };
     }
