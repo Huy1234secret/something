@@ -390,24 +390,6 @@ const config = {
         }
     },
     badges: {
-        bp1_champion: {
-            id: "bp1_champion",
-            name: "Battle-Pass 1# Champion",
-            emoji: "<:season1c:1389126156439261264>",
-            obtainment: "Be the first to complete July 2025 Batte Pass (unobtainable after the Battle Pass ends)",
-            type: "limited - obtainable",
-            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1",
-            boosts: { coinMultiplier: 2.0, gemMultiplier: 1.25, xpPerMessage: 1 }
-        },
-        bp1_complete: {
-            id: "bp1_complete",
-            name: "Battle-Pass 1#",
-            emoji: "<:season1t:1389126139297140766>",
-            obtainment: "complete July 2025 Battle Pass (unobtainable after the Battle Pass ends)",
-            type: "limited - obtainable",
-            perk: "<:scoinmulti:1384503519330959380> Coin +20%, <:sgemmulti:1384507113048506428> Gem +5%",
-            boosts: { coinMultiplier: 1.2, gemMultiplier: 1.05 }
-        },
         puzzle_champion_2025: {
             id: "puzzle_champion_2025",
             name: "Puzzle Champion 2025",
