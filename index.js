@@ -88,6 +88,7 @@ const fsSync = require('node:fs');
 const path = require('node:path');
 const { restoreDataFromFiles } = require('./utils/dataRestorer.js'); // Import the new restore function
 const BattlePassManager = require('./utils/battlePassManager.js');
+const QuestManager = require('./utils/questManager.js');
 const { formatNumber, parseAbbreviatedNumber } = require('./utils/numberFormatter.js');
 
 const commandsPath = path.join(__dirname, normalizePath('commands'));
@@ -324,8 +325,13 @@ try {
     client.levelSystem.globalWeekendMultipliers = WEEKEND_MULTIPLIERS;
     const bpDataFile = path.join(__dirname, 'data', 'battlepass.json');
     client.battlePass = new BattlePassManager(bpDataFile, BATTLE_PASS_START, BATTLE_PASS_END);
+    const questDataFile = path.join(__dirname, 'data', 'quests.json');
+    client.questManager = new QuestManager(questDataFile, client.battlePass);
     if (typeof client.levelSystem.setBattlePassManager === 'function') {
         client.levelSystem.setBattlePassManager(client.battlePass);
+    }
+    if (typeof client.levelSystem.setQuestManager === 'function') {
+        client.levelSystem.setQuestManager(client.questManager);
     }
     if (!client.levelSystem || !client.levelSystem.db) {
         console.error("CRITICAL: SystemsManager or its DB failed to initialize. Exiting.");
@@ -1732,13 +1738,40 @@ function buildBattlePassEmbed(userId, guildId, client) {
     embed.addFields({ name: 'BP to Next Level', value: `\`${bpToNextDisplay}\`` });
     embed.addFields({ name: 'Rebirths', value: `${progress.rebirths}` });
     embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
-    embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by chatting, opening loot boxes, and claiming daily rewards. ${BATTLE_TOKEN_EMOJI} BP XP from item rarity stacks, so unboxing multiple items grants XP for each one (e.g., 5 Rare items = 15 ${BATTLE_TOKEN_EMOJI} BP XP).` });
+    embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by completing daily and hourly quests.` });
     const claimDisabled = progress.level <= progress.lastClaim;
     const row = new ActionRowBuilder();
     row.addComponents(new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁'));
     if (progress.lastClaim >= 100) {
         row.addComponents(new ButtonBuilder().setCustomId('bp_rebirth').setLabel('REBIRTH').setStyle(ButtonStyle.Danger));
     }
+    row.addComponents(new ButtonBuilder().setCustomId('bp_quest').setLabel('Quest').setStyle(ButtonStyle.Primary));
+    return { embed, components: [row] };
+}
+
+function buildQuestEmbed(userId, guildId, client) {
+    const data = client.questManager.getQuests(userId, guildId);
+    const embed = new EmbedBuilder()
+        .setColor(0x3498db)
+        .setTitle('📝 Battle Pass Quests');
+
+    const formatQuest = q => {
+        const filled = Math.min(10, Math.round((q.progress / q.target) * 10));
+        const bar = (q.complete ? '🟩'.repeat(10) : '🟦'.repeat(filled) + '⬜'.repeat(10 - filled));
+        return `${q.description} - ${bar} \`${q.progress}/${q.target}\` (+${q.reward} BP)`;
+    };
+
+    const daily = data.daily.map(formatQuest).join('\n') || 'None';
+    const hourly = data.hourly.map(formatQuest).join('\n') || 'None';
+    const dailyReset = data.lastDaily + 24*60*60*1000;
+    const hourlyReset = data.lastHourly + 60*60*1000;
+
+    embed.addFields({ name: `Daily Quests \u231BUpdate <t:${Math.floor(dailyReset/1000)}:R>`, value: daily });
+    embed.addFields({ name: `Hourly Quests \u231BUpdate <t:${Math.floor(hourlyReset/1000)}:R>`, value: hourly });
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('bp_quest_back').setLabel('Back').setStyle(ButtonStyle.Secondary)
+    );
     return { embed, components: [row] };
 }
 
@@ -2437,6 +2470,10 @@ scheduleVoiceActivityRewards(client);
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
+    if (client.questManager) {
+        client.questManager.addProgress(message.author.id, message.guild.id, 'messages', 1);
+    }
+
     let member = message.member;
     if (!member) { // Attempt to fetch if not readily available (e.g., due to intents or caching)
         try { member = await message.guild.members.fetch(message.author.id); }
@@ -2520,10 +2557,6 @@ client.on('messageCreate', async message => {
             if (rolePerkData.totals.gemPerMessage > 0) {
                 client.levelSystem.addGems(message.author.id, message.guild.id, rolePerkData.totals.gemPerMessage, "role_perk_chat", WEEKEND_MULTIPLIERS, true);
             }
-        }
-        if (client.battlePass) {
-            const bpPts = Math.floor(Math.random() * 5) + 1;
-            client.battlePass.addPoints(message.author.id, message.guild.id, bpPts);
         }
     }
     // Direct Drop Logic
@@ -3778,6 +3811,32 @@ module.exports = {
                 await safeEditReply(interaction, { content: 'Rebirth cancelled.', ephemeral: true });
                 return;
             }
+            if (customId === 'bp_quest') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
+                try {
+                    const { embed, components } = buildQuestEmbed(interaction.user.id, interaction.guild.id, client);
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [embed], components }).catch(()=>{});
+                    } else {
+                        await interaction.reply({ embeds: [embed], components });
+                    }
+                } catch (err) { console.error('Quest embed error', err); }
+                return;
+            }
+            if (customId === 'bp_quest_back') {
+                if (!interaction.isButton()) return;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
+                try {
+                    const { embed, components } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
+                    if (interaction.message && interaction.message.editable) {
+                        await interaction.message.edit({ embeds: [embed], components }).catch(()=>{});
+                    } else {
+                        await interaction.reply({ embeds: [embed], components });
+                    }
+                } catch (err) { console.error('Quest back error', err); }
+                return;
+            }
             if (customId === 'setting_toggle_daily') {
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) { await interaction.deferUpdate().catch(()=>{}); }
@@ -5012,6 +5071,7 @@ module.exports = {
                             client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_bet');
                             client.levelSystem.addGems(interaction.user.id, interaction.guild.id, prize, 'slots_win', { gem: 1.0 }, true);
                         }
+                        if (client.questManager) client.questManager.addProgress(interaction.user.id, interaction.guild.id, 'slotsWin', 1);
                     } else if (prize < 0) {
                         let cost = -prize;
                         const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
