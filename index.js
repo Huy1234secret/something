@@ -48,20 +48,12 @@ const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
 const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
 const DISCOUNT_BOOST_EMOJI = '<:sdiscount:1384506117895225355>';
 const GEM_CHAT_BOOST_EMOJI = '<:sultragemmulti:1384512368708423781>';
-const BATTLE_TOKEN_EMOJI = '<:bppoint:1389238189671321672>';
 
 const { SHOP_ITEM_TYPES } = require('./shopManager.js');
 const SHOP_DISCOUNT_IDS = ['dis10', 'dis25', 'dis50', 'dis100'];
 const DISCOUNT_THRESHOLD_MAP = { dis10: 0.10, dis25: 0.25, dis50: 0.50, dis100: 1.00 };
 
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
-const WEEKEND_TZ_OFFSET_HOURS = 7; // Hours offset for UTC+7 weekend calculations
-// Battle Pass starts at 24:00 on June 30th UTC+7
-// (equivalent to July 1st 00:00 UTC+7)
-const BATTLE_PASS_START = new Date('2025-06-30T24:00:00+07:00').getTime();
-// Battle Pass ends at 24:00 on July 31st UTC+7
-const BATTLE_PASS_END = new Date('2025-08-01T00:00:00+07:00').getTime();
-
 const gameConfig = require('./game_config.js');
 const ITEM_IDS = {
     COINS: gameConfig.items.coins?.id || 'coins',
@@ -87,8 +79,6 @@ const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
 const { restoreDataFromFiles } = require('./utils/dataRestorer.js'); // Import the new restore function
-const BattlePassManager = require('./utils/battlePassManager.js');
-const QuestManager = require('./utils/questManager.js');
 const { formatNumber, parseAbbreviatedNumber } = require('./utils/numberFormatter.js');
 
 const commandsPath = path.join(__dirname, normalizePath('commands'));
@@ -323,16 +313,6 @@ console.log(`[DATABASE] Bot is attempting to use database file at: ${dbFilePath}
 try {
     client.levelSystem = new SystemsManager(dbFilePath);
     client.levelSystem.globalWeekendMultipliers = WEEKEND_MULTIPLIERS;
-    const bpDataFile = path.join(__dirname, 'data', 'battlepass.json');
-    client.battlePass = new BattlePassManager(bpDataFile, BATTLE_PASS_START, BATTLE_PASS_END);
-    const questDataFile = path.join(__dirname, 'data', 'quests.json');
-    client.questManager = new QuestManager(questDataFile, client.battlePass);
-    if (typeof client.levelSystem.setBattlePassManager === 'function') {
-        client.levelSystem.setBattlePassManager(client.battlePass);
-    }
-    if (typeof client.levelSystem.setQuestManager === 'function') {
-        client.levelSystem.setQuestManager(client.questManager);
-    }
     if (!client.levelSystem || !client.levelSystem.db) {
         console.error("CRITICAL: SystemsManager or its DB failed to initialize. Exiting.");
         process.exit(1);
@@ -1274,24 +1254,6 @@ async function scheduleDailyReadyNotifications(client) {
 }
 
 
-async function scheduleBattlePassBadgeUpdate(client) {
-    const updateBadges = () => {
-        if (!client.levelSystem) return;
-        if (Date.now() > BATTLE_PASS_END) {
-            if (client.levelSystem.gameConfig?.badges?.bp1_champion) {
-                client.levelSystem.gameConfig.badges.bp1_champion.type = 'limited - unobtainable';
-            }
-            if (client.levelSystem.gameConfig?.badges?.bp1_complete) {
-                client.levelSystem.gameConfig.badges.bp1_complete.type = 'limited - unobtainable';
-            }
-        }
-    };
-    updateBadges();
-    const delay = BATTLE_PASS_END - Date.now();
-    if (delay > 0) {
-        setTimeout(updateBadges, delay);
-    }
-}
 
 async function scheduleVoiceActivityRewards(client) {
     console.log("[Voice Scheduler] Initializing periodic voice reward processing...");
@@ -1696,84 +1658,6 @@ async function buildShopEmbed(guildId, systemsManager, shopManagerInstance) {
     return { embed, shopItems };
 }
 
-function buildBattlePassCountdownEmbed() {
-    const embed = new EmbedBuilder()
-        .setColor(0xF1C40F)
-        .setTitle('⏳ Battle Pass Countdown')
-        .setDescription(`The battle pass begins <t:${Math.floor(BATTLE_PASS_START/1000)}:R>!`)
-        .setFooter({ text: 'Get ready for the challenge!' });
-    return { embed, components: [] };
-}
-
-function buildBattlePassEndedEmbed() {
-    const embed = new EmbedBuilder()
-        .setColor(0x95A5A6)
-        .setTitle('Battle Pass Ended')
-        .setDescription('The Battle Pass has concluded. Thanks for participating!');
-    return { embed, components: [] };
-}
-
-function buildBattlePassEmbed(userId, guildId, client) {
-    if (Date.now() > BATTLE_PASS_END) return buildBattlePassEndedEmbed();
-    const progress = client.battlePass.getProgress(userId, guildId);
-    const bar = '🟦'.repeat(Math.floor(progress.percent / 10)) + '⬜'.repeat(10 - Math.floor(progress.percent / 10));
-    const bpToNext = progress.level >= 100 ? 0 : Math.max(0, progress.needed - progress.progress);
-    const bpToNextDisplay = progress.level >= 100 ? 'Max Level Reached' : `${bpToNext.toLocaleString()} BP`;
-    const systemsManager = client.levelSystem;
-    const embed = new EmbedBuilder()
-        .setColor(0xF39C12)
-        .setAuthor({ name: 'Guide of Legends' })
-        .setTitle('🔥 Cosmic Battle Pass')
-        .setDescription(`Level **${progress.level}** | ${BATTLE_TOKEN_EMOJI} ${progress.points.toLocaleString()} BP\n${bar} \`${progress.percent.toFixed(1)}%\``)
-        .setTimestamp();
-    const nextRewards = client.battlePass.getNextRewards(userId, guildId, 3);
-    for (const info of nextRewards) {
-        const fieldName = info.level > 100 ? '-' : `${info.level}`;
-        let fieldValue = '-';
-        if (info.rewards && info.rewards.length) {
-            fieldValue = info.rewards.map(r => formatBpReward(r, systemsManager)).join('\n');
-        }
-        embed.addFields({ name: fieldName, value: fieldValue, inline: true });
-    }
-    embed.addFields({ name: 'BP to Next Level', value: `\`${bpToNextDisplay}\`` });
-    embed.addFields({ name: 'Rebirths', value: `${progress.rebirths}` });
-    embed.addFields({ name: 'Battle Pass ends', value: `<t:${Math.floor(BATTLE_PASS_END/1000)}:R>` });
-    embed.addFields({ name: 'How to gain BP XP', value: `Earn ${BATTLE_TOKEN_EMOJI} BP XP by completing daily and hourly quests.` });
-    const claimDisabled = progress.level <= progress.lastClaim;
-    const row = new ActionRowBuilder();
-    row.addComponents(new ButtonBuilder().setCustomId('bp_claim_reward').setLabel('Claim').setStyle(ButtonStyle.Success).setDisabled(claimDisabled).setEmoji('🎁'));
-    if (progress.lastClaim >= 100) {
-        row.addComponents(new ButtonBuilder().setCustomId('bp_rebirth').setLabel('REBIRTH').setStyle(ButtonStyle.Danger));
-    }
-    row.addComponents(new ButtonBuilder().setCustomId('bp_quest').setLabel('Quest').setStyle(ButtonStyle.Primary));
-    return { embed, components: [row] };
-}
-
-function buildQuestEmbed(userId, guildId, client) {
-    const data = client.questManager.getQuests(userId, guildId);
-    const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle('📝 Battle Pass Quests');
-
-    const formatQuest = q => {
-        const filled = Math.min(10, Math.round((q.progress / q.target) * 10));
-        const bar = (q.complete ? '🟩'.repeat(10) : '🟦'.repeat(filled) + '⬜'.repeat(10 - filled));
-        return `${q.description} - ${bar} \`${q.progress}/${q.target}\` (+${q.reward} BP)`;
-    };
-
-    const daily = data.daily.map(formatQuest).join('\n') || 'None';
-    const hourly = data.hourly.map(formatQuest).join('\n') || 'None';
-    const dailyReset = data.lastDaily + 24*60*60*1000;
-    const hourlyReset = data.lastHourly + 60*60*1000;
-
-    embed.addFields({ name: `Daily Quests \u231BUpdate <t:${Math.floor(dailyReset/1000)}:R>`, value: daily });
-    embed.addFields({ name: `Hourly Quests \u231BUpdate <t:${Math.floor(hourlyReset/1000)}:R>`, value: hourly });
-
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('bp_quest_back').setLabel('Back').setStyle(ButtonStyle.Secondary)
-    );
-    return { embed, components: [row] };
-}
 
 function buildBadgeEmbed(userId, guildId, client, view = 'obtained', page = 1) {
     const systems = client.levelSystem;
@@ -2439,7 +2323,6 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
-scheduleBattlePassBadgeUpdate(client);
 scheduleVoiceActivityRewards(client);
 
     // Config checks
@@ -2469,10 +2352,6 @@ scheduleVoiceActivityRewards(client);
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
-
-    if (client.questManager) {
-        client.questManager.addProgress(message.author.id, message.guild.id, 'messages', 1);
-    }
 
     let member = message.member;
     if (!member) { // Attempt to fetch if not readily available (e.g., due to intents or caching)
@@ -3331,19 +3210,6 @@ module.exports = {
             } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
                 return;
             }
-            if (commandName === 'battle-pass') {
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
-                try {
-                    if (Date.now() < BATTLE_PASS_START) {
-                        const { embed, components } = buildBattlePassCountdownEmbed();
-                        await safeEditReply(interaction, { embeds: [embed], components, ephemeral: false }, true);
-                    } else {
-                        const { embed, components } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
-                        await safeEditReply(interaction, { embeds: [embed], components, ephemeral: false }, true);
-                    }
-                } catch (bpErr) { console.error('[BattlePass Command] Error:', bpErr); await sendInteractionError(interaction, 'Error displaying battle pass.', true, deferredThisInteraction); }
-                return;
-            }
             if (commandName === 'see-user') {
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
@@ -3702,139 +3568,6 @@ module.exports = {
                     console.error('[SkipDaily Error]', skipError);
                     await sendInteractionError(interaction, 'An error occurred while skipping.', true, deferredThisInteraction);
                 }
-                return;
-            }
-            if (customId === 'bp_claim_reward') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
-                try {
-                    const member = interaction.guild ? await interaction.guild.members.fetch(interaction.user.id).catch(() => null) : null;
-                    const result = client.battlePass.claimReward(interaction.user.id, interaction.guild.id, client.levelSystem, member);
-                    if (result.success) {
-                        await safeEditReply(interaction, { content: `✅ **Success!** ${result.message}`, ephemeral: true });
-                        const { embed: newEmbed, components: newComponents } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
-                        if (interaction.message && interaction.message.editable) {
-                            await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => console.warn('Failed to edit battle pass embed:', e.message));
-                        }
-                        if (result.firstClaim) {
-                            const ch = await client.channels.fetch('1372572234949853367').catch(() => null);
-                            if (ch?.isTextBased?.()) {
-                                const announceEmbed = new EmbedBuilder()
-                                    .setColor(0xFFD700)
-                                    .setTitle('🏆 Battle Pass Champion!')
-                                    .setDescription(`<@${interaction.user.id}> has claimed the Level 100 reward first and wins the grand prize!`)
-                                    .setTimestamp();
-                                await ch.send({ content: `<@&1382309927283986602>`, embeds: [announceEmbed] }).catch(e => console.warn('Failed to send level 100 announcement:', e.message));
-                            }
-                        }
-                        const progress = client.battlePass.getProgress(interaction.user.id, interaction.guild.id);
-                        if (progress.lastClaim >= 100) {
-                            const regular = client.levelSystem.getAllBadges().bp1_complete;
-                            if (regular) {
-                                const res = client.levelSystem.awardBadge(interaction.user.id, interaction.guild.id, regular.id);
-                                if (res.success) {
-                                    const embed = new EmbedBuilder()
-                                        .setColor(0xF1C40F)
-                                        .setTitle('CONGRATULATION')
-                                        .setDescription(`hey <@${interaction.user.id}> you have obtained ${regular.name} ${regular.emoji} badge!`)
-                                        .addFields({ name: 'perk gained', value: regular.perk });
-                                    await interaction.user.send({ embeds: [embed] }).catch(() => {});
-                                }
-                            }
-                            if (result.firstClaim) {
-                                const champ = client.levelSystem.getAllBadges().bp1_champion;
-                                if (champ) {
-                                    const res2 = client.levelSystem.awardBadge(interaction.user.id, interaction.guild.id, champ.id);
-                                    if (res2.success) {
-                                        const embed2 = new EmbedBuilder()
-                                            .setColor(0xF1C40F)
-                                            .setTitle('CONGRATULATION')
-                                            .setDescription(`hey <@${interaction.user.id}> you have obtained ${champ.name} ${champ.emoji} badge!`)
-                                            .addFields({ name: 'perk gained', value: champ.perk });
-                                        await interaction.user.send({ embeds: [embed2] }).catch(() => {});
-                                        client.levelSystem.gameConfig.badges.bp1_champion.type = 'limited - unobtainable';
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        await sendInteractionError(interaction, result.message || 'Failed to claim reward.', true, deferredThisInteraction);
-                    }
-                } catch (bpClaimErr) {
-                    console.error('[BattlePass Claim Error]', bpClaimErr);
-                    await sendInteractionError(interaction, 'An error occurred while claiming.', true, deferredThisInteraction);
-                }
-                return;
-            }
-            if (customId === 'bp_rebirth') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
-                try {
-                    const rebCount = client.battlePass.getRebirths(interaction.user.id, interaction.guild.id);
-                    const embed = new EmbedBuilder()
-                        .setColor(0xe67e22)
-                        .setTitle('Hey!')
-                        .setDescription(`${interaction.user}, are you sure you want to rebirth?`)
-                        .addFields(
-                            { name: 'Pros', value: `Get **${Math.pow(2, rebCount + 1)}x** prize from battle pass (stacks)` },
-                            { name: 'Cons', value: 'Battle point requirement increased by **35%**' }
-                        );
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('bp_rebirth_confirm_yes').setLabel('Yes').setStyle(ButtonStyle.Danger),
-                        new ButtonBuilder().setCustomId('bp_rebirth_confirm_no').setLabel('No').setStyle(ButtonStyle.Secondary)
-                    );
-                    await safeEditReply(interaction, { embeds: [embed], components: [row], ephemeral: true });
-                } catch (err) {
-                    console.error('[BP Rebirth Prompt Error]', err);
-                    await sendInteractionError(interaction, 'Failed to prompt rebirth.', true, deferredThisInteraction);
-                }
-                return;
-            }
-            if (customId === 'bp_rebirth_confirm_yes') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
-                try {
-                    client.battlePass.rebirth(interaction.user.id, interaction.guild.id);
-                    await safeEditReply(interaction, { content: '✅ Rebirth complete!', embeds: [], components: [], ephemeral: true });
-                    const { embed: newEmbed, components: newComponents } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [newEmbed], components: newComponents }).catch(e => console.warn('Failed to edit battle pass embed after rebirth:', e.message));
-                    }
-                } catch (err) {
-                    console.error('[BP Rebirth Error]', err);
-                    await sendInteractionError(interaction, 'Failed to rebirth.', true, deferredThisInteraction);
-                }
-                return;
-            }
-            if (customId === 'bp_rebirth_confirm_no') {
-                if (!interaction.isButton()) return;
-                await safeEditReply(interaction, { content: 'Rebirth cancelled.', ephemeral: true });
-                return;
-            }
-            if (customId === 'bp_quest') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
-                try {
-                    const { embed, components } = buildQuestEmbed(interaction.user.id, interaction.guild.id, client);
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [embed], components }).catch(()=>{});
-                    } else {
-                        await interaction.reply({ embeds: [embed], components });
-                    }
-                } catch (err) { console.error('Quest embed error', err); }
-                return;
-            }
-            if (customId === 'bp_quest_back') {
-                if (!interaction.isButton()) return;
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
-                try {
-                    const { embed, components } = buildBattlePassEmbed(interaction.user.id, interaction.guild.id, client);
-                    if (interaction.message && interaction.message.editable) {
-                        await interaction.message.edit({ embeds: [embed], components }).catch(()=>{});
-                    } else {
-                        await interaction.reply({ embeds: [embed], components });
-                    }
-                } catch (err) { console.error('Quest back error', err); }
                 return;
             }
             if (customId === 'setting_toggle_daily') {
@@ -5074,7 +4807,6 @@ module.exports = {
                             client.levelSystem.addGems(interaction.user.id, interaction.guild.id, -session.bet.amount, 'slots_bet');
                             client.levelSystem.addGems(interaction.user.id, interaction.guild.id, prize, 'slots_win', { gem: 1.0 }, true);
                         }
-                        if (client.questManager) client.questManager.addProgress(interaction.user.id, interaction.guild.id, 'slotsWin', 1);
                     } else if (prize < 0) {
                         let cost = -prize;
                         const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);

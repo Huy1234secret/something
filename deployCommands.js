@@ -58,10 +58,6 @@ const commands = [
         ]
     },
     {
-        name: 'battle-pass',
-        description: 'Show your Battle Pass progress'
-    },
-    {
         name: 'see-user',
         description: "View another user's inventory, bank, or level.",
         options: [
