@@ -128,6 +128,7 @@ const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197
 const LOOTBOX_DROP_CHANNEL_ID = process.env.LOOTBOX_DROP_CHANNEL_ID;
 const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
+const NEW_MEMBER_ROLE_ID = '1372573060057530398';
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
 const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) || 7;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
@@ -2518,6 +2519,25 @@ client.on('guildMemberAdd', async member => {
         client.levelSystem.getUser(member.id, member.guild.id);
         // Check and award roles based on their current level (if they rejoined with existing stats)
         await client.levelSystem.checkAndAwardRoles(member, client.levelSystem.getLevelInfo(member.id, member.guild.id).level);
+
+        // Assign default role to new members
+        try {
+            const joinRole = member.guild.roles.cache.get(NEW_MEMBER_ROLE_ID);
+            const botMember = member.guild.members.me;
+            if (joinRole) {
+                if (botMember && botMember.permissions.has(PermissionsBitField.Flags.ManageRoles) && botMember.roles.highest.position > joinRole.position) {
+                    if (!member.roles.cache.has(NEW_MEMBER_ROLE_ID)) {
+                        await member.roles.add(joinRole);
+                    }
+                } else {
+                    console.warn(`[GuildMemberAdd] Missing permissions or hierarchy to assign join role in guild ${member.guild.name}.`);
+                }
+            } else {
+                console.warn(`[GuildMemberAdd] Join role ID ${NEW_MEMBER_ROLE_ID} not found in guild ${member.guild.name}.`);
+            }
+        } catch (err) {
+            console.error(`[GuildMemberAdd] Error assigning join role to ${member.user.tag}:`, err);
+        }
 
         const guildWelcomeChannelId = client.levelSystem.getGuildSettings(member.guild.id).welcomeChannelId || WELCOME_CHANNEL_ID;
         let welcomeChannel = guildWelcomeChannelId ? member.guild.channels.cache.get(guildWelcomeChannelId) : member.guild.systemChannel; // Fallback to system channel
@@ -5376,23 +5396,21 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 });
 client.on('guildMemberRemove', async member => {
     try {
-        const guildLeaveChannelId = client.levelSystem.getGuildSettings(member.guild.id).leaveChannelId; // Use guild specific setting
-        if (guildLeaveChannelId) {
-            const leaveChannel = await client.channels.fetch(guildLeaveChannelId).catch(() => null);
-            if (leaveChannel && leaveChannel.isTextBased()) {
-                 const botMember = member.guild.members.me;
-                 if (botMember && leaveChannel.permissionsFor(botMember)?.has([PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks])) {
-                    const leaveEmbed = new EmbedBuilder()
-                        .setColor(0xE74C3C)
-                        .setTitle(`😢 Goodbye, ${member.displayName}!`)
-                        .setDescription(`${member.user.tag} has left the server. We'll miss you!`)
-                        .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
-                        .setTimestamp()
-                        .setFooter({ text: `User Left: ${member.user.tag}`, iconURL: member.guild.iconURL({ dynamic: true }) });
-                    await leaveChannel.send({ embeds: [leaveEmbed] }).catch(err => console.error(`[GuildMemberRemove] Failed to send leave message to ${leaveChannel.name}:`, err.message));
-                } else console.warn(`[GuildMemberRemove] Bot missing permissions in leave channel ${leaveChannel?.name}.`);
-            } else if (guildLeaveChannelId) console.warn(`[GuildMemberRemove] Leave channel ${guildLeaveChannelId} not found or not text-based.`);
-        }
+        const guildWelcomeChannelId = client.levelSystem.getGuildSettings(member.guild.id).welcomeChannelId || WELCOME_CHANNEL_ID;
+        let leaveChannel = guildWelcomeChannelId ? member.guild.channels.cache.get(guildWelcomeChannelId) : member.guild.systemChannel;
+        if (leaveChannel && leaveChannel.isTextBased()) {
+            const botMember = member.guild.members.me;
+            if (botMember && leaveChannel.permissionsFor(botMember)?.has([PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks])) {
+                const leaveEmbed = new EmbedBuilder()
+                    .setColor(0xE74C3C)
+                    .setTitle(`😢 Goodbye, ${member.displayName}!`)
+                    .setDescription(`${member.user.tag} has left the server. We'll miss you!`)
+                    .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+                    .setTimestamp()
+                    .setFooter({ text: `User Left: ${member.user.tag}`, iconURL: member.guild.iconURL({ dynamic: true }) });
+                await leaveChannel.send({ embeds: [leaveEmbed] }).catch(err => console.error(`[GuildMemberRemove] Failed to send leave message to ${leaveChannel.name}:`, err.message));
+            } else console.warn(`[GuildMemberRemove] Bot missing permissions in leave channel ${leaveChannel?.name}.`);
+        } else if (guildWelcomeChannelId) console.warn(`[GuildMemberRemove] Leave channel ${guildWelcomeChannelId} not found or not text-based.`);
 
         // Clear active bank message for the user in this guild
         const bankMessageKey = `${member.id}_${member.guild.id}`;
