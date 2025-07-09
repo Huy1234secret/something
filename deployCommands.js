@@ -488,6 +488,10 @@ const commands = [
             { name: 'user', description: 'Target user', type: ApplicationCommandOptionType.User, required: true },
             { name: 'badge', description: 'Badge ID', type: ApplicationCommandOptionType.String, required: true, autocomplete: true }
         ]
+    },
+    {
+        name: 'submit-ticket',
+        description: 'Create a private build submission channel.'
     }
 ];
 

@@ -3376,7 +3376,36 @@ module.exports = {
                             console.log(`Embed builder session ${sessionId} timed out and was cleaned up.`);
                         }
                     }, EMBED_BUILDER_TIMEOUT_MS);
-                    sessionData.timeoutInstance = timeout; // Store timeout to clear if cancelled early
+                sessionData.timeoutInstance = timeout; // Store timeout to clear if cancelled early
+                }
+                return;
+            }
+            if (commandName === 'submit-ticket') {
+                const now = Date.now();
+                const year = new Date().getUTCFullYear();
+                const startTime = new Date(Date.UTC(year, 6, 31, 17, 0, 0)).getTime();
+                const endTime = new Date(Date.UTC(year, 7, 7, 17, 0, 0)).getTime();
+                if (now < startTime) {
+                    return sendInteractionError(interaction, 'This command is not active yet.', true);
+                }
+                if (now >= endTime) {
+                    return sendInteractionError(interaction, 'This command is no longer active.', true);
+                }
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const newChannel = await interaction.guild.channels.create({
+                        name: `${interaction.user.username}-build`,
+                        type: ChannelType.GuildText,
+                        permissionOverwrites: [
+                            { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+                            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                        ]
+                    });
+                    await newChannel.setName(`${interaction.user.username}'s Build`).catch(() => {});
+                    await safeEditReply(interaction, { content: `Channel created: <#${newChannel.id}>`, ephemeral: true });
+                } catch (ticketError) {
+                    console.error('[submit-ticket]', ticketError);
+                    await sendInteractionError(interaction, 'Failed to create build channel.', true, deferredThisInteraction);
                 }
                 return;
             }
