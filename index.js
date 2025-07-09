@@ -2855,7 +2855,7 @@ client.on('interactionCreate', async interaction => {
                 } catch (error) { console.error('[AdminResetData Command] Critical error:', error); await sendInteractionError(interaction, 'A critical error occurred while attempting to reset data.', true, deferredThisInteraction); }
                 return;
             }
-            if (commandName === 'add-xp' || commandName === 'add-level' || commandName === 'set-level' || commandName === 'add-coin' || commandName === 'add-gem' || commandName === 'add-robux') {
+            if (commandName === 'add-xp' || commandName === 'add-level' || commandName === 'set-level' || commandName === 'add-coin' || commandName === 'add-gem' || commandName === 'add-robux' || commandName === 'add-daily-streak') {
                 if (!isStaff()) return sendInteractionError(interaction, "You don't have permission.", true, false);
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
                 try {
@@ -2899,6 +2899,11 @@ client.on('interactionCreate', async interaction => {
                         const robuxResult = client.levelSystem.addRobux(targetUser.id, interaction.guildId, amount, "admin_command");
                         const robuxEmoji = client.levelSystem.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
                         await safeEditReply(interaction, { content: `✅ Added ${robuxResult.added} ${robuxEmoji} to ${targetUser}. New balance: ${robuxResult.newBalance}.` });
+                    }
+                    else if (commandName === 'add-daily-streak') {
+                        if (amount === null || amount <= 0) return sendInteractionError(interaction, 'Amount must be a positive integer.', true, deferredThisInteraction);
+                        const streakResult = client.levelSystem.addDailyStreak(targetUser.id, interaction.guildId, amount);
+                        await safeEditReply(interaction, { content: `✅ Increased ${targetUser}'s daily streak from ${streakResult.oldStreak} to ${streakResult.newStreak}.` });
                     }
                 } catch (error) { console.error(`[Admin Modify Stat Error - ${commandName}]`, error); await sendInteractionError(interaction, 'Failed to modify user stat.', true, deferredThisInteraction); }
                 return;

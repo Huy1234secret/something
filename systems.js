@@ -1962,6 +1962,23 @@ this.db.prepare(`
         this.updateUserLuckBonus(userId, guildId);
     }
 
+    addDailyStreak(userId, guildId, amount) {
+        if (!Number.isInteger(amount) || amount === 0) {
+            return { success: false, message: 'Amount must be a non-zero integer.' };
+        }
+        const user = this.getUser(userId, guildId);
+        const oldStreak = user.dailyStreak || 0;
+        let newStreak = oldStreak + amount;
+        if (newStreak < 0) newStreak = 0;
+        this.updateUser(userId, guildId, {
+            dailyStreak: newStreak,
+            lostStreak: 0,
+            lostStreakTimestamp: 0,
+        });
+        this.updateUserLuckBonus(userId, guildId);
+        return { success: true, oldStreak, newStreak };
+    }
+
     attemptStreakRestore(userId, guildId, oldStreakFromButton) {
         const user = this.getUser(userId, guildId);
         if (user.lostStreak === 0) {

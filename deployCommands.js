@@ -270,6 +270,15 @@ const commands = [
         default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
     },
     {
+        name: 'add-daily-streak',
+        description: 'Increase a user\'s daily streak (Staff Only).',
+        options: [
+            { name: 'user', description: 'The user to modify streak for.', type: ApplicationCommandOptionType.User, required: true },
+            { name: 'amount', description: 'Number of streak days to add.', type: ApplicationCommandOptionType.Integer, required: true }
+        ],
+        default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
+    },
+    {
         name: 'give-item',
         description: 'Give an item to a user (Staff Only).',
         options: [
