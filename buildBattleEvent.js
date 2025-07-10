@@ -134,7 +134,7 @@ async function ensureCountdownMessage(client, channel, data) {
   const embed = new EmbedBuilder()
     .setTitle('Build Battle Countdown ⛏️')
     .setDescription('Blocks at the ready—⏰ the arena drops in <t:1753938000:R>! Who’s claiming the crown?')
-    .setColor('Black');
+    .setColor('#000000');
   const message = await channel.send({ embeds: [embed] });
   data.countdownMessageId = message.id;
   await saveData(data);
@@ -173,7 +173,7 @@ async function ensureSignupMessage(client, channel, data) {
   const embed = new EmbedBuilder()
     .setTitle('📝⚒️ Sign In for the Build Battle! 🚀')
     .setDescription('Ready to unleash your inner architect? Tap the button below ⬇️ to lock in your spot! The moment you click, a mystery theme materializes 🪄—and your countdown ⏱️ to creative glory begins.\n🏆 Build big, think bold, leave judges speechless!')
-    .setColor('Yellow')
+    .setColor('#FFFF00')
     .setFooter({ text: 'this request ends in 3 days!' });
 
   const row = new ActionRowBuilder().addComponents(
