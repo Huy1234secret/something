@@ -1676,7 +1676,7 @@ function buildBadgeEmbed(userId, guildId, client, view = 'obtained', page = 1) {
         .setDescription(`### Page ${page}/${pageCount}`);
     const start = (page - 1) * 25;
     for (const b of list.slice(start, start + 25)) {
-        const typeLine = b.type.includes('limited') ? `<:limites:1389227936569233458> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
+        const typeLine = b.type.includes('limited') ? `<:limited:1392780276232355931> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
         embed.addFields({ name: `${b.name} ${b.emoji || ''}`, value: `* Obtainment: ${b.obtainment}\n* Perk: ${b.perk}\n- ${typeLine}` });
     }
     embed.setFooter({ text: `You have obtained ${obtainedList.length} out of ${Object.keys(allBadges).length} badges` });

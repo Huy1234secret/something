@@ -398,6 +398,15 @@ const config = {
             type: "limited - unobtainable",
             perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sgemmulti:1384507113048506428> Gem +25%, <:sxpmulti:1384502410059317410> XP +1",
             boosts: { coinMultiplier: 2.0, gemMultiplier: 1.25, xpPerMessage: 1 }
+        },
+        build_battle_champion_1: {
+            id: "build_battle_champion_1",
+            name: "Build Battle Champion 1",
+            emoji: "🏆",
+            obtainment: "Be the top 2 winning the Build Battle 2025 - August",
+            type: "limited - obtainable",
+            perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sultragemmulti:1384512368708423781> Gem +1/msg, <:sxpmulti:1384502410059317410> XP +3/msg",
+            boosts: { coinMultiplier: 2.0, gemPerMessage: 1, xpPerMessage: 3 }
         }
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
