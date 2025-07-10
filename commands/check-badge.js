@@ -26,7 +26,7 @@ module.exports = {
                 .setDescription(`### Page ${page}/${pageCount}`);
             const start = (page - 1) * 25;
             for (const b of list.slice(start, start + 25)) {
-                const typeLine = b.type.includes('limited') ? `<:limites:1389227936569233458> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
+                const typeLine = b.type.includes('limited') ? `<:limited:1392780276232355931> LIMITED ${b.type.includes('unobtainable') ? '- <:nos:1389227923965476905> Unobtainable' : '- <:yess:1389227929392644218> Obtainable'}` : (b.type.includes('unobtainable') ? '<:nos:1389227923965476905> Unobtainable' : '<:yess:1389227929392644218> Obtainable');
 
                 const perkWithEmojis = (b.perk || '')
                     .replace(/\bcoin\b/gi, `coin ${COIN_BOOST_EMOJI}`)
