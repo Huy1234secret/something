@@ -338,6 +338,7 @@ let inventoryInteractionTimeouts = new Map();
 client.activeBankMessages = new Map();
 let userManagementSessions = new Map(); // New: For /add-user panel
 let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawal log messages { withdrawalId: messageId }
+const SUBMIT_TICKET_VERIFICATION_TEXT = 'I confirm this is my original work and follows all Build-Battle rules';
 
 let slotsSessions = new Map();
 let slotsCooldowns = new Map();
@@ -3396,22 +3397,78 @@ module.exports = {
                 if (now >= endTime) {
                     return sendInteractionError(interaction, 'This command is no longer active.', true);
                 }
-                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
-                try {
-                    const newChannel = await interaction.guild.channels.create({
-                        name: `${interaction.user.username}-build`,
-                        type: ChannelType.GuildText,
-                        permissionOverwrites: [
-                            { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-                            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
-                        ]
-                    });
-                    await newChannel.setName(`${interaction.user.username}'s Build`).catch(() => {});
-                    await safeEditReply(interaction, { content: `Channel created: <#${newChannel.id}>`, ephemeral: true });
-                } catch (ticketError) {
-                    console.error('[submit-ticket]', ticketError);
-                    await sendInteractionError(interaction, 'Failed to create build channel.', true, deferredThisInteraction);
-                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId('submit_ticket_modal')
+                    .setTitle('Build Submission Form');
+
+                const ignInput = new TextInputBuilder()
+                    .setCustomId('ign_input')
+                    .setLabel('🏷️ IGN (discord username)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('vietnamph')
+                    .setRequired(true);
+
+                const titleInput = new TextInputBuilder()
+                    .setCustomId('build_title_input')
+                    .setLabel('✨ Build title')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('<Your build\u2019s name>')
+                    .setRequired(true);
+
+                const themeInput = new TextInputBuilder()
+                    .setCustomId('theme_fit_input')
+                    .setLabel('🎯 Theme fit (1-2 sentences)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Floating islands with a zen temple and cherry-blossom garden.')
+                    .setRequired(true);
+
+                const gameInput = new TextInputBuilder()
+                    .setCustomId('game_version_input')
+                    .setLabel('🗺️ Game & Version')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Minecraft Java 1.20.6 (no mods, OptiFine only)')
+                    .setRequired(true);
+
+                const deviceInput = new TextInputBuilder()
+                    .setCustomId('device_used_input')
+                    .setLabel('💻 Device used')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('PC / Mobile / Console + basic specs')
+                    .setRequired(true);
+
+                const descInput = new TextInputBuilder()
+                    .setCustomId('short_desc_input')
+                    .setLabel('📝 Short description (≤1000 words)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('What makes your build special, key details, inspiration')
+                    .setRequired(true);
+
+                const verifyInput = new TextInputBuilder()
+                    .setCustomId('verification_input')
+                    .setLabel('Verification')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder(SUBMIT_TICKET_VERIFICATION_TEXT)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(ignInput),
+                    new ActionRowBuilder().addComponents(titleInput),
+                    new ActionRowBuilder().addComponents(themeInput),
+                    new ActionRowBuilder().addComponents(gameInput),
+                    new ActionRowBuilder().addComponents(deviceInput),
+                    new ActionRowBuilder().addComponents(descInput),
+                    new ActionRowBuilder().addComponents(verifyInput)
+                );
+
+                await interaction.showModal(modal).catch(async e => {
+                    console.error('Failed to show submit_ticket_modal:', e);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await sendInteractionError(interaction, 'Failed to open submission form.', true);
+                    } else {
+                        await sendInteractionError(interaction, 'Failed to open submission form.', true, true);
+                    }
+                });
                 return;
             }
             if (commandName === 'leaderboard') {
@@ -3856,6 +3913,56 @@ module.exports = {
                     console.error("Failed to send Robux withdrawal request to log channel:", logError);
                     // Attempt to mark the DB request as errored or delete it? For now, just inform user.
                     await sendInteractionError(interaction, "Failed to send your request to staff. Please try again or contact support.", true, deferredThisInteraction);
+                }
+                return;
+            }
+
+            if (customId === 'submit_ticket_modal') {
+                if (!interaction.isModalSubmit()) return;
+                if (!interaction.guild) return sendInteractionError(interaction, 'This interaction must be used in a server.', true);
+
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: true });
+                    deferredThisInteraction = true;
+                }
+
+                const ign = interaction.fields.getTextInputValue('ign_input');
+                const title = interaction.fields.getTextInputValue('build_title_input');
+                const theme = interaction.fields.getTextInputValue('theme_fit_input');
+                const gameVersion = interaction.fields.getTextInputValue('game_version_input');
+                const deviceUsed = interaction.fields.getTextInputValue('device_used_input');
+                const shortDesc = interaction.fields.getTextInputValue('short_desc_input');
+                const verification = interaction.fields.getTextInputValue('verification_input');
+
+                try {
+                    const newChannel = await interaction.guild.channels.create({
+                        name: `${interaction.user.username}-build`,
+                        type: ChannelType.GuildText,
+                        permissionOverwrites: [
+                            { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+                            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                        ]
+                    });
+                    await newChannel.setName(`${interaction.user.username}'s Build`).catch(() => {});
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('Build Submission')
+                        .addFields(
+                            { name: 'IGN', value: ign || 'N/A' },
+                            { name: 'Build Title', value: title || 'N/A' },
+                            { name: 'Theme Fit', value: theme || 'N/A' },
+                            { name: 'Game & Version', value: gameVersion || 'N/A' },
+                            { name: 'Device Used', value: deviceUsed || 'N/A' },
+                            { name: 'Short Description', value: shortDesc || 'N/A' },
+                            { name: 'Verification', value: verification || 'N/A' }
+                        )
+                        .setTimestamp();
+
+                    await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+                    await safeEditReply(interaction, { content: `Channel created: <#${newChannel.id}>`, ephemeral: true });
+                } catch (ticketError) {
+                    console.error('[submit-ticket]', ticketError);
+                    await sendInteractionError(interaction, 'Failed to create build channel.', true, deferredThisInteraction);
                 }
                 return;
             }
