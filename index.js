@@ -8,6 +8,8 @@ const {
 const dotenv = require('dotenv');
 dotenv.config();
 
+const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
+
 // Corrected code
 const originalUserSend = User.prototype.send;
 User.prototype.send = function (...args) {
@@ -2327,6 +2329,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 scheduleVoiceActivityRewards(client);
+    initBuildBattleEvent(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -5462,6 +5465,11 @@ module.exports = {
             if (customId.startsWith('claim_')) {
                 if (!interaction.isButton()) return;
                 await handleClaimPrize(interaction, client.activeGiveaways);
+                return;
+            }
+            if (customId === 'join_build_battle') {
+                if (!interaction.isButton()) return;
+                await handleJoinInteraction(interaction);
                 return;
             }
 
