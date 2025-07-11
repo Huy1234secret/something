@@ -7,6 +7,8 @@ const CHANNEL_ID = '1390743854487044136';
 const COUNTDOWN_END = 1753938000; // July 31 2025 05:00 UTC
 const SIGNUP_END = 1754240400; // Aug 3 2025 17:00 UTC
 
+const PARTICIPANT_ROLE_ID = '1389139329762332682';
+
 const THEME_CLOSE_TS = 1754542800; // Aug 7 2025 05:00 UTC
 
 const THEMES = [
@@ -206,10 +208,15 @@ async function handleJoinInteraction(interaction) {
   if (now >= SIGNUP_END) {
     return interaction.reply({ content: 'Sign ups have closed.', ephemeral: true });
   }
+  const member = interaction.member;
+  if (!member) {
+    return interaction.reply({ content: 'This button can only be used in a server.', ephemeral: true });
+  }
   if (!data.userThemes) data.userThemes = {};
-  if (data.userThemes[interaction.user.id]) {
+  if (data.userThemes[interaction.user.id] || member.roles.cache.has(PARTICIPANT_ROLE_ID)) {
     await interaction.reply({ content: 'You have already joined! Check your DMs.', ephemeral: true });
   } else {
+    await member.roles.add(PARTICIPANT_ROLE_ID).catch(() => {});
     const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
     data.userThemes[interaction.user.id] = theme;
     await saveData(data);
