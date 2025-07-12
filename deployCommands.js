@@ -231,10 +231,6 @@ const commands = [
         description: 'View fish available this season'
     },
     {
-        name: 'fish-store',
-        description: 'Send the fishing shop embed'
-    },
-    {
         name: 'slots',
         description: 'Play the slots machine game.'
     },

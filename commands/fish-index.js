@@ -27,6 +27,8 @@ module.exports = {
             const value = known ? `Rarity: ${fish.rarity}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
             embed.addFields({ name, value, inline: false });
         }
-        await interaction.reply({ embeds: [embed], ephemeral: false });
+        const replyOpts = { embeds: [embed], ephemeral: false };
+        if (interaction.deferred || interaction.replied) return interaction.editReply(replyOpts);
+        return interaction.reply(replyOpts);
     }
 };
