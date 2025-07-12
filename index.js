@@ -5544,6 +5544,22 @@ module.exports = {
                 await handleJoinInteraction(interaction);
                 return;
             }
+            if (customId === 'fish_market_sell') {
+                if (!interaction.isButton()) return;
+                await interaction.reply({
+                    content: '❌ Fish selling is not implemented yet.',
+                    ephemeral: true
+                }).catch(() => {});
+                return;
+            }
+            if (customId === 'fish_market_value') {
+                if (!interaction.isButton()) return;
+                await interaction.reply({
+                    content: '❌ Value check is not implemented yet.',
+                    ephemeral: true
+                }).catch(() => {});
+                return;
+            }
 
 
             console.warn(`[ComponentInteraction] Unhandled Custom ID: ${customId} by ${interaction.user.tag} (Type: ${interaction.type})`);
