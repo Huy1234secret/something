@@ -335,6 +335,17 @@ client.commands = new Collection();
 client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
 
+const { loadFishData } = require('./utils/fishDataLoader.js');
+let fishData = [];
+try {
+    fishData = loadFishData('./fish data.xlsx');
+    console.log(`[FishData] Loaded ${fishData.length} fish entries`);
+} catch (e) {
+    console.error('[FishData] Failed to load fish data:', e.message);
+}
+client.fishData = fishData;
+client.userFishInventories = new Map();
+
 let embedBuildingSessions = new Map();
 let inventoryInteractionTimeouts = new Map();
 client.activeBankMessages = new Map();
@@ -3047,6 +3058,49 @@ module.exports = {
                     }
                 } catch (invError) { console.error(`[Inventory Command] Error:`, invError); await sendInteractionError(interaction, "Could not display inventory.", true, deferredThisInteraction); }
                 return;
+            }
+            if (commandName === 'fish') {
+                const sub = interaction.options.getSubcommand();
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                if (sub === 'inventory') {
+                    const inv = client.userFishInventories.get(key) || [];
+                    const embed = new EmbedBuilder()
+                        .setColor('#ffffff')
+                        .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
+                        .setTitle(`${interaction.user.username}'s Fish Inventory`)
+                        .setDescription(`* Inventory capacity: ${inv.length}/10`);
+                    for (const fish of inv.slice(0,10)) {
+                        embed.addFields({
+                            name: `${fish.name} ${fish.emoji || ''}`,
+                            value: `* ⚖️ Weigh: ${fish.weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``,
+                            inline: false
+                        });
+                    }
+                    return interaction.reply({ embeds: [embed], ephemeral: false });
+                } else {
+                    if (!client.fishData || !client.fishData.length) {
+                        return interaction.reply({ content: 'Fish data unavailable.', ephemeral: true });
+                    }
+                    const fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
+                    const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
+                    const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
+                    const inv = client.userFishInventories.get(key) || [];
+                    if (inv.length < 10) {
+                        inv.push({ name: fish.name, emoji: fish.emoji, rarity: fish.rarity, weight, id });
+                        client.userFishInventories.set(key, inv);
+                    }
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ name: 'FISHING' })
+                        .setTitle(`You have caught ${fish.name} ${fish.emoji}!`)
+                        .addFields(
+                            { name: 'Tool', value: `* <:fishingrod1:1391068186409042001> **Tier 1 fishing rod.**\n-# your fishing rod have lost 0 durability`, inline: false },
+                            { name: 'Lost', value: '* You lost 1 bait', inline: false }
+                        )
+                        .setColor('#00ff00')
+                        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
+                        .setDescription(`* ⚖️ Weigh: ${weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${id}\``);
+                    return interaction.reply({ embeds: [embed], ephemeral: false });
+                }
             }
             if (commandName === 'slots') {
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
