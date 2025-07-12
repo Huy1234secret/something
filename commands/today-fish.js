@@ -6,7 +6,12 @@ module.exports = {
         .setDescription('View fish available this season'),
     async execute(interaction) {
         const client = interaction.client;
-        if (typeof client.getCurrentSeasonIndex !== 'function') return interaction.reply({ content: 'Season data unavailable.', ephemeral: true });
+        if (typeof client.getCurrentSeasonIndex !== 'function') {
+            const opts = { content: 'Season data unavailable.', ephemeral: true };
+            return (interaction.deferred || interaction.replied)
+                ? interaction.editReply(opts)
+                : interaction.reply(opts);
+        }
         const seasonIdx = client.getCurrentSeasonIndex();
         const keyName = ['springChance','summerChance','autumnChance','winterChance'][seasonIdx];
         const fishData = client.fishData || [];
@@ -22,6 +27,8 @@ module.exports = {
             const name = known ? `${fish.name} ${fish.emoji || ''}` : '???';
             embed.addFields({ name, value: known ? fish.rarity : '???', inline: false });
         }
-        await interaction.reply({ embeds:[embed], ephemeral:false });
+        const replyOpts = { embeds: [embed], ephemeral: false };
+        if (interaction.deferred || interaction.replied) return interaction.editReply(replyOpts);
+        return interaction.reply(replyOpts);
     }
 };
