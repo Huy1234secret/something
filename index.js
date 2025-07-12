@@ -157,6 +157,8 @@ const FISH_WAIT_MAX_MS = 60 * 1000;
 const FISH_SHAKE_COOLDOWN_MS = 3000;
 const FISH_GAME_BAR_POINTS = 100;
 const FISH_GAME_BAR_SEGMENT = 5; // each segment worth 5 points
+const FISH_BUTTON_COUNTS = { common:4, uncommon:6, rare:10, epic:14, legendary:18, mythical:20, secret:25 };
+const FISH_OTHER_EMOJIS = ['🌀','🔵','💙','💎','🐋','🧿','🌊','🔹','💤','❄️','🐬','💧','🪼','💦','🧊','🪬','🌎','➡️','⚓','🫧','🦋','💠'];
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
@@ -500,7 +502,7 @@ function buildSlotsPrizeEmbed() {
         .setDescription(lines.join('\n'));
 }
 
-function buildFishingStartEmbed(rod, baitCount) {
+function buildFishingStartEmbed(rod, baitCount, alertMessage) {
     const valueLines = [
         `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
         `-# ** 🛡️ Durability:** ${rod.durability} <:pixelheart:1391070636876759121>`,
@@ -508,12 +510,16 @@ function buildFishingStartEmbed(rod, baitCount) {
         '',
         `* 🪱 **Bait:** ${baitCount}`
     ].join('\n');
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setAuthor({ name: 'FISHING' })
         .setTitle('READY TO FISH?')
         .addFields({ name: 'Tool', value: valueLines, inline: false })
         .setColor('#ffffff')
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif');
+    if (alertMessage) {
+        embed.addFields({ name: 'HEY', value: alertMessage, inline: false });
+    }
+    return embed;
 }
 
 function buildFishingWaitEmbed() {
@@ -526,7 +532,7 @@ function buildFishingWaitEmbed() {
         .setDescription('### waiting for fish <a:koifish:1391078374360748052>');
 }
 
-function buildFishingBiteEmbed(fish, rod, lostDur) {
+function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), countdown = 60) {
     const valueLines = [
         `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
         `-# ** 🛡️ Durability:** ${rod.durability - lostDur} <:pixelheart:1391070636876759121> ` + (lostDur ? `\`-${lostDur}\`` : '')
@@ -537,7 +543,7 @@ function buildFishingBiteEmbed(fish, rod, lostDur) {
         .addFields({ name: 'Tool', value: valueLines, inline: false })
         .setColor('#ffffff')
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
-        .setDescription(['### {mission}', '▒'.repeat(20), '-# fail {countdown}'].join('\n'));
+        .setDescription([`### Reel it in!`, bar, `-# fail in ${countdown}s`].join('\n'));
 }
 
 function buildFishingFailEmbed(rod, dLoss, bLoss) {
@@ -596,9 +602,11 @@ function pickRandomFish() {
         }
     }
     if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
+    const rarityMap = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
     const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
     const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
-    return { name: fish.name, emoji: fish.emoji, rarity: fish.rarity, weight, id };
+    const rarityName = rarityMap[fish.rarity] || fish.rarity;
+    return { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
 }
 
 async function startFishingGame(sessionKey) {
@@ -613,14 +621,51 @@ async function startFishingGame(sessionKey) {
     session.fish = fish;
     session.stage = 'game';
     session.progress = 0;
-    const rarityTimes = { common:10, uncommon:20, rare:30, epic:40, legendary:50, mythical:60, secret:70 };
-    const t = rarityTimes[fish.rarity?.toLowerCase()] || 30;
-    session.endTime = Date.now() + t*1000;
-    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_reel').setLabel('REEL').setStyle(ButtonStyle.Success));
-    const embed = buildFishingBiteEmbed(fish, session.rod, session.durabilityLoss);
-    await msg.edit({ embeds:[embed], components:[row] }).catch(()=>{});
-    session.gameTimeout = setTimeout(()=>finishFishing(false, sessionKey), t*1000);
+    session.endTime = Date.now() + 60000; // 60s to catch
+    if (session.rod.power >= fish.powerReq) {
+        return finishFishing(true, sessionKey);
+    }
+    session.buttonCount = FISH_BUTTON_COUNTS[fish.rarity.toLowerCase()] || 4;
+    session.fishIndex = Math.floor(Math.random()*session.buttonCount);
+    const bar = buildProgressBar(0, fish.powerReq);
+    const embed = buildFishingBiteEmbed(fish, session.rod, session.durabilityLoss, bar, Math.ceil((session.endTime-Date.now())/1000));
+    const rows = buildFishingButtons(session.buttonCount, session.fishIndex);
+    await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
+    session.gameTimeout = setTimeout(()=>finishFishing(false, sessionKey), 60000);
+    session.moveInterval = setInterval(()=>{
+        session.fishIndex = Math.floor(Math.random()*session.buttonCount);
+        updateFishingMessage(sessionKey); }, 5000);
     fishingSessions.set(sessionKey, session);
+}
+
+function buildProgressBar(progress, required) {
+    const filled = Math.min(20, Math.round((progress / required) * 20));
+    return '█'.repeat(filled) + '▒'.repeat(20 - filled);
+}
+
+function buildFishingButtons(count, fishIndex) {
+    const buttons = [];
+    for (let i = 0; i < count; i++) {
+        const emoji = i === fishIndex ? '🐟' : FISH_OTHER_EMOJIS[Math.floor(Math.random()*FISH_OTHER_EMOJIS.length)];
+        buttons.push(new ButtonBuilder().setCustomId(`fishing_btn_${i}`).setStyle(ButtonStyle.Secondary).setEmoji(emoji));
+    }
+    const rows = [];
+    for (let i = 0; i < buttons.length; i += 5) {
+        rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i+5)));
+    }
+    return rows;
+}
+
+async function updateFishingMessage(sessionKey) {
+    const session = fishingSessions.get(sessionKey);
+    if (!session) return;
+    const channel = await client.channels.fetch(session.channelId).catch(()=>null);
+    const msg = channel ? await channel.messages.fetch(session.messageId).catch(()=>null) : null;
+    if (!msg) return;
+    const bar = buildProgressBar(session.progress, session.fish.powerReq);
+    const embed = buildFishingBiteEmbed(session.fish, session.rod, session.durabilityLoss, bar, Math.ceil((session.endTime-Date.now())/1000));
+    const rows = buildFishingButtons(session.buttonCount, session.fishIndex);
+    await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
 }
 
 async function finishFishing(success, sessionKey) {
@@ -630,7 +675,7 @@ async function finishFishing(success, sessionKey) {
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
     if (!msg) { fishingSessions.delete(sessionKey); return; }
-    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout);
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval);
     const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
     if (success) {
         const inv = client.userFishInventories.get(sessionKey) || [];
@@ -3261,6 +3306,17 @@ module.exports = {
                     const rodItem = userInv.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
                     const baitItem = userInv.generalItems.find(i => i.itemId === 'worm');
                     const baitCount = baitItem ? baitItem.quantity : 0;
+                    if (!rodItem.itemId || baitCount <= 0) {
+                        const missing = [];
+                        if (!rodItem.itemId) missing.push('a fishing rod');
+                        if (baitCount <= 0) missing.push('bait');
+                        const alertMsg = `<:serror:1390640264392998942> Hey ${interaction.user}, you need ${missing.join(' and ')} to fish!`;
+                        const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
+                        const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                        const embed = buildFishingStartEmbed(rodInfo, baitCount, alertMsg);
+                        await interaction.reply({ content: alertMsg, embeds: [embed], ephemeral: false });
+                        return;
+                    }
                     const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
                     const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
                     const embed = buildFishingStartEmbed(rodInfo, baitCount);
@@ -5811,22 +5867,24 @@ module.exports = {
                 return;
             }
 
-            if (customId === 'fishing_reel') {
+            if (customId.startsWith('fishing_btn_')) {
                 if (!interaction.isButton()) return;
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 const session = fishingSessions.get(key);
                 if (!session || session.stage !== 'game' || session.messageId !== interaction.message.id) return;
-                session.progress += session.rod.power * FISH_GAME_BAR_SEGMENT;
-                if (session.progress >= FISH_GAME_BAR_POINTS) {
-                    await interaction.deferUpdate().catch(() => {});
-                    return finishFishing(true, key);
+                const idx = parseInt(customId.split('_')[2]);
+                await interaction.deferUpdate().catch(()=>{});
+                if (Date.now() >= session.endTime) return finishFishing(false, key);
+                if (idx === session.fishIndex) {
+                    session.progress += session.rod.power;
+                    if (session.progress >= session.fish.powerReq) {
+                        return finishFishing(true, key);
+                    }
+                } else {
+                    session.durabilityLoss += session.fish.durabilityLoss;
                 }
-                const bars = Math.min(20, Math.floor(session.progress / FISH_GAME_BAR_SEGMENT));
-                const barStr = '█'.repeat(bars) + '▒'.repeat(20 - bars);
-                const embed = buildFishingBiteEmbed(session.fish, session.rod, session.durabilityLoss)
-                    .setDescription(['### {mission}', barStr, `-# fail ${Math.ceil((session.endTime - Date.now())/1000)}`].join('\n'));
-                const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_reel').setLabel('REEL').setStyle(ButtonStyle.Success));
-                await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+                session.fishIndex = Math.floor(Math.random()*session.buttonCount);
+                updateFishingMessage(key);
                 fishingSessions.set(key, session);
                 return;
             }
