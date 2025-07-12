@@ -2417,6 +2417,13 @@ this.db.prepare(`
         }
         return { success: false, message: "Failed to deduct Robux for withdrawal." };
     }
+
+    removeItemFromAllUsers(itemIdPattern, useLike = false) {
+        const sql = useLike ?
+            'DELETE FROM userInventory WHERE itemId LIKE ?' :
+            'DELETE FROM userInventory WHERE itemId = ?';
+        this.db.prepare(sql).run(itemIdPattern);
+    }
 }
 
 module.exports = {

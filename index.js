@@ -11,6 +11,7 @@ dotenv.config();
 const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
 const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
+const { initFishStore } = require('./utils/fishStoreNotifier');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -346,6 +347,12 @@ try {
         process.exit(1);
     }
     console.log("[SystemsManager & ShopManager] Initialized successfully.");
+    try {
+        client.levelSystem.removeItemFromAllUsers('fishing_rod%', true);
+        console.log('[FishStore] Removed existing fishing rods from all user inventories.');
+    } catch (remErr) {
+        console.error('[FishStore] Failed to purge fishing rods:', remErr.message);
+    }
 } catch (e) {
     console.error("CRITICAL: Error initializing SystemsManager. Exiting.", e);
     process.exit(1);
@@ -2564,6 +2571,7 @@ scheduleVoiceActivityRewards(client);
     initBuildBattleEvent(client);
     initFishSeason(client);
     initFishMarket(client);
+    initFishStore(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -5802,6 +5810,57 @@ module.exports = {
                     .setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(input));
                 await interaction.showModal(modal).catch(() => {});
+                return;
+            }
+            if (customId === 'fish_store_purchase') {
+                if (!interaction.isButton()) return;
+                const modal = new ModalBuilder()
+                    .setCustomId('fish_store_purchase_modal')
+                    .setTitle('Purchase Fishing Items');
+                const idInput = new TextInputBuilder()
+                    .setCustomId('fish_store_item_id')
+                    .setLabel('Item ID')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('fishing_rod_tier1 or worm')
+                    .setRequired(true);
+                const amtInput = new TextInputBuilder()
+                    .setCustomId('fish_store_amount')
+                    .setLabel('Amount')
+                    .setStyle(TextInputStyle.Short)
+                    .setValue('1')
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(idInput), new ActionRowBuilder().addComponents(amtInput));
+                await interaction.showModal(modal).catch(() => {});
+                return;
+            }
+            if (customId === 'fish_store_purchase_modal') {
+                if (!interaction.isModalSubmit()) return;
+                let deferred = false;
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferred = true; }
+                try {
+                    const itemId = interaction.fields.getTextInputValue('fish_store_item_id').trim();
+                    const amt = parseInt(interaction.fields.getTextInputValue('fish_store_amount').trim());
+                    if (!itemId) return sendInteractionError(interaction, 'Item ID cannot be empty.', true, deferred);
+                    if (isNaN(amt) || amt <= 0) return sendInteractionError(interaction, 'Amount must be a positive number.', true, deferred);
+                    if (!['fishing_rod_tier1','worm'].includes(itemId)) return sendInteractionError(interaction, 'Invalid item ID.', true, deferred);
+                    if (itemId === 'fishing_rod_tier1' && amt > 1) return sendInteractionError(interaction, 'You can only purchase one fishing rod.', true, deferred);
+                    const userInv = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
+                    if (itemId === 'fishing_rod_tier1') {
+                        const existing = userInv.generalItems.find(i => i.itemId.startsWith('fishing_rod'));
+                        if (existing) return sendInteractionError(interaction, 'You already own a fishing rod.', true, deferred);
+                    }
+                    const price = itemId === 'fishing_rod_tier1' ? 10000 : 100;
+                    const total = price * amt;
+                    const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                    const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
+                    if (bal.coins < total) return sendInteractionError(interaction, `You need ${total.toLocaleString()} ${coinEmoji} but only have ${bal.coins.toLocaleString()}.`, true, deferred);
+                    client.levelSystem.addCoins(interaction.user.id, interaction.guild.id, -total, 'fish_store_purchase');
+                    client.levelSystem.giveItem(interaction.user.id, interaction.guild.id, itemId, amt, client.levelSystem.itemTypes.ITEM, 'fish_store_purchase');
+                    await interaction.editReply({ content: `Purchased ${amt}x ${itemId} for ${total.toLocaleString()} ${coinEmoji}.`, ephemeral: true });
+                } catch (err) {
+                    console.error('[FishStore Purchase]', err);
+                    await sendInteractionError(interaction, 'Purchase failed.', true, deferred);
+                }
                 return;
             }
             if (customId === 'fish_sell_modal') {
