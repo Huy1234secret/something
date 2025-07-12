@@ -532,7 +532,7 @@ function buildFishingWaitEmbed() {
         .setDescription('### waiting for fish <a:koifish:1391078374360748052>');
 }
 
-function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), countdown = 60) {
+function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), endTimeMs) {
     const valueLines = [
         `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
         `-# ** 🛡️ Durability:** ${rod.durability - lostDur} <:pixelheart:1391070636876759121> ` + (lostDur ? `\`-${lostDur}\`` : '')
@@ -543,7 +543,7 @@ function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), count
         .addFields({ name: 'Tool', value: valueLines, inline: false })
         .setColor('#ffffff')
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
-        .setDescription([`### Reel it in!`, bar, `-# fail in ${countdown}s`].join('\n'));
+        .setDescription([`### Reel it in!`, bar, `-# fail <t:${Math.floor(endTimeMs/1000)}:R>`].join('\n'));
 }
 
 function buildFishingFailEmbed(rod, dLoss, bLoss) {
@@ -628,7 +628,7 @@ async function startFishingGame(sessionKey) {
     session.buttonCount = FISH_BUTTON_COUNTS[fish.rarity.toLowerCase()] || 4;
     session.fishIndex = Math.floor(Math.random()*session.buttonCount);
     const bar = buildProgressBar(0, fish.powerReq);
-    const embed = buildFishingBiteEmbed(fish, session.rod, session.durabilityLoss, bar, Math.ceil((session.endTime-Date.now())/1000));
+    const embed = buildFishingBiteEmbed(fish, session.rod, session.durabilityLoss, bar, session.endTime);
     const rows = buildFishingButtons(session.buttonCount, session.fishIndex);
     await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
     session.gameTimeout = setTimeout(()=>finishFishing(false, sessionKey), 60000);
@@ -663,7 +663,7 @@ async function updateFishingMessage(sessionKey) {
     const msg = channel ? await channel.messages.fetch(session.messageId).catch(()=>null) : null;
     if (!msg) return;
     const bar = buildProgressBar(session.progress, session.fish.powerReq);
-    const embed = buildFishingBiteEmbed(session.fish, session.rod, session.durabilityLoss, bar, Math.ceil((session.endTime-Date.now())/1000));
+    const embed = buildFishingBiteEmbed(session.fish, session.rod, session.durabilityLoss, bar, session.endTime);
     const rows = buildFishingButtons(session.buttonCount, session.fishIndex);
     await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
 }
@@ -3276,11 +3276,18 @@ module.exports = {
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 if (sub === 'inventory') {
                     const inv = client.userFishInventories.get(key) || [];
+                    const userInvFull = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
+                    const rod = userInvFull.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
+                    const baitItemInv = userInvFull.generalItems.find(i => i.itemId === 'worm');
+                    const baitAmt = baitItemInv ? baitItemInv.quantity : 0;
+                    const rodCfg = client.levelSystem.gameConfig.items[rod.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
+                    const rodInfo = { emoji: rodCfg.emoji || '🎣', tier: (rodCfg.name && rodCfg.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
                     const embed = new EmbedBuilder()
                         .setColor('#ffffff')
                         .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
                         .setTitle(`${interaction.user.username}'s Fish Inventory`)
                         .setDescription(`* Inventory capacity: ${inv.length}/10`);
+                    embed.addFields({ name: 'Fishing Gear', value: `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji}\nBait: ${baitAmt}/50`, inline:false });
                     for (const fish of inv.slice(0,10)) {
                         let valStr = `* ⚖️ Weigh: ${fish.weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
                         if (fish.value !== undefined) {
@@ -3306,6 +3313,12 @@ module.exports = {
                     const rodItem = userInv.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
                     const baitItem = userInv.generalItems.find(i => i.itemId === 'worm');
                     const baitCount = baitItem ? baitItem.quantity : 0;
+                    const invCheck = client.userFishInventories.get(key) || [];
+                    if (invCheck.length >= 10) {
+                        const embed = buildFishingStartEmbed({emoji:'🎣', tier:1, power:1, durability:10}, baitCount, 'Inventory full!');
+                        await interaction.reply({ embeds:[embed], content:'Your fish inventory is full.', ephemeral:false });
+                        return;
+                    }
                     if (!rodItem.itemId || baitCount <= 0) {
                         const missing = [];
                         if (!rodItem.itemId) missing.push('a fishing rod');
@@ -5785,7 +5798,7 @@ module.exports = {
                 const idsStr = interaction.fields.getTextInputValue('fish_sell_ids').trim();
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 const inv = client.userFishInventories.get(key) || [];
-                if (idsStr.toLowerCase() === 'all') {
+                if (idsStr.trim().toLowerCase() === 'all') {
                     let total = 0;
                     for (const f of inv.slice()) {
                         total += calculateFishValue(f);
