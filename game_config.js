@@ -387,6 +387,21 @@ const config = {
             id: "daily_skip_ticket", name: "Daily Skip Ticket", type: "item",
             emoji: "<:skipdailyticket:1389239150703673448>", rarityValue: 1000,
             description: "Skip the daily reward cooldown without spending gems."
+        },
+        "fish_dollar": {
+            id: "fish_dollar", name: "Fish Dollar", type: "currency",
+            emoji: "<:fishdollar:1393480559573078027>", rarityValue: 0,
+            description: "Currency used in the fishing game."
+        },
+        "fishing_rod_tier1": {
+            id: "fishing_rod_tier1", name: "Fishing Rod Tier 1", type: "item",
+            emoji: "<:fishingrod1:1391068186409042001>", rarityValue: 0,
+            description: "Basic fishing rod for catching fish."
+        },
+        "worm": {
+            id: "worm", name: "Worm", type: "item",
+            emoji: "🪱", rarityValue: 0,
+            description: "Simple bait for fishing."
         }
     },
     badges: {
