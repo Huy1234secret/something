@@ -202,6 +202,22 @@ const commands = [
         ]
     },
     {
+        name: 'fish',
+        description: 'Play the fishing minigame or view your fish inventory.',
+        options: [
+            {
+                name: 'start',
+                description: 'Start fishing.',
+                type: ApplicationCommandOptionType.Subcommand,
+            },
+            {
+                name: 'inventory',
+                description: 'View your fish inventory.',
+                type: ApplicationCommandOptionType.Subcommand,
+            }
+        ]
+    },
+    {
         name: 'slots',
         description: 'Play the slots machine game.'
     },
