@@ -396,12 +396,16 @@ const config = {
         "fishing_rod_tier1": {
             id: "fishing_rod_tier1", name: "Fishing Rod Tier 1", type: "item",
             emoji: "<:fishingrod1:1391068186409042001>", rarityValue: 0,
-            description: "Basic fishing rod for catching fish."
+            description: "Basic fishing rod for catching fish.",
+            basePrice: 10000,
+            power: 1,
+            durability: 10
         },
         "worm": {
             id: "worm", name: "Worm", type: "item",
             emoji: "🪱", rarityValue: 0,
-            description: "Simple bait for fishing."
+            description: "Simple bait for fishing.",
+            basePrice: 100
         }
     },
     badges: {
