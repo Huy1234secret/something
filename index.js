@@ -9,6 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
+const { initFishSeason } = require('./utils/fishSeasonManager');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -2341,6 +2342,7 @@ scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 scheduleVoiceActivityRewards(client);
     initBuildBattleEvent(client);
+    initFishSeason(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -3081,7 +3083,20 @@ module.exports = {
                     if (!client.fishData || !client.fishData.length) {
                         return interaction.reply({ content: 'Fish data unavailable.', ephemeral: true });
                     }
-                    const fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
+                    let fish = null;
+                    const seasonIdx = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : 0;
+                    const seasonKeys = ['springChance','summerChance','autumnChance','winterChance'];
+                    const keyName = seasonKeys[seasonIdx] || seasonKeys[0];
+                    const weights = client.fishData.map(f => Number(f[keyName]) || 0);
+                    const total = weights.reduce((a,b) => a + b, 0);
+                    if (total > 0) {
+                        let r = Math.random() * total;
+                        for (let i = 0; i < client.fishData.length; i++) {
+                            r -= weights[i];
+                            if (r <= 0) { fish = client.fishData[i]; break; }
+                        }
+                    }
+                    if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
                     const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
                     const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
                     const inv = client.userFishInventories.get(key) || [];
