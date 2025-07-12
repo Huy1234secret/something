@@ -236,8 +236,11 @@ class ShopManager {
                                 itemDiscountLabel = chosenDiscountTier.label || `${(itemDiscountPercent * 100).toFixed(0)}% OFF`;
                                 if (isWeekend) {
                                      isWeekendSpecialFlag = 1; // Mark as special even if discount is from normal tier IF it's weekend
-                                     if (!itemDiscountLabel.toLowerCase().includes("weekend deal")) { // Ensure weekend label is present
-                                         itemDiscountLabel = `🎉 ${itemDiscountLabel.replace(/🏷️\s*/, '')} (Weekend Deal)`;
+                                     itemDiscountLabel = itemDiscountLabel.replace(/🏷️\s*/, '');
+                                     if (!/\(WD\)/i.test(itemDiscountLabel)) {
+                                         itemDiscountLabel = `🎉 ${itemDiscountLabel} (WD)`;
+                                     } else {
+                                         itemDiscountLabel = `🎉 ${itemDiscountLabel}`;
                                      }
                                 }
                             } else if (chosenDiscountTier) { // 0% discount tier from normal list
@@ -524,8 +527,11 @@ class ShopManager {
                     newDiscountLabel = chosenDiscountTier.label || `${(newDiscountPercent * 100).toFixed(0)}% OFF`;
                     if (isWeekendNow) {
                         newIsWeekendSpecial = 1;
-                         if (!newDiscountLabel.toLowerCase().includes("weekend deal")) {
-                             newDiscountLabel = `🎉 ${newDiscountLabel.replace(/🏷️\s*/, '')} (Weekend Deal)`;
+                         newDiscountLabel = newDiscountLabel.replace(/🏷️\s*/, '');
+                         if (!/\(WD\)/i.test(newDiscountLabel)) {
+                             newDiscountLabel = `🎉 ${newDiscountLabel} (WD)`;
+                         } else {
+                             newDiscountLabel = `🎉 ${newDiscountLabel}`;
                          }
                     }
                 } else if (chosenDiscountTier) { // 0% discount tier
