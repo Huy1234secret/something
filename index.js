@@ -152,6 +152,12 @@ const UNBOXING_ANIMATION_DURATION_MS = 3550;
 const STREAK_LOSS_CHECK_INTERVAL_MS = 1 * 60 * 60 * 1000; // Check for lost streaks every hour
 const DAILY_READY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check for ready daily every 5 minutes
 
+const FISH_WAIT_MIN_MS = 30 * 1000;
+const FISH_WAIT_MAX_MS = 60 * 1000;
+const FISH_SHAKE_COOLDOWN_MS = 3000;
+const FISH_GAME_BAR_POINTS = 100;
+const FISH_GAME_BAR_SEGMENT = 5; // each segment worth 5 points
+
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
 const SPECIAL_ROLE_CHANCE = parseInt(process.env.SPECIAL_ROLE_CHANCE) || 1000000;
@@ -360,6 +366,8 @@ let slotsSessions = new Map();
 let slotsCooldowns = new Map();
 let slotsLuckBoosts = new Map();
 const SLOT_LUCK_BOOST_DURATION_MS = 5 * 60 * 1000;
+
+let fishingSessions = new Map();
 const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_bar','lucky_clover'];
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
@@ -490,6 +498,150 @@ function buildSlotsPrizeEmbed() {
         .setColor(randomColor())
         .setTitle('SLOTS PRIZES')
         .setDescription(lines.join('\n'));
+}
+
+function buildFishingStartEmbed(rod, baitCount) {
+    const valueLines = [
+        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+        `-# ** 🛡️ Durability:** ${rod.durability} <:pixelheart:1391070636876759121>`,
+        `-# **💪 Power:** ${rod.power} `,
+        '',
+        `* 🪱 **Bait:** ${baitCount}`
+    ].join('\n');
+    return new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle('READY TO FISH?')
+        .addFields({ name: 'Tool', value: valueLines, inline: false })
+        .setColor('#ffffff')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif');
+}
+
+function buildFishingWaitEmbed() {
+    return new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle('You have cast the rod')
+        .addFields({ name: '\u200b', value: '\u200b', inline: false })
+        .setColor('#ffffff')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
+        .setDescription('### waiting for fish <a:koifish:1391078374360748052>');
+}
+
+function buildFishingBiteEmbed(fish, rod, lostDur) {
+    const valueLines = [
+        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+        `-# ** 🛡️ Durability:** ${rod.durability - lostDur} <:pixelheart:1391070636876759121> ` + (lostDur ? `\`-${lostDur}\`` : '')
+    ].join('\n');
+    return new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle('A fish bite your rod!')
+        .addFields({ name: 'Tool', value: valueLines, inline: false })
+        .setColor('#ffffff')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
+        .setDescription(['### {mission}', '▒'.repeat(20), '-# fail {countdown}'].join('\n'));
+}
+
+function buildFishingFailEmbed(rod, dLoss, bLoss) {
+    const toolLines = [
+        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+        `-# your fishing rod have lost ${dLoss} durability`
+    ].join('\n');
+    return new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle('You have failed...')
+        .addFields(
+            { name: 'Tool', value: toolLines, inline: false },
+            { name: 'Lost', value: `* You lost ${bLoss} bait`, inline: false }
+        )
+        .setColor('#ff0000')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
+        .setDescription('### The fish ran away...');
+}
+
+function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss) {
+    const toolLines = [
+        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+        `-# your fishing rod have lost ${dLoss} durability`
+    ].join('\n');
+    const desc = [
+        `* ⚖️ Weigh: ${fish.weight}`,
+        `* ☢️ Mutation: `,
+        `* ✨ Rarity: ${fish.rarity}`,
+        `* 🆔 Fish ID: \`${fish.id}\``
+    ];
+    return new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle(`You have caught ${fish.name} ${fish.emoji}!`)
+        .addFields(
+            { name: 'Tool', value: toolLines, inline: false },
+            { name: 'Lost', value: `* You lost ${bLoss} bait`, inline: false }
+        )
+        .setColor('#00ff00')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
+        .setDescription(desc.join('\n'));
+}
+
+function pickRandomFish() {
+    if (!client.fishData || !client.fishData.length) return null;
+    const seasonIdx = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : 0;
+    const seasonKeys = ['springChance','summerChance','autumnChance','winterChance'];
+    const keyName = seasonKeys[seasonIdx] || seasonKeys[0];
+    const weights = client.fishData.map(f => Number(f[keyName]) || 0);
+    const total = weights.reduce((a,b) => a + b, 0);
+    let fish = null;
+    if (total > 0) {
+        let r = Math.random() * total;
+        for (let i=0;i<client.fishData.length;i++) {
+            r -= weights[i];
+            if (r <= 0) { fish = client.fishData[i]; break; }
+        }
+    }
+    if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
+    const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
+    const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
+    return { name: fish.name, emoji: fish.emoji, rarity: fish.rarity, weight, id };
+}
+
+async function startFishingGame(sessionKey) {
+    const session = fishingSessions.get(sessionKey);
+    if (!session) return;
+    const channel = await client.channels.fetch(session.channelId).catch(()=>null);
+    if (!channel) { fishingSessions.delete(sessionKey); return; }
+    const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
+    if (!msg) { fishingSessions.delete(sessionKey); return; }
+    const fish = pickRandomFish();
+    if (!fish) { fishingSessions.delete(sessionKey); return; }
+    session.fish = fish;
+    session.stage = 'game';
+    session.progress = 0;
+    const rarityTimes = { common:10, uncommon:20, rare:30, epic:40, legendary:50, mythical:60, secret:70 };
+    const t = rarityTimes[fish.rarity?.toLowerCase()] || 30;
+    session.endTime = Date.now() + t*1000;
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_reel').setLabel('REEL').setStyle(ButtonStyle.Success));
+    const embed = buildFishingBiteEmbed(fish, session.rod, session.durabilityLoss);
+    await msg.edit({ embeds:[embed], components:[row] }).catch(()=>{});
+    session.gameTimeout = setTimeout(()=>finishFishing(false, sessionKey), t*1000);
+    fishingSessions.set(sessionKey, session);
+}
+
+async function finishFishing(success, sessionKey) {
+    const session = fishingSessions.get(sessionKey);
+    if (!session) return;
+    const channel = await client.channels.fetch(session.channelId).catch(()=>null);
+    if (!channel) { fishingSessions.delete(sessionKey); return; }
+    const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
+    if (!msg) { fishingSessions.delete(sessionKey); return; }
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout);
+    const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
+    if (success) {
+        const inv = client.userFishInventories.get(sessionKey) || [];
+        if (inv.length < 10) { inv.push(session.fish); client.userFishInventories.set(sessionKey, inv); }
+        const embed = buildFishingSuccessEmbed(session.fish, session.rod, session.durabilityLoss, 1);
+        await msg.edit({ embeds:[embed], components:[againRow] }).catch(()=>{});
+    } else {
+        const embed = buildFishingFailEmbed(session.rod, session.durabilityLoss+1, 1);
+        await msg.edit({ embeds:[embed], components:[againRow] }).catch(()=>{});
+    }
+    fishingSessions.delete(sessionKey);
 }
 
 
@@ -3105,38 +3257,17 @@ module.exports = {
                     if (!client.fishData || !client.fishData.length) {
                         return interaction.reply({ content: 'Fish data unavailable.', ephemeral: true });
                     }
-                    let fish = null;
-                    const seasonIdx = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : 0;
-                    const seasonKeys = ['springChance','summerChance','autumnChance','winterChance'];
-                    const keyName = seasonKeys[seasonIdx] || seasonKeys[0];
-                    const weights = client.fishData.map(f => Number(f[keyName]) || 0);
-                    const total = weights.reduce((a,b) => a + b, 0);
-                    if (total > 0) {
-                        let r = Math.random() * total;
-                        for (let i = 0; i < client.fishData.length; i++) {
-                            r -= weights[i];
-                            if (r <= 0) { fish = client.fishData[i]; break; }
-                        }
-                    }
-                    if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
-                    const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
-                    const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
-                    const inv = client.userFishInventories.get(key) || [];
-                    if (inv.length < 10) {
-                        inv.push({ name: fish.name, emoji: fish.emoji, rarity: fish.rarity, weight, id });
-                        client.userFishInventories.set(key, inv);
-                    }
-                    const embed = new EmbedBuilder()
-                        .setAuthor({ name: 'FISHING' })
-                        .setTitle(`You have caught ${fish.name} ${fish.emoji}!`)
-                        .addFields(
-                            { name: 'Tool', value: `* <:fishingrod1:1391068186409042001> **Tier 1 fishing rod.**\n-# your fishing rod have lost 0 durability`, inline: false },
-                            { name: 'Lost', value: '* You lost 1 bait', inline: false }
-                        )
-                        .setColor('#00ff00')
-                        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
-                        .setDescription(`* ⚖️ Weigh: ${weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${id}\``);
-                    return interaction.reply({ embeds: [embed], ephemeral: false });
+                    const userInv = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
+                    const rodItem = userInv.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
+                    const baitItem = userInv.generalItems.find(i => i.itemId === 'worm');
+                    const baitCount = baitItem ? baitItem.quantity : 0;
+                    const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
+                    const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                    const embed = buildFishingStartEmbed(rodInfo, baitCount);
+                    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_fish').setLabel('FISH').setStyle(ButtonStyle.Success));
+                    const sent = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
+                    fishingSessions.set(key, { messageId: sent.id, stage: 'start', rod: rodInfo, bait: baitCount, durabilityLoss: 0 });
+                    return;
                 }
             }
             if (commandName === 'slots') {
@@ -5633,6 +5764,90 @@ module.exports = {
                 fish.value = value;
                 client.userFishInventories.set(key, inv);
                 return interaction.reply({ content: `Value: ${value.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+            }
+
+            if (customId === 'fishing_fish') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = fishingSessions.get(key);
+                if (!session || session.messageId !== interaction.message.id) return;
+                session.stage = 'wait';
+                session.channelId = interaction.channelId;
+                const waitMs = FISH_WAIT_MIN_MS + Math.random() * (FISH_WAIT_MAX_MS - FISH_WAIT_MIN_MS);
+                session.waitRemaining = waitMs;
+                const embed = buildFishingWaitEmbed();
+                const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
+                await interaction.update({ embeds: [embed], components: [row] });
+                session.waitTimeout = setTimeout(() => startFishingGame(key), waitMs);
+                session.lastShake = 0;
+                fishingSessions.set(key, session);
+                return;
+            }
+
+            if (customId === 'fishing_shake') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = fishingSessions.get(key);
+                if (!session || session.stage !== 'wait' || session.messageId !== interaction.message.id) return;
+                const now = Date.now();
+                if (session.lastShake && now - session.lastShake < FISH_SHAKE_COOLDOWN_MS) {
+                    return interaction.deferUpdate().catch(() => {});
+                }
+                session.lastShake = now;
+                session.waitRemaining = Math.max(0, session.waitRemaining - 5000);
+                clearTimeout(session.waitTimeout);
+                session.waitTimeout = setTimeout(() => startFishingGame(key), session.waitRemaining);
+                const rowDisabled = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary).setDisabled(true));
+                await interaction.update({ components: [rowDisabled] }).catch(() => {});
+                setTimeout(async () => {
+                    const channel = await client.channels.fetch(session.channelId).catch(() => null);
+                    const msg = channel ? await channel.messages.fetch(session.messageId).catch(() => null) : null;
+                    if (msg) {
+                        const rowRe = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
+                        await msg.edit({ components: [rowRe] }).catch(() => {});
+                    }
+                }, FISH_SHAKE_COOLDOWN_MS);
+                fishingSessions.set(key, session);
+                return;
+            }
+
+            if (customId === 'fishing_reel') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const session = fishingSessions.get(key);
+                if (!session || session.stage !== 'game' || session.messageId !== interaction.message.id) return;
+                session.progress += session.rod.power * FISH_GAME_BAR_SEGMENT;
+                if (session.progress >= FISH_GAME_BAR_POINTS) {
+                    await interaction.deferUpdate().catch(() => {});
+                    return finishFishing(true, key);
+                }
+                const bars = Math.min(20, Math.floor(session.progress / FISH_GAME_BAR_SEGMENT));
+                const barStr = '█'.repeat(bars) + '▒'.repeat(20 - bars);
+                const embed = buildFishingBiteEmbed(session.fish, session.rod, session.durabilityLoss)
+                    .setDescription(['### {mission}', barStr, `-# fail ${Math.ceil((session.endTime - Date.now())/1000)}`].join('\n'));
+                const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_reel').setLabel('REEL').setStyle(ButtonStyle.Success));
+                await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+                fishingSessions.set(key, session);
+                return;
+            }
+
+            if (customId === 'fishing_again') {
+                if (!interaction.isButton()) return;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const userInv = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
+                const rodItem = userInv.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
+                const baitItem = userInv.generalItems.find(i => i.itemId === 'worm');
+                const baitCount = baitItem ? baitItem.quantity : 0;
+                const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
+                const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                const embed = buildFishingWaitEmbed();
+                const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
+                await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
+                const waitMs = FISH_WAIT_MIN_MS + Math.random() * (FISH_WAIT_MAX_MS - FISH_WAIT_MIN_MS);
+                const newSession = { messageId: interaction.message.id, channelId: interaction.channelId, stage: 'wait', rod: rodInfo, bait: baitCount, durabilityLoss: 0, waitRemaining: waitMs };
+                newSession.waitTimeout = setTimeout(() => startFishingGame(key), waitMs);
+                fishingSessions.set(key, newSession);
+                return;
             }
 
 

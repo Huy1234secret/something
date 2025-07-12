@@ -476,12 +476,14 @@ class SystemsManager {
         if (amount === 0) return { success: false, added: 0, newBalance: this.getBalance(userId, guildId).fishDollars, reason: "Amount was zero." };
 
         const user = this.getUser(userId, guildId);
-        let finalAmount = Math.round(amount);
-        let newBal = user.fishDollars + finalAmount;
+        let finalAmount = parseFloat(amount);
+        if (isNaN(finalAmount)) finalAmount = 0;
+        let newBal = (parseFloat(user.fishDollars) || 0) + finalAmount;
         let actualAdded = finalAmount;
 
         if (newBal < 0) { actualAdded = -user.fishDollars; newBal = 0; }
 
+        newBal = Math.round(newBal * 100) / 100;
         this.updateUser(userId, guildId, { fishDollars: newBal });
         return { success: true, added: actualAdded, newBalance: newBal };
     }
