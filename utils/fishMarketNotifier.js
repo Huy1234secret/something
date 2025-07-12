@@ -3,7 +3,7 @@ const path = require('node:path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const DATA_FILE = path.join(__dirname, '../data/fishMarketMessage.json');
-const CHANNEL_ID = '1393515441296773191';
+const FISH_STORE_CHANNEL_ID = '1393515441296773191';
 
 async function loadData() {
   try {
@@ -35,7 +35,7 @@ function buildFishMarketEmbed() {
 
 async function initFishMarket(client) {
   const data = await loadData();
-  const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+  const channel = await client.channels.fetch(FISH_STORE_CHANNEL_ID).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
   if (data.messageId) {
     const msg = await channel.messages.fetch(data.messageId).catch(() => null);
