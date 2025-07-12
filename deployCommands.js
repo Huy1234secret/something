@@ -223,6 +223,18 @@ const commands = [
         ]
     },
     {
+        name: 'fish-index',
+        description: 'View your discovered fish.'
+    },
+    {
+        name: 'today-fish',
+        description: 'View fish available this season'
+    },
+    {
+        name: 'fish-store',
+        description: 'Send the fishing shop embed'
+    },
+    {
         name: 'slots',
         description: 'Play the slots machine game.'
     },
