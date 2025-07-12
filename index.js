@@ -3054,6 +3054,19 @@ module.exports = {
                 marketEmbedSent = true;
                 return interaction.reply({ content: 'Market embed sent!', ephemeral: true });
             }
+            if (commandName === 'fish-market') {
+                const embed = new EmbedBuilder()
+                    .setAuthor({ name: 'FISH MARKET' })
+                    .setColor('#ffffff')
+                    .setTitle('Welcome!')
+                    .setDescription('**🎩 Welcome to the Fin-tastic Fish Market!**\nSwap your dazzling catches for gleaming coins or peek at their true market value—cast off and start reeling in rewards!');
+                embed.setThumbnail('https://i.ibb.co/wZspz0pF/A-nh1.png');
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('fish_market_sell').setLabel('SELL').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('fish_market_value').setLabel('VALUE-CHECK').setStyle(ButtonStyle.Primary)
+                );
+                return interaction.reply({ embeds: [embed], components: [row], ephemeral: false });
+            }
             if (commandName === 'inventory') {
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                 try {
