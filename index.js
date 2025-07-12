@@ -159,6 +159,15 @@ const FISH_GAME_BAR_POINTS = 100;
 const FISH_GAME_BAR_SEGMENT = 5; // each segment worth 5 points
 const FISH_BUTTON_COUNTS = { common:4, uncommon:6, rare:10, epic:14, legendary:18, mythical:20, secret:25 };
 const FISH_OTHER_EMOJIS = ['🌀','🔵','💙','💎','🐋','🧿','🌊','🔹','💤','❄️','🐬','💧','🪼','💦','🧊','🪬','🌎','➡️','⚓','🫧','🦋','💠'];
+const FISH_RARITY_COLORS = {
+    Common: '#FFFFFF',
+    Uncommon: '#75FF75',
+    Rare: '#94CAFF',
+    Epic: '#FF94FF',
+    Legendary: '#FFFF00',
+    Mythical: '#FF4D00',
+    Secret: '#B700FF'
+};
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
@@ -537,11 +546,12 @@ function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), endTi
         `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
         `-# ** 🛡️ Durability:** ${rod.durability - lostDur} <:pixelheart:1391070636876759121> ` + (lostDur ? `\`-${lostDur}\`` : '')
     ].join('\n');
+    const color = FISH_RARITY_COLORS[fish.rarity] || '#ffffff';
     return new EmbedBuilder()
         .setAuthor({ name: 'FISHING' })
         .setTitle('A fish bite your rod!')
         .addFields({ name: 'Tool', value: valueLines, inline: false })
-        .setColor('#ffffff')
+        .setColor(color)
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
         .setDescription([`### Reel it in!`, bar, `-# fail <t:${Math.floor(endTimeMs/1000)}:R>`].join('\n'));
 }
@@ -574,6 +584,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss) {
         `* ✨ Rarity: ${fish.rarity}`,
         `* 🆔 Fish ID: \`${fish.id}\``
     ];
+    const color = FISH_RARITY_COLORS[fish.rarity] || '#00ff00';
     return new EmbedBuilder()
         .setAuthor({ name: 'FISHING' })
         .setTitle(`You have caught ${fish.name} ${fish.emoji}!`)
@@ -581,7 +592,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss) {
             { name: 'Tool', value: toolLines, inline: false },
             { name: 'Lost', value: `* You lost ${bLoss} bait`, inline: false }
         )
-        .setColor('#00ff00')
+        .setColor(color)
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
         .setDescription(desc.join('\n'));
 }

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
+const { buildFishMarketEmbed } = require('../utils/fishMarketNotifier');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,7 +20,11 @@ module.exports = {
             new ButtonBuilder().setCustomId('buy_bait').setLabel('Buy').setStyle(ButtonStyle.Primary)
         );
         const channel = await interaction.client.channels.fetch('1393515441296773191').catch(()=>null);
-        if (channel && channel.isTextBased()) await channel.send({ embeds:[embed], components:[row] }).catch(()=>{});
+        if (channel && channel.isTextBased()) {
+            await channel.send({ embeds:[embed], components:[row] }).catch(()=>{});
+            const market = buildFishMarketEmbed();
+            await channel.send({ embeds:[market.embed], components:[market.row] }).catch(()=>{});
+        }
         await interaction.reply({ content:'Fish shop sent.', ephemeral:true });
     }
 };
