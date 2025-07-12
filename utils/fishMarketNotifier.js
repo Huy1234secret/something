@@ -3,7 +3,8 @@ const path = require('node:path');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const DATA_FILE = path.join(__dirname, '../data/fishMarketMessage.json');
-const FISH_STORE_CHANNEL_ID = '1393515441296773191';
+// Allow overriding the fish market channel via environment variable
+const FISH_STORE_CHANNEL_ID = process.env.FISH_STORE_CHANNEL_ID || '1393515441296773191';
 
 async function loadData() {
   try {
@@ -35,14 +36,28 @@ function buildFishMarketEmbed() {
 
 async function initFishMarket(client) {
   const data = await loadData();
-  const channel = await client.channels.fetch(FISH_STORE_CHANNEL_ID).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
+  const channel = await client.channels
+    .fetch(FISH_STORE_CHANNEL_ID)
+    .catch((e) => {
+      console.warn(`[FishMarket] Could not fetch channel ${FISH_STORE_CHANNEL_ID}: ${e.message}`);
+      return null;
+    });
+  if (!channel || !channel.isTextBased()) {
+    console.warn('[FishMarket] Fish store channel not found or not text based.');
+    return;
+  }
   if (data.messageId) {
     const msg = await channel.messages.fetch(data.messageId).catch(() => null);
     if (msg) return;
+    console.log('[FishMarket] Stored message missing, sending new embed.');
   }
   const { embed, row } = buildFishMarketEmbed();
-  const sent = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  const sent = await channel
+    .send({ embeds: [embed], components: [row] })
+    .catch((e) => {
+      console.error('[FishMarket] Failed to send fish market embed:', e.message);
+      return null;
+    });
   if (sent) {
     data.messageId = sent.id;
     await saveData(data);
