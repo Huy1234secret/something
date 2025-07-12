@@ -19,7 +19,7 @@ async function saveData(data) {
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-function buildEmbed() {
+function buildFishMarketEmbed() {
   const embed = new EmbedBuilder()
     .setAuthor({ name: 'FISH MARKET' })
     .setColor('#ffffff')
@@ -41,7 +41,7 @@ async function initFishMarket(client) {
     const msg = await channel.messages.fetch(data.messageId).catch(() => null);
     if (msg) return;
   }
-  const { embed, row } = buildEmbed();
+  const { embed, row } = buildFishMarketEmbed();
   const sent = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
   if (sent) {
     data.messageId = sent.id;
@@ -49,4 +49,4 @@ async function initFishMarket(client) {
   }
 }
 
-module.exports = { initFishMarket };
+module.exports = { initFishMarket, buildFishMarketEmbed };
