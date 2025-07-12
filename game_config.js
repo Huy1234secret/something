@@ -402,7 +402,7 @@ const config = {
         build_battle_champion_1: {
             id: "build_battle_champion_1",
             name: "Build Battle Champion 1",
-            emoji: "🏆",
+            emoji: "<:bbb:1393491427375452192>",
             obtainment: "Be the top 2 winning the Build Battle 2025 - August",
             type: "limited - obtainable",
             perk: "<:scoinmulti:1384503519330959380> Coin +100%, <:sultragemmulti:1384512368708423781> Gem +1/msg, <:sxpmulti:1384502410059317410> XP +3/msg",
