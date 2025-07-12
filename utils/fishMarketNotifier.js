@@ -1,0 +1,52 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+const DATA_FILE = path.join(__dirname, '../data/fishMarketMessage.json');
+const CHANNEL_ID = '1393515441296773191';
+
+async function loadData() {
+  try {
+    const raw = await fs.readFile(DATA_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return { messageId: null };
+  }
+}
+
+async function saveData(data) {
+  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
+  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function buildEmbed() {
+  const embed = new EmbedBuilder()
+    .setAuthor({ name: 'FISH MARKET' })
+    .setColor('#ffffff')
+    .setTitle('Welcome!')
+    .setDescription('**🎩 Welcome to the Fin-tastic Fish Market!**\nSwap your dazzling catches for gleaming coins or peek at their true market value—cast off and start reeling in rewards!');
+  embed.setThumbnail('https://i.ibb.co/wZspz0pF/A-nh1.png');
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('fish_market_sell').setLabel('SELL').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('fish_market_value').setLabel('VALUE-CHECK').setStyle(ButtonStyle.Primary),
+  );
+  return { embed, row };
+}
+
+async function initFishMarket(client) {
+  const data = await loadData();
+  const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+  if (data.messageId) {
+    const msg = await channel.messages.fetch(data.messageId).catch(() => null);
+    if (msg) return;
+  }
+  const { embed, row } = buildEmbed();
+  const sent = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  if (sent) {
+    data.messageId = sent.id;
+    await saveData(data);
+  }
+}
+
+module.exports = { initFishMarket };
