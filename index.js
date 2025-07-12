@@ -47,6 +47,7 @@ const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatLeaderboardEmbe
 const DEFAULT_COIN_EMOJI_FALLBACK = '<a:coin:1373568800783466567>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
+const DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK = '<:fishdollar:1393480559573078027>';
 const COIN_BOOST_EMOJI = '<:scoinmulti:1384503519330959380>';
 const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
 const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
@@ -988,6 +989,12 @@ async function scheduleShopRestock(client) {
         }
     };
     setInterval(restockShop, SHOP_CHECK_INTERVAL_MS);
+}
+
+function calculateFishValue(fish) {
+    const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000 };
+    const m = mults[fish.rarity?.toLowerCase()] || 0;
+    return +(fish.weight * m).toFixed(2);
 }
 
 async function scheduleStreakLossCheck(client) {
@@ -1942,12 +1949,14 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             const bankInfo = systemsManager.getBankBalance(user.id, guildId);
             const bankCapacity = systemsManager.getBankCapacity(user.id, guildId);
             const robuxEmoji = systemsManager.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK; // New
+            const fishEmoji = systemsManager.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
 
             embed.setDescription("Your current currency holdings.")
                  .addFields(
                     { name: `${coinEmoji} Wallet Coins`, value: `\`${formatNumber(balance.coins)}\``, inline: true },
                     { name: `${gemEmoji} Wallet Gems`, value: `\`${formatNumber(balance.gems)}\``, inline: true },
                     { name: `${robuxEmoji} Wallet Robux`, value: `\`${formatNumber(balance.robux)}\``, inline: true },
+                    { name: `${fishEmoji} Wallet Fish Dollars`, value: `\`${formatNumber(balance.fishDollars)}\``, inline: true },
                     { name: '\u200B', value: '\u200B', inline: false }, // Spacer
                     { name: `🏛️ Bank Coins`, value: `\`${formatNumber(bankInfo.bankCoins)}\``, inline: true },
                     { name: `🏛️ Bank Gems`, value: `\`${formatNumber(bankInfo.bankGems)}\``, inline: true },
@@ -2178,7 +2187,8 @@ client.once('ready', async c => {
     client.levelSystem.coinEmoji = client.levelSystem.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI_FALLBACK;
     client.levelSystem.gemEmoji = client.levelSystem.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI_FALLBACK;
     client.levelSystem.robuxEmoji = client.levelSystem.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI_FALLBACK; // New
-    console.log(`[Emojis] Initialized Coin Emoji: ${client.levelSystem.coinEmoji}, Gem Emoji: ${client.levelSystem.gemEmoji}, Robux Emoji: ${client.levelSystem.robuxEmoji}`); // Updated log
+    client.levelSystem.fishDollarEmoji = client.levelSystem.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
+    console.log(`[Emojis] Initialized Coin Emoji: ${client.levelSystem.coinEmoji}, Gem Emoji: ${client.levelSystem.gemEmoji}, Robux Emoji: ${client.levelSystem.robuxEmoji}, Fish Dollar Emoji: ${client.levelSystem.fishDollarEmoji}`);
 
     // Set client instance in SystemsManager
     if (client.levelSystem && typeof client.levelSystem.setClient === 'function') {
@@ -3075,12 +3085,21 @@ module.exports = {
                         .setTitle(`${interaction.user.username}'s Fish Inventory`)
                         .setDescription(`* Inventory capacity: ${inv.length}/10`);
                     for (const fish of inv.slice(0,10)) {
-                        embed.addFields({
-                            name: `${fish.name} ${fish.emoji || ''}`,
-                            value: `* ⚖️ Weigh: ${fish.weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``,
-                            inline: false
-                        });
+                        let valStr = `* ⚖️ Weigh: ${fish.weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+                        if (fish.value !== undefined) {
+                            const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
+                            valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
+                        }
+                        embed.addFields({ name: `${fish.name} ${fish.emoji || ''}`, value: valStr, inline: false });
                     }
+                    return interaction.reply({ embeds: [embed], ephemeral: false });
+                } else if (sub === 'wallet') {
+                    const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                    const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
+                    const embed = new EmbedBuilder()
+                        .setColor('#00ff99')
+                        .setTitle('Fish Wallet')
+                        .setDescription(`You have **${formatNumber(bal.fishDollars)}** ${fishEmoji}`);
                     return interaction.reply({ embeds: [embed], ephemeral: false });
                 } else {
                     if (!client.fishData || !client.fishData.length) {
@@ -5546,19 +5565,74 @@ module.exports = {
             }
             if (customId === 'fish_market_sell') {
                 if (!interaction.isButton()) return;
-                await interaction.reply({
-                    content: '❌ Fish selling is not implemented yet.',
-                    ephemeral: true
-                }).catch(() => {});
+                const modal = new ModalBuilder()
+                    .setCustomId('fish_sell_modal')
+                    .setTitle('Sell Fish');
+                const input = new TextInputBuilder()
+                    .setCustomId('fish_sell_ids')
+                    .setLabel('List the FISH\'s ID you mean to sell')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('e.g., C01041,C13400 or all')
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                await interaction.showModal(modal).catch(() => {});
                 return;
             }
             if (customId === 'fish_market_value') {
                 if (!interaction.isButton()) return;
-                await interaction.reply({
-                    content: '❌ Value check is not implemented yet.',
-                    ephemeral: true
-                }).catch(() => {});
+                const modal = new ModalBuilder()
+                    .setCustomId('fish_value_modal')
+                    .setTitle('Check Fish Value');
+                const input = new TextInputBuilder()
+                    .setCustomId('fish_value_id')
+                    .setLabel('What fish ID?')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Enter a fish ID')
+                    .setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(input));
+                await interaction.showModal(modal).catch(() => {});
                 return;
+            }
+            if (customId === 'fish_sell_modal') {
+                if (!interaction.isModalSubmit()) return;
+                const idsStr = interaction.fields.getTextInputValue('fish_sell_ids').trim();
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const inv = client.userFishInventories.get(key) || [];
+                if (idsStr.toLowerCase() === 'all') {
+                    let total = 0;
+                    for (const f of inv.slice()) {
+                        total += calculateFishValue(f);
+                    }
+                    client.userFishInventories.set(key, []);
+                    client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell_all');
+                    return interaction.reply({ content: `Sold all fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+                }
+                const ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
+                let total = 0; let sold = 0;
+                for (const id of ids) {
+                    const idx = inv.findIndex(f => f.id === id);
+                    if (idx !== -1) {
+                        const fish = inv[idx];
+                        total += calculateFishValue(fish);
+                        inv.splice(idx,1); sold++;
+                    }
+                }
+                if (sold === 0) return interaction.reply({ content: 'No matching fish found.', ephemeral: true });
+                client.userFishInventories.set(key, inv);
+                client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell');
+                return interaction.reply({ content: `Sold ${sold} fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+            }
+            if (customId === 'fish_value_modal') {
+                if (!interaction.isModalSubmit()) return;
+                const id = interaction.fields.getTextInputValue('fish_value_id').trim();
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const inv = client.userFishInventories.get(key) || [];
+                const fish = inv.find(f => f.id === id);
+                if (!fish) return interaction.reply({ content: 'You do not own that fish.', ephemeral: true });
+                const value = calculateFishValue(fish);
+                fish.value = value;
+                client.userFishInventories.set(key, inv);
+                return interaction.reply({ content: `Value: ${value.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
             }
 
 

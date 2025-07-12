@@ -58,6 +58,7 @@ const SETTINGS_EMOJI_DISABLED = gameConfig.globalSettings?.SETTINGS_EMOJI_DISABL
 const DEFAULT_COIN_EMOJI = gameConfig.items.coins?.emoji || '<a:coin:1373568800783466567>';
 const DEFAULT_GEM_EMOJI = gameConfig.items.gems?.emoji || '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI = gameConfig.items.robux?.emoji || '<a:robux:1378395622683574353>';
+const DEFAULT_FISH_DOLLAR_EMOJI = gameConfig.items.fish_dollar?.emoji || '<:fishdollar:1393480559573078027>';
 const ROBUX_WITHDRAWAL_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
 
@@ -111,9 +112,11 @@ class SystemsManager {
         this.coinEmoji = this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
         this.gemEmoji = this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
         this.robuxEmoji = this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
+        this.fishDollarEmoji = this.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI;
         this.COINS_ID = this.gameConfig.items.coins?.id || 'coins';
         this.GEMS_ID = this.gameConfig.items.gems?.id || 'gems';
         this.ROBUX_ID = this.gameConfig.items.robux?.id || 'robux';
+        this.FISH_DOLLAR_ID = this.gameConfig.items.fish_dollar?.id || 'fish_dollar';
         this.COMMON_LOOT_BOX_ID = this.gameConfig.items.common_loot_box?.id || 'common_loot_box';
         this.RARE_LOOT_BOX_ID = this.gameConfig.items.rare_loot_box?.id || 'rare_loot_box';
         this.EPIC_LOOT_BOX_ID = this.gameConfig.items.epic_loot_box?.id || 'epic_loot_box';
@@ -196,11 +199,13 @@ class SystemsManager {
             if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.name || 'Coins';
             if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.name || 'Gems';
             if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.name || 'Robux';
+            if (itemId === this.FISH_DOLLAR_ID) return this.gameConfig.items.fish_dollar?.name || 'Fish Dollar';
         }
         if (propertyName === 'emoji') {
             if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
             if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
             if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
+            if (itemId === this.FISH_DOLLAR_ID) return this.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI;
         }
         return defaultValue;
     }
@@ -233,7 +238,7 @@ class SystemsManager {
             );`,
             `CREATE TABLE IF NOT EXISTS users (
                 userId TEXT NOT NULL, guildId TEXT NOT NULL, xp INTEGER DEFAULT 0, level INTEGER DEFAULT 0,
-                coins INTEGER DEFAULT 0, gems INTEGER DEFAULT 0, robux INTEGER DEFAULT 0,
+                coins INTEGER DEFAULT 0, gems INTEGER DEFAULT 0, robux INTEGER DEFAULT 0, fishDollars INTEGER DEFAULT 0,
                 bankCoins INTEGER DEFAULT 0, bankGems INTEGER DEFAULT 0,
                 bankTier INTEGER DEFAULT 0, lastMessageTimestamp INTEGER DEFAULT 0, lastDailyTimestamp INTEGER DEFAULT 0,
                 totalMessages INTEGER DEFAULT 0, totalXp INTEGER DEFAULT 0, totalCoinsEarned INTEGER DEFAULT 0,
@@ -341,6 +346,9 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'dailySkipCount')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN dailySkipCount INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'fishDollars')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN fishDollars INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'bpPoints')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN bpPoints INTEGER DEFAULT 0;`);
@@ -462,6 +470,20 @@ class SystemsManager {
         }
         this.updateUser(userId, guildId, { robux: newRobux, ...totalRobuxEarnedUpdate });
         return { success: true, added: actualAdded, newBalance: newRobux };
+    }
+
+    addFishDollars(userId, guildId, amount, source = "unknown") {
+        if (amount === 0) return { success: false, added: 0, newBalance: this.getBalance(userId, guildId).fishDollars, reason: "Amount was zero." };
+
+        const user = this.getUser(userId, guildId);
+        let finalAmount = Math.round(amount);
+        let newBal = user.fishDollars + finalAmount;
+        let actualAdded = finalAmount;
+
+        if (newBal < 0) { actualAdded = -user.fishDollars; newBal = 0; }
+
+        this.updateUser(userId, guildId, { fishDollars: newBal });
+        return { success: true, added: actualAdded, newBalance: newBal };
     }
 
 
@@ -594,7 +616,7 @@ class SystemsManager {
 
     getBalance(userId, guildId) {
         const user = this.getUser(userId, guildId);
-        return { coins: user.coins, gems: user.gems, robux: user.robux };
+        return { coins: user.coins, gems: user.gems, robux: user.robux, fishDollars: user.fishDollars };
     }
 
     async addLevelManually(userId, guildId, levelsToAdd, member) {
@@ -684,7 +706,7 @@ class SystemsManager {
 this.db.prepare(`
   INSERT INTO users (
     userId, guildId,
-    coins, gems, robux,
+    coins, gems, robux, fishDollars,
     bankCoins, bankGems, bankTier,
     xp, level,
     totalRobuxEarned, lastRobuxWithdrawalTimestamp,
@@ -696,13 +718,13 @@ this.db.prepare(`
     bpPoints,
     lastInterestTimestamp
   )
-  VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0,
+  VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ?);
 `).run(userId, guildId, now);
             user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         }
         user.xp = user.xp || 0; user.level = user.level || 0; user.coins = user.coins || 0;
-        user.gems = user.gems || 0; user.robux = user.robux || 0;
+        user.gems = user.gems || 0; user.robux = user.robux || 0; user.fishDollars = user.fishDollars || 0;
         user.bankCoins = user.bankCoins || 0; user.bankGems = user.bankGems || 0;
         user.bankTier = user.bankTier || 0; user.lastMessageTimestamp = user.lastMessageTimestamp || 0;
         user.lastDailyTimestamp = user.lastDailyTimestamp || 0; user.totalMessages = user.totalMessages || 0;
@@ -2402,6 +2424,6 @@ module.exports = {
     DEFAULT_ANNOUNCE_RARITY_THRESHOLD, DEFAULT_SHOP_RESTOCK_DM_ENABLED,
     SETTINGS_EMOJI_ENABLED, SETTINGS_EMOJI_DISABLED,
     VOICE_ACTIVITY_INTERVAL_MS, MAX_LEVEL, ROBUX_WITHDRAWAL_COOLDOWN_MS,
-    DEFAULT_COIN_EMOJI, DEFAULT_GEM_EMOJI, DEFAULT_ROBUX_EMOJI,
+    DEFAULT_COIN_EMOJI, DEFAULT_GEM_EMOJI, DEFAULT_ROBUX_EMOJI, DEFAULT_FISH_DOLLAR_EMOJI,
     ROLE_PERKS,
 };

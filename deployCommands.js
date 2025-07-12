@@ -214,6 +214,11 @@ const commands = [
                 name: 'inventory',
                 description: 'View your fish inventory.',
                 type: ApplicationCommandOptionType.Subcommand,
+            },
+            {
+                name: 'wallet',
+                description: 'View your fish dollars.',
+                type: ApplicationCommandOptionType.Subcommand,
             }
         ]
     },
