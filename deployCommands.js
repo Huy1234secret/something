@@ -515,6 +515,10 @@ const commands = [
         ]
     },
     {
+        name: 'market',
+        description: 'Post the fishing market embed to a fixed channel.'
+    },
+    {
         name: 'submit-ticket',
         description: 'Create a private build submission channel.'
     }
