@@ -10,6 +10,7 @@ dotenv.config();
 
 const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
 const { initFishSeason } = require('./utils/fishSeasonManager');
+const { initFishMarket } = require('./utils/fishMarketNotifier');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -2344,6 +2345,7 @@ scheduleDailyReadyNotifications(client);
 scheduleVoiceActivityRewards(client);
     initBuildBattleEvent(client);
     initFishSeason(client);
+    initFishMarket(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -3037,19 +3039,6 @@ module.exports = {
                     }
                 } catch (shopError) { console.error(`[Shop Command] Error:`, shopError); await sendInteractionError(interaction, "Error displaying shop.", true, deferredThisInteraction); }
                 return;
-            }
-            if (commandName === 'fish-market') {
-                const embed = new EmbedBuilder()
-                    .setAuthor({ name: 'FISH MARKET' })
-                    .setColor('#ffffff')
-                    .setTitle('Welcome!')
-                    .setDescription('**🎩 Welcome to the Fin-tastic Fish Market!**\nSwap your dazzling catches for gleaming coins or peek at their true market value—cast off and start reeling in rewards!');
-                embed.setThumbnail('https://i.ibb.co/wZspz0pF/A-nh1.png');
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('fish_market_sell').setLabel('SELL').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('fish_market_value').setLabel('VALUE-CHECK').setStyle(ButtonStyle.Primary)
-                );
-                return interaction.reply({ embeds: [embed], components: [row], ephemeral: false });
             }
             if (commandName === 'inventory') {
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
