@@ -7,7 +7,9 @@ module.exports = {
         .addSubcommand(s =>
             s.setName('start').setDescription('Start fishing'))
         .addSubcommand(s =>
-            s.setName('inventory').setDescription('View your fish inventory')),
+            s.setName('inventory').setDescription('View your fish inventory'))
+        .addSubcommand(s =>
+            s.setName('wallet').setDescription('View your fish dollars')),
     async execute(interaction) {
         await interaction.reply({ content: 'Preparing fishing...', ephemeral: false });
     },
