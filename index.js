@@ -361,7 +361,6 @@ const SLOT_LUCK_BOOST_DURATION_MS = 5 * 60 * 1000;
 const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_bar','lucky_clover'];
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
-let marketEmbedSent = false;
 
 const SLOT_SYMBOLS = [
     { id: 'lucky7', emoji: '<:slucky7:1390578652118388796>', chance: 0.01, payout: 1000 },
@@ -3038,21 +3037,6 @@ module.exports = {
                     }
                 } catch (shopError) { console.error(`[Shop Command] Error:`, shopError); await sendInteractionError(interaction, "Error displaying shop.", true, deferredThisInteraction); }
                 return;
-            }
-            if (commandName === 'market') {
-                if (marketEmbedSent) {
-                    return interaction.reply({ content: 'Market embed already sent.', ephemeral: true });
-                }
-                const marketChannel = await client.channels.fetch('1393515441296773191').catch(() => null);
-                if (!marketChannel || !marketChannel.isTextBased()) {
-                    return sendInteractionError(interaction, 'Market channel not found.', true, false);
-                }
-                const embed = new EmbedBuilder()
-                    .setTitle('Fishing Market')
-                    .setDescription('The market feature is not available yet.');
-                await marketChannel.send({ embeds: [embed] });
-                marketEmbedSent = true;
-                return interaction.reply({ content: 'Market embed sent!', ephemeral: true });
             }
             if (commandName === 'fish-market') {
                 const embed = new EmbedBuilder()
