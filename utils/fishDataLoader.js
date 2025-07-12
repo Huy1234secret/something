@@ -3,7 +3,14 @@ const cp = require('child_process');
 function loadFishData(xlsxPath) {
     const shared = cp.execSync(`unzip -p "${xlsxPath}" xl/sharedStrings.xml`).toString('utf8');
     const sheet = cp.execSync(`unzip -p "${xlsxPath}" xl/worksheets/sheet1.xml`).toString('utf8');
-    const strings = [...shared.matchAll(/<t>(.*?)<\/t>/g)].map(m => m[1]);
+    const htmlDecode = str => str
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+
+    const strings = [...shared.matchAll(/<t>(.*?)<\/t>/g)].map(m => htmlDecode(m[1]));
     const rowRegex = /<row r="(\d+)"[^>]*>(.*?)<\/row>/gs;
     const data = [];
     for (const match of sheet.matchAll(rowRegex)) {
@@ -18,7 +25,7 @@ function loadFishData(xlsxPath) {
             const attrs = cell[2];
             let val = cell[3];
             if (/t="s"/.test(attrs)) val = strings[parseInt(val)];
-            row[col] = val;
+            row[col] = val ? htmlDecode(val) : val;
         }
         data.push({
             name: row.A,
