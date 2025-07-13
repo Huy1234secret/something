@@ -349,12 +349,6 @@ try {
         process.exit(1);
     }
     console.log("[SystemsManager & ShopManager] Initialized successfully.");
-    try {
-        client.levelSystem.removeItemFromAllUsers('fishing_rod%', true);
-        console.log('[FishStore] Removed existing fishing rods from all user inventories.');
-    } catch (remErr) {
-        console.error('[FishStore] Failed to purge fishing rods:', remErr.message);
-    }
 } catch (e) {
     console.error("CRITICAL: Error initializing SystemsManager. Exiting.", e);
     process.exit(1);
