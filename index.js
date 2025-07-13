@@ -171,6 +171,9 @@ const FISH_RARITY_COLORS = {
     Mythical: '#FF4D00',
     Secret: '#B700FF'
 };
+const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
+const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S' };
+const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret'];
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
@@ -634,10 +637,9 @@ function pickRandomFish() {
         }
     }
     if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
-    const rarityMap = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
     const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
     const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
-    const rarityName = rarityMap[fish.rarity] || fish.rarity;
+    const rarityName = RARITY_SYMBOL_TO_NAME[fish.rarity] || fish.rarity;
     return { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
 }
 
@@ -6068,7 +6070,8 @@ module.exports = {
                     page = 1;
                 }
                 const fishData = interaction.client.fishData || [];
-                const filtered = rarity ? fishData.filter(f => f.rarity === rarity) : fishData;
+                const symbol = RARITY_NAME_TO_SYMBOL[rarity];
+                const filtered = symbol ? fishData.filter(f => f.rarity === symbol) : fishData;
                 const pageSize = 10;
                 const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
                 if (page < 1) page = 1; if (page > pageCount) page = pageCount;
@@ -6076,18 +6079,16 @@ module.exports = {
                 const inv = interaction.client.userFishInventories.get(key) || [];
                 const discovered = new Map();
                 for (const f of inv) { const cur = discovered.get(f.name) || 0; if (f.weight > cur) discovered.set(f.name, f.weight); }
-                const embed = new EmbedBuilder().setTitle('Fish Index').setColor('#3498DB').setDescription(`Page ${page}/${pageCount}`);
+                const color = rarity ? (FISH_RARITY_COLORS[rarity] || '#3498DB') : '#3498DB';
+                const embed = new EmbedBuilder().setTitle('Fish Index').setColor(color).setDescription(`Page ${page}/${pageCount}`);
                 for (const fish of filtered.slice((page-1)*pageSize, page*pageSize)) {
                     const known = discovered.has(fish.name);
                     const name = known ? `${fish.name} ${fish.emoji || ''}` : '???';
-                    const value = known ? `Rarity: ${fish.rarity}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
+                    const rarityName = RARITY_SYMBOL_TO_NAME[fish.rarity] || fish.rarity;
+                    const value = known ? `Rarity: ${rarityName}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
                     embed.addFields({ name, value, inline: false });
                 }
-                const rarities = [...new Set(
-                    interaction.client.fishData
-                        .map(f => f.rarity)
-                        .filter(r => typeof r === 'string' && r.trim())
-                )];
+                const rarities = ORDERED_RARITIES;
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('fish_index_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(page <= 1),
                     new ButtonBuilder().setCustomId('fish_index_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= pageCount)
