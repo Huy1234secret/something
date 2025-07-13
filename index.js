@@ -160,6 +160,7 @@ const FISH_GAME_BAR_POINTS = 100;
 const FISH_GAME_BAR_SEGMENT = 5; // each segment worth 5 points
 const FISH_BUTTON_COUNTS = { common:4, uncommon:6, rare:10, epic:14, legendary:18, mythical:20, secret:25 };
 const MAX_BAIT = 50;
+const FISH_INVENTORY_CAP = 10;
 const FISH_OTHER_EMOJIS = ['🌀','🔵','💙','💎','🐋','🧿','🌊','🔹','💤','❄️','🐬','💧','🪼','💦','🧊','🪬','🌎','➡️','⚓','🫧','🦋','💠'];
 const FISH_RARITY_COLORS = {
     Common: '#FFFFFF',
@@ -655,7 +656,7 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
     if (baitAmt > MAX_BAIT) baitAmt = MAX_BAIT;
     const rodCfg = client.levelSystem.gameConfig.items[rod.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
     const rodInfo = { emoji: rodCfg.emoji || '🎣', tier: (rodCfg.name && rodCfg.name.match(/(\d+)/)) ? RegExp.$1 : 1, durability: rod.quantity || rodCfg.durability };
-    const pageSize = 10;
+    const pageSize = FISH_INVENTORY_CAP;
     const totalPages = Math.max(1, Math.ceil(inv.length / pageSize));
     if (page > totalPages) page = totalPages;
     if (page < 1) page = 1;
@@ -663,7 +664,7 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
         .setColor(favoritesOnly ? '#FF69B4' : '#ffffff')
         .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
         .setTitle(`${favoritesOnly ? 'Favorite ' : ''}Fish Inventory`)
-        .setDescription(`Page ${page}/${totalPages}\n* Inventory capacity: ${inv.length}/10`);
+        .setDescription(`Page ${page}/${totalPages}\n* Inventory capacity: ${inv.length}/${FISH_INVENTORY_CAP}`);
     let gearField = `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji} (${rodInfo.durability}/${rodCfg.durability})\nBait: ${baitAmt}/${MAX_BAIT}`;
     if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
     embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
@@ -685,6 +686,13 @@ async function startFishingGame(sessionKey) {
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
     if (!msg) { fishingSessions.delete(sessionKey); return; }
+    const invCheck = client.userFishInventories.get(sessionKey) || [];
+    if (invCheck.length >= FISH_INVENTORY_CAP) {
+        const embed = buildFishingStartEmbed(session.rod, session.bait, 'Inventory full!');
+        await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
+        fishingSessions.delete(sessionKey);
+        return;
+    }
     const fish = pickRandomFish();
     if (!fish) { fishingSessions.delete(sessionKey); return; }
     session.fish = fish;
@@ -766,7 +774,7 @@ async function finishFishing(success, sessionKey, rodBroken = false) {
     client.levelSystem.takeItem(userId, guildId, 'worm', 1);
     if (success) {
         const inv = client.userFishInventories.get(sessionKey) || [];
-        if (inv.length < 10) { inv.push(session.fish); client.userFishInventories.set(sessionKey, inv); }
+        if (inv.length < FISH_INVENTORY_CAP) { inv.push(session.fish); client.userFishInventories.set(sessionKey, inv); }
         const serverList = client.serverFishLog.get(guildId) || [];
         serverList.push(session.fish);
         client.serverFishLog.set(guildId, serverList);
@@ -3407,7 +3415,7 @@ module.exports = {
                         baitCount = MAX_BAIT;
                     }
                     const invCheck = client.userFishInventories.get(key) || [];
-                    if (invCheck.length >= 10) {
+                    if (invCheck.length >= FISH_INVENTORY_CAP) {
                         const embed = buildFishingStartEmbed({emoji:'🎣', tier:1, power:1, durability:10}, baitCount, 'Inventory full!');
                         await interaction.reply({ embeds:[embed], content:'Your fish inventory is full.', ephemeral:false });
                         return;
@@ -6098,6 +6106,13 @@ module.exports = {
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 const session = fishingSessions.get(key);
                 if (!session || session.messageId !== interaction.message.id) return;
+                const invCheck = client.userFishInventories.get(key) || [];
+                if (invCheck.length >= FISH_INVENTORY_CAP) {
+                    const embed = buildFishingStartEmbed(session.rod, session.bait, 'Inventory full!');
+                    await interaction.update({ embeds: [embed], components: [] }).catch(() => {});
+                    fishingSessions.delete(key);
+                    return;
+                }
                 session.stage = 'wait';
                 session.channelId = interaction.channelId;
                 const waitMs = FISH_WAIT_MIN_MS + Math.random() * (FISH_WAIT_MAX_MS - FISH_WAIT_MIN_MS);
@@ -6192,6 +6207,13 @@ module.exports = {
                 }
                 const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
                 const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodItem.quantity || rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                const invCheck = client.userFishInventories.get(key) || [];
+                if (invCheck.length >= FISH_INVENTORY_CAP) {
+                    const embed = buildFishingStartEmbed(rodInfo, baitCount, 'Inventory full!');
+                    await interaction.update({ embeds: [embed], components: [] }).catch(() => {});
+                    fishingSessions.delete(key);
+                    return;
+                }
                 const embed = buildFishingWaitEmbed();
                 const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
                 await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
