@@ -364,6 +364,7 @@ client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
 
 const { loadFishData } = require('./utils/fishDataLoader.js');
+const { loadAll: loadFishInventories, saveAll: saveFishInventories } = require('./utils/fishInventoryManager.js');
 let fishData = [];
 try {
     fishData = loadFishData('./fish data.xlsx');
@@ -372,12 +373,20 @@ try {
     console.error('[FishData] Failed to load fish data:', e.message);
 }
 client.fishData = fishData;
-client.userFishInventories = new Map();
+let loadedFishInvs = { inventories: new Map(), favorites: new Map(), serverLog: new Map() };
+loadFishInventories().then(res => {
+    loadedFishInvs = res;
+    client.userFishInventories = loadedFishInvs.inventories;
+    client.userFavoriteFishInventories = loadedFishInvs.favorites;
+    client.serverFishLog = loadedFishInvs.serverLog;
+}).catch(e => { console.error('[FishInventoryManager] Load failed', e); });
 
 let embedBuildingSessions = new Map();
 let inventoryInteractionTimeouts = new Map();
 client.activeBankMessages = new Map();
 let userManagementSessions = new Map(); // New: For /add-user panel
+client.fishInventorySessions = new Map();
+client.fishIndexSessions = new Map();
 let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawal log messages { withdrawalId: messageId }
 const SUBMIT_TICKET_VERIFICATION_TEXT = 'I confirm this is my original work and follows all Build-Battle rules';
 
@@ -569,7 +578,8 @@ function buildFishingBiteEmbed(fish, rod, lostDur, bar = '▒'.repeat(20), endTi
         .addFields({ name: 'Tool', value: valueLines, inline: false })
         .setColor(color)
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
-        .setDescription([`### Reel it in!`, bar, `-# fail <t:${Math.floor(endTimeMs/1000)}:R>`].join('\n'));
+        .setDescription([`### Reel it in!`, bar, `-# fail <t:${Math.floor(endTimeMs/1000)}:R>`].join('\n'))
+        .setFooter({ text: 'Click the fish emoji!' });
 }
 
 function buildFishingFailEmbed(rod, dLoss, bLoss, rodBroken = false) {
@@ -638,6 +648,38 @@ function pickRandomFish() {
     const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
     const rarityName = rarityMap[fish.rarity] || fish.rarity;
     return { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
+}
+
+function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = false) {
+    const inv = favoritesOnly ? (client.userFavoriteFishInventories.get(`${userId}_${guildId}`) || []) : (client.userFishInventories.get(`${userId}_${guildId}`) || []);
+    const userInvFull = client.levelSystem.getUserInventory(userId, guildId);
+    const rod = userInvFull.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
+    const baitItemInv = userInvFull.generalItems.find(i => i.itemId === 'worm');
+    let baitAmt = baitItemInv ? baitItemInv.quantity : 0;
+    if (baitAmt > MAX_BAIT) baitAmt = MAX_BAIT;
+    const rodCfg = client.levelSystem.gameConfig.items[rod.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
+    const rodInfo = { emoji: rodCfg.emoji || '🎣', tier: (rodCfg.name && rodCfg.name.match(/(\d+)/)) ? RegExp.$1 : 1, durability: rod.quantity || rodCfg.durability };
+    const pageSize = 10;
+    const totalPages = Math.max(1, Math.ceil(inv.length / pageSize));
+    if (page > totalPages) page = totalPages;
+    if (page < 1) page = 1;
+    const embed = new EmbedBuilder()
+        .setColor('#ffffff')
+        .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
+        .setTitle(`${favoritesOnly ? 'Favorite ' : ''}Fish Inventory`)
+        .setDescription(`Page ${page}/${totalPages}\n* Inventory capacity: ${inv.length}/10`);
+    let gearField = `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji} (${rodInfo.durability}/${rodCfg.durability})\nBait: ${baitAmt}/${MAX_BAIT}`;
+    if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
+    embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
+    for (const fish of inv.slice((page-1)*pageSize, page*pageSize)) {
+        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+        if (fish.value !== undefined) {
+            const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
+            valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
+        }
+        embed.addFields({ name: `${fish.name} ${fish.emoji || ''}`, value: valStr, inline: false });
+    }
+    return { embed, totalPages };
 }
 
 async function startFishingGame(sessionKey) {
@@ -729,6 +771,10 @@ async function finishFishing(success, sessionKey, rodBroken = false) {
     if (success) {
         const inv = client.userFishInventories.get(sessionKey) || [];
         if (inv.length < 10) { inv.push(session.fish); client.userFishInventories.set(sessionKey, inv); }
+        const serverList = client.serverFishLog.get(guildId) || [];
+        serverList.push(session.fish);
+        client.serverFishLog.set(guildId, serverList);
+        persistFishData();
         const embed = buildFishingSuccessEmbed(session.fish, session.rod, durabilityLoss - (success ? 0 : 1), 1, broke);
         await msg.edit({ embeds:[embed], components:[againRow] }).catch(()=>{});
     } else {
@@ -1241,6 +1287,14 @@ function calculateFishValue(fish) {
     const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000 };
     const m = mults[fish.rarity?.toLowerCase()] || 0;
     return +(fish.weight * m).toFixed(2);
+}
+
+function persistFishData() {
+    saveFishInventories({
+        inventories: client.userFishInventories,
+        favorites: client.userFavoriteFishInventories,
+        serverLog: client.serverFishLog
+    }).catch(e => console.error('[FishInventoryManager] Save failed', e));
 }
 
 async function scheduleStreakLossCheck(client) {
@@ -3325,34 +3379,17 @@ module.exports = {
                 const sub = interaction.options.getSubcommand();
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 if (sub === 'inventory') {
-                    const inv = client.userFishInventories.get(key) || [];
-                    const userInvFull = client.levelSystem.getUserInventory(interaction.user.id, interaction.guild.id);
-                    const rod = userInvFull.generalItems.find(i => i.itemId.startsWith('fishing_rod')) || {};
-                    const baitItemInv = userInvFull.generalItems.find(i => i.itemId === 'worm');
-                    let baitAmt = baitItemInv ? baitItemInv.quantity : 0;
-                    if (baitAmt > MAX_BAIT) {
-                        client.levelSystem.setItemQuantity(interaction.user.id, interaction.guild.id, 'worm', MAX_BAIT);
-                        baitAmt = MAX_BAIT;
-                    }
-                    const rodCfg = client.levelSystem.gameConfig.items[rod.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
-                    const rodInfo = { emoji: rodCfg.emoji || '🎣', tier: (rodCfg.name && rodCfg.name.match(/(\d+)/)) ? RegExp.$1 : 1, durability: rod.quantity || rodCfg.durability };
-                    const embed = new EmbedBuilder()
-                        .setColor('#ffffff')
-                        .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
-                        .setTitle(`${interaction.user.username}'s Fish Inventory`)
-                        .setDescription(`* Inventory capacity: ${inv.length}/10`);
-                    let gearField = `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji} (${rodInfo.durability}/${rodCfg.durability})\nBait: ${baitAmt}/${MAX_BAIT}`;
-                    if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
-                    embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
-                    for (const fish of inv.slice(0,10)) {
-                        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
-                        if (fish.value !== undefined) {
-                            const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
-                            valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
-                        }
-                        embed.addFields({ name: `${fish.name} ${fish.emoji || ''}`, value: valStr, inline: false });
-                    }
-                    return interaction.reply({ embeds: [embed], ephemeral: false });
+                    const page = 1;
+                    const { embed, totalPages } = buildFishInventoryEmbed(interaction.user.id, interaction.guild.id, page, false);
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('fish_inv_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('fish_inv_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(totalPages === 1),
+                        new ButtonBuilder().setCustomId('fish_inv_togglefav').setLabel('FAV-LIST').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId('fish_inv_fav').setLabel('❤️').setStyle(ButtonStyle.Success)
+                    );
+                    const sent = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true, ephemeral: false });
+                    client.fishInventorySessions.set(sent.id, { userId: interaction.user.id, guildId: interaction.guild.id, page, favorites: false });
+                    return;
                 } else if (sub === 'wallet') {
                     const bal = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
                     const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
@@ -5918,19 +5955,23 @@ module.exports = {
                 const idsStr = interaction.fields.getTextInputValue('fish_sell_ids').trim();
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
                 const inv = client.userFishInventories.get(key) || [];
+                const favs = client.userFavoriteFishInventories.get(key) || [];
                 if (idsStr.trim().toLowerCase() === 'all') {
                     let total = 0;
                     for (const f of inv.slice()) {
+                        if (favs.find(x => x.id === f.id)) continue;
                         total += calculateFishValue(f);
                     }
-                    client.userFishInventories.set(key, []);
+                    const remaining = inv.filter(f => favs.find(x => x.id === f.id));
+                    client.userFishInventories.set(key, remaining);
                     client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell_all');
+                    persistFishData();
                     return interaction.reply({ content: `Sold all fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
                 }
                 const ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
                 let total = 0; let sold = 0;
                 for (const id of ids) {
-                    const idx = inv.findIndex(f => f.id === id);
+                    const idx = inv.findIndex(f => f.id === id && !favs.find(x => x.id === id));
                     if (idx !== -1) {
                         const fish = inv[idx];
                         total += calculateFishValue(fish);
@@ -5940,6 +5981,7 @@ module.exports = {
                 if (sold === 0) return interaction.reply({ content: 'No matching fish found.', ephemeral: true });
                 client.userFishInventories.set(key, inv);
                 client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell');
+                persistFishData();
                 return interaction.reply({ content: `Sold ${sold} fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
             }
             if (customId === 'fish_value_modal') {
@@ -5952,7 +5994,107 @@ module.exports = {
                 const value = calculateFishValue(fish);
                 fish.value = value;
                 client.userFishInventories.set(key, inv);
+                persistFishData();
                 return interaction.reply({ content: `Value: ${value.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+            }
+
+            if (customId === 'fish_inv_prev' || customId === 'fish_inv_next' || customId === 'fish_inv_togglefav') {
+                if (!interaction.isButton()) return;
+                const session = client.fishInventorySessions.get(interaction.message.id);
+                if (!session || session.userId !== interaction.user.id) return interaction.deferUpdate();
+                let { page, favorites } = session;
+                if (customId === 'fish_inv_prev') page--;
+                if (customId === 'fish_inv_next') page++;
+                if (customId === 'fish_inv_togglefav') { favorites = !favorites; page = 1; }
+                const { embed, totalPages } = buildFishInventoryEmbed(session.userId, session.guildId, page, favorites);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('fish_inv_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(page <= 1),
+                    new ButtonBuilder().setCustomId('fish_inv_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= totalPages),
+                    new ButtonBuilder().setCustomId('fish_inv_togglefav').setLabel(favorites ? 'NOR-LIST' : 'FAV-LIST').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('fish_inv_fav').setLabel('❤️').setStyle(ButtonStyle.Success)
+                );
+                await interaction.update({ embeds: [embed], components: [row] }).catch(()=>{});
+                client.fishInventorySessions.set(interaction.message.id, { userId: session.userId, guildId: session.guildId, page, favorites });
+                return;
+            }
+
+            if (customId === 'fish_inv_fav') {
+                if (!interaction.isButton()) return;
+                const session = client.fishInventorySessions.get(interaction.message.id);
+                if (!session || session.userId !== interaction.user.id) return interaction.deferUpdate();
+                const modal = new ModalBuilder().setTitle('Favorite Fish').setCustomId('fish_inv_fav_modal');
+                modal.addComponents(new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId('fav_fish_id').setLabel('What fish ID you want to favorite?').setStyle(TextInputStyle.Short).setRequired(true)
+                ));
+                await interaction.showModal(modal).catch(()=>{});
+                return;
+            }
+
+            if (customId === 'fish_inv_fav_modal') {
+                if (!interaction.isModalSubmit()) return;
+                const session = client.fishInventorySessions.get(interaction.message.id);
+                if (!session || session.userId !== interaction.user.id) return interaction.reply({ content: 'Session expired.', ephemeral: true });
+                const id = interaction.fields.getTextInputValue('fav_fish_id').trim();
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const inv = client.userFishInventories.get(key) || [];
+                const favs = client.userFavoriteFishInventories.get(key) || [];
+                const idx = inv.findIndex(f => f.id === id);
+                if (idx === -1) return interaction.reply({ content: 'Fish not found.', ephemeral: true });
+                const fish = inv.splice(idx,1)[0];
+                favs.push(fish);
+                client.userFishInventories.set(key, inv);
+                client.userFavoriteFishInventories.set(key, favs);
+                persistFishData();
+                const page = session.page;
+                const { embed, totalPages } = buildFishInventoryEmbed(session.userId, session.guildId, page, session.favorites);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('fish_inv_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(page <= 1),
+                    new ButtonBuilder().setCustomId('fish_inv_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= totalPages),
+                    new ButtonBuilder().setCustomId('fish_inv_togglefav').setLabel(session.favorites ? 'NOR-LIST' : 'FAV-LIST').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('fish_inv_fav').setLabel('❤️').setStyle(ButtonStyle.Success)
+                );
+                await interaction.update({ embeds: [embed], components: [row] }).catch(()=>{});
+                client.fishInventorySessions.set(interaction.message.id, { userId: session.userId, guildId: session.guildId, page, favorites: session.favorites });
+                return;
+            }
+
+            if (customId === 'fish_index_prev' || customId === 'fish_index_next' || customId === 'fish_index_filter') {
+                const session = client.fishIndexSessions.get(interaction.message.id);
+                if (!session || session.userId !== interaction.user.id) return interaction.deferUpdate();
+                let { page, rarity } = session;
+                if (customId === 'fish_index_prev') page--;
+                if (customId === 'fish_index_next') page++;
+                if (customId === 'fish_index_filter') {
+                    if (!interaction.isStringSelectMenu()) return;
+                    rarity = interaction.values[0];
+                    page = 1;
+                }
+                const fishData = interaction.client.fishData || [];
+                const filtered = rarity ? fishData.filter(f => f.rarity === rarity) : fishData;
+                const pageSize = 10;
+                const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+                if (page < 1) page = 1; if (page > pageCount) page = pageCount;
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const inv = interaction.client.userFishInventories.get(key) || [];
+                const discovered = new Map();
+                for (const f of inv) { const cur = discovered.get(f.name) || 0; if (f.weight > cur) discovered.set(f.name, f.weight); }
+                const embed = new EmbedBuilder().setTitle('Fish Index').setColor('#3498DB').setDescription(`Page ${page}/${pageCount}`);
+                for (const fish of filtered.slice((page-1)*pageSize, page*pageSize)) {
+                    const known = discovered.has(fish.name);
+                    const name = known ? `${fish.name} ${fish.emoji || ''}` : '???';
+                    const value = known ? `Rarity: ${fish.rarity}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
+                    embed.addFields({ name, value, inline: false });
+                }
+                const rarities = [...new Set(interaction.client.fishData.map(f => f.rarity))];
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('fish_index_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(page <= 1),
+                    new ButtonBuilder().setCustomId('fish_index_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= pageCount)
+                );
+                const select = new StringSelectMenuBuilder().setCustomId('fish_index_filter').setPlaceholder('choose rarity').addOptions(rarities.map(r => ({ label: r, value: r, default: r === rarity })));
+                const row2 = new ActionRowBuilder().addComponents(select);
+                await interaction.update({ embeds: [embed], components: [row, row2] }).catch(()=>{});
+                client.fishIndexSessions.set(interaction.message.id, { userId: session.userId, guildId: session.guildId, page, rarity });
+                return;
             }
 
             if (customId === 'fishing_fish') {
@@ -6213,12 +6355,26 @@ client.on('guildUpdate', async (oldGuild, newGuild) => {
 });
 
 
-client.login(process.env.DISCORD_TOKEN).catch(error => {
-    console.error(`[FATAL LOGIN ERROR] Failed to log in: ${error.message}`);
-    console.error("Ensure your DISCORD_TOKEN is correctly set in the .env file and is valid.");
-    console.error("Also, check if your bot has all necessary Privileged Gateway Intents enabled in the Discord Developer Portal (Presence, Server Members, Message Content).");
-    process.exit(1);
-});
+async function startBot() {
+    try {
+        const loaded = await loadFishInventories();
+        client.userFishInventories = loaded.inventories;
+        client.userFavoriteFishInventories = loaded.favorites;
+        client.serverFishLog = loaded.serverLog;
+    } catch (e) {
+        console.error('[FishInventoryManager] Load failed', e);
+    }
+    setInterval(persistFishData, 300000);
+
+    client.login(process.env.DISCORD_TOKEN).catch(error => {
+        console.error(`[FATAL LOGIN ERROR] Failed to log in: ${error.message}`);
+        console.error("Ensure your DISCORD_TOKEN is correctly set in the .env file and is valid.");
+        console.error("Also, check if your bot has all necessary Privileged Gateway Intents enabled in the Discord Developer Portal (Presence, Server Members, Message Content).");
+        process.exit(1);
+    });
+}
+
+startBot();
 
 process.on('unhandledRejection', async (reason) => {
     console.error('Unhandled Rejection:', reason);

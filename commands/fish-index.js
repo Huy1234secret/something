@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,20 +15,28 @@ module.exports = {
             if (f.weight > cur) discovered.set(f.name, f.weight);
         }
         const pageSize = 10;
-        const pageCount = Math.max(1, Math.ceil(fishData.length / pageSize));
         const page = 1;
+        const rarities = [...new Set(fishData.map(f => f.rarity))];
+        const list = fishData;
+        const pageCount = Math.max(1, Math.ceil(list.length / pageSize));
         const embed = new EmbedBuilder()
             .setTitle('Fish Index')
             .setColor('#3498DB')
-            .setDescription(`Page ${page}/${pageCount}`);
-        for (const fish of fishData.slice(0, pageSize)) {
+            .setDescription(`Page ${page}/${pageCount}`)
+            .setFooter({ text: `Total fish: ${fishData.length}` });
+        for (const fish of list.slice(0, pageSize)) {
             const known = discovered.has(fish.name);
             const name = known ? `${fish.name} ${fish.emoji || ''}` : '???';
             const value = known ? `Rarity: ${fish.rarity}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
             embed.addFields({ name, value, inline: false });
         }
-        const replyOpts = { embeds: [embed], ephemeral: false };
-        if (interaction.deferred || interaction.replied) return interaction.editReply(replyOpts);
-        return interaction.reply(replyOpts);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('fish_index_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(true),
+            new ButtonBuilder().setCustomId('fish_index_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(pageCount === 1)
+        );
+        const select = new StringSelectMenuBuilder().setCustomId('fish_index_filter').setPlaceholder('choose rarity').addOptions(rarities.map(r => ({ label: r, value: r })));
+        const row2 = new ActionRowBuilder().addComponents(select);
+        const sent = await interaction.reply({ embeds: [embed], components: [row, row2], fetchReply: true, ephemeral: false });
+        client.fishIndexSessions.set(sent.id, { userId: interaction.user.id, guildId: interaction.guild.id, page, rarity: null });
     }
 };
