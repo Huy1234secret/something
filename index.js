@@ -373,13 +373,9 @@ try {
     console.error('[FishData] Failed to load fish data:', e.message);
 }
 client.fishData = fishData;
-let loadedFishInvs = { inventories: new Map(), favorites: new Map(), serverLog: new Map() };
-loadFishInventories().then(res => {
-    loadedFishInvs = res;
-    client.userFishInventories = loadedFishInvs.inventories;
-    client.userFavoriteFishInventories = loadedFishInvs.favorites;
-    client.serverFishLog = loadedFishInvs.serverLog;
-}).catch(e => { console.error('[FishInventoryManager] Load failed', e); });
+client.userFishInventories = new Map();
+client.userFavoriteFishInventories = new Map();
+client.serverFishLog = new Map();
 
 let embedBuildingSessions = new Map();
 let inventoryInteractionTimeouts = new Map();
