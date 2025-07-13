@@ -6089,7 +6089,11 @@ module.exports = {
                     const value = known ? `Rarity: ${fish.rarity}\nHighest Weight: ${discovered.get(fish.name).toFixed(2)}` : '???';
                     embed.addFields({ name, value, inline: false });
                 }
-                const rarities = [...new Set(interaction.client.fishData.map(f => f.rarity))];
+                const rarities = [...new Set(
+                    interaction.client.fishData
+                        .map(f => f.rarity)
+                        .filter(r => typeof r === 'string' && r.trim())
+                )];
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('fish_index_prev').setEmoji('⬅️').setStyle(ButtonStyle.Primary).setDisabled(page <= 1),
                     new ButtonBuilder().setCustomId('fish_index_next').setEmoji('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= pageCount)
@@ -6415,4 +6419,12 @@ process.on('unhandledRejection', async (reason) => {
 process.on('uncaughtException', async (err) => {
     console.error('Uncaught Exception:', err);
     await logToBotLogChannel(`Uncaught Exception: ${err.message}`).catch(()=>{});
+});
+
+['SIGINT', 'SIGTERM'].forEach(sig => {
+    process.on(sig, () => {
+        console.log(`Received ${sig}, saving fish data...`);
+        persistFishData();
+        setTimeout(() => process.exit(0), 100);
+    });
 });
