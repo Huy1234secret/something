@@ -27,19 +27,21 @@ function loadFishData(xlsxPath) {
             if (/t="s"/.test(attrs)) val = strings[parseInt(val)];
             row[col] = val ? htmlDecode(val) : val;
         }
-        data.push({
-            name: row.A,
-            rarity: row.C,
-            springChance: parseFloat(row.D) || 0,
-            summerChance: parseFloat(row.E) || 0,
-            autumnChance: parseFloat(row.F) || 0,
-            winterChance: parseFloat(row.G) || 0,
-            minWeight: parseFloat(row.J) || 0,
-            maxWeight: parseFloat(row.K) || 0,
-            durabilityLoss: parseFloat(row.M) || 0,
-            powerReq: parseFloat(row.N) || 0,
-            emoji: row.O
-        });
+        if (row.A) {
+            data.push({
+                name: row.A,
+                rarity: row.C,
+                springChance: parseFloat(row.D) || 0,
+                summerChance: parseFloat(row.E) || 0,
+                autumnChance: parseFloat(row.F) || 0,
+                winterChance: parseFloat(row.G) || 0,
+                minWeight: parseFloat(row.J) || 0,
+                maxWeight: parseFloat(row.K) || 0,
+                durabilityLoss: parseFloat(row.M) || 0,
+                powerReq: parseFloat(row.N) || 0,
+                emoji: row.O
+            });
+        }
     }
     return data;
 }
