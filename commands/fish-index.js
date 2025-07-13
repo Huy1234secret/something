@@ -43,7 +43,22 @@ module.exports = {
         );
         const select = new StringSelectMenuBuilder().setCustomId('fish_index_filter').setPlaceholder('choose rarity').addOptions(rarities.map(r => ({ label: r, value: r })));
         const row2 = new ActionRowBuilder().addComponents(select);
-        const sent = await interaction.reply({ embeds: [embed], components: [row, row2], fetchReply: true, ephemeral: false });
-        client.fishIndexSessions.set(sent.id, { userId: interaction.user.id, guildId: interaction.guild.id, page, rarity: null });
+        const replyOpts = {
+            embeds: [embed],
+            components: [row, row2],
+            fetchReply: true,
+            ephemeral: false,
+        };
+
+        const sent = interaction.deferred || interaction.replied
+            ? await interaction.editReply(replyOpts)
+            : await interaction.reply(replyOpts);
+
+        client.fishIndexSessions.set(sent.id, {
+            userId: interaction.user.id,
+            guildId: interaction.guild.id,
+            page,
+            rarity: null,
+        });
     }
 };
