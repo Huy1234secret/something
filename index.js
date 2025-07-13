@@ -701,9 +701,7 @@ async function startFishingGame(sessionKey) {
     const rows = buildFishingButtons(session.buttonCount, session.fishIndex);
     await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
     session.gameTimeout = setTimeout(()=>finishFishing(false, sessionKey), 60000);
-    session.moveInterval = setInterval(()=>{
-        session.fishIndex = Math.floor(Math.random()*session.buttonCount);
-        updateFishingMessage(sessionKey); }, 5000);
+    scheduleFishMove(sessionKey);
     fishingSessions.set(sessionKey, session);
 }
 
@@ -737,6 +735,21 @@ async function updateFishingMessage(sessionKey) {
     await msg.edit({ embeds:[embed], components:rows }).catch(()=>{});
 }
 
+function scheduleFishMove(sessionKey) {
+    const session = fishingSessions.get(sessionKey);
+    if (!session) return;
+    clearTimeout(session.moveTimeout);
+    session.moveTimeout = setTimeout(() => {
+        const s = fishingSessions.get(sessionKey);
+        if (!s || s.stage !== 'game') return;
+        s.fishIndex = Math.floor(Math.random()*s.buttonCount);
+        fishingSessions.set(sessionKey, s);
+        updateFishingMessage(sessionKey);
+        scheduleFishMove(sessionKey);
+    }, 5000);
+    fishingSessions.set(sessionKey, session);
+}
+
 async function finishFishing(success, sessionKey, rodBroken = false) {
     const session = fishingSessions.get(sessionKey);
     if (!session) return;
@@ -744,7 +757,7 @@ async function finishFishing(success, sessionKey, rodBroken = false) {
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
     if (!msg) { fishingSessions.delete(sessionKey); return; }
-    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval);
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearTimeout(session.moveTimeout);
     const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
     const [userId, guildId] = sessionKey.split('_');
     const durabilityLoss = success ? session.durabilityLoss : session.durabilityLoss + 1;
@@ -6151,6 +6164,7 @@ module.exports = {
                     if (session.progress >= session.fish.powerReq) {
                         return finishFishing(true, key);
                     }
+                    scheduleFishMove(key); // reset move timer on successful hit
                 } else {
                     session.durabilityLoss += session.fish.durabilityLoss;
                     if (session.rodItemId && (session.remainingDurability - session.durabilityLoss <= 0)) {
