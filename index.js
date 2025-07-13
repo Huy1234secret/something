@@ -3420,7 +3420,7 @@ module.exports = {
                     const rodConfig = rodItem.itemId ? client.levelSystem.gameConfig.items[rodItem.itemId] : null;
                     const rodInfo = rodConfig ? { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodItem.quantity || rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 } : null;
                     const embed = buildFishingStartEmbed(rodInfo, baitCount, alertMsg);
-                    await interaction.reply({ content: alertMsg, embeds: [embed], ephemeral: false });
+                    await interaction.reply({ embeds: [embed], ephemeral: false });
                     return;
                 }
                 const rodConfig = rodItem.itemId ? client.levelSystem.gameConfig.items[rodItem.itemId] : null;
