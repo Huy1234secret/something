@@ -660,7 +660,7 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
     if (page > totalPages) page = totalPages;
     if (page < 1) page = 1;
     const embed = new EmbedBuilder()
-        .setColor('#ffffff')
+        .setColor(favoritesOnly ? '#FF69B4' : '#ffffff')
         .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
         .setTitle(`${favoritesOnly ? 'Favorite ' : ''}Fish Inventory`)
         .setDescription(`Page ${page}/${totalPages}\n* Inventory capacity: ${inv.length}/10`);
