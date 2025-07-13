@@ -1170,6 +1170,22 @@ this.db.prepare(`
         }
         return true;
     }
+
+    setItemQuantity(userId, guildId, itemId, quantity) {
+        this.getUser(userId, guildId);
+        if (quantity <= 0) {
+            this.db.prepare('DELETE FROM userInventory WHERE userId = ? AND guildId = ? AND itemId = ?').run(userId, guildId, itemId);
+            return;
+        }
+        const exists = this.db.prepare('SELECT 1 FROM userInventory WHERE userId = ? AND guildId = ? AND itemId = ?').get(userId, guildId, itemId);
+        if (exists) {
+            this.db.prepare('UPDATE userInventory SET quantity = ? WHERE userId = ? AND guildId = ? AND itemId = ?').run(quantity, userId, guildId, itemId);
+        } else {
+            const master = this._getItemMasterProperty(itemId, null);
+            const typeToInsert = master?.type || this.itemTypes.ITEM;
+            this.db.prepare('INSERT INTO userInventory (userId, guildId, itemId, quantity, itemType) VALUES (?, ?, ?, ?, ?)').run(userId, guildId, itemId, quantity, typeToInsert);
+        }
+    }
     getUserInventory(userId, guildId) {
     this.getUser(userId, guildId);
     const inventoryItems = this.db.prepare(`SELECT ui.itemId, ui.quantity, ui.itemType FROM userInventory ui WHERE ui.userId = ? AND ui.guildId = ? AND ui.quantity > 0`).all(userId, guildId);
