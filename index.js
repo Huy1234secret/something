@@ -6183,6 +6183,13 @@ module.exports = {
                     client.levelSystem.setItemQuantity(interaction.user.id, interaction.guild.id, 'worm', MAX_BAIT);
                     baitCount = MAX_BAIT;
                 }
+                if (!rodItem.itemId) {
+                    const alertMsg = `<:serror:1390640264392998942> Hey ${interaction.user}, you need a fishing rod to fish!`;
+                    const embed = buildFishingStartEmbed(null, baitCount, alertMsg);
+                    await interaction.update({ embeds: [embed], components: [] }).catch(() => {});
+                    fishingSessions.delete(key);
+                    return;
+                }
                 const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
                 const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodItem.quantity || rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
                 const embed = buildFishingWaitEmbed();
