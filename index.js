@@ -519,13 +519,21 @@ function buildSlotsPrizeEmbed() {
 }
 
 function buildFishingStartEmbed(rod, baitCount, alertMessage) {
-    const valueLines = [
-        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
-        `-# ** 🛡️ Durability:** ${rod.durability} <:pixelheart:1391070636876759121>`,
-        `-# **💪 Power:** ${rod.power} `,
-        '',
-        `* 🪱 **Bait:** ${baitCount}`
-    ].join('\n');
+    let valueLines;
+    if (rod && rod.tier) {
+        valueLines = [
+            `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+            `-# ** 🛡️ Durability:** ${rod.durability} <:pixelheart:1391070636876759121>`,
+            `-# **💪 Power:** ${rod.power} `,
+            '',
+            `* 🪱 **Bait:** ${baitCount}`
+        ].join('\n');
+    } else {
+        valueLines = [
+            `* No fishing rod equipped.`,
+            `* 🪱 **Bait:** ${baitCount}`
+        ].join('\n');
+    }
     const embed = new EmbedBuilder()
         .setAuthor({ name: 'FISHING' })
         .setTitle('READY TO FISH?')
@@ -586,7 +594,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss) {
         `-# your fishing rod have lost ${dLoss} durability`
     ].join('\n');
     const desc = [
-        `* ⚖️ Weigh: ${fish.weight}`,
+        `* ⚖️ Weigh: ${fish.weight} kg`,
         `* ☢️ Mutation: `,
         `* ✨ Rarity: ${fish.rarity}`,
         `* 🆔 Fish ID: \`${fish.id}\``
@@ -3306,9 +3314,11 @@ module.exports = {
                         .setThumbnail('https://i.ibb.co/99gtXzTD/26ff0f18-ddac-4283-abc2-b09c00d6cccc.png')
                         .setTitle(`${interaction.user.username}'s Fish Inventory`)
                         .setDescription(`* Inventory capacity: ${inv.length}/10`);
-                    embed.addFields({ name: 'Fishing Gear', value: `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji}\nBait: ${baitAmt}/50`, inline:false });
+                    let gearField = `Fishing Rod: Tier ${rodInfo.tier} ${rodInfo.emoji}\nBait: ${baitAmt}/50`;
+                    if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/50`;
+                    embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
                     for (const fish of inv.slice(0,10)) {
-                        let valStr = `* ⚖️ Weigh: ${fish.weight}\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+                        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
                         if (fish.value !== undefined) {
                             const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
                             valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
@@ -3343,14 +3353,14 @@ module.exports = {
                         if (!rodItem.itemId) missing.push('a fishing rod');
                         if (baitCount <= 0) missing.push('bait');
                         const alertMsg = `<:serror:1390640264392998942> Hey ${interaction.user}, you need ${missing.join(' and ')} to fish!`;
-                        const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
-                        const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                        const rodConfig = rodItem.itemId ? client.levelSystem.gameConfig.items[rodItem.itemId] : null;
+                        const rodInfo = rodConfig ? { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 } : null;
                         const embed = buildFishingStartEmbed(rodInfo, baitCount, alertMsg);
                         await interaction.reply({ content: alertMsg, embeds: [embed], ephemeral: false });
                         return;
                     }
-                    const rodConfig = client.levelSystem.gameConfig.items[rodItem.itemId] || client.levelSystem.gameConfig.items['fishing_rod_tier1'];
-                    const rodInfo = { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 };
+                    const rodConfig = rodItem.itemId ? client.levelSystem.gameConfig.items[rodItem.itemId] : null;
+                    const rodInfo = rodConfig ? { emoji: rodConfig.emoji || '🎣', power: rodConfig.power || 1, durability: rodConfig.durability || 10, tier: (rodConfig.name && rodConfig.name.match(/(\d+)/)) ? RegExp.$1 : 1 } : null;
                     const embed = buildFishingStartEmbed(rodInfo, baitCount);
                     const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_fish').setLabel('FISH').setStyle(ButtonStyle.Success));
                     const sent = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
