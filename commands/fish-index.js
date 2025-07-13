@@ -16,7 +16,14 @@ module.exports = {
         }
         const pageSize = 10;
         const page = 1;
-        const rarities = [...new Set(fishData.map(f => f.rarity))];
+        // Filter out any invalid or empty rarity values before using them in
+        // the select menu options. Invalid values were causing runtime errors
+        // when adding the options to the StringSelectMenuBuilder.
+        const rarities = [...new Set(
+            fishData
+                .map(f => f.rarity)
+                .filter(r => typeof r === 'string' && r.trim())
+        )];
         const list = fishData;
         const pageCount = Math.max(1, Math.ceil(list.length / pageSize));
         const embed = new EmbedBuilder()
