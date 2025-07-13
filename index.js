@@ -6162,6 +6162,12 @@ module.exports = {
                 }
                 session.fishIndex = Math.floor(Math.random()*session.buttonCount);
                 updateFishingMessage(key);
+                // Reset the 5s move timer whenever a button is pressed
+                if (session.moveInterval) clearInterval(session.moveInterval);
+                session.moveInterval = setInterval(() => {
+                    session.fishIndex = Math.floor(Math.random() * session.buttonCount);
+                    updateFishingMessage(key);
+                }, 5000);
                 fishingSessions.set(key, session);
                 return;
             }
