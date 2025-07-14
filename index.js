@@ -609,7 +609,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss, rodBroken = false) {
     ].join('\n');
     const desc = [
         `* ⚖️ Weigh: ${fish.weight} kg`,
-        `* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI} ${fish.mutation}` : ''}`,
+        `* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI}` : ''}`,
         `* ✨ Rarity: ${fish.rarity}`,
         `* 🆔 Fish ID: \`${fish.id}\``
     ];
@@ -702,7 +702,7 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
     if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
     embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
     for (const fish of inv.slice((page-1)*pageSize, page*pageSize)) {
-        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI} ${fish.mutation}` : ''}\n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI}` : ''}\n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
         if (fish.value !== undefined) {
             const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
             valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
