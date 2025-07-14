@@ -16,11 +16,14 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(interaction) {
         const id = interaction.options.getString('id');
+        let response;
         if (id === 'rain') {
             await startRain(interaction.client);
-            await interaction.reply({ content: 'Rain has started.', ephemeral: true });
+            response = { content: 'Rain has started.', ephemeral: true };
         } else {
-            await interaction.reply({ content: 'Unknown weather ID.', ephemeral: true });
+            response = { content: 'Unknown weather ID.', ephemeral: true };
         }
+        if (interaction.deferred || interaction.replied) return interaction.editReply(response);
+        return interaction.reply(response);
     },
 };

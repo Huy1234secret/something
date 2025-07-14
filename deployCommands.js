@@ -512,8 +512,7 @@ const commands = [
                 type: ApplicationCommandOptionType.String,
                 required: true,
                 choices: [
-                    { name: 'Cherry Blossom Breeze', value: 'blossom' },
-                    { name: 'Build Battle', value: 'build_battle' }
+                    { name: 'Cherry Blossom Breeze', value: 'blossom' }
                 ]
             }
         ],
