@@ -8,6 +8,7 @@ const BLOSSOM_COLOR = '#ffb6c1';
 
 let currentTime = null; // 'day' or 'night'
 const active = { rain: false, blossom: false };
+const activeUntil = { rain: 0, blossom: 0 };
 
 function isDay(timestamp = Date.now()) {
     const utc7 = timestamp + 7 * 60 * 60 * 1000;
@@ -52,27 +53,39 @@ async function updateDayNight(client) {
 }
 
 async function startRain(client) {
+    if (active.rain) {
+        return { started: false, remaining: Math.max(0, activeUntil.rain - Date.now()) };
+    }
     active.rain = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
     await send(channel, '[WEATHER]:🌧️ **Rain** has started!', RAIN_COLOR);
     const duration = (30 + Math.floor(Math.random() * 31)) * 60 * 1000;
+    activeUntil.rain = Date.now() + duration;
     setTimeout(async () => {
         active.rain = false;
+        activeUntil.rain = 0;
         const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
         await send(ch, '[WEATHER]:🌧️ **Rain** has ended!', RAIN_COLOR);
     }, duration);
+    return { started: true, duration };
 }
 
 async function startBlossom(client) {
+    if (active.blossom) {
+        return { started: false, remaining: Math.max(0, activeUntil.blossom - Date.now()) };
+    }
     active.blossom = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
     await send(channel, '[EVENT]:🌸**Cherry Blossom Breeze** has started!!', BLOSSOM_COLOR);
     const duration = (30 + Math.floor(Math.random() * 91)) * 60 * 1000;
+    activeUntil.blossom = Date.now() + duration;
     setTimeout(async () => {
         active.blossom = false;
+        activeUntil.blossom = 0;
         const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
         await send(ch, '[EVENT]:🌸**Cherry Blossom Breeze** has ended!', BLOSSOM_COLOR);
     }, duration);
+    return { started: true, duration };
 }
 
 async function rollWeather(client) {
@@ -102,5 +115,6 @@ module.exports = {
     isBlossomActive,
     getActiveWeatherList,
     startRain,
-    startBlossom
+    startBlossom,
+    activeUntil
 };

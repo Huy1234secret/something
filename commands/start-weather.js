@@ -18,8 +18,13 @@ module.exports = {
         const id = interaction.options.getString('id');
         let response;
         if (id === 'rain') {
-            await startRain(interaction.client);
-            response = { content: 'Rain has started.', ephemeral: true };
+            const result = await startRain(interaction.client);
+            if (!result.started) {
+                const endTs = Math.floor((Date.now() + result.remaining) / 1000);
+                response = { content: `The weather Rain is already active, you can activate again in <t:${endTs}:R>`, ephemeral: true };
+            } else {
+                response = { content: 'Rain has started.', ephemeral: true };
+            }
         } else {
             response = { content: 'Unknown weather ID.', ephemeral: true };
         }
