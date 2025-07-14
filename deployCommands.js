@@ -117,6 +117,10 @@ const commands = [
         description: 'Replies with Pong! and the bot\'s latency.',
     },
     {
+        name: 'check-weather',
+        description: 'Displays the current fishing weather.',
+    },
+    {
         name: 'botinfo',
         description: 'Displays information about Maxwell Bot'
     },
