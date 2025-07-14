@@ -1463,7 +1463,8 @@ this.db.prepare(`
             totalVoiceXp: 0, totalVoiceCoins: 0, cosmicTokenDiscovered: 0,
             lastRobuxWithdrawalTimestamp: 0, lostStreak: 0, rewardsLastShiftedAt: 0
         });
-        this.db.prepare('DELETE FROM userInventory WHERE userId = ? AND guildId = ?').run(userId, guildId);
+        // Preserve fishing rods when clearing inventory on reset
+        this.db.prepare("DELETE FROM userInventory WHERE userId = ? AND guildId = ? AND itemId NOT LIKE 'fishing_rod%'").run(userId, guildId);
         this.db.prepare('DELETE FROM userDailyRewards WHERE userId = ? AND guildId = ?').run(userId, guildId);
         this.db.prepare('DELETE FROM userActiveCharms WHERE userId = ? AND guildId = ?').run(userId, guildId);
         return { success: true, message: `Data reset for user ${userId} in guild ${guildId}.` };
@@ -1482,8 +1483,9 @@ this.db.prepare(`
             details.push("Pending Robux withdrawal requests cleared.");
         }
         if (options.doInventory) {
-            this.db.prepare('DELETE FROM userInventory WHERE userId = ? AND guildId = ?').run(userId, guildId);
-            details.push("User inventory cleared.");
+            // Only clear non-fishing-rod items
+            this.db.prepare("DELETE FROM userInventory WHERE userId = ? AND guildId = ? AND itemId NOT LIKE 'fishing_rod%'").run(userId, guildId);
+            details.push("User inventory cleared (fishing rods preserved).");
         }
         if (options.doActiveCharms) {
             this.db.prepare('DELETE FROM userActiveCharms WHERE userId = ? AND guildId = ?').run(userId, guildId);
@@ -1508,8 +1510,9 @@ this.db.prepare(`
             details.push("Pending Robux withdrawal requests cleared.");
         }
         if (options.doInventory) {
-            this.db.prepare('DELETE FROM userInventory WHERE guildId = ?').run(guildId);
-            details.push("User inventories cleared.");
+            // Preserve fishing rods for all users
+            this.db.prepare("DELETE FROM userInventory WHERE guildId = ? AND itemId NOT LIKE 'fishing_rod%'").run(guildId);
+            details.push("User inventories cleared (fishing rods preserved).");
         }
         if (options.doActiveCharms) {
             this.db.prepare('DELETE FROM userActiveCharms WHERE guildId = ?').run(guildId);
