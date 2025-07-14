@@ -18,8 +18,13 @@ module.exports = {
         const id = interaction.options.getString('id');
         let response;
         if (id === 'blossom') {
-            await startBlossom(interaction.client);
-            response = { content: 'Cherry Blossom Breeze started.', ephemeral: true };
+            const result = await startBlossom(interaction.client);
+            if (!result.started) {
+                const endTs = Math.floor((Date.now() + result.remaining) / 1000);
+                response = { content: `The event Cherry Blossom Breeze is currently active, you can use again in <t:${endTs}:R>`, ephemeral: true };
+            } else {
+                response = { content: 'Cherry Blossom Breeze started.', ephemeral: true };
+            }
         } else {
             response = { content: 'Unknown event ID.', ephemeral: true };
         }

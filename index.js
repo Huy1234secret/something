@@ -716,6 +716,8 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
 async function startFishingGame(sessionKey) {
     const session = fishingSessions.get(sessionKey);
     if (!session) return;
+    clearTimeout(session.shakeTimeout);
+    session.shakeTimeout = null;
     const channel = await client.channels.fetch(session.channelId).catch(()=>null);
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
@@ -792,7 +794,7 @@ async function finishFishing(success, sessionKey, rodBroken = false) {
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
     if (!msg) { fishingSessions.delete(sessionKey); return; }
-    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval);
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval); clearTimeout(session.shakeTimeout);
     const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
     const [userId, guildId] = sessionKey.split('_');
     const durabilityLoss = success ? session.durabilityLoss : session.durabilityLoss + 1;
@@ -835,7 +837,7 @@ async function finishFishingTrash(sessionKey, trash, rodBroken = false) {
     if (!channel) { fishingSessions.delete(sessionKey); return; }
     const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
     if (!msg) { fishingSessions.delete(sessionKey); return; }
-    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval);
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval); clearTimeout(session.shakeTimeout);
     const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
     const [userId, guildId] = sessionKey.split('_');
     const durabilityLoss = session.durabilityLoss;
@@ -3508,7 +3510,7 @@ module.exports = {
                 const embed = buildFishingStartEmbed(rodInfo, baitCount);
                 const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_fish').setLabel('FISH').setStyle(ButtonStyle.Success));
                 const sent = await interaction.reply({ embeds: [embed], components: [row], fetchReply: true });
-                fishingSessions.set(key, { messageId: sent.id, stage: 'start', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0 });
+                fishingSessions.set(key, { messageId: sent.id, stage: 'start', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0, shakeTimeout: null });
                 return;
                 }
             }
@@ -6206,6 +6208,8 @@ module.exports = {
                 session.channelId = interaction.channelId;
                 const waitMs = FISH_WAIT_MIN_MS + Math.random() * (FISH_WAIT_MAX_MS - FISH_WAIT_MIN_MS);
                 session.waitRemaining = waitMs;
+                clearTimeout(session.shakeTimeout);
+                session.shakeTimeout = null;
                 const embed = buildFishingWaitEmbed();
                 const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
                 await interaction.update({ embeds: [embed], components: [row] });
@@ -6230,10 +6234,11 @@ module.exports = {
                 session.waitTimeout = setTimeout(() => startFishingGame(key), session.waitRemaining);
                 const rowDisabled = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary).setDisabled(true));
                 await interaction.update({ components: [rowDisabled] }).catch(() => {});
-                setTimeout(async () => {
+                clearTimeout(session.shakeTimeout);
+                session.shakeTimeout = setTimeout(async () => {
                     const channel = await client.channels.fetch(session.channelId).catch(() => null);
                     const msg = channel ? await channel.messages.fetch(session.messageId).catch(() => null) : null;
-                    if (msg) {
+                    if (msg && session.stage === 'wait') {
                         const rowRe = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
                         await msg.edit({ components: [rowRe] }).catch(() => {});
                     }
@@ -6307,7 +6312,7 @@ module.exports = {
                 const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_shake').setLabel('SHAKE').setStyle(ButtonStyle.Primary));
                 await interaction.update({ embeds: [embed], components: [row] }).catch(() => {});
                 const waitMs = FISH_WAIT_MIN_MS + Math.random() * (FISH_WAIT_MAX_MS - FISH_WAIT_MIN_MS);
-                const newSession = { messageId: interaction.message.id, channelId: interaction.channelId, stage: 'wait', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0, waitRemaining: waitMs };
+                const newSession = { messageId: interaction.message.id, channelId: interaction.channelId, stage: 'wait', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0, waitRemaining: waitMs, shakeTimeout: null };
                 newSession.waitTimeout = setTimeout(() => startFishingGame(key), waitMs);
                 fishingSessions.set(key, newSession);
                 return;
