@@ -95,4 +95,12 @@ async function initWeather(client) {
     setInterval(() => rollWeather(client).catch(() => {}), 60 * 60 * 1000);
 }
 
-module.exports = { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive, getActiveWeatherList };
+module.exports = {
+    initWeather,
+    buildWeatherEmbed,
+    getCatchMultiplier,
+    isBlossomActive,
+    getActiveWeatherList,
+    startRain,
+    startBlossom
+};

@@ -487,6 +487,39 @@ const commands = [
         ]
     },
     {
+        name: 'start-weather',
+        description: 'Start a weather effect (Staff Only).',
+        options: [
+            {
+                name: 'id',
+                description: 'Weather ID',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+                choices: [
+                    { name: 'Rain', value: 'rain' }
+                ]
+            }
+        ],
+        default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
+    },
+    {
+        name: 'start-event',
+        description: 'Start a special event (Staff Only).',
+        options: [
+            {
+                name: 'id',
+                description: 'Event ID',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+                choices: [
+                    { name: 'Cherry Blossom Breeze', value: 'blossom' },
+                    { name: 'Build Battle', value: 'build_battle' }
+                ]
+            }
+        ],
+        default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
+    },
+    {
         name: 'daily',
         description: 'Commands for daily rewards and streaks.',
         options: [
