@@ -406,6 +406,26 @@ const config = {
             emoji: "🪱", rarityValue: 0,
             description: "Simple bait for fishing.",
             basePrice: 100
+        },
+        "waterbottle": {
+            id: "waterbottle", name: "Water Bottle", type: "junk",
+            emoji: "<:waterbottle:1394375998740365342>", rarityValue: 0,
+            description: "Discarded plastic bottle."
+        },
+        "newspaper": {
+            id: "newspaper", name: "Old Newspaper", type: "junk",
+            emoji: "<:newspaper:1394376024527077477>", rarityValue: 0,
+            description: "Just yesterday's news."
+        },
+        "emptycan": {
+            id: "emptycan", name: "Empty Can", type: "junk",
+            emoji: "<:emptycan:1394375984039460954>", rarityValue: 0,
+            description: "Rusty empty can."
+        },
+        "seaweed": {
+            id: "seaweed", name: "Seaweed", type: "junk",
+            emoji: "<:seaweed:1394375962094735390>", rarityValue: 0,
+            description: "Slimy seaweed."
         }
     },
     badges: {

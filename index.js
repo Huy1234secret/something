@@ -12,6 +12,7 @@ const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEv
 const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
+const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive } = require('./utils/weatherManager');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -79,6 +80,10 @@ const ITEM_IDS = {
     DISCOUNT_25: gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25',
     DISCOUNT_50: gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50',
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
+    WATER_BOTTLE: gameConfig.items.waterbottle?.id || 'waterbottle',
+    NEWSPAPER: gameConfig.items.newspaper?.id || 'newspaper',
+    EMPTY_CAN: gameConfig.items.emptycan?.id || 'emptycan',
+    SEAWEED: gameConfig.items.seaweed?.id || 'seaweed',
 };
 
 const fs = require('node:fs').promises;
@@ -174,6 +179,8 @@ const FISH_RARITY_COLORS = {
 const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
 const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S' };
 const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret'];
+const MUTATION_BLOSSOM_EMOJI = '<:mutation-blossom:1394379938748043374>';
+const BASE_FISH_CHANCE = 0.6;
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
 
@@ -602,7 +609,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss, rodBroken = false) {
     ].join('\n');
     const desc = [
         `* ⚖️ Weigh: ${fish.weight} kg`,
-        `* ☢️ Mutation: `,
+        `* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI} ${fish.mutation}` : ''}`,
         `* ✨ Rarity: ${fish.rarity}`,
         `* 🆔 Fish ID: \`${fish.id}\``
     ];
@@ -617,6 +624,24 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss, rodBroken = false) {
         .setColor(color)
         .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif')
         .setDescription(desc.join('\n'));
+    if (rodBroken) embed.addFields({ name: 'Oh no!', value: 'Your fishing rod broke!', inline: false });
+    return embed;
+}
+
+function buildFishingTrashEmbed(trash, rod, dLoss, bLoss, rodBroken = false) {
+    const toolLines = [
+        `* ${rod.emoji} **Tier ${rod.tier} fishing rod.**`,
+        `-# your fishing rod have lost ${dLoss} durability`
+    ].join('\n');
+    const embed = new EmbedBuilder()
+        .setAuthor({ name: 'FISHING' })
+        .setTitle(`You caught trash ${trash.name} ${trash.emoji}`)
+        .addFields(
+            { name: 'Tool', value: toolLines, inline: false },
+            { name: 'Lost', value: `* You lost ${bLoss} bait`, inline: false }
+        )
+        .setColor('#808080')
+        .setThumbnail('https://i.ibb.co/SwDkjVjG/the-spinning-fish.gif');
     if (rodBroken) embed.addFields({ name: 'Oh no!', value: 'Your fishing rod broke!', inline: false });
     return embed;
 }
@@ -640,7 +665,19 @@ function pickRandomFish() {
     const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
     const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
     const rarityName = RARITY_SYMBOL_TO_NAME[fish.rarity] || fish.rarity;
-    return { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
+    const obj = { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
+    if (isBlossomActive() && Math.random() < 0.20) obj.mutation = 'Blossom';
+    return obj;
+}
+
+function pickRandomTrash() {
+    const trash = [
+        gameConfig.items.waterbottle,
+        gameConfig.items.newspaper,
+        gameConfig.items.emptycan,
+        gameConfig.items.seaweed,
+    ];
+    return trash[Math.floor(Math.random() * trash.length)];
 }
 
 function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = false) {
@@ -665,10 +702,11 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
     if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
     embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
     for (const fish of inv.slice((page-1)*pageSize, page*pageSize)) {
-        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: \n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI} ${fish.mutation}` : ''}\n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
         if (fish.value !== undefined) {
             const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
             valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
+            if (fish.baseValue && fish.baseValue !== fish.value) valStr += ` (${fish.baseValue.toFixed(2)})`;
         }
         embed.addFields({ name: `${fish.name} ${fish.emoji || ''}`, value: valStr, inline: false });
     }
@@ -687,6 +725,12 @@ async function startFishingGame(sessionKey) {
         const embed = buildFishingStartEmbed(session.rod, session.bait, 'Inventory full!');
         await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
         fishingSessions.delete(sessionKey);
+        return;
+    }
+    const chance = Math.min(1, BASE_FISH_CHANCE * getCatchMultiplier());
+    if (Math.random() > chance) {
+        const trash = pickRandomTrash();
+        await finishFishingTrash(sessionKey, trash);
         return;
     }
     const fish = pickRandomFish();
@@ -781,6 +825,33 @@ async function finishFishing(success, sessionKey, rodBroken = false) {
         const embed = buildFishingFailEmbed(session.rod, durabilityLoss, 1, broke);
         await msg.edit({ embeds:[embed], components:[againRow] }).catch(()=>{});
     }
+    fishingSessions.delete(sessionKey);
+}
+
+async function finishFishingTrash(sessionKey, trash, rodBroken = false) {
+    const session = fishingSessions.get(sessionKey);
+    if (!session) return;
+    const channel = await client.channels.fetch(session.channelId).catch(()=>null);
+    if (!channel) { fishingSessions.delete(sessionKey); return; }
+    const msg = await channel.messages.fetch(session.messageId).catch(()=>null);
+    if (!msg) { fishingSessions.delete(sessionKey); return; }
+    clearTimeout(session.gameTimeout); clearTimeout(session.waitTimeout); clearInterval(session.moveInterval);
+    const againRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('fishing_again').setLabel('FISH AGAIN?').setStyle(ButtonStyle.Primary));
+    const [userId, guildId] = sessionKey.split('_');
+    const durabilityLoss = session.durabilityLoss;
+    let broke = rodBroken;
+    if (session.rodItemId) {
+        const rodItem = client.levelSystem.getItemFromInventory(userId, guildId, session.rodItemId);
+        if (rodItem) {
+            const remaining = rodItem.quantity - durabilityLoss;
+            if (remaining <= 0) { client.levelSystem.takeItem(userId, guildId, session.rodItemId, rodItem.quantity); broke = true; }
+            else if (durabilityLoss > 0) { client.levelSystem.takeItem(userId, guildId, session.rodItemId, durabilityLoss); }
+        } else broke = true;
+    }
+    client.levelSystem.takeItem(userId, guildId, 'worm', 1);
+    client.levelSystem.giveItem(userId, guildId, trash.id, 1, client.levelSystem.itemTypes.JUNK, 'fish_trash');
+    const embed = buildFishingTrashEmbed(trash, session.rod, durabilityLoss, 1, broke);
+    await msg.edit({ embeds:[embed], components:[againRow] }).catch(()=>{});
     fishingSessions.delete(sessionKey);
 }
 
@@ -1286,7 +1357,11 @@ async function scheduleShopRestock(client) {
 function calculateFishValue(fish) {
     const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000 };
     const m = mults[fish.rarity?.toLowerCase()] || 0;
-    return +(fish.weight * m).toFixed(2);
+    const base = +(fish.weight * m).toFixed(2);
+    let value = base;
+    if (fish.mutation === 'Blossom') value = +(base * 1.25).toFixed(2);
+    fish.baseValue = base;
+    return value;
 }
 
 function persistFishData() {
@@ -2657,6 +2732,7 @@ scheduleVoiceActivityRewards(client);
     initFishSeason(client);
     initFishMarket(client);
     initFishStore(client);
+    initWeather(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
@@ -3594,6 +3670,12 @@ module.exports = {
             if (commandName === 'ping') {
                  if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, ); deferredThisInteraction = true; }
                  await safeEditReply(interaction, { content: `Pong! Latency: ${client.ws.ping}ms`}, true);
+                 return;
+            }
+            if (commandName === 'check-weather') {
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
+                 const embed = buildWeatherEmbed();
+                 await safeEditReply(interaction, { embeds: [embed] }, true);
                  return;
             }
             if (commandName === 'level') {
@@ -5957,24 +6039,28 @@ module.exports = {
                 const inv = client.userFishInventories.get(key) || [];
                 const favs = client.userFavoriteFishInventories.get(key) || [];
                 if (idsStr.trim().toLowerCase() === 'all') {
-                    let total = 0;
+                    let total = 0; let baseTotal = 0;
                     for (const f of inv.slice()) {
                         if (favs.find(x => x.id === f.id)) continue;
-                        total += calculateFishValue(f);
+                        const val = calculateFishValue(f);
+                        total += val; baseTotal += f.baseValue || val;
                     }
                     const remaining = inv.filter(f => favs.find(x => x.id === f.id));
                     client.userFishInventories.set(key, remaining);
                     client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell_all');
                     persistFishData();
-                    return interaction.reply({ content: `Sold all fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+                    let msg = `Sold all fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`;
+                    if (baseTotal !== total) msg += ` (${baseTotal.toFixed(2)})`;
+                    return interaction.reply({ content: msg, ephemeral: true });
                 }
                 const ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
-                let total = 0; let sold = 0;
+                let total = 0; let sold = 0; let baseTotal = 0;
                 for (const id of ids) {
                     const idx = inv.findIndex(f => f.id === id && !favs.find(x => x.id === id));
                     if (idx !== -1) {
                         const fish = inv[idx];
-                        total += calculateFishValue(fish);
+                        const val = calculateFishValue(fish);
+                        total += val; baseTotal += fish.baseValue || val;
                         inv.splice(idx,1); sold++;
                     }
                 }
@@ -5982,7 +6068,9 @@ module.exports = {
                 client.userFishInventories.set(key, inv);
                 client.levelSystem.addFishDollars(interaction.user.id, interaction.guild.id, total, 'fish_sell');
                 persistFishData();
-                return interaction.reply({ content: `Sold ${sold} fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+                let msg = `Sold ${sold} fish for ${total.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`;
+                if (baseTotal !== total) msg += ` (${baseTotal.toFixed(2)})`;
+                return interaction.reply({ content: msg, ephemeral: true });
             }
             if (customId === 'fish_value_modal') {
                 if (!interaction.isModalSubmit()) return;
@@ -5995,7 +6083,9 @@ module.exports = {
                 fish.value = value;
                 client.userFishInventories.set(key, inv);
                 persistFishData();
-                return interaction.reply({ content: `Value: ${value.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`, ephemeral: true });
+                let msg = `Value: ${value.toFixed(2)} ${client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK}`;
+                if (fish.baseValue && fish.baseValue !== value) msg += ` (${fish.baseValue.toFixed(2)})`;
+                return interaction.reply({ content: msg, ephemeral: true });
             }
 
             if (customId === 'fish_inv_prev' || customId === 'fish_inv_next' || customId === 'fish_inv_togglefav') {
