@@ -179,7 +179,7 @@ const FISH_RARITY_COLORS = {
 const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
 const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S' };
 const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret'];
-const MUTATION_BLOSSOM_EMOJI = '<:mutation-blossom:1394379938748043374>';
+const MUTATION_BLOSSOM_EMOJI = '<:mutationblossom:1394379938748043374>';
 const BASE_FISH_CHANCE = 0.6;
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
@@ -3675,9 +3675,17 @@ module.exports = {
                  return;
             }
             if (commandName === 'check-weather') {
-                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
-                 const embed = buildWeatherEmbed();
-                 await safeEditReply(interaction, { embeds: [embed] }, true);
+                 if (!interaction.replied && !interaction.deferred) {
+                     await safeDeferReply(interaction, { ephemeral: false });
+                     deferredThisInteraction = true;
+                 }
+                 const cmd = client.commands.get('check-weather');
+                 if (cmd && typeof cmd.execute === 'function') {
+                     await cmd.execute(interaction, client);
+                 } else {
+                     const embed = buildWeatherEmbed();
+                     await safeEditReply(interaction, { embeds: [embed] }, true);
+                 }
                  return;
             }
             if (commandName === 'level') {
