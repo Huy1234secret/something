@@ -6,6 +6,12 @@ const NIGHT_COLOR = '#001b44';
 const RAIN_COLOR = '#a0ffff';
 const BLOSSOM_COLOR = '#ffb6c1';
 
+// Alert messages used when weather or events start/end
+const RAIN_START_ALERT = '[WEATHER]:🌧️ **Rain** has started!';
+const RAIN_END_ALERT = '[WEATHER]:🌧️ **Rain** has ended!';
+const BLOSSOM_START_ALERT = '[EVENT]:🌸**Cherry Blossom Breeze** has started!!';
+const BLOSSOM_END_ALERT = '[EVENT]:🌸**Cherry Blossom Breeze** has ended!';
+
 let currentTime = null; // 'day' or 'night'
 const active = { rain: false, blossom: false };
 const activeUntil = { rain: 0, blossom: 0 };
@@ -58,14 +64,14 @@ async function startRain(client) {
     }
     active.rain = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, '[WEATHER]:🌧️ **Rain** has started!', RAIN_COLOR);
+    await send(channel, RAIN_START_ALERT, RAIN_COLOR);
     const duration = (30 + Math.floor(Math.random() * 31)) * 60 * 1000;
     activeUntil.rain = Date.now() + duration;
     setTimeout(async () => {
         active.rain = false;
         activeUntil.rain = 0;
         const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-        await send(ch, '[WEATHER]:🌧️ **Rain** has ended!', RAIN_COLOR);
+        await send(ch, RAIN_END_ALERT, RAIN_COLOR);
     }, duration);
     return { started: true, duration };
 }
@@ -76,14 +82,14 @@ async function startBlossom(client) {
     }
     active.blossom = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, '[EVENT]:🌸**Cherry Blossom Breeze** has started!!', BLOSSOM_COLOR);
+    await send(channel, BLOSSOM_START_ALERT, BLOSSOM_COLOR);
     const duration = (30 + Math.floor(Math.random() * 91)) * 60 * 1000;
     activeUntil.blossom = Date.now() + duration;
     setTimeout(async () => {
         active.blossom = false;
         activeUntil.blossom = 0;
         const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-        await send(ch, '[EVENT]:🌸**Cherry Blossom Breeze** has ended!', BLOSSOM_COLOR);
+        await send(ch, BLOSSOM_END_ALERT, BLOSSOM_COLOR);
     }, duration);
     return { started: true, duration };
 }
@@ -116,5 +122,9 @@ module.exports = {
     getActiveWeatherList,
     startRain,
     startBlossom,
-    activeUntil
+    activeUntil,
+    RAIN_START_ALERT,
+    RAIN_END_ALERT,
+    BLOSSOM_START_ALERT,
+    BLOSSOM_END_ALERT
 };
