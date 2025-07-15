@@ -7,10 +7,10 @@ const RAIN_COLOR = '#a0ffff';
 const BLOSSOM_COLOR = '#ffb6c1';
 
 // Alert messages used when weather or events start/end
-const RAIN_START_ALERT = '[WEATHER]:🌧️ **Rain** has started!';
-const RAIN_END_ALERT = '[WEATHER]:🌧️ **Rain** has ended!';
-const BLOSSOM_START_ALERT = '[EVENT]:🌸**Cherry Blossom Breeze** has started!!';
-const BLOSSOM_END_ALERT = '[EVENT]:🌸**Cherry Blossom Breeze** has ended!';
+const RAIN_START_ALERT = '`[WEATHER]` 🌧️ **Rain** has started!';
+const RAIN_END_ALERT = '`[WEATHER]` 🌧️ **Rain** has ended!';
+const BLOSSOM_START_ALERT = '`[EVENT]` 🌸**Cherry Blossom Breeze** has started!!';
+const BLOSSOM_END_ALERT = '`[EVENT]` 🌸**Cherry Blossom Breeze** has ended!';
 
 let currentTime = null; // 'day' or 'night'
 const active = { rain: false, blossom: false };
