@@ -663,7 +663,8 @@ function pickRandomFish() {
     }
     if (!fish) fish = client.fishData[Math.floor(Math.random()*client.fishData.length)];
     const weight = +(fish.minWeight + Math.random()*(fish.maxWeight - fish.minWeight)).toFixed(2);
-    const id = `${fish.rarity}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
+    const prefix = fish.idPrefix || fish.rarity;
+    const id = `${prefix}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
     const rarityName = RARITY_SYMBOL_TO_NAME[fish.rarity] || fish.rarity;
     const obj = { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
     if (isBlossomActive() && Math.random() < 0.20) obj.mutation = 'Blossom';

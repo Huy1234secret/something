@@ -37,9 +37,10 @@ function isBlossomActive() {
     return !!active.blossom;
 }
 
-async function send(channel, description, color) {
+async function send(channel, description, color, footer) {
     if (!channel) return;
     const embed = new EmbedBuilder().setColor(color).setDescription(description);
+    if (footer) embed.setFooter({ text: footer });
     await channel.send({ embeds: [embed] }).catch(() => {});
 }
 
@@ -58,13 +59,13 @@ async function updateDayNight(client) {
     }
 }
 
-async function startRain(client) {
+async function startRain(client, opts = {}) {
     if (active.rain) {
         return { started: false, remaining: Math.max(0, activeUntil.rain - Date.now()) };
     }
     active.rain = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, RAIN_START_ALERT, RAIN_COLOR);
+    await send(channel, RAIN_START_ALERT, RAIN_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     const duration = (30 + Math.floor(Math.random() * 31)) * 60 * 1000;
     activeUntil.rain = Date.now() + duration;
     setTimeout(async () => {
@@ -76,13 +77,13 @@ async function startRain(client) {
     return { started: true, duration };
 }
 
-async function startBlossom(client) {
+async function startBlossom(client, opts = {}) {
     if (active.blossom) {
         return { started: false, remaining: Math.max(0, activeUntil.blossom - Date.now()) };
     }
     active.blossom = true;
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, BLOSSOM_START_ALERT, BLOSSOM_COLOR);
+    await send(channel, BLOSSOM_START_ALERT, BLOSSOM_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     const duration = (30 + Math.floor(Math.random() * 91)) * 60 * 1000;
     activeUntil.blossom = Date.now() + duration;
     setTimeout(async () => {
@@ -111,6 +112,7 @@ function buildWeatherEmbed() {
 async function initWeather(client) {
     await updateDayNight(client);
     setInterval(() => updateDayNight(client).catch(() => {}), 60 * 1000);
+    rollWeather(client).catch(() => {});
     setInterval(() => rollWeather(client).catch(() => {}), 60 * 60 * 1000);
 }
 
