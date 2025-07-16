@@ -4,7 +4,7 @@ const { EmbedBuilder } = require('discord.js');
 
 const DATA_FILE = path.join(__dirname, '../data/fishSeason.json');
 const CHANNEL_ID = '1393510353316479029';
-const SEASON_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const SEASON_DURATION_MS = 24 * 60 * 60 * 1000;
 
 const SEASONS = [
   { name: 'SPRING', color: '#ff96ff', emoji: '🌸' },
@@ -13,12 +13,20 @@ const SEASONS = [
   { name: 'WINTER', color: '#80fdff', emoji: '⛄' }
 ];
 
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
 async function loadData() {
   try {
     const raw = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    if (!data.seasonStart) data.seasonStart = startOfToday();
+    return data;
   } catch {
-    return { seasonIndex: 0, seasonStart: Date.now(), messageId: null };
+    return { seasonIndex: 0, seasonStart: startOfToday(), messageId: null };
   }
 }
 
@@ -29,14 +37,16 @@ async function saveData(data) {
 
 function applySeasonProgress(data) {
   const now = Date.now();
-  const elapsed = now - (data.seasonStart || now);
+  if (!data.seasonStart) data.seasonStart = startOfToday();
+  let elapsed = now - data.seasonStart;
   if (elapsed >= SEASON_DURATION_MS) {
     const steps = Math.floor(elapsed / SEASON_DURATION_MS);
     data.seasonIndex = (data.seasonIndex || 0) + steps;
     data.seasonIndex %= SEASONS.length;
-    data.seasonStart = (data.seasonStart || now) + steps * SEASON_DURATION_MS;
+    data.seasonStart += steps * SEASON_DURATION_MS;
+    elapsed = now - data.seasonStart;
   }
-  return { index: data.seasonIndex || 0, start: data.seasonStart || now };
+  return { index: data.seasonIndex || 0, start: data.seasonStart };
 }
 
 function buildEmbed(index, start) {

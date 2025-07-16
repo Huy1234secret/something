@@ -18,7 +18,7 @@ module.exports = {
         const id = interaction.options.getString('id');
         let response;
         if (id === 'rain') {
-            const result = await startRain(interaction.client);
+            const result = await startRain(interaction.client, { byAdmin: true });
             if (!result.started) {
                 const endTs = Math.floor((Date.now() + result.remaining) / 1000);
                 response = { content: `The weather Rain is already active, you can activate again in <t:${endTs}:R>`, ephemeral: true };

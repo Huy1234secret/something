@@ -31,15 +31,16 @@ function loadFishData(xlsxPath) {
             data.push({
                 name: row.A,
                 rarity: row.C,
-                springChance: parseFloat(row.D) || 0,
-                summerChance: parseFloat(row.E) || 0,
-                autumnChance: parseFloat(row.F) || 0,
-                winterChance: parseFloat(row.G) || 0,
-                minWeight: parseFloat(row.J) || 0,
-                maxWeight: parseFloat(row.K) || 0,
-                durabilityLoss: parseFloat(row.M) || 0,
-                powerReq: parseFloat(row.N) || 0,
-                emoji: row.O
+                idPrefix: row.D,
+                springChance: parseFloat(row.E) || 0,
+                summerChance: parseFloat(row.F) || 0,
+                autumnChance: parseFloat(row.G) || 0,
+                winterChance: parseFloat(row.H) || 0,
+                minWeight: parseFloat(row.K) || 0,
+                maxWeight: parseFloat(row.L) || 0,
+                durabilityLoss: parseFloat(row.N) || 0,
+                powerReq: parseFloat(row.O) || 0,
+                emoji: row.P
             });
         }
     }
