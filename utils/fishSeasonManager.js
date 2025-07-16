@@ -5,6 +5,8 @@ const { EmbedBuilder } = require('discord.js');
 const DATA_FILE = path.join(__dirname, '../data/fishSeason.json');
 const CHANNEL_ID = '1393510353316479029';
 const SEASON_DURATION_MS = 24 * 60 * 60 * 1000;
+// Season timezone offset (UTC+7). Seasons change exactly at 24:00 in this zone.
+const SEASON_TZ_OFFSET_HOURS = 7;
 
 const SEASONS = [
   { name: 'SPRING', color: '#ff96ff', emoji: '🌸' },
@@ -14,14 +16,13 @@ const SEASONS = [
 ];
 
 function startOfToday() {
-  const tz = 7; // UTC+7
   const d = new Date();
-  // Shift to the target timezone
-  d.setUTCMinutes(d.getUTCMinutes() + tz * 60);
-  // Snap to 00:00 in that zone
+  // Shift to the season timezone
+  d.setUTCMinutes(d.getUTCMinutes() + SEASON_TZ_OFFSET_HOURS * 60);
+  // Snap to 00:00 in that zone (24:00 UTC+7)
   d.setUTCHours(0, 0, 0, 0);
   // Convert back to UTC timestamp
-  return d.getTime() - tz * 60 * 60 * 1000;
+  return d.getTime() - SEASON_TZ_OFFSET_HOURS * 60 * 60 * 1000;
 }
 
 async function loadData() {
