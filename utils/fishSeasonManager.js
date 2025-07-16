@@ -14,11 +14,14 @@ const SEASONS = [
 ];
 
 function startOfToday() {
+  const tz = 7; // UTC+7
   const d = new Date();
-  // Convert to UTC+7 then snap to 00:00 in that zone
-  d.setUTCHours(d.getUTCHours() + 7, 0, 0, 0);
+  // Shift to the target timezone
+  d.setUTCMinutes(d.getUTCMinutes() + tz * 60);
+  // Snap to 00:00 in that zone
+  d.setUTCHours(0, 0, 0, 0);
   // Convert back to UTC timestamp
-  return d.getTime() - 7 * 60 * 60 * 1000;
+  return d.getTime() - tz * 60 * 60 * 1000;
 }
 
 async function loadData() {
