@@ -15,8 +15,10 @@ const SEASONS = [
 
 function startOfToday() {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+  // Convert to UTC+7 then snap to 00:00 in that zone
+  d.setUTCHours(d.getUTCHours() + 7, 0, 0, 0);
+  // Convert back to UTC timestamp
+  return d.getTime() - 7 * 60 * 60 * 1000;
 }
 
 async function loadData() {
