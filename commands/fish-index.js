@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 
-const RARITY_MAP = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
-const RARITY_REVERSE_MAP = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S' };
-const ORDERED_RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Secret'];
+const RARITY_MAP = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret', P: 'Prismatic' };
+const RARITY_REVERSE_MAP = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S', Prismatic: 'P' };
+const ORDERED_RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Secret', 'Prismatic'];
 const RARITY_COLORS = {
     Common: '#FFFFFF',
     Uncommon: '#75FF75',
@@ -10,7 +10,8 @@ const RARITY_COLORS = {
     Epic: '#FF94FF',
     Legendary: '#FFFF00',
     Mythical: '#FF4D00',
-    Secret: '#B700FF'
+    Secret: '#B700FF',
+    Prismatic: '#00FFFF'
 };
 
 module.exports = {

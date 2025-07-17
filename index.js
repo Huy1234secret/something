@@ -163,7 +163,7 @@ const FISH_WAIT_MAX_MS = 60 * 1000;
 const FISH_SHAKE_COOLDOWN_MS = 3000;
 const FISH_GAME_BAR_POINTS = 100;
 const FISH_GAME_BAR_SEGMENT = 5; // each segment worth 5 points
-const FISH_BUTTON_COUNTS = { common:4, uncommon:6, rare:10, epic:14, legendary:18, mythical:20, secret:25 };
+const FISH_BUTTON_COUNTS = { common:4, uncommon:6, rare:10, epic:14, legendary:18, mythical:20, secret:25, prismatic:30 };
 const MAX_BAIT = 50;
 const FISH_INVENTORY_CAP = 10;
 const FISH_OTHER_EMOJIS = ['🌀','🔵','💙','💎','🐋','🧿','🌊','🔹','💤','❄️','🐬','💧','🪼','💦','🧊','🪬','🌎','➡️','⚓','🫧','🦋','💠'];
@@ -174,11 +174,12 @@ const FISH_RARITY_COLORS = {
     Epic: '#FF94FF',
     Legendary: '#FFFF00',
     Mythical: '#FF4D00',
-    Secret: '#B700FF'
+    Secret: '#B700FF',
+    Prismatic: '#00FFFF'
 };
-const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret' };
-const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S' };
-const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret'];
+const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret', P: 'Prismatic' };
+const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S', Prismatic: 'P' };
+const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret','Prismatic'];
 const MUTATION_BLOSSOM_EMOJI = '<:mutationblossom:1394379938748043374>';
 const BASE_FISH_CHANCE = 0.6;
 
@@ -1358,7 +1359,7 @@ async function scheduleShopRestock(client) {
 }
 
 function calculateFishValue(fish) {
-    const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000 };
+    const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000, prismatic: 2000 };
     const m = mults[fish.rarity?.toLowerCase()] || 0;
     const base = +(fish.weight * m).toFixed(2);
     let value = base;
@@ -2881,7 +2882,11 @@ client.on('messageCreate', async message => {
                         let alertImage = itemConfig.imageUrl || null; // Use item's specific image if available
 
                         // Customize title/description based on rarity for extra flair
-                        if (rarityString === client.levelSystem.itemRarities.SECRET.name) {
+                        if (rarityString === client.levelSystem.itemRarities.PRISMATIC?.name) {
+                            alertTitle = `🌈 PRISMATIC FIND! ${itemEmojiDisplay} ${itemNameDisplay}! 🌈`;
+                            eventDescription = `${message.author} has discovered an ultra rare **${itemNameDisplay}**!`;
+                        }
+                        else if (rarityString === client.levelSystem.itemRarities.SECRET.name) {
                             alertTitle = `✨🌌 SECRET DISCOVERY! ${itemEmojiDisplay} ${itemNameDisplay}! 🌌✨`;
                             eventDescription = `${message.author} has uncovered a **${itemNameDisplay}**! This is an EXTREMELY rare, almost mythical find!`;
                             alertImage = 'https://i.ibb.co/Sx21B4G/output-onlinegiftools-3.gif'; // Example GIF
