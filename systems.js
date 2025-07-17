@@ -148,6 +148,7 @@ class SystemsManager {
         };
 
         this.itemRarities = gameConfig.globalSettings.rarityTiers || {
+            PRISMATIC:{ name: "Prismatic", color: 0x00FFFF, value: 3000000 },
             SECRET:   { name: "SECRET",    color: 0xB700FF, value: 2000000 },
             GODLY:    { name: "Godly",     color: 0xFF0000, value: 1500000 },
             MYTHICAL: { name: "Mythical",  color: 0xFF4D00, value: 1000000 },

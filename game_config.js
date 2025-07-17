@@ -129,7 +129,7 @@ const config = {
         robux: {                                     // Example extra currency
             id: "robux", name: "Robux", type: "currency",
             emoji: "<a:robux:1378395622683574353>",
-            rarityValue: 200001,
+            rarityValue: 3000000,
             description: "A premium-grade currency from another realm."
         },
 
