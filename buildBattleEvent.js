@@ -129,18 +129,48 @@ async function saveData(data) {
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
+let countdownInterval;
+
+async function updateCountdownMessage(channel, data) {
+  if (!data.countdownMessageId) return;
+  const message = await channel.messages.fetch(data.countdownMessageId).catch(() => null);
+  if (!message) return;
+  const embed = EmbedBuilder.from(message.embeds[0] ?? {})
+    .setTitle('Build Battle Countdown ⛏️')
+    .setDescription(`Blocks at the ready—⏰ the arena drops in <t:${COUNTDOWN_END}:R>! Who’s claiming the crown?`)
+    .setColor('#000000');
+  await message.edit({ embeds: [embed] }).catch(() => {});
+}
+
+function startCountdownInterval(channel, data) {
+  clearInterval(countdownInterval);
+  countdownInterval = setInterval(async () => {
+    const now = Math.floor(Date.now() / 1000);
+    if (now >= COUNTDOWN_END) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      return;
+    }
+    await updateCountdownMessage(channel, data).catch(() => {});
+  }, 60 * 1000);
+}
+
 async function ensureCountdownMessage(client, channel, data) {
   if (data.countdownMessageId) {
     const msg = await channel.messages.fetch(data.countdownMessageId).catch(() => null);
-    if (msg) return;
+    if (msg) {
+      startCountdownInterval(channel, data);
+      return;
+    }
   }
   const embed = new EmbedBuilder()
     .setTitle('Build Battle Countdown ⛏️')
-    .setDescription('Blocks at the ready—⏰ the arena drops in <t:1753376400:R>! Who’s claiming the crown?')
+    .setDescription(`Blocks at the ready—⏰ the arena drops in <t:${COUNTDOWN_END}:R>! Who’s claiming the crown?`)
     .setColor('#000000');
   const message = await channel.send({ embeds: [embed] });
   data.countdownMessageId = message.id;
   await saveData(data);
+  startCountdownInterval(channel, data);
 }
 
 async function disableJoinButton(message, data) {
