@@ -144,6 +144,9 @@ async function updateCountdownMessage(channel, data) {
 
 function startCountdownInterval(channel, data) {
   clearInterval(countdownInterval);
+  // Immediately update the countdown message so changes to COUNTDOWN_END
+  // are reflected without waiting for the first interval tick
+  updateCountdownMessage(channel, data).catch(() => {});
   countdownInterval = setInterval(async () => {
     const now = Math.floor(Date.now() / 1000);
     if (now >= COUNTDOWN_END) {
