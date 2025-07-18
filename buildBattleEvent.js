@@ -4,7 +4,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 
 const DATA_FILE = path.join(__dirname, 'data', 'buildBattle.json');
 const CHANNEL_ID = '1390743854487044136';
-const COUNTDOWN_END = 1753938000; // July 31 2025 05:00 UTC
+// Countdown ends on July 24th 24:00 UTC+7 (July 24th 17:00 UTC)
+const COUNTDOWN_END = 1753376400;
 const SIGNUP_END = 1754240400; // Aug 3 2025 17:00 UTC
 
 const PARTICIPANT_ROLE_ID = '1389139329762332682';
@@ -135,7 +136,7 @@ async function ensureCountdownMessage(client, channel, data) {
   }
   const embed = new EmbedBuilder()
     .setTitle('Build Battle Countdown ⛏️')
-    .setDescription('Blocks at the ready—⏰ the arena drops in <t:1753938000:R>! Who’s claiming the crown?')
+    .setDescription('Blocks at the ready—⏰ the arena drops in <t:1753376400:R>! Who’s claiming the crown?')
     .setColor('#000000');
   const message = await channel.send({ embeds: [embed] });
   data.countdownMessageId = message.id;
