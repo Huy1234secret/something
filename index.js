@@ -4556,7 +4556,12 @@ module.exports = {
                     voteEmbed.addFields({ name: numberEmojis[idx], value: choice });
                 });
 
-                const content = setup.pingRoleId ? `<@&${setup.pingRoleId}>` : null;
+                let content = null;
+                if (setup.pingRoleId) {
+                    content = setup.pingRoleId === interaction.guild.id
+                        ? '@everyone'
+                        : `<@&${setup.pingRoleId}>`;
+                }
                 const voteMessage = await channel.send({ content, embeds: [voteEmbed] }).catch(() => null);
                 if (!voteMessage) {
                     return sendInteractionError(interaction, 'Failed to send vote message.', true, deferredThisInteraction);
