@@ -6,7 +6,8 @@ const DATA_FILE = path.join(__dirname, 'data', 'buildBattle.json');
 const CHANNEL_ID = '1390743854487044136';
 // Countdown ends on July 24th 24:00 UTC+7 (July 24th 17:00 UTC)
 const COUNTDOWN_END = 1753376400;
-const SIGNUP_END = 1754240400; // Aug 3 2025 17:00 UTC
+// Signups close 2 days after the countdown finishes
+const SIGNUP_END = COUNTDOWN_END + 2 * 24 * 60 * 60;
 
 const PARTICIPANT_ROLE_ID = '1389139329762332682';
 
@@ -210,7 +211,7 @@ async function ensureSignupMessage(client, channel, data) {
     .setTitle('📝⚒️ Sign In for the Build Battle! 🚀')
     .setDescription('Ready to unleash your inner architect? Tap the button below ⬇️ to lock in your spot! The moment you click, a mystery theme materializes 🪄—and your countdown ⏱️ to creative glory begins.\n🏆 Build big, think bold, leave judges speechless!')
     .setColor('#FFFF00')
-    .setFooter({ text: 'this request ends in 3 days!' });
+    .setFooter({ text: 'this request ends in 2 days!' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('join_build_battle').setLabel('JOIN EVENT').setStyle(ButtonStyle.Success)
