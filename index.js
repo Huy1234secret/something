@@ -368,6 +368,8 @@ try {
 client.commands = new Collection();
 client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
+client.voteSetups = new Collection();
+client.activeVotes = new Collection();
 
 const { loadFishData } = require('./utils/fishDataLoader.js');
 const { loadAll: loadFishInventories, saveAll: saveFishInventories } = require('./utils/fishInventoryManager.js');
@@ -1784,6 +1786,16 @@ async function logToBotLogChannel(content) {
     } catch (err) {
         console.error(`[BotLog] Error while logging to channel: ${err.message}`);
     }
+}
+
+function parseDuration(durationStr) {
+    const unitMap = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+    const match = durationStr.match(/^(\d+)([smhd])$/i);
+    if (!match) return null;
+    const value = parseInt(match[1]);
+    const unit = match[2].toLowerCase();
+    if (isNaN(value) || value <= 0 || !unitMap[unit]) return null;
+    return value * unitMap[unit];
 }
 
 async function sendInteractionError(interaction, message = 'An error occurred!', ephemeral = true, wasDeferredByThisLogic = false) {
@@ -4051,6 +4063,54 @@ module.exports = {
                 else { console.error(`[Giveaway Command] start-giveaway not found.`); await sendInteractionError(interaction, "Giveaway command not loaded.", true); }
                 return;
             }
+            if (commandName === 'start-vote') {
+                const channel = interaction.options.getChannel('channel');
+                const timeStr = interaction.options.getString('time');
+                const pingRole = interaction.options.getRole('ping');
+
+                if (!channel || !channel.isTextBased()) {
+                    return sendInteractionError(interaction, 'Invalid channel provided.', true);
+                }
+
+                const durationMs = parseDuration(timeStr);
+                if (!durationMs || durationMs < 5000) {
+                    return sendInteractionError(interaction, 'Invalid time format. Use number followed by s,m,h,d.', true);
+                }
+
+                client.voteSetups.set(interaction.user.id, {
+                    channelId: channel.id,
+                    duration: durationMs,
+                    pingRoleId: pingRole ? pingRole.id : null
+                });
+
+                const modal = new ModalBuilder()
+                    .setCustomId('start_vote_modal')
+                    .setTitle('Create a Vote');
+
+                const infoInput = new TextInputBuilder()
+                    .setCustomId('vote_info_input')
+                    .setLabel('Vote Information')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                const choicesInput = new TextInputBuilder()
+                    .setCustomId('vote_choices_input')
+                    .setLabel('Vote choice')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Use Choice1#-10# separated by commas. Example: Choice1# yes, Choice2# no')
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(infoInput),
+                    new ActionRowBuilder().addComponents(choicesInput)
+                );
+
+                await interaction.showModal(modal).catch(async e => {
+                    console.error('Show modal error', e);
+                    await sendInteractionError(interaction, 'Failed to open form.', true);
+                });
+                return;
+            }
             if (commandName === 'delete-all-commands') {
                 if (process.env.OWNER_ID && interaction.user.id !== process.env.OWNER_ID) {
                     return sendInteractionError(interaction, 'Owner only.', true, false);
@@ -4453,6 +4513,84 @@ module.exports = {
                     console.error('[submit-ticket]', ticketError);
                     await sendInteractionError(interaction, 'Failed to create build channel.', true, deferredThisInteraction);
                 }
+                return;
+            }
+
+            if (customId === 'start_vote_modal') {
+                if (!interaction.isModalSubmit()) return;
+                const setup = client.voteSetups.get(interaction.user.id);
+                if (!setup) return sendInteractionError(interaction, 'Vote setup not found or expired.', true);
+
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: true });
+                    deferredThisInteraction = true;
+                }
+
+                client.voteSetups.delete(interaction.user.id);
+                const info = interaction.fields.getTextInputValue('vote_info_input');
+                const choicesInput = interaction.fields.getTextInputValue('vote_choices_input');
+                const choices = choicesInput.split(',').map(c => c.trim()).filter(Boolean).slice(0, 10);
+                const parsedChoices = choices.map(c => {
+                    const m = c.match(/^(?:choice\d+#)?\s*(.*)$/i);
+                    return (m ? m[1] : c).trim();
+                }).filter(t => t.length > 0);
+
+                if (parsedChoices.length < 2) {
+                    return sendInteractionError(interaction, 'Please provide at least two choices.', true, deferredThisInteraction);
+                }
+
+                const channel = await client.channels.fetch(setup.channelId).catch(() => null);
+                if (!channel || !channel.isTextBased()) {
+                    return sendInteractionError(interaction, 'Could not find the selected channel.', true, deferredThisInteraction);
+                }
+
+                const endTs = Math.floor((Date.now() + setup.duration) / 1000);
+                const numberEmojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+
+                const voteEmbed = new EmbedBuilder()
+                    .setTitle(`${interaction.user.username} has started a voting!`)
+                    .setDescription(`# ${info}\n\nVote ends <t:${endTs}:R>`)
+                    .setColor('#00FF00');
+
+                parsedChoices.forEach((choice, idx) => {
+                    voteEmbed.addFields({ name: numberEmojis[idx], value: choice });
+                });
+
+                const content = setup.pingRoleId ? `<@&${setup.pingRoleId}>` : null;
+                const voteMessage = await channel.send({ content, embeds: [voteEmbed] }).catch(() => null);
+                if (!voteMessage) {
+                    return sendInteractionError(interaction, 'Failed to send vote message.', true, deferredThisInteraction);
+                }
+
+                for (let i = 0; i < parsedChoices.length; i++) {
+                    await voteMessage.react(numberEmojis[i]).catch(() => {});
+                }
+
+                setTimeout(async () => {
+                    try {
+                        const fetched = await channel.messages.fetch(voteMessage.id).catch(() => null);
+                        if (!fetched) return;
+                        const counts = parsedChoices.map((_, idx) => {
+                            const react = fetched.reactions.cache.get(numberEmojis[idx]);
+                            return react ? Math.max(react.count - 1, 0) : 0;
+                        });
+                        const maxVotes = Math.max(...counts);
+                        const winners = parsedChoices.filter((_, idx) => counts[idx] === maxVotes);
+
+                        const endEmbed = EmbedBuilder.from(voteEmbed.data).setColor('#FF0000');
+                        await fetched.edit({ embeds: [endEmbed] }).catch(() => {});
+                        await fetched.reactions.removeAll().catch(() => {});
+
+                        const resultEmbed = new EmbedBuilder()
+                            .setTitle('Vote Result')
+                            .setDescription(`Winner: ${winners.join(', ') || 'No votes cast'}`)
+                            .setColor('#FF0000');
+
+                        await channel.send({ embeds: [resultEmbed] }).catch(() => {});
+                    } catch (e) { console.error('Vote end error', e); }
+                }, setup.duration);
+
+                await safeEditReply(interaction, { content: `Vote started in <#${channel.id}>`, ephemeral: true });
                 return;
             }
 

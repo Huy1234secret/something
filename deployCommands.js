@@ -491,6 +491,31 @@ const commands = [
         ]
     },
     {
+        name: 'start-vote',
+        description: 'Start a timed vote with multiple choices.',
+        options: [
+            {
+                name: 'channel',
+                description: 'Channel to host the vote in',
+                type: ApplicationCommandOptionType.Channel,
+                channel_types: [ChannelType.GuildText],
+                required: true,
+            },
+            {
+                name: 'time',
+                description: 'Vote duration (e.g. 5m, 1h)',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+            {
+                name: 'ping',
+                description: 'Role to ping',
+                type: ApplicationCommandOptionType.Role,
+                required: false,
+            }
+        ]
+    },
+    {
         name: 'start-weather',
         description: 'Start a weather effect (Staff Only).',
         options: [
