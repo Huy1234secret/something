@@ -9,6 +9,16 @@ module.exports = {
             option.setName('user')
                 .setDescription('The user to manage.')
                 .setRequired(true))
+        .addStringOption(option =>
+            option.setName('item_id')
+                .setDescription('ID of item to remove from user (optional).')
+                .setRequired(false)
+                .setAutocomplete(true))
+        .addIntegerOption(option =>
+            option.setName('amount')
+                .setDescription('Amount of the item to remove.')
+                .setMinValue(1)
+                .setRequired(false))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild), // Staff Only permission
 
     async execute(interaction) {

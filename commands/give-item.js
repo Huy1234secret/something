@@ -19,6 +19,10 @@ module.exports = {
                 .setDescription('Amount of the item to give.')
                 .setRequired(true)
                 .setMinValue(1))
+        .addBooleanOption(option =>
+            option.setName('remove')
+                .setDescription('Remove the item instead of giving.')
+                .setRequired(true))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(interaction) {
         // This command's logic is primarily handled in index.js, especially for autocomplete and item handling.
