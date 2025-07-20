@@ -400,6 +400,7 @@ let slotsLuckBoosts = new Map();
 const SLOT_LUCK_BOOST_DURATION_MS = 5 * 60 * 1000;
 
 let fishingSessions = new Map();
+let splitStealGames = new Map();
 const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_bar','lucky_clover'];
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
@@ -3588,6 +3589,40 @@ module.exports = {
                 }
                 return;
             }
+            if (commandName === 'split-steal') {
+                const user1 = interaction.options.getUser('user1');
+                const user2 = interaction.options.getUser('user2');
+                const channel = interaction.options.getChannel('channel');
+                const splitPrize = interaction.options.getString('splitprize');
+                const stealPrize = interaction.options.getString('stealprize');
+
+                if (!channel || !channel.isTextBased()) {
+                    return sendInteractionError(interaction, 'Invalid channel provided.', true);
+                }
+
+                const gameId = `${Date.now()}_${Math.floor(Math.random()*1000)}`;
+                splitStealGames.set(gameId, {
+                    user1Id: user1.id,
+                    user2Id: user2.id,
+                    channelId: channel.id,
+                    splitPrize,
+                    stealPrize,
+                    choices: {}
+                });
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`splitsteal_${gameId}_split`).setLabel('Split').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(`splitsteal_${gameId}_steal`).setLabel('Steal').setStyle(ButtonStyle.Danger)
+                );
+
+                const msg1 = `You are playing with ${user2}. The prize is ${splitPrize}. Will you split it or steal it?`;
+                const msg2 = `You are playing with ${user1}. The prize is ${splitPrize}. Will you split it or steal it?`;
+                try { await user1.send({ content: msg1, components: [row] }); } catch(e){ if(e.code!==50007) console.warn(`[SplitSteal] DM user1 failed: ${e.message}`); }
+                try { await user2.send({ content: msg2, components: [row] }); } catch(e){ if(e.code!==50007) console.warn(`[SplitSteal] DM user2 failed: ${e.message}`); }
+
+                await safeEditReply(interaction, { content: 'Split or Steal game started. Check participant DMs.', ephemeral: true });
+                return;
+            }
             if (commandName === 'use-item') {
                  if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: false }); deferredThisInteraction = true; }
                  try {
@@ -6507,6 +6542,44 @@ module.exports = {
                 const newSession = { messageId: interaction.message.id, channelId: interaction.channelId, stage: 'wait', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0, waitRemaining: waitMs, shakeTimeout: null };
                 newSession.waitTimeout = setTimeout(() => startFishingGame(key), waitMs);
                 fishingSessions.set(key, newSession);
+                return;
+            }
+
+            if (customId.startsWith('splitsteal_')) {
+                if (!interaction.isButton()) return;
+                const parts = customId.split('_');
+                const gameId = parts[1];
+                const action = parts[2]; // split or steal
+                const game = splitStealGames.get(gameId);
+                if (!game) return interaction.reply({ content: 'This game has expired.', ephemeral: true }).catch(() => {});
+                if (![game.user1Id, game.user2Id].includes(interaction.user.id)) {
+                    return interaction.reply({ content: 'You are not part of this game.', ephemeral: true }).catch(() => {});
+                }
+                if (game.choices[interaction.user.id]) {
+                    return interaction.reply({ content: 'You already made your choice.', ephemeral: true }).catch(() => {});
+                }
+                game.choices[interaction.user.id] = action;
+                splitStealGames.set(gameId, game);
+                await interaction.update({ content: `You chose to ${action}.`, components: [] }).catch(() => {});
+                if (Object.keys(game.choices).length === 2) {
+                    const channel = await client.channels.fetch(game.channelId).catch(() => null);
+                    if (channel && channel.isTextBased()) {
+                        const choice1 = game.choices[game.user1Id];
+                        const choice2 = game.choices[game.user2Id];
+                        let msg;
+                        if (choice1 === 'split' && choice2 === 'split') {
+                            msg = `Both players chose to split! They each get ${game.splitPrize}.`;
+                        } else if (choice1 === 'steal' && choice2 === 'split') {
+                            msg = `<@${game.user1Id}> stole from <@${game.user2Id}> and takes ${game.stealPrize}!`;
+                        } else if (choice2 === 'steal' && choice1 === 'split') {
+                            msg = `<@${game.user2Id}> stole from <@${game.user1Id}> and takes ${game.stealPrize}!`;
+                        } else {
+                            msg = 'Both players tried to steal and get nothing!';
+                        }
+                        await channel.send({ content: msg }).catch(() => {});
+                    }
+                    splitStealGames.delete(gameId);
+                }
                 return;
             }
 
