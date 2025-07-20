@@ -599,6 +599,43 @@ const commands = [
         description: 'Create a private build submission channel.'
     },
     {
+        name: 'split-steal',
+        description: 'Start a Split or Steal game between two users.',
+        options: [
+            {
+                name: 'user1',
+                description: 'First player',
+                type: ApplicationCommandOptionType.User,
+                required: true,
+            },
+            {
+                name: 'user2',
+                description: 'Second player',
+                type: ApplicationCommandOptionType.User,
+                required: true,
+            },
+            {
+                name: 'channel',
+                description: 'Channel to announce the result in',
+                type: ApplicationCommandOptionType.Channel,
+                channel_types: [ChannelType.GuildText],
+                required: true,
+            },
+            {
+                name: 'splitprize',
+                description: 'Prize each gets if both split',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+            {
+                name: 'stealprize',
+                description: 'Prize the stealer gets if one steals',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            }
+        ]
+    },
+    {
         name: 'random-eli',
         description: 'Start a random elimination game.',
         options: [
