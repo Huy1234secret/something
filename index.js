@@ -2989,8 +2989,9 @@ client.on('interactionCreate', async interaction => {
     // FIX 2: Allow specific DM interactions like giveaway claims
     const isGiveawayClaimInteraction = interaction.isButton() && interaction.customId?.startsWith('claim_');
     const isDailyStreakRestore = interaction.isButton() && interaction.customId?.startsWith('restore_streak_confirm');
+    const isSplitStealInteraction = interaction.isButton() && interaction.customId?.startsWith('splitsteal_');
 
-    if (!interaction.guild && !isGiveawayClaimInteraction && !isDailyStreakRestore) {
+    if (!interaction.guild && !isGiveawayClaimInteraction && !isDailyStreakRestore && !isSplitStealInteraction) {
         if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
             await interaction.reply({ content: "Sorry, I can only work inside servers.", ephemeral: true }).catch(() => {});
         }
