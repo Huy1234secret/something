@@ -597,6 +597,25 @@ const commands = [
     {
         name: 'submit-ticket',
         description: 'Create a private build submission channel.'
+    },
+    {
+        name: 'random-eli',
+        description: 'Start a random elimination game.',
+        options: [
+            {
+                name: 'channel',
+                description: 'Channel to host the game in',
+                type: ApplicationCommandOptionType.Channel,
+                channel_types: [ChannelType.GuildText],
+                required: true,
+            },
+            {
+                name: 'prize',
+                description: 'Prize for the winner',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            }
+        ]
     }
 ];
 
