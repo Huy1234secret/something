@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 
 const BLACK = '⬛';
-const RED = '🟥';
+const RED = '<:sno:1392188104202387647>';
 
 function sleep(ms) {
     return new Promise(res => setTimeout(res, ms));
@@ -9,7 +9,12 @@ function sleep(ms) {
 
 function buildDescription(players) {
     return players
-        .map(p => `${p.member} ${RED.repeat(p.red)}${BLACK.repeat(5 - p.red)}`)
+        .map(p => {
+            if (p.red >= 5) {
+                return `~~${p.member}~~ \`eliminated\``;
+            }
+            return `${p.member} ${RED.repeat(p.red)}${BLACK.repeat(5 - p.red)}`;
+        })
         .join('\n');
 }
 
