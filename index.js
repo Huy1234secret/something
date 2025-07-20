@@ -3175,6 +3175,16 @@ client.on('interactionCreate', async interaction => {
                 const targetMemberForCmd = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
                 if (!targetMemberForCmd) return sendInteractionError(interaction, "The specified user is not a member of this server.", true);
 
+                const removeItemId = interaction.options.getString('item_id');
+                const removeAmount = interaction.options.getInteger('amount');
+                if (removeItemId && removeAmount) {
+                    const itemConfig = client.levelSystem._getItemMasterProperty(removeItemId, null, {});
+                    if (!itemConfig || !itemConfig.id) return sendInteractionError(interaction, `Invalid item ID: \`${removeItemId}\`.`, true);
+                    const success = client.levelSystem.takeItem(targetUser.id, interaction.guild.id, removeItemId, removeAmount);
+                    if (success) return interaction.reply({ content: `✅ Removed ${removeAmount}x ${itemConfig.name || removeItemId} from ${targetUser}.`, ephemeral: true });
+                    else return sendInteractionError(interaction, 'Failed to remove item. User may not have enough.', true);
+                }
+
                 if (!interaction.replied && !interaction.deferred) {
                     const deferOpts = interaction.guild ? { ephemeral: true } : {};
                     await safeDeferReply(interaction, deferOpts);
@@ -3311,15 +3321,33 @@ client.on('interactionCreate', async interaction => {
                     }
                     else if (commandName === 'add-coin') {
                         if (amount === null) return sendInteractionError(interaction, `Amount option not provided.`, true, deferredThisInteraction);
-                        const coinResult = client.levelSystem.addCoins(targetUser.id, interaction.guildId, amount, "admin_command");
+                        const bank = interaction.options.getBoolean('bank');
                         const coinEmoji = client.levelSystem.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
-                        await safeEditReply(interaction, { content: `✅ Added ${coinResult.added} ${coinEmoji} to ${targetUser}. New balance: ${coinResult.newBalance}.` });
+                        if (bank) {
+                            const before = client.levelSystem.getBankBalance(targetUser.id, interaction.guildId).bankCoins;
+                            let newBal = before + amount;
+                            if (newBal < 0) { amount = -before; newBal = 0; }
+                            client.levelSystem.updateUser(targetUser.id, interaction.guildId, { bankCoins: newBal });
+                            await safeEditReply(interaction, { content: `✅ Bank coins adjusted by ${amount}. New bank balance: ${newBal} ${coinEmoji}.` });
+                        } else {
+                            const coinResult = client.levelSystem.addCoins(targetUser.id, interaction.guildId, amount, "admin_command");
+                            await safeEditReply(interaction, { content: `✅ Added ${coinResult.added} ${coinEmoji} to ${targetUser}. New balance: ${coinResult.newBalance}.` });
+                        }
                     }
                     else if (commandName === 'add-gem') {
                          if (amount === null) return sendInteractionError(interaction, `Amount option not provided.`, true, deferredThisInteraction);
-                        const gemResult = client.levelSystem.addGems(targetUser.id, interaction.guildId, amount, "admin_command");
+                        const bank = interaction.options.getBoolean('bank');
                         const gemEmoji = client.levelSystem.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
-                        await safeEditReply(interaction, { content: `✅ Added ${gemResult.added} ${gemEmoji} to ${targetUser}. New balance: ${gemResult.newBalance}.` });
+                        if (bank) {
+                            const before = client.levelSystem.getBankBalance(targetUser.id, interaction.guildId).bankGems;
+                            let newBal = before + amount;
+                            if (newBal < 0) { amount = -before; newBal = 0; }
+                            client.levelSystem.updateUser(targetUser.id, interaction.guildId, { bankGems: newBal });
+                            await safeEditReply(interaction, { content: `✅ Bank gems adjusted by ${amount}. New bank balance: ${newBal} ${gemEmoji}.` });
+                        } else {
+                            const gemResult = client.levelSystem.addGems(targetUser.id, interaction.guildId, amount, "admin_command");
+                            await safeEditReply(interaction, { content: `✅ Added ${gemResult.added} ${gemEmoji} to ${targetUser}. New balance: ${gemResult.newBalance}.` });
+                        }
                     }
                     else if (commandName === 'add-robux') { // New case for Robux
                          if (amount === null) return sendInteractionError(interaction, `Amount option not provided.`, true, deferredThisInteraction);
@@ -3342,6 +3370,7 @@ client.on('interactionCreate', async interaction => {
                     const targetUser = interaction.options.getUser('user');
                     const itemId = interaction.options.getString('item_id');
                     const amount = interaction.options.getInteger('amount');
+                    const remove = interaction.options.getBoolean('remove');
                     if (amount <= 0) return sendInteractionError(interaction, "Amount must be positive.", true, deferredThisInteraction);
                     const itemConfig = client.levelSystem._getItemMasterProperty(itemId, null, {});
                     if (!itemConfig || !itemConfig.id) return sendInteractionError(interaction, `Invalid item ID: \`${itemId}\`. Config not found.`, true, deferredThisInteraction);
@@ -3355,9 +3384,15 @@ client.on('interactionCreate', async interaction => {
                         console.warn(`[GiveItem Command] Inferred type: ${itemTypeToGive}`);
                     }
                     if (!itemTypeToGive) return sendInteractionError(interaction, `Item ID: \`${itemId}\` (Name: ${itemConfig.name || 'Unknown'}) has undefined type.`, true, deferredThisInteraction);
-                    const giveResult = client.levelSystem.addItemToInventory(targetUser.id, interaction.guild.id, itemId, itemTypeToGive, amount, 'admin_command_give');
-                    if (giveResult.success) await safeEditReply(interaction, { content: `✅ ${giveResult.message}` });
-                    else await sendInteractionError(interaction, giveResult.message || "Failed to give item.", true, deferredThisInteraction);
+                    if (remove) {
+                        const success = client.levelSystem.takeItem(targetUser.id, interaction.guild.id, itemId, amount);
+                        if (success) await safeEditReply(interaction, { content: `✅ Removed ${amount}x ${itemConfig.name || itemId} from ${targetUser}.` });
+                        else await sendInteractionError(interaction, `Failed to remove item. User may not have enough.`, true, deferredThisInteraction);
+                    } else {
+                        const giveResult = client.levelSystem.addItemToInventory(targetUser.id, interaction.guild.id, itemId, itemTypeToGive, amount, 'admin_command_give');
+                        if (giveResult.success) await safeEditReply(interaction, { content: `✅ ${giveResult.message}` });
+                        else await sendInteractionError(interaction, giveResult.message || "Failed to give item.", true, deferredThisInteraction);
+                    }
                 } catch (giveItemError) { console.error('[GiveItem Command] Error:', giveItemError); await sendInteractionError(interaction, "Failed to give item. Internal error.", true, deferredThisInteraction); }
                 return;
             }

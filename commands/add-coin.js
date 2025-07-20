@@ -13,6 +13,10 @@ module.exports = {
             option.setName('amount')
                 .setDescription('Amount of coins to add (negative to remove).')
                 .setRequired(true))
+        .addBooleanOption(option =>
+            option.setName('bank')
+                .setDescription('Modify bank balance instead of wallet.')
+                .setRequired(true))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(interaction) {
         // This command's logic is primarily handled in index.js for centralizing user stat modifications.
