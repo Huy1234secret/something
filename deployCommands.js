@@ -323,7 +323,13 @@ const commands = [
                 required: true,
                 autocomplete: true
             },
-            { name: 'amount', description: 'Amount of the item to give.', type: ApplicationCommandOptionType.Integer, required: true, minValue: 1 }
+            { name: 'amount', description: 'Amount of the item to give.', type: ApplicationCommandOptionType.Integer, required: true, minValue: 1 },
+            {
+                name: 'remove',
+                description: 'Remove the item instead of giving.',
+                type: ApplicationCommandOptionType.Boolean,
+                required: true
+            }
         ],
         default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
     },
