@@ -18,7 +18,12 @@ module.exports = {
         const targetChannel = interaction.options.getChannel('channel');
         const prize = interaction.options.getString('prize');
 
-        await interaction.reply({ content: 'Starting random elimination...', ephemeral: true });
+        const replyOptions = { content: 'Starting random elimination...', ephemeral: true };
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(replyOptions);
+        } else {
+            await interaction.reply(replyOptions);
+        }
 
         const members = await interaction.guild.members.fetch();
         startRandomElimination(targetChannel, Array.from(members.values()), prize);
