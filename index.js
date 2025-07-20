@@ -3616,8 +3616,8 @@ module.exports = {
                     new ButtonBuilder().setCustomId(`splitsteal_${gameId}_steal`).setLabel('Steal').setStyle(ButtonStyle.Danger)
                 );
 
-                const msg1 = `You are playing with ${user2}. The prize is ${splitPrize}. Will you split it or steal it?`;
-                const msg2 = `You are playing with ${user1}. The prize is ${splitPrize}. Will you split it or steal it?`;
+                const msg1 = `<@${user1.id}> you are playing a game **SPLIT OR STEAL** with <@${user2.id}>\nYou have 2 option! One, chose SPLIT if you want to share the prize with the other. Two, choose steal you will get ${stealPrize} for your own, but there's a risk if your competitor choose STEAL, both you get nothing`;
+                const msg2 = `<@${user2.id}> you are playing a game **SPLIT OR STEAL** with <@${user1.id}>\nYou have 2 option! One, chose SPLIT if you want to share the prize with the other. Two, choose steal you will get ${stealPrize} for your own, but there's a risk if your competitor choose STEAL, both you get nothing`;
                 try { await user1.send({ content: msg1, components: [row] }); } catch(e){ if(e.code!==50007) console.warn(`[SplitSteal] DM user1 failed: ${e.message}`); }
                 try { await user2.send({ content: msg2, components: [row] }); } catch(e){ if(e.code!==50007) console.warn(`[SplitSteal] DM user2 failed: ${e.message}`); }
 
@@ -6577,7 +6577,14 @@ module.exports = {
                         } else {
                             msg = 'Both players tried to steal and get nothing!';
                         }
-                        await channel.send({ content: msg }).catch(() => {});
+                        const embed = new EmbedBuilder()
+                            .setTitle('Split or Steal Result')
+                            .setDescription(msg)
+                            .addFields(
+                                { name: `<@${game.user1Id}>`, value: choice1.charAt(0).toUpperCase() + choice1.slice(1), inline: true },
+                                { name: `<@${game.user2Id}>`, value: choice2.charAt(0).toUpperCase() + choice2.slice(1), inline: true }
+                            );
+                        await channel.send({ embeds: [embed] }).catch(() => {});
                     }
                     splitStealGames.delete(gameId);
                 }
