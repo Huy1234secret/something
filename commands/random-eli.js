@@ -13,10 +13,15 @@ module.exports = {
         .addStringOption(option =>
             option.setName('prize')
                 .setDescription('Prize for the winner')
-                .setRequired(true)),
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('users')
+                .setDescription('Mention users to participate (optional)')
+                .setRequired(false)),
     async execute(interaction) {
         const targetChannel = interaction.options.getChannel('channel');
         const prize = interaction.options.getString('prize');
+        const userInput = interaction.options.getString('users');
 
         const replyOptions = { content: 'Starting random elimination...', ephemeral: true };
         if (interaction.deferred || interaction.replied) {
@@ -25,7 +30,27 @@ module.exports = {
             await interaction.reply(replyOptions);
         }
 
-        const members = await interaction.guild.members.fetch();
-        startRandomElimination(targetChannel, Array.from(members.values()), prize);
+        let members;
+        if (userInput) {
+            const ids = [];
+            const mentionRegex = /<@!?(?<id>\d+)>/g;
+            let match;
+            while ((match = mentionRegex.exec(userInput)) !== null) {
+                ids.push(match.groups.id);
+            }
+            // allow raw IDs separated by spaces
+            const idRegex = /\b\d{17,19}\b/g;
+            while ((match = idRegex.exec(userInput)) !== null) {
+                if (!ids.includes(match[0])) ids.push(match[0]);
+            }
+            const uniqueIds = [...new Set(ids)];
+            const fetched = await Promise.all(uniqueIds.map(id => interaction.guild.members.fetch(id).catch(() => null)));
+            members = fetched.filter(Boolean);
+        } else {
+            const fetched = await interaction.guild.members.fetch();
+            members = Array.from(fetched.values());
+        }
+
+        startRandomElimination(targetChannel, members, prize);
     },
 };
