@@ -6568,22 +6568,30 @@ module.exports = {
                         const choice1 = game.choices[game.user1Id];
                         const choice2 = game.choices[game.user2Id];
                         let msg;
+                        let color;
                         if (choice1 === 'split' && choice2 === 'split') {
                             msg = `Both players chose to split! They each get ${game.splitPrize}.`;
+                            color = '#00ff00';
                         } else if (choice1 === 'steal' && choice2 === 'split') {
                             msg = `<@${game.user1Id}> stole from <@${game.user2Id}> and takes ${game.stealPrize}!`;
+                            color = '#ff0000';
                         } else if (choice2 === 'steal' && choice1 === 'split') {
                             msg = `<@${game.user2Id}> stole from <@${game.user1Id}> and takes ${game.stealPrize}!`;
+                            color = '#ff0000';
                         } else {
                             msg = 'Both players tried to steal and get nothing!';
+                            color = '#000000';
                         }
+                        const descLines = [
+                            `<@${game.user1Id}>: ${choice1.charAt(0).toUpperCase() + choice1.slice(1)}`,
+                            `<@${game.user2Id}>: ${choice2.charAt(0).toUpperCase() + choice2.slice(1)}`,
+                            '',
+                            msg
+                        ];
                         const embed = new EmbedBuilder()
                             .setTitle('Split or Steal Result')
-                            .setDescription(msg)
-                            .addFields(
-                                { name: `<@${game.user1Id}>`, value: choice1.charAt(0).toUpperCase() + choice1.slice(1), inline: true },
-                                { name: `<@${game.user2Id}>`, value: choice2.charAt(0).toUpperCase() + choice2.slice(1), inline: true }
-                            );
+                            .setDescription(descLines.join('\n'))
+                            .setColor(color);
                         await channel.send({ embeds: [embed] }).catch(() => {});
                     }
                     splitStealGames.delete(gameId);
