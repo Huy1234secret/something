@@ -6549,8 +6549,8 @@ module.exports = {
             if (customId.startsWith('splitsteal_')) {
                 if (!interaction.isButton()) return;
                 const parts = customId.split('_');
-                const gameId = parts[1];
-                const action = parts[2]; // split or steal
+                const gameId = `${parts[1]}_${parts[2]}`; // include both timestamp and random
+                const action = parts[3]; // split or steal
                 const game = splitStealGames.get(gameId);
                 if (!game) return interaction.reply({ content: 'This game has expired.', ephemeral: true }).catch(() => {});
                 if (![game.user1Id, game.user2Id].includes(interaction.user.id)) {
