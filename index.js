@@ -1301,7 +1301,7 @@ async function sendRestockAlerts(client, guild, restockResult, isInstant = false
 }
 
 async function scheduleDailyLeaderboardUpdate(client) {
-    console.log("[Leaderboard Scheduler] Initializing hourly leaderboard updates...");
+    console.log("[Leaderboard Scheduler] Initializing daily leaderboard updates...");
     const updateLeaderboard = async () => {
         const guilds = client.guilds.cache;
         for (const [guildId, guild] of guilds) {
@@ -1322,8 +1322,19 @@ async function scheduleDailyLeaderboardUpdate(client) {
             }
         }
     };
-    await updateLeaderboard();
-    setInterval(updateLeaderboard, 60 * 60 * 1000);
+    const scheduleNextRun = () => {
+        const offsetMs = 7 * 60 * 60 * 1000; // UTC+7
+        const now = new Date();
+        const nowUtc7 = new Date(now.getTime() + offsetMs);
+        const nextMidnightUtc7 = new Date(nowUtc7);
+        nextMidnightUtc7.setUTCHours(24, 0, 0, 0);
+        const delay = nextMidnightUtc7 - nowUtc7;
+        setTimeout(async () => {
+            await updateLeaderboard();
+            scheduleNextRun();
+        }, delay);
+    };
+    scheduleNextRun();
 }
 
 async function scheduleShopRestock(client) {
@@ -2811,10 +2822,10 @@ client.on('messageCreate', async message => {
                     data.lastPing = now;
                     const minutes = Math.floor((now - data.timestamp) / 60000);
                     const duration = minutes >= 60 ? `${Math.floor(minutes/60)}h ${minutes%60}m` : `${minutes}m`;
-                    const base = `<@${id}> is AFK${data.reason ? ' — ' + data.reason : ''} (since ${duration} ago)`;
+                    const base = `**${user.username}** is AFK${data.reason ? ' — ' + data.reason : ''} (since ${duration} ago)`;
                     const msg = afkMessages[Math.floor(Math.random() * afkMessages.length)]
-                        .replace('{author}', `<@${message.author.id}>`)
-                        .replace('{user}', `<@${id}>`);
+                        .replace('{author}', `**${message.author.username}**`)
+                        .replace('{user}', `**${user.username}**`);
                     await message.reply({ content: `${msg}\n${base}` }).catch(() => {});
                 }
             }
