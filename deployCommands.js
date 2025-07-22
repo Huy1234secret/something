@@ -117,6 +117,18 @@ const commands = [
         description: 'Replies with Pong! and the bot\'s latency.',
     },
     {
+        name: 'afk',
+        description: 'Mark yourself as AFK with an optional reason.',
+        options: [
+            {
+                name: 'reason',
+                description: 'Reason for going AFK',
+                type: ApplicationCommandOptionType.String,
+                required: false,
+            }
+        ]
+    },
+    {
         name: 'check-weather',
         description: 'Displays the current fishing weather.',
     },
