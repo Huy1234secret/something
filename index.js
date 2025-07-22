@@ -13,6 +13,7 @@ const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
 const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive } = require('./utils/weatherManager');
+const afkMessages = require('./utils/afkMessages');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -157,6 +158,7 @@ const SHOP_CHECK_INTERVAL_MS = 1 * 60 * 1000;
 const UNBOXING_ANIMATION_DURATION_MS = 3550;
 const STREAK_LOSS_CHECK_INTERVAL_MS = 1 * 60 * 60 * 1000; // Check for lost streaks every hour
 const DAILY_READY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check for ready daily every 5 minutes
+const AFK_REPLY_INTERVAL_MS = 30 * 1000;
 
 const FISH_WAIT_MIN_MS = 30 * 1000;
 const FISH_WAIT_MAX_MS = 60 * 1000;
@@ -370,6 +372,7 @@ client.giveawaySetups = new Collection();
 client.activeGiveaways = activeGiveaways;
 client.voteSetups = new Collection();
 client.activeVotes = new Collection();
+client.afkUsers = new Map();
 
 const { loadFishData } = require('./utils/fishDataLoader.js');
 const { loadAll: loadFishInventories, saveAll: saveFishInventories } = require('./utils/fishInventoryManager.js');
@@ -2779,6 +2782,15 @@ scheduleVoiceActivityRewards(client);
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
+    if (client.afkUsers.has(message.author.id)) {
+        const data = client.afkUsers.get(message.author.id);
+        client.afkUsers.delete(message.author.id);
+        if (data.oldNickname && message.member && message.member.manageable) {
+            await message.member.setNickname(data.oldNickname).catch(()=>{});
+        }
+        try { await message.author.send('Welcome back! Your AFK status has been removed.'); } catch {}
+    }
+
     let member = message.member;
     if (!member) { // Attempt to fetch if not readily available (e.g., due to intents or caching)
         try { member = await message.guild.members.fetch(message.author.id); }
@@ -2789,6 +2801,25 @@ client.on('messageCreate', async message => {
 
     // Award special role on message send chance
     await checkAndAwardSpecialRole(member, 'sending a message');
+
+    if (message.mentions.users.size > 0) {
+        for (const [id, user] of message.mentions.users) {
+            if (client.afkUsers.has(id) && id !== message.author.id) {
+                const data = client.afkUsers.get(id);
+                const now = Date.now();
+                if (now - (data.lastPing || 0) >= AFK_REPLY_INTERVAL_MS) {
+                    data.lastPing = now;
+                    const minutes = Math.floor((now - data.timestamp) / 60000);
+                    const duration = minutes >= 60 ? `${Math.floor(minutes/60)}h ${minutes%60}m` : `${minutes}m`;
+                    const base = `<@${id}> is AFK${data.reason ? ' — ' + data.reason : ''} (since ${duration} ago)`;
+                    const msg = afkMessages[Math.floor(Math.random() * afkMessages.length)]
+                        .replace('{author}', `<@${message.author.id}>`)
+                        .replace('{user}', `<@${id}>`);
+                    await message.reply({ content: `${msg}\n${base}` }).catch(() => {});
+                }
+            }
+        }
+    }
 
     // XP and Coin Gain Logic
     const rolePerkData = client.levelSystem.getActiveRolePerks(message.author.id, message.guild.id);
@@ -3761,6 +3792,24 @@ module.exports = {
             if (commandName === 'ping') {
                  if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, ); deferredThisInteraction = true; }
                  await safeEditReply(interaction, { content: `Pong! Latency: ${client.ws.ping}ms`}, true);
+                 return;
+            }
+            if (commandName === 'afk') {
+                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                 const reason = interaction.options.getString('reason');
+                 client.afkUsers.set(interaction.user.id, {
+                     timestamp: Date.now(),
+                     reason,
+                     lastPing: 0,
+                     oldNickname: interaction.member?.nickname || null
+                 });
+                 if (interaction.member && interaction.member.manageable) {
+                     const current = interaction.member.nickname || interaction.member.user.username;
+                     if (!current.startsWith('[AFK] ')) {
+                         await interaction.member.setNickname(`[AFK] ${current}`).catch(()=>{});
+                     }
+                 }
+                 await safeEditReply(interaction, { content: `You are now AFK${reason ? `: ${reason}` : ''}.`, ephemeral: true }, true);
                  return;
             }
             if (commandName === 'check-weather') {
