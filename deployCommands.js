@@ -663,7 +663,13 @@ const commands = [
                 description: 'Prize for the winner',
                 type: ApplicationCommandOptionType.String,
                 required: true,
-            }
+            },
+            {
+                name: 'users',
+                description: 'Mention users to participate (optional)',
+                type: ApplicationCommandOptionType.String,
+                required: false,
+            },
         ]
     }
 ];
