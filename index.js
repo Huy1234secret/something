@@ -2822,7 +2822,7 @@ client.on('messageCreate', async message => {
                     data.lastPing = now;
                     const minutes = Math.floor((now - data.timestamp) / 60000);
                     const duration = minutes >= 60 ? `${Math.floor(minutes/60)}h ${minutes%60}m` : `${minutes}m`;
-                    const base = `**${user.username}** is AFK${data.reason ? ' — ' + data.reason : ''} (since ${duration} ago)`;
+                    const base = `-# **${user.username}** is AFK${data.reason ? ' — ' + data.reason : ''} (since ${duration} ago)`;
                     const msg = afkMessages[Math.floor(Math.random() * afkMessages.length)]
                         .replace('{author}', `**${message.author.username}**`)
                         .replace('{user}', `**${user.username}**`);
