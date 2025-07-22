@@ -1628,7 +1628,7 @@ this.db.prepare(`
         // Detect joins, leaves and moves
         if (!oldState.channel && newState.channel && !newState.serverMute && !newState.serverDeaf) {
             // Joined voice
-            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now });
+            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now, coinsEarned: 0 });
             if (this.db) this.db.prepare('INSERT OR REPLACE INTO activeVoiceSessions (userId, guildId, joinedAt) VALUES (?, ?, ?)').run(userId, guildId, now);
         } else if (oldState.channel && !newState.channel) {
             // Left voice
@@ -1640,7 +1640,7 @@ this.db.prepare(`
             if (this.activeVoiceUsers.has(voiceStateKey)) {
                 await this._finalizeVoiceSession(userId, guildId, member, effectiveWeekendMultipliers);
             }
-            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now });
+            this.activeVoiceUsers.set(voiceStateKey, { userId, guildId, member, joinedTimestamp: now, lastRewardTimestamp: now, coinsEarned: 0 });
             if (this.db) this.db.prepare('INSERT OR REPLACE INTO activeVoiceSessions (userId, guildId, joinedAt) VALUES (?, ?, ?)').run(userId, guildId, now);
         }
 
@@ -1649,7 +1649,10 @@ this.db.prepare(`
             if (now - userData.lastRewardTimestamp >= VOICE_ACTIVITY_INTERVAL_MS) {
                 if (VOICE_COIN_PER_INTERVAL && VOICE_COIN_PER_INTERVAL.length === 2) {
                     const coinsEarned = Math.floor(Math.random() * (VOICE_COIN_PER_INTERVAL[1] - VOICE_COIN_PER_INTERVAL[0] + 1)) + VOICE_COIN_PER_INTERVAL[0];
-                    if (coinsEarned > 0) this.addCoins(userId, guildId, coinsEarned, 'voice_activity', effectiveWeekendMultipliers);
+                    if (coinsEarned > 0) {
+                        this.addCoins(userId, guildId, coinsEarned, 'voice_activity', effectiveWeekendMultipliers);
+                        userData.coinsEarned = (userData.coinsEarned || 0) + coinsEarned;
+                    }
                 }
 
                 const baseVoiceDropChance = this.gameConfig.globalSettings.VOICE_DROP_BASE_CHANCE;
@@ -1700,7 +1703,8 @@ this.db.prepare(`
             try { userObj = await this.client.users.fetch(userId); } catch {}
         }
         if (userObj) {
-            const msg = `You earned **${xpResult.xpEarned} XP** from voice chat.`;
+            const coinsEarned = session.coinsEarned || 0;
+            const msg = `You earned **${formatNumber(coinsEarned)} ${this.coinEmoji}** and **${xpResult.xpEarned} XP** from voice chat.`;
             userObj.send({ content: msg }).catch(e => { if (e.code !== 50007) console.warn(`[Voice Reward DM] Failed to DM ${userId}: ${e.message}`); });
         }
     }
@@ -1719,7 +1723,7 @@ this.db.prepare(`
                 try { member = await guild.members.fetch(row.userId); } catch { member = null; }
             }
             if (member && member.voice && member.voice.channel) {
-                this.activeVoiceUsers.set(key, { userId: row.userId, guildId: row.guildId, member, joinedTimestamp: row.joinedAt, lastRewardTimestamp: Date.now() });
+                this.activeVoiceUsers.set(key, { userId: row.userId, guildId: row.guildId, member, joinedTimestamp: row.joinedAt, lastRewardTimestamp: Date.now(), coinsEarned: 0 });
             } else {
                 await this._finalizeVoiceSession(row.userId, row.guildId, member, this.globalWeekendMultipliers);
             }
