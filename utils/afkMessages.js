@@ -21,7 +21,7 @@ module.exports = [
 `@silent 🚷 Access denied. {user} locked the door and left.`,
 `@silent 🤬 One more ping and I revoke your typing licence, {author}.`,
 `@silent 😒 Congratulations, you just spoke to thin air.`,
-`@silent 🗯️ “Hello?”—No response—SURPRISE, AFK!`,
+`🗯️ “Hello?”—No response—SURPRISE, AFK!`,
 `@silent 🔥 Your desperation is showing, {author}. Calm down.`,
 `@silent 🙅 Nope. Not happening. {user} is AFK.`,
 `@silent 💢 Repeat after me: A… F… K!`,
