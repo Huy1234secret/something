@@ -2,7 +2,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { buildWeatherEmbed, getActiveWeatherList, activeUntil, DISPLAY_NAMES } = require('../utils/weatherManager');
 
-const MUTATION_BLOSSOM_EMOJI = '<:mutationblossom:1394379938748043374>';
+const MUTATION_BLOSSOM_EMOJI = '<:mutBlossom:1397487879281971200>';
 
 const WEATHER_INFO = {
     rain: { boost: '+25% fish chance' },
