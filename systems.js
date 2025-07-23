@@ -1356,8 +1356,9 @@ this.db.prepare(`
         // --- Badge perks ---
         try {
             const badgeIds = this.getUserBadgeIds(userId, guildId);
-            base.badges = badgeIds;
-            for (const id of badgeIds) {
+            const validBadgeIds = badgeIds.filter(id => this.gameConfig.badges && this.gameConfig.badges[id]);
+            base.badges = validBadgeIds;
+            for (const id of validBadgeIds) {
                 const badge = this.gameConfig.badges?.[id];
                 if (!badge || !badge.boosts) continue;
                 const boosts = badge.boosts;
