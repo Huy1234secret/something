@@ -3212,6 +3212,31 @@ client.on('interactionCreate', async interaction => {
                 return;
             }
 
+            if (commandName === 'dm') {
+                const targetUser = interaction.options.getUser('user');
+                if (!targetUser) {
+                    return sendInteractionError(interaction, "Target user not specified.", true);
+                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId(`dm_modal_${targetUser.id}`)
+                    .setTitle(`Send Anonymous DM to ${targetUser.username}`);
+
+                const contentInput = new TextInputBuilder()
+                    .setCustomId('dm_content')
+                    .setLabel('Message')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder().addComponents(contentInput));
+
+                await interaction.showModal(modal).catch(async e => {
+                    console.error('Failed to show DM modal:', e);
+                    await sendInteractionError(interaction, 'Failed to open DM form.', true);
+                });
+                return;
+            }
+
 
             if (commandName === 'add-user') {
                 if (!isStaff()) return sendInteractionError(interaction, "You do not have permission to use this command (Staff Only).", true);
