@@ -14,6 +14,8 @@ const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
 const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive } = require('./utils/weatherManager');
 const afkMessages = require('./utils/afkMessages');
+const flirtyResponses = require('./utils/flirtyResponses');
+const SPECIAL_USER_ID = '867926077920673802';
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -1786,6 +1788,7 @@ async function safeEditReply(interaction, options, deleteAfter = false, timeout 
                 } catch (delErr) { console.warn(`[Helper safeEditReply] Error during scheduled delete for ${interaction.id}: ${delErr.message}`); }
             }, timeout);
         }
+        sendSpecialUserResponse(interaction);
         return message;
     } catch (error) {
         console.error(`[Helper safeEditReply] General Edit/Delete Error for ${interaction.id}: ${error.message}`);
@@ -1815,6 +1818,12 @@ function parseDuration(durationStr) {
     return value * unitMap[unit];
 }
 
+function sendSpecialUserResponse(interaction) {
+    if (interaction.user?.id !== SPECIAL_USER_ID) return;
+    const msg = flirtyResponses[Math.floor(Math.random() * flirtyResponses.length)];
+    interaction.followUp({ content: msg, ephemeral: true }).catch(() => {});
+}
+
 async function sendInteractionError(interaction, message = 'An error occurred!', ephemeral = true, wasDeferredByThisLogic = false) {
     const options = { content: `❌ ${message}`, embeds: [], components: [], ephemeral: ephemeral };
     try {
@@ -1840,6 +1849,7 @@ async function sendInteractionError(interaction, message = 'An error occurred!',
     // Log this error to the bot log channel
     const context = interaction.commandName ? `Command: ${interaction.commandName}` : interaction.customId ? `Interaction: ${interaction.customId}` : 'Unknown Interaction';
     logToBotLogChannel(`⚠️ ${context} - ${interaction.user.tag}: ${message}`).catch(()=>{});
+    sendSpecialUserResponse(interaction);
 }
 
 async function setBankMessageTimeout(interaction, messageId, bankMessageKey) {
