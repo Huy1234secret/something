@@ -137,6 +137,18 @@ const commands = [
         description: 'Displays information about Maxwell Bot'
     },
     {
+        name: 'dm',
+        description: 'Send an anonymous DM to a user.',
+        options: [
+            {
+                name: 'user',
+                description: 'The user to DM',
+                type: ApplicationCommandOptionType.User,
+                required: true,
+            }
+        ]
+    },
+    {
         name: 'createembed',
         description: 'Start building an embed message to send (Staff Only).',
         options: [

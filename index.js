@@ -4746,6 +4746,30 @@ module.exports = {
                 return;
             }
 
+            if (customId.startsWith('dm_modal_')) {
+                if (!interaction.isModalSubmit()) return;
+
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: true });
+                    deferredThisInteraction = true;
+                }
+
+                const targetId = customId.split('_')[2];
+                const messageText = interaction.fields.getTextInputValue('dm_content');
+                const targetUser = await client.users.fetch(targetId).catch(() => null);
+                if (!targetUser) {
+                    return sendInteractionError(interaction, 'Could not find that user.', true, deferredThisInteraction);
+                }
+                try {
+                    await targetUser.send({ content: messageText });
+                    await safeEditReply(interaction, { content: '✅ Message sent.', ephemeral: true });
+                } catch (err) {
+                    console.error('[DM Command] Failed to send DM:', err);
+                    await sendInteractionError(interaction, 'Failed to send DM. They might have DMs disabled.', true, deferredThisInteraction);
+                }
+                return;
+            }
+
 
             if (customId.startsWith('rwr_accept_') || customId.startsWith('rwr_deny_')) {
                 if (!interaction.isButton()) return;
