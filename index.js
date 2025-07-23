@@ -182,7 +182,7 @@ const FISH_RARITY_COLORS = {
 const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic', L: 'Legendary', M: 'Mythical', S: 'Secret', P: 'Prismatic' };
 const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S', Prismatic: 'P' };
 const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret','Prismatic'];
-const MUTATION_BLOSSOM_EMOJI = '<:mutationblossom:1394379938748043374>';
+const MUTATION_BLOSSOM_EMOJI = '<:mutBlossom:1397487879281971200>';
 const BASE_FISH_CHANCE = 0.6;
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
