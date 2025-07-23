@@ -1323,12 +1323,14 @@ async function scheduleDailyLeaderboardUpdate(client) {
         }
     };
     const scheduleNextRun = () => {
-        const offsetMs = 7 * 60 * 60 * 1000; // UTC+7
         const now = new Date();
-        const nowUtc7 = new Date(now.getTime() + offsetMs);
-        const nextMidnightUtc7 = new Date(nowUtc7);
-        nextMidnightUtc7.setUTCHours(24, 0, 0, 0);
-        const delay = nextMidnightUtc7 - nowUtc7;
+        const nextUpdate = new Date(now);
+        // 24:00 in UTC+7 corresponds to 17:00 UTC
+        nextUpdate.setUTCHours(17, 0, 0, 0);
+        if (nextUpdate <= now) {
+            nextUpdate.setUTCDate(nextUpdate.getUTCDate() + 1);
+        }
+        const delay = nextUpdate - now;
         setTimeout(async () => {
             await updateLeaderboard();
             scheduleNextRun();

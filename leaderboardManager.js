@@ -277,7 +277,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const lastUpdated = settings.leaderboardLastUpdated;
         const now = Date.now();
 
-        const updateInterval = 60 * 60 * 1000; // 1 hour
+        const updateInterval = 24 * 60 * 60 * 1000; // 24 hours
 
         // If not forced by admin, check the update interval
         if (!isForcedByAdmin && lastUpdated && (now - lastUpdated < updateInterval)) {
