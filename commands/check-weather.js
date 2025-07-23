@@ -1,10 +1,15 @@
 // commands/check-weather.js
 const { SlashCommandBuilder } = require('discord.js');
-const { buildWeatherEmbed, getActiveWeatherList, activeUntil } = require('../utils/weatherManager');
+const { buildWeatherEmbed, getActiveWeatherList, activeUntil, DISPLAY_NAMES } = require('../utils/weatherManager');
 
-const BOOSTS = {
-    rain: '+25% fish chance',
-    blossom: '+10% fish chance'
+const MUTATION_BLOSSOM_EMOJI = '<:mutationblossom:1394379938748043374>';
+
+const WEATHER_INFO = {
+    rain: { boost: '+25% fish chance' },
+    blossom: {
+        boost: '+10% fish chance',
+        mutation: `Chance for **Blossom Mutation ${MUTATION_BLOSSOM_EMOJI}**`
+    }
 };
 
 module.exports = {
@@ -17,9 +22,12 @@ module.exports = {
         if (active.length) {
             const lines = active.map(w => {
                 const ts = Math.floor(activeUntil[w] / 1000);
-                const boost = BOOSTS[w];
-                const first = `- ${w} <t:${ts}:R>`;
-                return boost ? `${first}\n-# ${boost}` : first;
+                const info = WEATHER_INFO[w] || {};
+                const first = `- ${DISPLAY_NAMES[w] || w} <t:${ts}:R>`;
+                const extras = [];
+                if (info.boost) extras.push(`-# ${info.boost}`);
+                if (info.mutation) extras.push(`-# ${info.mutation}`);
+                return [first, ...extras].join('\n');
             });
             embed.setDescription(`### Weather:\n${lines.join('\n')}`);
         }
