@@ -67,10 +67,10 @@ const ITEM_IDS = {
     COINS: gameConfig.items.coins?.id || 'coins',
     GEMS: gameConfig.items.gems?.id || 'gems',
     ROBUX: gameConfig.items.robux?.id || 'robux',
-    COMMON_LOOT_BOX: gameConfig.items.common_loot_box?.id || 'common_loot_box',
-    RARE_LOOT_BOX: gameConfig.items.rare_loot_box?.id || 'rare_loot_box',
-    EPIC_LOOT_BOX: gameConfig.items.epic_loot_box?.id || 'epic_loot_box',
-    LEGENDARY_LOOT_BOX: gameConfig.items.legendary_loot_box?.id || 'legendary_loot_box',
+    COMMON_LOOT_BOX: gameConfig.items.common_chest?.id || 'common_chest',
+    RARE_LOOT_BOX: gameConfig.items.rare_chest?.id || 'rare_chest',
+    EPIC_LOOT_BOX: gameConfig.items.epic_chest?.id || 'epic_chest',
+    LEGENDARY_LOOT_BOX: gameConfig.items.legendary_chest?.id || 'legendary_chest',
     MYTHICAL_CHEST: gameConfig.items.mythical_chest?.id || 'mythical_chest',
     MAGIC_CHEST: gameConfig.items.magic_chest?.id || 'magic_chest',
     GEM_CHEST: gameConfig.items.gem_chest?.id || 'gem_chest',
@@ -898,7 +898,7 @@ function buildUserManagementPanelEmbed(targetUser, operations = []) {
                '**Types:** `role`, `coin`, `gem`, `robux`, `item`\n\n' +
                '**Examples:**\n' +
                '`+ - role - 123456789012345678`\n' +
-               '`- - item - common_loot_box - 2`\n' +
+               '`- - item - common_chest - 2`\n' +
                '`+ - coin - 100`\n' +
                '`+ - robux - 50`',
         inline: false
@@ -2956,7 +2956,7 @@ client.on('messageCreate', async message => {
                             eventDescription = `Unbelievable! ${message.author} has found a **${itemNameDisplay}**! A true treasure from the depths!`;
                             alertImage = 'https://i.ibb.co/MyCXX90z/nh7.png'; // Example legendary image
                         }
-                        else if (rarityString === client.levelSystem.itemRarities.EPIC.name && itemConfig.id === 'epic_loot_box') { // Specific for epic chest
+                        else if (rarityString === client.levelSystem.itemRarities.EPIC.name && itemConfig.id === 'epic_chest') { // Specific for epic chest
                             alertTitle = `💜 EPIC CHEST! ${itemEmojiDisplay} ${itemNameDisplay}! 💜`;
                             eventDescription = `What's inside?! ${message.author} found an **${itemNameDisplay}**! This could contain something truly amazing!`;
                             alertImage = 'https://i.ibb.co/TMfz2f6Q/nh6.png'; // Epic box image
@@ -4956,7 +4956,7 @@ module.exports = {
                         // Basic structure: action - type - target - amount (amount optional for role)
                         // e.g., + - role - 12345 (3 parts)
                         // e.g., + - coin - 100 (3 parts)
-                        // e.g., + - item - common_loot_box - 5 (4 parts)
+                        // e.g., + - item - common_chest - 5 (4 parts)
 
                         if (parts.length < 3) {
                             parsingErrors.push(`Skipped: "${line}" (Format error: too few parts)`);
@@ -5243,7 +5243,7 @@ module.exports = {
                     .setCustomId('shop_item_id_input')
                     .setLabel('Item ID to Purchase')
                     .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Enter the exact Item ID (e.g., common_loot_box)')
+                    .setPlaceholder('Enter the exact Item ID (e.g., common_chest)')
                     .setRequired(true);
                 const amountInput = new TextInputBuilder()
                     .setCustomId('shop_amount_input')
