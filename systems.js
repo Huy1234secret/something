@@ -28,7 +28,7 @@ const INVENTORY_ROBUX_CAP = Infinity;
 const ROLE_PERKS = {
     '1374410303931945020': { gemPerMessage: 1, discountPercent: 8, xpPerMessage: 3, coinMultiplier: 2.0, gemMultiplier: 1.2 },
     '1379129385189249074': { gemPerMessage: 0, discountPercent: 2, xpPerMessage: 1, coinMultiplier: 1.2, gemMultiplier: 1.05 },
-    '1374410304984977548': { gemPerMessage: 3, discountPercent: 15, xpPerMessage: 5, coinMultiplier: 3.0, gemMultiplier: 1.5 }
+    '1373577228771655751': { gemPerMessage: 3, discountPercent: 15, xpPerMessage: 5, coinMultiplier: 3.0, gemMultiplier: 1.5 }
 };
 
 const BANK_TIERS = {
