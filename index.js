@@ -3501,9 +3501,23 @@ module.exports = {
                 try {
                     const bankEmbed = await buildBankEmbed(interaction.user, interaction.guild.id, client.levelSystem);
                     const bankComponents = getBankComponents(interaction.user.id, interaction.guild.id, client.levelSystem);
-                    const bankMessage = await safeEditReply(interaction, { embeds: [bankEmbed], components: bankComponents, fetchReply: true });
-                    if (bankMessage) { const bankMessageKey = `${interaction.user.id}_${interaction.guild.id}`; await setBankMessageTimeout(interaction, bankMessage.id, bankMessageKey); }
-                } catch (error) { console.error(`[Bank Command] Error for ${interaction.user.tag}:`, error); await sendInteractionError(interaction, "Could not display bank info.", true, deferredThisInteraction); }
+                    const bankMessage = await safeEditReply(interaction, {
+                        embeds: [bankEmbed],
+                        components: bankComponents,
+                        fetchReply: true
+                    });
+                    if (!bankMessage) throw new Error('editReply failed');
+                    const bankMessageKey = `${interaction.user.id}_${interaction.guild.id}`;
+                    await setBankMessageTimeout(interaction, bankMessage.id, bankMessageKey);
+                } catch (error) {
+                    console.error(`[Bank Command] Error for ${interaction.user.tag}:`, error);
+                    await sendInteractionError(
+                        interaction,
+                        "Could not display bank info.",
+                        true,
+                        deferredThisInteraction
+                    );
+                }
                 return;
             }
             if (commandName === 'shop') {
