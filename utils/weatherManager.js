@@ -6,6 +6,12 @@ const NIGHT_COLOR = '#001b44';
 const RAIN_COLOR = '#a0ffff';
 const BLOSSOM_COLOR = '#ffb6c1';
 
+// Display names for weather/events
+const DISPLAY_NAMES = {
+    rain: '🌧️ Rain',
+    blossom: '🌸Cherry Blossom Breeze'
+};
+
 // Alert messages used when weather or events start/end
 const RAIN_START_ALERT = '`[WEATHER]` 🌧️ **Rain** has started!';
 const RAIN_END_ALERT = '`[WEATHER]` 🌧️ **Rain** has ended!';
@@ -64,10 +70,11 @@ async function startRain(client, opts = {}) {
         return { started: false, remaining: Math.max(0, activeUntil.rain - Date.now()) };
     }
     active.rain = true;
-    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, RAIN_START_ALERT, RAIN_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     const duration = (30 + Math.floor(Math.random() * 31)) * 60 * 1000;
     activeUntil.rain = Date.now() + duration;
+    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+    const ts = Math.floor(activeUntil.rain / 1000);
+    await send(channel, `${RAIN_START_ALERT} <t:${ts}:R>`, RAIN_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     setTimeout(async () => {
         active.rain = false;
         activeUntil.rain = 0;
@@ -82,10 +89,11 @@ async function startBlossom(client, opts = {}) {
         return { started: false, remaining: Math.max(0, activeUntil.blossom - Date.now()) };
     }
     active.blossom = true;
-    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    await send(channel, BLOSSOM_START_ALERT, BLOSSOM_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     const duration = (30 + Math.floor(Math.random() * 91)) * 60 * 1000;
     activeUntil.blossom = Date.now() + duration;
+    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+    const ts = Math.floor(activeUntil.blossom / 1000);
+    await send(channel, `${BLOSSOM_START_ALERT} <t:${ts}:R>`, BLOSSOM_COLOR, opts.byAdmin ? 'Started by admin' : undefined);
     setTimeout(async () => {
         active.blossom = false;
         activeUntil.blossom = 0;
@@ -104,7 +112,7 @@ async function rollWeather(client) {
 function buildWeatherEmbed() {
     const title = currentTime ? 'Day ☀️' : 'Night 🌙';
     const list = getActiveWeatherList();
-    const desc = list.length ? list.map(w => `- ${w}`).join('\n') : '- normal';
+    const desc = list.length ? list.map(w => `- ${DISPLAY_NAMES[w] || w}`).join('\n') : '- normal';
     const embed = new EmbedBuilder().setColor(currentTime ? DAY_COLOR : NIGHT_COLOR).setTitle(`# ${title}`).setDescription(`### Weather:\n${desc}`);
     return embed;
 }
@@ -128,5 +136,6 @@ module.exports = {
     RAIN_START_ALERT,
     RAIN_END_ALERT,
     BLOSSOM_START_ALERT,
-    BLOSSOM_END_ALERT
+    BLOSSOM_END_ALERT,
+    DISPLAY_NAMES
 };
