@@ -118,7 +118,7 @@ const config = {
         // Currency
         coins: {
             id: "coins", name: "Coins", type: "currency",
-            emoji: "<a:coin:1373568800783466567>", rarityValue: 0,
+            emoji: "<:JAGcoin:1397581543354142881>", rarityValue: 0,
             description: "The primary currency for most transactions."
         },
         gems: {

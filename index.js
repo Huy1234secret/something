@@ -47,7 +47,7 @@ const {
 } = require('./systems.js');
 
 const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatLeaderboardEmbed, formatCoinLeaderboardEmbed, formatGemLeaderboardEmbed, formatValueLeaderboardEmbed } = require('./leaderboardManager.js');
-const DEFAULT_COIN_EMOJI_FALLBACK = '<a:coin:1373568800783466567>';
+const DEFAULT_COIN_EMOJI_FALLBACK = '<:JAGcoin:1397581543354142881>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
 const DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK = '<:fishdollar:1393480559573078027>';
