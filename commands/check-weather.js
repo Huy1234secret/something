@@ -2,12 +2,10 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { buildWeatherEmbed, getActiveWeatherList, activeUntil } = require('../utils/weatherManager');
 
-function formatDuration(ms) {
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}m ${seconds}s`;
-}
+const BOOSTS = {
+    rain: '+25% fish chance',
+    blossom: '+10% fish chance'
+};
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,8 +15,13 @@ module.exports = {
         const embed = buildWeatherEmbed();
         const active = getActiveWeatherList();
         if (active.length) {
-            const durations = active.map(w => `- **${w}** ends in ${formatDuration(activeUntil[w] - Date.now())}`);
-            embed.addFields({ name: 'Time Remaining', value: durations.join('\n') });
+            const lines = active.map(w => {
+                const ts = Math.floor(activeUntil[w] / 1000);
+                const boost = BOOSTS[w];
+                const first = `- ${w} <t:${ts}:R>`;
+                return boost ? `${first}\n-# ${boost}` : first;
+            });
+            embed.setDescription(`### Weather:\n${lines.join('\n')}`);
         }
 
         if (interaction.replied || interaction.deferred) {
