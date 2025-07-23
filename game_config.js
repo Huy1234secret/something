@@ -100,10 +100,10 @@ const config = {
          *  Max “bulk-open” amounts for loot boxes
          * --------------------------------------------------------- */
         MAX_UNBOX_AMOUNTS: {
-            common_loot_box:     300,
-            rare_loot_box:       200,
-            epic_loot_box:       100,
-            legendary_loot_box:   50,
+            common_chest:     300,
+            rare_chest:       200,
+            epic_chest:       100,
+            legendary_chest:   50,
             mythical_chest: 25,
             void_chest: 10,
             magic_chest: 50,
@@ -141,8 +141,8 @@ const config = {
         },
 
         // Loot Boxes
-        "common_loot_box": {
-            id: "common_loot_box", name: "Common Chest", type: "loot_box_item",
+        "common_chest": {
+            id: "common_chest", name: "Common Chest", type: "loot_box_item",
             directDropWeight: 0.095,
             emoji: "<:common:1385904265184149525>", rarityValue: 100,
             description: "A common chest containing a few items.",
@@ -153,16 +153,16 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 5, probability: 0.8, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.01, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.005, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.000988, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", quantity: 1, probability: 0.01, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", quantity: 1, probability: 0.005, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", quantity: 1, probability: 0.000988, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", quantity: 1, probability: 0.00001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000001, rarityValue: 500000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
-        "rare_loot_box": {
-            id: "rare_loot_box", name: "Rare Chest", type: "loot_box_item",
+        "rare_chest": {
+            id: "rare_chest", name: "Rare Chest", type: "loot_box_item",
             directDropWeight: 0.0045, isRareWeekendEligibleChatDrop: true,
             emoji: "<:rare:1385904281424625795>", rarityValue: 1000,
             description: "A rare chest with better chances for good items.",
@@ -173,16 +173,16 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 10, probability: 0.8, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 1, max: 1, probability: 0.1, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.01, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.00005, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", quantity: 1, probability: 0.01, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", quantity: 1, probability: 0.005, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", quantity: 1, probability: 0.00005, rarityValue: 250000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000002, rarityValue: 500000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
-        "epic_loot_box": {
-            id: "epic_loot_box", name: "Epic Chest", type: "loot_box_item",
+        "epic_chest": {
+            id: "epic_chest", name: "Epic Chest", type: "loot_box_item",
             directDropWeight: 0.0008, isRareWeekendEligibleChatDrop: true,
             emoji: "<:epic:1385904294934609981>", rarityValue: 50000,
             description: "An epic chest containing valuable treasures.",
@@ -193,17 +193,17 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 25, probability: 0.8, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 1, max: 2, probability: 0.1, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", quantity: 1, probability: 0.01, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", quantity: 1, probability: 0.0001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.000001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000003, rarityValue: 500000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
             ]
         },
-        "legendary_loot_box": {
-            id: "legendary_loot_box", name: "Legendary Chest", type: "loot_box_item",
+        "legendary_chest": {
+            id: "legendary_chest", name: "Legendary Chest", type: "loot_box_item",
             directDropWeight: 0.0001, isRareWeekendEligibleChatDrop: true,
             emoji: "<:legend:1385904172481773598>", rarityValue: 250000,
             description: "A legendary chest of immense power and rarity.",
@@ -214,10 +214,10 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 50, probability: 0.8, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 2, max: 2, probability: 0.1, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.1, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.005, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.0005, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", quantity: 1, probability: 0.1, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", quantity: 1, probability: 0.005, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", quantity: 1, probability: 0.0005, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.00001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.000005, rarityValue: 500000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
@@ -236,10 +236,10 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 1, max: 100, probability: 0.8, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 5, max: 5, probability: 0.1, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", quantity: 1, probability: 0.15, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", quantity: 1, probability: 0.05, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", quantity: 1, probability: 0.01, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", quantity: 1, probability: 0.001, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", quantity: 1, probability: 0.15, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", quantity: 1, probability: 0.05, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", quantity: 1, probability: 0.01, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", quantity: 1, probability: 0.001, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.000001, rarityValue: 1700000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.001, rarityValue: 500000 },
@@ -259,10 +259,10 @@ const config = {
             itemPool: [
                 { type: "currency", subType: "coins", min: 100, max: 1000, probability: 0.35, rarityValue: 0 },
                 { type: "currency", subType: "gems", min: 50, max: 500, probability: 0.2, rarityValue: 1000 },
-                { type: "loot_box_item", id: "common_loot_box", min: 25, max: 100, probability: 0.25, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", min: 10, max: 50, probability: 0.14, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", min: 5, max: 20, probability: 0.049, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", min: 2, max: 10, probability: 0.019, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", min: 25, max: 100, probability: 0.25, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", min: 10, max: 50, probability: 0.14, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", min: 5, max: 20, probability: 0.049, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", min: 2, max: 10, probability: 0.019, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", min: 1, max: 3, probability: 0.001, rarityValue: 750000 },
                 { type: "loot_box_item", id: "gem_chest", min: 1, max: 3, probability: 0.0005, rarityValue: 1200000 },
                 { type: "cosmic_token", id: "cosmic_role_token", quantity: 1, probability: 0.000001, rarityValue: 2400000 }
@@ -279,10 +279,10 @@ const config = {
             isAlertWorthyByIdShop: true,
             color: 0xFFFFFF, numRolls: 100,
             itemPool: [
-                { type: "loot_box_item", id: "common_loot_box", min: 1, max: 10, probability: 0.399989, rarityValue: 100 },
-                { type: "loot_box_item", id: "rare_loot_box", min: 1, max: 5, probability: 0.3, rarityValue: 1000 },
-                { type: "loot_box_item", id: "epic_loot_box", min: 1, max: 3, probability: 0.2, rarityValue: 50000 },
-                { type: "loot_box_item", id: "legendary_loot_box", min: 1, max: 2, probability: 0.09, rarityValue: 250000 },
+                { type: "loot_box_item", id: "common_chest", min: 1, max: 10, probability: 0.399989, rarityValue: 100 },
+                { type: "loot_box_item", id: "rare_chest", min: 1, max: 5, probability: 0.3, rarityValue: 1000 },
+                { type: "loot_box_item", id: "epic_chest", min: 1, max: 3, probability: 0.2, rarityValue: 50000 },
+                { type: "loot_box_item", id: "legendary_chest", min: 1, max: 2, probability: 0.09, rarityValue: 250000 },
                 { type: "loot_box_item", id: "mythical_chest", quantity: 1, probability: 0.0099, rarityValue: 750000 },
                 { type: "loot_box_item", id: "void_chest", quantity: 1, probability: 0.0001, rarityValue: 1700000 },
                 { type: "loot_box_item", id: "magic_chest", quantity: 1, probability: 0.00001, rarityValue: 500000 },
@@ -450,10 +450,10 @@ const config = {
     },
     directChatDropTable: [ // Robux is NOT added here as it's command/shop only
         { itemId: "nothing_drop", directDropWeight: 0.900077 },
-        { itemId: "common_loot_box", directDropWeight: 0.095 },
-        { itemId: "rare_loot_box", directDropWeight: 0.0045 },
-        { itemId: "epic_loot_box", directDropWeight: 0.0008 },
-        { itemId: "legendary_loot_box", directDropWeight: 0.0001 },
+        { itemId: "common_chest", directDropWeight: 0.095 },
+        { itemId: "rare_chest", directDropWeight: 0.0045 },
+        { itemId: "epic_chest", directDropWeight: 0.0008 },
+        { itemId: "legendary_chest", directDropWeight: 0.0001 },
         { itemId: "mythical_chest", directDropWeight: 0.00008 },
         { itemId: "gem_chest", directDropWeight: 0.00001 },
         { itemId: "cosmic_role_token", directDropWeight: 0.000001 }

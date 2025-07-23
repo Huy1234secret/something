@@ -117,10 +117,10 @@ class SystemsManager {
         this.GEMS_ID = this.gameConfig.items.gems?.id || 'gems';
         this.ROBUX_ID = this.gameConfig.items.robux?.id || 'robux';
         this.FISH_DOLLAR_ID = this.gameConfig.items.fish_dollar?.id || 'fish_dollar';
-        this.COMMON_LOOT_BOX_ID = this.gameConfig.items.common_loot_box?.id || 'common_loot_box';
-        this.RARE_LOOT_BOX_ID = this.gameConfig.items.rare_loot_box?.id || 'rare_loot_box';
-        this.EPIC_LOOT_BOX_ID = this.gameConfig.items.epic_loot_box?.id || 'epic_loot_box';
-        this.LEGENDARY_LOOT_BOX_ID = this.gameConfig.items.legendary_loot_box?.id || 'legendary_loot_box';
+        this.COMMON_LOOT_BOX_ID = this.gameConfig.items.common_chest?.id || 'common_chest';
+        this.RARE_LOOT_BOX_ID = this.gameConfig.items.rare_chest?.id || 'rare_chest';
+        this.EPIC_LOOT_BOX_ID = this.gameConfig.items.epic_chest?.id || 'epic_chest';
+        this.LEGENDARY_LOOT_BOX_ID = this.gameConfig.items.legendary_chest?.id || 'legendary_chest';
         this.COIN_CHARM_ID = this.gameConfig.items.coin_charm?.id || 'coin_charm';
         this.GEM_CHARM_ID = this.gameConfig.items.gem_charm?.id || 'gem_charm';
         this.XP_CHARM_ID = this.gameConfig.items.xp_charm?.id || 'xp_charm';
