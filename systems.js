@@ -382,6 +382,9 @@ class SystemsManager {
         if (!guildSettingsInfo.some(col => col.name === 'topValueUserId')) {
             this.db.exec('ALTER TABLE guildSettings ADD COLUMN topValueUserId TEXT;');
         }
+        if (!guildSettingsInfo.some(col => col.name === 'topFinalUserId')) {
+            this.db.exec('ALTER TABLE guildSettings ADD COLUMN topFinalUserId TEXT;');
+        }
         if (!guildSettingsInfo.some(col => col.name === 'weekendAlertMessageId')) {
             this.db.exec('ALTER TABLE guildSettings ADD COLUMN weekendAlertMessageId TEXT;');
         }
@@ -799,7 +802,8 @@ this.db.prepare(`
                 topLevelUserId: null,
                 topCoinUserId: null,
                 topGemUserId: null,
-                topValueUserId: null
+                topValueUserId: null,
+                topFinalUserId: null
             };
         }
         let settings = this.db.prepare('SELECT * FROM guildSettings WHERE guildId = ?').get(guildId);
@@ -831,6 +835,7 @@ this.db.prepare(`
         settings.topCoinUserId = settings.topCoinUserId || null;
         settings.topGemUserId = settings.topGemUserId || null;
         settings.topValueUserId = settings.topValueUserId || null;
+        settings.topFinalUserId = settings.topFinalUserId || null;
         return settings;
     }
 
