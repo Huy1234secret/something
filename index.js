@@ -46,7 +46,7 @@ const {
     ROBUX_WITHDRAWAL_COOLDOWN_MS // New constant from systems.js
 } = require('./systems.js');
 
-const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatLeaderboardEmbed, formatCoinLeaderboardEmbed, formatGemLeaderboardEmbed, formatValueLeaderboardEmbed, getMsUntilNextDailyUpdate } = require('./leaderboardManager.js');
+const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatOverallLeaderboardEmbed, calculateUserPoints, getMsUntilNextDailyUpdate } = require('./leaderboardManager.js');
 const DEFAULT_COIN_EMOJI_FALLBACK = '<:JAGcoin:1397581543354142881>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
@@ -4176,24 +4176,22 @@ module.exports = {
                         await safeDeferReply(interaction, { ephemeral: false });
                         deferredByThisLogic = true;
                     }
-                    const leaderboardData = client.levelSystem.getLeaderboard(guildId, LEADERBOARD_LIMIT);
-                    const coinData = client.levelSystem.getCoinLeaderboard(guildId, 5);
-                    const gemData = client.levelSystem.getGemLeaderboard(guildId, 5);
-                    const valueData = client.levelSystem.getValueLeaderboard(guildId, 5);
+                    const overallRaw = client.levelSystem.getOverallStats(guildId);
+                    const blacklistSet = new Set();
+                    for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
+                        const role = interaction.guild.roles.cache.get(rId);
+                        if (role) role.members.forEach(m => blacklistSet.add(m.id));
+                    }
+                    const overallData = overallRaw
+                        .map(u => calculateUserPoints(u))
+                        .filter(u => !blacklistSet.has(u.userId))
+                        .sort((a, b) => b.finalPts - a.finalPts)
+                        .slice(0, LEADERBOARD_LIMIT);
 
                     const timeUntilNext = getMsUntilNextDailyUpdate();
-                    const embed = await formatLeaderboardEmbed(
-                        leaderboardData,
-                        client,
-                        guildId,
-                        client.levelSystem,
-                        timeUntilNext
-                    );
-                    const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, timeUntilNext);
-                    const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, timeUntilNext);
-                    const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, timeUntilNext);
+                    const embed = await formatOverallLeaderboardEmbed(overallData, client, timeUntilNext);
 
-                    await safeEditReply(interaction, { embeds: [embed, coinEmbed, gemEmbed, valueEmbed], ephemeral: false }, true);
+                    await safeEditReply(interaction, { embeds: [embed], ephemeral: false }, true);
                 } else if (subcommand === 'postnow') {
                     if (!isAdmin()) {
                         return sendInteractionError(interaction, "You do not have permission to force a leaderboard update.", true);
