@@ -3448,7 +3448,7 @@ client.on('interactionCreate', async interaction => {
                     let itemTypeToGive = itemConfig.type;
                     if (!itemTypeToGive) {
                         console.warn(`[GiveItem Command] Item ID: ${itemId} (Name: ${itemConfig.name || 'Unknown'}) has undefined type in master config. Attempting to infer...`);
-                        if (itemId.includes('_loot_box')) itemTypeToGive = client.levelSystem.itemTypes.LOOT_BOX;
+                        if (itemId.includes('_loot_box') || itemId.includes('_chest')) itemTypeToGive = client.levelSystem.itemTypes.LOOT_BOX;
                         else if (itemId.includes('_charm')) itemTypeToGive = client.levelSystem.itemTypes.CHARM;
                         else if (itemId === client.levelSystem.COSMIC_ROLE_TOKEN_ID) itemTypeToGive = client.levelSystem.itemTypes.COSMIC_TOKEN;
                         else itemTypeToGive = client.levelSystem.itemTypes.ITEM;

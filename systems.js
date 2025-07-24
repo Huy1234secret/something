@@ -180,6 +180,9 @@ class SystemsManager {
         this.client = null;
         this.globalWeekendMultipliers = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 }; // luck: 1.0 as default now
         this.userLuckBonuses = new Map();
+
+        // Automatically migrate any legacy loot box IDs in the database
+        this.updateLegacyLootBoxIds();
     }
 
     setClient(clientInstance) {
@@ -2441,6 +2444,35 @@ this.db.prepare(`
             return { success: true, newBalance: result.newBalance };
         }
         return { success: false, message: "Failed to deduct Robux for withdrawal." };
+    }
+
+    updateLegacyLootBoxIds() {
+        const mapping = {
+            common_loot_box: this.COMMON_CHEST_ID,
+            rare_loot_box: this.RARE_CHEST_ID,
+            epic_loot_box: this.EPIC_CHEST_ID,
+            legendary_loot_box: this.LEGENDARY_CHEST_ID,
+        };
+
+        for (const [oldId, newId] of Object.entries(mapping)) {
+            this.db.prepare('UPDATE userInventory SET itemId = ? WHERE itemId = ?').run(newId, oldId);
+            this.db.prepare('UPDATE userLootAlertSettings SET itemId = ? WHERE itemId = ?').run(newId, oldId);
+            this.db.prepare('UPDATE guildShopItems SET itemId = ? WHERE itemId = ?').run(newId, oldId);
+        }
+
+        const rewardRows = this.db.prepare("SELECT userId, guildId, dayNumber, rewardType, rewardData FROM userDailyRewards WHERE rewardType = 'item'").all();
+        const updateStmt = this.db.prepare('UPDATE userDailyRewards SET rewardData = ? WHERE userId = ? AND guildId = ? AND dayNumber = ?');
+        for (const row of rewardRows) {
+            try {
+                const data = JSON.parse(row.rewardData);
+                if (mapping[data.id]) {
+                    data.id = mapping[data.id];
+                    updateStmt.run(JSON.stringify(data), row.userId, row.guildId, row.dayNumber);
+                }
+            } catch (e) {
+                console.error('[LootBoxIdMigration] Failed to parse rewardData', e);
+            }
+        }
     }
 
     removeItemFromAllUsers(itemIdPattern, useLike = false) {
