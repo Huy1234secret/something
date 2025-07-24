@@ -10,6 +10,7 @@ const COUNTDOWN_END = 1753376400;
 const SIGNUP_END = COUNTDOWN_END + 2 * 24 * 60 * 60;
 
 const PARTICIPANT_ROLE_ID = '1389139329762332682';
+const LOG_CHANNEL_ID = '1383481711651721307';
 
 const THEME_CLOSE_TS = 1754542800; // Aug 7 2025 05:00 UTC
 
@@ -211,6 +212,10 @@ async function handleJoinInteraction(interaction) {
       .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
       .setFooter({ text: 'have fun!' });
     await interaction.user.send({ embeds: [embed] }).catch(() => {});
+    const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+    if (logChannel && logChannel.isTextBased()) {
+      await logChannel.send({ content: `Username: ${interaction.user}\nTheme picked: ${theme}` }).catch(() => {});
+    }
   }
 }
 
