@@ -117,10 +117,10 @@ class SystemsManager {
         this.GEMS_ID = this.gameConfig.items.gems?.id || 'gems';
         this.ROBUX_ID = this.gameConfig.items.robux?.id || 'robux';
         this.FISH_DOLLAR_ID = this.gameConfig.items.fish_dollar?.id || 'fish_dollar';
-        this.COMMON_LOOT_BOX_ID = this.gameConfig.items.common_chest?.id || 'common_chest';
-        this.RARE_LOOT_BOX_ID = this.gameConfig.items.rare_chest?.id || 'rare_chest';
-        this.EPIC_LOOT_BOX_ID = this.gameConfig.items.epic_chest?.id || 'epic_chest';
-        this.LEGENDARY_LOOT_BOX_ID = this.gameConfig.items.legendary_chest?.id || 'legendary_chest';
+        this.COMMON_CHEST_ID = this.gameConfig.items.common_chest?.id || 'common_chest';
+        this.RARE_CHEST_ID = this.gameConfig.items.rare_chest?.id || 'rare_chest';
+        this.EPIC_CHEST_ID = this.gameConfig.items.epic_chest?.id || 'epic_chest';
+        this.LEGENDARY_CHEST_ID = this.gameConfig.items.legendary_chest?.id || 'legendary_chest';
         this.COIN_CHARM_ID = this.gameConfig.items.coin_charm?.id || 'coin_charm';
         this.GEM_CHARM_ID = this.gameConfig.items.gem_charm?.id || 'gem_charm';
         this.XP_CHARM_ID = this.gameConfig.items.xp_charm?.id || 'xp_charm';
@@ -2068,10 +2068,10 @@ this.db.prepare(`
             // --- Item Reward ---
             const baseItemPool = [
                 // Probabilities normalise to the item chance of 50% when no luck is applied.
-                { id: this.COMMON_LOOT_BOX_ID, baseProb: 0.80 },
-                { id: this.RARE_LOOT_BOX_ID, baseProb: 0.195 },
-                { id: this.EPIC_LOOT_BOX_ID, baseProb: 0.0049 },
-                { id: this.LEGENDARY_LOOT_BOX_ID, baseProb: 0.0001 },
+                { id: this.COMMON_CHEST_ID, baseProb: 0.80 },
+                { id: this.RARE_CHEST_ID, baseProb: 0.195 },
+                { id: this.EPIC_CHEST_ID, baseProb: 0.0049 },
+                { id: this.LEGENDARY_CHEST_ID, baseProb: 0.0001 },
                 { id: this.COIN_CHARM_ID, baseProb: 0.000005 },
                 { id: this.GEM_CHARM_ID, baseProb: 0.0000001 },
                 { id: this.XP_CHARM_ID, baseProb: 0.0000008 },
@@ -2087,7 +2087,7 @@ this.db.prepare(`
 
             let totalRareProb = 0;
             const dynamicPool = baseItemPool.map(item => {
-                const isRare = item.id !== this.COMMON_LOOT_BOX_ID && !item.noLuck;
+                const isRare = item.id !== this.COMMON_CHEST_ID && !item.noLuck;
                 const baseProbability = item.baseProb / totalBaseProb;
                 // Slightly stronger luck scaling so max boost is more impactful
                 // Increased multiplier so luck gives a bit more item chance
@@ -2098,7 +2098,7 @@ this.db.prepare(`
                 return { ...item, finalProb };
             });
 
-            const commonItem = dynamicPool.find(item => item.id === this.COMMON_LOOT_BOX_ID);
+            const commonItem = dynamicPool.find(item => item.id === this.COMMON_CHEST_ID);
             if (commonItem) {
                 commonItem.finalProb = Math.max(0, 1 - totalRareProb);
             }

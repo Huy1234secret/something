@@ -67,10 +67,10 @@ const ITEM_IDS = {
     COINS: gameConfig.items.coins?.id || 'coins',
     GEMS: gameConfig.items.gems?.id || 'gems',
     ROBUX: gameConfig.items.robux?.id || 'robux',
-    COMMON_LOOT_BOX: gameConfig.items.common_chest?.id || 'common_chest',
-    RARE_LOOT_BOX: gameConfig.items.rare_chest?.id || 'rare_chest',
-    EPIC_LOOT_BOX: gameConfig.items.epic_chest?.id || 'epic_chest',
-    LEGENDARY_LOOT_BOX: gameConfig.items.legendary_chest?.id || 'legendary_chest',
+    COMMON_CHEST: gameConfig.items.common_chest?.id || 'common_chest',
+    RARE_CHEST: gameConfig.items.rare_chest?.id || 'rare_chest',
+    EPIC_CHEST: gameConfig.items.epic_chest?.id || 'epic_chest',
+    LEGENDARY_CHEST: gameConfig.items.legendary_chest?.id || 'legendary_chest',
     MYTHICAL_CHEST: gameConfig.items.mythical_chest?.id || 'mythical_chest',
     MAGIC_CHEST: gameConfig.items.magic_chest?.id || 'magic_chest',
     GEM_CHEST: gameConfig.items.gem_chest?.id || 'gem_chest',
@@ -196,10 +196,10 @@ const ROBUX_WITHDRAWAL_LOG_CHANNEL_ID = '1379495267031846952'; // YOUR_CHANNEL_I
 const BOT_LOG_CHANNEL_ID = process.env.BOT_LOG_CHANNEL_ID || '1383481711651721307';
 
 const MAX_UNBOX_AMOUNTS = gameConfig.globalSettings?.MAX_UNBOX_AMOUNTS || {
-    [ITEM_IDS.COMMON_LOOT_BOX]: 300,
-    [ITEM_IDS.RARE_LOOT_BOX]: 200,
-    [ITEM_IDS.EPIC_LOOT_BOX]: 100,
-    [ITEM_IDS.LEGENDARY_LOOT_BOX]: 50,
+    [ITEM_IDS.COMMON_CHEST]: 300,
+    [ITEM_IDS.RARE_CHEST]: 200,
+    [ITEM_IDS.EPIC_CHEST]: 100,
+    [ITEM_IDS.LEGENDARY_CHEST]: 50,
 };
 
 const LEVEL_SPECIFIC_IMAGE_URLS = {
