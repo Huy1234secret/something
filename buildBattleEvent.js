@@ -277,12 +277,23 @@ async function rerollUserTheme(interaction, targetUser = interaction.user) {
   const data = await loadData();
   if (!data.userThemes || !data.userThemes[targetUser.id]) {
     const msg = targetUser.id === interaction.user.id ? 'You have' : 'That user has';
-    return interaction.reply({ content: `${msg} not joined the build battle.`, ephemeral: true });
+    const opts = { content: `${msg} not joined the build battle.`, ephemeral: true };
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(opts).catch(() => {});
+    } else {
+      await interaction.reply(opts).catch(() => {});
+    }
+    return;
   }
   const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
   data.userThemes[targetUser.id] = theme;
   await saveData(data);
-  await interaction.reply({ content: `Check your DMs for the new theme!`, ephemeral: true });
+  const opts = { content: `Check your DMs for the new theme!`, ephemeral: true };
+  if (interaction.deferred || interaction.replied) {
+    await interaction.editReply(opts).catch(() => {});
+  } else {
+    await interaction.reply(opts).catch(() => {});
+  }
   const embed = new EmbedBuilder()
     .setTitle('PSST')
     .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
