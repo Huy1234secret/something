@@ -1,6 +1,8 @@
 // leaderboardManager.js
 const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
+
 const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
 
 const LEADERBOARD_REWARD_ROLE_IDS = {
@@ -11,6 +13,16 @@ const LEADERBOARD_REWARD_ROLE_IDS = {
 };
 
 const FIRST_PLACE_ALERT_DELETE_TIMEOUT = 24 * 60 * 60 * 1000; // 1 day
+
+function getMsUntilNextDailyUpdate() {
+    const now = new Date();
+    const nextUpdate = new Date(now);
+    nextUpdate.setUTCHours(LEADERBOARD_DAILY_UPDATE_HOUR_UTC, 0, 0, 0);
+    if (nextUpdate <= now) {
+        nextUpdate.setUTCDate(nextUpdate.getUTCDate() + 1);
+    }
+    return nextUpdate.getTime() - now.getTime();
+}
 
 async function sendFirstPlaceAlert(guild, channelId, typeName, oldUserId, newUserId, role) {
     if (!channelId) return;
@@ -278,6 +290,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const now = Date.now();
 
         const updateInterval = 24 * 60 * 60 * 1000; // 24 hours
+        const timeUntilNextDailyUpdate = getMsUntilNextDailyUpdate();
 
         // If not forced by admin, check the update interval
         if (!isForcedByAdmin && lastUpdated && (now - lastUpdated < updateInterval)) {
@@ -310,11 +323,11 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             client,
             guildId,
             systemsManager,
-            updateInterval
+            timeUntilNextDailyUpdate
         );
-        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, updateInterval);
-        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, updateInterval);
-        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, updateInterval);
+        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, timeUntilNextDailyUpdate);
+        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, timeUntilNextDailyUpdate);
+        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, timeUntilNextDailyUpdate);
 
         const components = [
             new ActionRowBuilder().addComponents(
@@ -476,5 +489,6 @@ module.exports = {
     formatCoinLeaderboardEmbed,
     formatGemLeaderboardEmbed,
     formatValueLeaderboardEmbed,
+    getMsUntilNextDailyUpdate,
     // LEVEL_TO_EMOJI_ID_MAP // No need to export this
 };
