@@ -1,5 +1,6 @@
 // leaderboardManager.js
 const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { formatNumber } = require('./utils/numberFormatter.js');
 
 const FINAL_POINTS_EMOJI = '<:bdpoint:1389238189671321672>';
 
@@ -272,17 +273,24 @@ function getRankEmoji(rank) {
 }
 
 function calculateCategoryPoints(amount) {
-    if (amount >= 1000000) {
-        const digits = Math.floor(amount / 1000000);
-        return digits / 100 + 20;
+    const abbreviations = [
+        '', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc',
+        'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg', 'Uvg',
+        'Dvg', 'Tvg', 'Qavg', 'Qivg', 'Sxvg', 'Spvg', 'Ocvg', 'Novg'
+    ];
+
+    const formatted = formatNumber(amount);
+    const match = formatted.match(/^([0-9.,]+)([A-Za-z]*)$/);
+    let digits = 0;
+    let tier = 1;
+    if (match) {
+        digits = parseInt(match[1].replace(/[^0-9]/g, '').substring(0, 3)) || 0;
+        const abbr = match[2];
+        const idx = abbreviations.indexOf(abbr);
+        tier = idx === -1 ? 1 : idx + 1; // 1-based tier
     }
-    if (amount >= 1000) {
-        const digits = Math.floor(amount / 1000);
-        return digits / 100 + 10;
-    }
-    const str = String(Math.floor(amount));
-    const digits = parseInt(str.substring(0, 3)) || 0;
-    return digits / 100;
+
+    return digits / 100 + (tier - 1) * 10;
 }
 
 function calculateUserPoints(user) {
