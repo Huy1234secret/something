@@ -13,6 +13,7 @@ const BUILD_BATTLE_END = COUNTDOWN_END + 14 * 24 * 60 * 60;
 const ANNOUNCE_CHANNEL_ID = '1372572234949853367';
 
 const PARTICIPANT_ROLE_ID = '1389139329762332682';
+const EXTRA_ROLE_ID = '1389139332064870431';
 const LOG_CHANNEL_ID = '1383481711651721307';
 
 const THEME_CLOSE_TS = 1754542800; // Aug 7 2025 05:00 UTC
@@ -255,7 +256,7 @@ async function handleJoinInteraction(interaction) {
   if (data.userThemes[interaction.user.id] || member.roles.cache.has(PARTICIPANT_ROLE_ID)) {
     await interaction.reply({ content: 'You have already joined! Check your DMs.', ephemeral: true });
   } else {
-    await member.roles.add(PARTICIPANT_ROLE_ID).catch(() => {});
+    await member.roles.add([PARTICIPANT_ROLE_ID, EXTRA_ROLE_ID]).catch(() => {});
     const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
     data.userThemes[interaction.user.id] = theme;
     await saveData(data);
