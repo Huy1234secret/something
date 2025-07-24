@@ -319,7 +319,7 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
         }
         const levelEmoji = LEVEL_TO_EMOJI_ID_MAP[Math.min(user.level, 40)] || '';
         const medal = getRankEmoji(idx + 1);
-        const header = `${medal ? medal + ' ' : ''}### ${idx + 1}# <@${user.userId}> - ${user.finalPts.toFixed(2)} ${FINAL_POINTS_EMOJI}`;
+        const header = `### ${medal ? medal + ' ' : ''}${idx + 1}# <@${user.userId}> - ${user.finalPts.toFixed(2)} ${FINAL_POINTS_EMOJI}`;
         const details = `-# ${coinEmoji} ${user.coinPts.toFixed(2)}pts - ${gemEmoji} ${user.gemPts.toFixed(2)}pts - ${valueEmoji} ${user.valuePts.toFixed(2)}pts - ${levelEmoji} ${user.levelPts.toFixed(2)}pts`;
         return `${header}\n${details}`;
     }));
@@ -378,10 +378,11 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
 
         const components = [
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('check_rank_level').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('🎖️'),
-                new ButtonBuilder().setCustomId('check_rank_coins').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('💰'),
-                new ButtonBuilder().setCustomId('check_rank_gems').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('💎'),
-                new ButtonBuilder().setCustomId('check_rank_value').setLabel('Check Rank').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+                new ButtonBuilder()
+                    .setCustomId('check_rank')
+                    .setLabel('Check Rank')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('📊')
             )
         ];
 
@@ -527,5 +528,6 @@ module.exports = {
     calculateCategoryPoints,
     calculateUserPoints,
     getMsUntilNextDailyUpdate,
-    // LEVEL_TO_EMOJI_ID_MAP // No need to export this
+    LEVEL_TO_EMOJI_ID_MAP,
+    FINAL_POINTS_EMOJI
 };
