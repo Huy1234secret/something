@@ -19,56 +19,56 @@ const LOG_CHANNEL_ID = '1383481711651721307';
 const THEME_CLOSE_TS = 1754542800; // Aug 7 2025 05:00 UTC
 
 const THEMES = [
-  'Steampunk Airship Dock',
-  'Atlantis in Ruins',
-  'Cyberpunk Street Market at Night',
-  "Dragon’s Skeleton Fossil Site",
-  'Upside-Down Library',
-  "Giant’s Abandoned Toy Room",
-  'Lunar Research Outpost (Year 3050)',
-  "Time-Traveler’s Portal Hub",
-  'Overgrown Botanical Lab After Apocalypse',
-  'Floating Samurai Dojo',
-  'Crystal Cavern Concert Hall',
-  'Dwarven Forge Powered by Lava',
-  'Neon-Lit Underwater Metropolis',
-  'Haunted Carnival on a Cliff',
-  'Library of Impossible Geometry (Escher-style)',
-  'Desert Oasis Run by Robots',
-  'Victorian Submarine Expedition',
-  'Colossal Clockwork Golem Awakening',
-  'Elven Tree-Top University',
-  'Quantum Computer Shrine in a Jungle',
-  'Alien Coral Reef Sanctuary',
-  'Giant Chessboard Battle Frozen in Time',
-  'Sky Whale Migration Scene',
-  'Hidden Temple Inside a Volcanic Crater',
-  'Arctic Bioluminescent Ice Caves',
-  'Pirate Mech-Ship Taking Off',
-  'Post-Human Overgrown Skyscraper Farm',
-  'Mirror-World Castle (Left ≠ Right)',
-  'Festival of Lanterns on Floating Islands',
-  'Gargantuan Kraken vs. Airship',
-  'Ancient Library Guarded by Living Statues',
-  "Wizard’s Alchemical Greenhouse",
-  'Deserted Cyber-Train Station in a Sandstorm',
-  'Mechanical Dragon Factory Floor',
-  'Celestial Observatory on a Comet',
-  'Haunted Mansion Caught Between Seasons',
-  'Under-Construction Space Elevator Base',
-  'Goblin Market Hidden in Sewers',
-  'Lost City Inside a Massive Tree Trunk',
-  'Interdimensional Bazaar (Stalls from Different Worlds)',
-  'Post-War Mech Graveyard',
-  'Ice Palace Melting into a Waterfall',
-  'Bio-Engineered Dinosaur Sanctuary',
-  'Dreamscape Playground (Surreal, Floating Shapes)',
-  'Ancient Colosseum Repurposed as Spaceport',
-  'Mermaid Royal Wedding Procession',
-  'Fairy-Light Mushroom Metropolis',
-  'Futuristic Venice with Hover-Gondolas',
-  'Library Spaceship Docked at Asteroid',
-  'Time-Dilated Battlefield (Past, Present, Future Collide)'
+  'Desert Oasis',
+  'Haunted Forest',
+  'Floating Islands',
+  'Medieval Kingdom',
+  'Futuristic City',
+  'Pirate Cove',
+  'Volcanic Wasteland',
+  'Arctic Research Base',
+  'Jungle Temple Ruins',
+  'Sky Castle',
+  'Underground Dwarf Mine',
+  'Wild West Frontier Town',
+  'Alien Planet Surface',
+  'Steampunk Harbor',
+  'Mystic Swamp Village',
+  'Ancient Greek Acropolis',
+  'Space Station Dock',
+  'Sunken Atlantis',
+  'Nordic Fjord Settlement',
+  'Candyland Realm',
+  'Post-Apocalyptic Cityscape',
+  'Samurai Mountain Fortress',
+  'Cloud Kingdom',
+  'Safari Savannah Reserve',
+  'Roman Colosseum District',
+  'Cyberpunk Alleyways',
+  'Mayan Jungle City',
+  'Crystal Caverns',
+  'Time-Travel Portal Hub',
+  'Fantasy Mushroom Biome',
+  'Rooftop Parkour City',
+  'Underwater Coral Reef Town',
+  'Vampire Castle & Village',
+  'Lunar Moon Base',
+  'Cherry-Blossom Island',
+  'Nordic Ice Castle',
+  "Dragon’s Lair Mountains",
+  'Pumpkin Patch Farmstead',
+  'Treasure-Hunt Archipelago',
+  'Wizard Academy Campus',
+  'Giant Tree Canopy Village',
+  'Gladiator Arena District',
+  'Carnival Fairgrounds',
+  'Starlight Observatory Peak',
+  'Mystery Mansion Grounds',
+  'Floating Steampunk Zeppelin Port',
+  'Hobbit-Style Hillside Shire',
+  'Enchanted Winter Wonderland',
+  'Racing Circuit Island',
+  'Eldritch Void Dimension'
 ];
 
 async function loadData() {
@@ -273,4 +273,24 @@ async function handleJoinInteraction(interaction) {
   }
 }
 
-module.exports = { initBuildBattleEvent, handleJoinInteraction };
+async function rerollUserTheme(interaction) {
+  const data = await loadData();
+  if (!data.userThemes || !data.userThemes[interaction.user.id]) {
+    return interaction.reply({ content: 'You have not joined the build battle.', ephemeral: true });
+  }
+  const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
+  data.userThemes[interaction.user.id] = theme;
+  await saveData(data);
+  await interaction.reply({ content: 'Check your DMs for your new theme!', ephemeral: true });
+  const embed = new EmbedBuilder()
+    .setTitle('PSST')
+    .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+    .setFooter({ text: 'have fun!' });
+  await interaction.user.send({ embeds: [embed] }).catch(() => {});
+  const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+  if (logChannel && logChannel.isTextBased()) {
+    await logChannel.send({ content: `Username: ${interaction.user}\nTheme rerolled: ${theme}` }).catch(() => {});
+  }
+}
+
+module.exports = { initBuildBattleEvent, handleJoinInteraction, rerollUserTheme };

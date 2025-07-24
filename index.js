@@ -8,7 +8,7 @@ const {
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
+const { initBuildBattleEvent, handleJoinInteraction, rerollUserTheme } = require('./buildBattleEvent');
 const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
@@ -3878,6 +3878,17 @@ module.exports = {
                      const embed = buildWeatherEmbed();
                      await safeEditReply(interaction, { embeds: [embed] }, true);
                  }
+                 return;
+            }
+            if (commandName === 'reroll-theme') {
+                 if (!interaction.replied && !interaction.deferred) {
+                     await safeDeferReply(interaction, { ephemeral: true });
+                     deferredThisInteraction = true;
+                 }
+                 await rerollUserTheme(interaction).catch(e => {
+                     console.error('[reroll-theme]', e);
+                     sendInteractionError(interaction, 'Failed to reroll theme.', true, deferredThisInteraction);
+                 });
                  return;
             }
             if (commandName === 'level') {
