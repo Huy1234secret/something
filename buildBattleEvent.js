@@ -8,6 +8,9 @@ const CHANNEL_ID = '1390743854487044136';
 const COUNTDOWN_END = 1753376400;
 // Signups close 2 days after the countdown finishes
 const SIGNUP_END = COUNTDOWN_END + 2 * 24 * 60 * 60;
+// Build battle ends 2 weeks after the countdown ends
+const BUILD_BATTLE_END = COUNTDOWN_END + 14 * 24 * 60 * 60;
+const ANNOUNCE_CHANNEL_ID = '1372572234949853367';
 
 const PARTICIPANT_ROLE_ID = '1389139329762332682';
 const LOG_CHANNEL_ID = '1383481711651721307';
@@ -133,7 +136,16 @@ async function disableJoinButton(message, data) {
   const row = new ActionRowBuilder().addComponents(
     ButtonBuilder.from(message.components[0].components[0]).setDisabled(true)
   );
-  await message.edit({ components: [row] }).catch(() => {});
+  const embed = EmbedBuilder.from(message.embeds[0] ?? {});
+  const fields = embed.data.fields ?? [];
+  const idx = fields.findIndex(f => f.name === 'Limited time only!⏳');
+  if (idx !== -1) {
+    fields[idx].value = '* The button is disabled';
+  } else {
+    fields.push({ name: 'Limited time only!⏳', value: '* The button is disabled' });
+  }
+  embed.setFields(fields);
+  await message.edit({ embeds: [embed], components: [row] }).catch(() => {});
   data.buttonDisabled = true;
   await saveData(data);
 }
@@ -143,6 +155,32 @@ async function scheduleDisable(message, data) {
   const delay = SIGNUP_END - now;
   if (delay <= 0) return disableJoinButton(message, data);
   setTimeout(() => disableJoinButton(message, data).catch(() => {}), delay * 1000);
+}
+
+async function endBuildBattle(message, client, data) {
+  if (data.eventEnded) return;
+  if (message) {
+    const embed = EmbedBuilder.from(message.embeds[0] ?? {});
+    embed.setDescription('* Build battle has ended');
+    await message.edit({ embeds: [embed] }).catch(() => {});
+  }
+  const announce = await client.channels.fetch(ANNOUNCE_CHANNEL_ID).catch(() => null);
+  if (announce && announce.isTextBased()) {
+    const endEmbed = new EmbedBuilder()
+      .setTitle('🏁 Build Battle Concluded!')
+      .setDescription('Thanks to everyone who participated!')
+      .setColor('#00AAFF');
+    await announce.send({ content: '@everyone', embeds: [endEmbed] }).catch(() => {});
+  }
+  data.eventEnded = true;
+  await saveData(data);
+}
+
+async function scheduleBattleEnd(message, client, data) {
+  const now = Math.floor(Date.now() / 1000);
+  const delay = BUILD_BATTLE_END - now;
+  if (delay <= 0) return endBuildBattle(message, client, data);
+  setTimeout(() => endBuildBattle(message, client, data).catch(() => {}), delay * 1000);
 }
 
 async function ensureSignupMessage(client, channel, data) {
@@ -155,6 +193,16 @@ async function ensureSignupMessage(client, channel, data) {
     const existing = await channel.messages.fetch(data.signUpMessageId).catch(() => null);
     if (existing) {
       if (!data.buttonDisabled) await scheduleDisable(existing, data);
+      await scheduleBattleEnd(existing, client, data);
+      const embed = EmbedBuilder.from(existing.embeds[0] ?? {});
+      const hasField = (embed.data.fields || []).some(f => f.name === 'Limited time only!⏳');
+      if (!hasField) {
+        const value = data.buttonDisabled
+          ? '* The button is disabled'
+          : `* The button disable <t:${SIGNUP_END}:R>\n* Build battle ends <t:${BUILD_BATTLE_END}:R>`;
+        embed.addFields({ name: 'Limited time only!⏳', value });
+        await existing.edit({ embeds: [embed] }).catch(() => {});
+      }
       return;
     }
   }
@@ -162,7 +210,11 @@ async function ensureSignupMessage(client, channel, data) {
     .setTitle('📝⚒️ Sign In for the Build Battle! 🚀')
     .setDescription('Ready to unleash your inner architect? Tap the button below ⬇️ to lock in your spot! The moment you click, a mystery theme materializes 🪄—and your countdown ⏱️ to creative glory begins.\n🏆 Build big, think bold, leave judges speechless!')
     .setColor('#FFFF00')
-    .setFooter({ text: 'this request ends in 2 days!' });
+    .setFooter({ text: 'this request ends in 2 days!' })
+    .addFields({
+      name: 'Limited time only!⏳',
+      value: `* The button disable <t:${SIGNUP_END}:R>\n* Build battle ends <t:${BUILD_BATTLE_END}:R>`
+    });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('join_build_battle').setLabel('JOIN EVENT').setStyle(ButtonStyle.Success)
@@ -173,6 +225,7 @@ async function ensureSignupMessage(client, channel, data) {
   data.buttonDisabled = false;
   await saveData(data);
   await scheduleDisable(message, data);
+  await scheduleBattleEnd(message, client, data);
 }
 
 async function initBuildBattleEvent(client) {
