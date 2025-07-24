@@ -2455,7 +2455,18 @@ this.db.prepare(`
         };
 
         for (const [oldId, newId] of Object.entries(mapping)) {
-            this.db.prepare('UPDATE userInventory SET itemId = ? WHERE itemId = ?').run(newId, oldId);
+            const rows = this.db.prepare('SELECT userId, guildId, quantity, itemType FROM userInventory WHERE itemId = ?').all(oldId);
+            const upsert = this.db.prepare(
+                `INSERT INTO userInventory (userId, guildId, itemId, quantity, itemType)
+                 VALUES (@userId, @guildId, @newId, @quantity, @itemType)
+                 ON CONFLICT(userId, guildId, itemId)
+                 DO UPDATE SET quantity = quantity + excluded.quantity`
+            );
+            for (const row of rows) {
+                upsert.run({ userId: row.userId, guildId: row.guildId, newId, quantity: row.quantity, itemType: row.itemType });
+            }
+            this.db.prepare('DELETE FROM userInventory WHERE itemId = ?').run(oldId);
+
             this.db.prepare('UPDATE userLootAlertSettings SET itemId = ? WHERE itemId = ?').run(newId, oldId);
             this.db.prepare('UPDATE guildShopItems SET itemId = ? WHERE itemId = ?').run(newId, oldId);
         }
