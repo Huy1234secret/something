@@ -273,6 +273,62 @@ function getRankEmoji(rank) {
     return '';
 }
 
+function calculateCategoryPoints(amount) {
+    if (amount >= 1000000) {
+        const digits = Math.floor(amount / 1000000);
+        return digits / 100 + 20;
+    }
+    if (amount >= 1000) {
+        const digits = Math.floor(amount / 1000);
+        return digits / 100 + 10;
+    }
+    const str = String(Math.floor(amount));
+    const digits = parseInt(str.substring(0, 3)) || 0;
+    return digits / 100;
+}
+
+function calculateUserPoints(user) {
+    const levelPts = (user.level || 0) / 10;
+    const coinPts = calculateCategoryPoints(user.totalCoins || 0);
+    const gemPts = calculateCategoryPoints(user.totalGems || 0);
+    const valuePts = calculateCategoryPoints(user.totalValue || 0);
+    const finalPts = (levelPts + coinPts + gemPts + valuePts) / 4;
+    return { ...user, levelPts, coinPts, gemPts, valuePts, finalPts };
+}
+
+async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs = 0) {
+    const embed = new EmbedBuilder()
+        .setColor('#ffffff')
+        .setTitle('🌟 Overall Leaderboard');
+
+    if (data.length === 0) {
+        embed.setDescription('No data available.');
+        return embed;
+    }
+
+    const lines = await Promise.all(data.map(async (user, idx) => {
+        let tag = 'Unknown User';
+        try {
+            const fetched = await client.users.fetch(user.userId);
+            tag = fetched.username;
+        } catch (err) {
+            console.error(`Error fetching user for overall leaderboard: ${user.userId}`, err);
+        }
+        const line1 = `${idx + 1}# ${tag}  -  ${user.finalPts.toFixed(2)}`;
+        const line2 = `${user.coinPts.toFixed(2)}  -  ${user.gemPts.toFixed(2)}  -  ${user.valuePts.toFixed(2)}  -  ${user.levelPts.toFixed(2)}`;
+        return `${line1}\n${line2}`;
+    }));
+
+    embed.setDescription(lines.join('\n'));
+    if (timeUntilNextUpdateMs > 0) {
+        const ts = Math.floor((Date.now() + timeUntilNextUpdateMs) / 1000);
+        embed.addFields({ name: 'Next Update', value: `<t:${ts}:R>`, inline: false });
+    }
+    embed.setFooter({ text: 'Last updated:' });
+    embed.setTimestamp();
+    return embed;
+}
+
 /**
  * Posts or updates the leaderboard message in the designated channel.
  * @param {import('discord.js').Client} client - The Discord.js client.
@@ -318,6 +374,12 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const valueRaw = systemsManager.getValueLeaderboard(guildId, 25);
         const valueData = valueRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
 
+        const overallRaw = systemsManager.getOverallStats(guildId);
+        const overallData = overallRaw
+            .map(u => calculateUserPoints(u))
+            .filter(u => !blacklistSet.has(u.userId))
+            .sort((a, b) => b.finalPts - a.finalPts);
+
         const leaderboardEmbed = await formatLeaderboardEmbed(
             leaderboardData,
             client,
@@ -328,6 +390,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, timeUntilNextDailyUpdate);
         const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, timeUntilNextDailyUpdate);
         const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, timeUntilNextDailyUpdate);
+        const overallEmbed = await formatOverallLeaderboardEmbed(overallData, client, timeUntilNextDailyUpdate);
 
         const components = [
             new ActionRowBuilder().addComponents(
@@ -372,7 +435,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
                 const oldMessage = await channel.messages.fetch(messageId);
                 if (oldMessage.author.id === client.user.id) { // Check if bot owns message
                     if (botPermissionsInChannel.has(PermissionsBitField.Flags.ManageMessages) || oldMessage.editable) { // Check editability
-                        await oldMessage.edit({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
+                        await oldMessage.edit({ embeds: [overallEmbed, leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
                         messageUpdated = true;
                     } else {
                          console.warn(`[Leaderboard] Cannot edit message ${messageId} (not editable or missing ManageMessages). Will post new.`);
@@ -389,7 +452,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         if (!settings.leaderboardMessageId && !messageUpdated) {
-            const newMessage = await channel.send({ embeds: [leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
+            const newMessage = await channel.send({ embeds: [overallEmbed, leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
             newMsgId = newMessage.id;
         }
         
@@ -489,6 +552,9 @@ module.exports = {
     formatCoinLeaderboardEmbed,
     formatGemLeaderboardEmbed,
     formatValueLeaderboardEmbed,
+    formatOverallLeaderboardEmbed,
+    calculateCategoryPoints,
+    calculateUserPoints,
     getMsUntilNextDailyUpdate,
     // LEVEL_TO_EMOJI_ID_MAP // No need to export this
 };

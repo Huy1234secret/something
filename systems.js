@@ -663,6 +663,31 @@ class SystemsManager {
         return results.slice(0, limit);
     }
 
+    getOverallStats(guildId) {
+        const users = this.db.prepare('SELECT userId, level, xp, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        return users.map(user => {
+            const totalCoins = (user.coins || 0) + (user.bankCoins || 0);
+            const totalGems = (user.gems || 0) + (user.bankGems || 0);
+            let totalValue = 0;
+            const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
+            const counted = new Set();
+            inventory.forEach(item => {
+                if (counted.has(item.itemId)) return;
+                counted.add(item.itemId);
+                const rarityValue = this._getItemMasterProperty(item.itemId, 'rarityValue', 0);
+                if (typeof rarityValue === 'number') totalValue += rarityValue;
+            });
+            return {
+                userId: user.userId,
+                level: user.level,
+                xp: user.xp,
+                totalCoins,
+                totalGems,
+                totalValue
+            };
+        });
+    }
+
     getCoinRank(userId, guildId, blacklistIds = []) {
         const users = this.db.prepare('SELECT userId, (coins + bankCoins) AS totalCoins FROM users WHERE guildId = ?').all(guildId);
         const filtered = users.filter(u => !blacklistIds.includes(u.userId));
