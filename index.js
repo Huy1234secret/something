@@ -8,6 +8,15 @@ const {
 const dotenv = require('dotenv');
 dotenv.config();
 
+// Automatically start the leaderboard web server unless explicitly disabled
+if (process.env.ENABLE_LEADERBOARD_WEB !== 'false') {
+    try {
+        require('./leaderboardServer');
+    } catch (err) {
+        console.error('[LeaderboardServer] Failed to start:', err);
+    }
+}
+
 const { initBuildBattleEvent, handleJoinInteraction } = require('./buildBattleEvent');
 const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
