@@ -305,6 +305,10 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
     }
 
     data = data.slice(0, 10);
+    const coinEmoji = client.levelSystem?.coinEmoji || '🪙';
+    const gemEmoji = client.levelSystem?.gemEmoji || '💎';
+    const valueEmoji = '<:sstar:1397839647656378419>';
+
     const lines = await Promise.all(data.map(async (user, idx) => {
         let tag = 'Unknown User';
         try {
@@ -313,8 +317,11 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
         } catch (err) {
             console.error(`Error fetching user for overall leaderboard: ${user.userId}`, err);
         }
-        const line = `${idx + 1}# ${tag}  -  ${user.finalPts.toFixed(2)} ${FINAL_POINTS_EMOJI}  ${user.coinPts.toFixed(2)}  -  ${user.gemPts.toFixed(2)}  -  ${user.valuePts.toFixed(2)}  -  ${user.levelPts.toFixed(2)}`;
-        return line;
+        const levelEmoji = LEVEL_TO_EMOJI_ID_MAP[Math.min(user.level, 40)] || '';
+        const medal = getRankEmoji(idx + 1);
+        const header = `${medal ? medal + ' ' : ''}### ${idx + 1}# <@${user.userId}> - ${user.finalPts.toFixed(2)} ${FINAL_POINTS_EMOJI}`;
+        const details = `-# ${coinEmoji} ${user.coinPts.toFixed(2)}pts - ${gemEmoji} ${user.gemPts.toFixed(2)}pts - ${valueEmoji} ${user.valuePts.toFixed(2)}pts - ${levelEmoji} ${user.levelPts.toFixed(2)}pts`;
+        return `${header}\n${details}`;
     }));
 
     embed.setDescription(lines.join('\n'));
