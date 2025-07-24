@@ -1311,7 +1311,7 @@ async function scheduleDailyLeaderboardUpdate(client) {
                 const settings = client.levelSystem.getGuildSettings(guildId);
                 if (settings.leaderboardChannelId) {
                     console.log(`[Leaderboard Scheduler] Attempting to update leaderboard for guild ${guild.name} (${guildId}).`);
-                    const result = await postOrUpdateLeaderboard(client, guildId, client.levelSystem, LEADERBOARD_LIMIT);
+                    const result = await postOrUpdateLeaderboard(client, guildId, client.levelSystem, LEADERBOARD_LIMIT, true);
                     if (result.success) {
                         console.log(`[Leaderboard Scheduler] Leaderboard for ${guild.name} ${result.updated ? 'updated' : 'posted'}.`);
                     } else {
