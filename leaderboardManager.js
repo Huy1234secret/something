@@ -1,6 +1,8 @@
 // leaderboardManager.js
 const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+const FINAL_POINTS_EMOJI = '<:bdpoint:1389238189671321672>';
+
 const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
 
 const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
@@ -302,6 +304,7 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
         return embed;
     }
 
+    data = data.slice(0, 10);
     const lines = await Promise.all(data.map(async (user, idx) => {
         let tag = 'Unknown User';
         try {
@@ -310,9 +313,8 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
         } catch (err) {
             console.error(`Error fetching user for overall leaderboard: ${user.userId}`, err);
         }
-        const line1 = `${idx + 1}# ${tag}  -  ${user.finalPts.toFixed(2)}`;
-        const line2 = `${user.coinPts.toFixed(2)}  -  ${user.gemPts.toFixed(2)}  -  ${user.valuePts.toFixed(2)}  -  ${user.levelPts.toFixed(2)}`;
-        return `${line1}\n${line2}`;
+        const line = `${idx + 1}# ${tag}  -  ${user.finalPts.toFixed(2)} ${FINAL_POINTS_EMOJI}  ${user.coinPts.toFixed(2)}  -  ${user.gemPts.toFixed(2)}  -  ${user.valuePts.toFixed(2)}  -  ${user.levelPts.toFixed(2)}`;
+        return line;
     }));
 
     embed.setDescription(lines.join('\n'));
@@ -358,34 +360,13 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             if (role) role.members.forEach(m => blacklistSet.add(m.id));
         }
 
-        const leaderboardRaw = systemsManager.getLeaderboard(guildId, limit * 5);
-        const leaderboardData = leaderboardRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, limit);
-
-        const coinRaw = systemsManager.getCoinLeaderboard(guildId, 25);
-        const coinData = coinRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
-
-        const gemRaw = systemsManager.getGemLeaderboard(guildId, 25);
-        const gemData = gemRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
-
-        const valueRaw = systemsManager.getValueLeaderboard(guildId, 25);
-        const valueData = valueRaw.filter(u => !blacklistSet.has(u.userId)).slice(0, 5);
-
         const overallRaw = systemsManager.getOverallStats(guildId);
         const overallData = overallRaw
             .map(u => calculateUserPoints(u))
             .filter(u => !blacklistSet.has(u.userId))
-            .sort((a, b) => b.finalPts - a.finalPts);
+            .sort((a, b) => b.finalPts - a.finalPts)
+            .slice(0, limit);
 
-        const leaderboardEmbed = await formatLeaderboardEmbed(
-            leaderboardData,
-            client,
-            guildId,
-            systemsManager,
-            timeUntilNextDailyUpdate
-        );
-        const coinEmbed = await formatCoinLeaderboardEmbed(coinData, client, timeUntilNextDailyUpdate);
-        const gemEmbed = await formatGemLeaderboardEmbed(gemData, client, timeUntilNextDailyUpdate);
-        const valueEmbed = await formatValueLeaderboardEmbed(valueData, client, timeUntilNextDailyUpdate);
         const overallEmbed = await formatOverallLeaderboardEmbed(overallData, client, timeUntilNextDailyUpdate);
 
         const components = [
@@ -431,7 +412,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
                 const oldMessage = await channel.messages.fetch(messageId);
                 if (oldMessage.author.id === client.user.id) { // Check if bot owns message
                     if (botPermissionsInChannel.has(PermissionsBitField.Flags.ManageMessages) || oldMessage.editable) { // Check editability
-                        await oldMessage.edit({ embeds: [overallEmbed, leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
+                        await oldMessage.edit({ embeds: [overallEmbed], components });
                         messageUpdated = true;
                     } else {
                          console.warn(`[Leaderboard] Cannot edit message ${messageId} (not editable or missing ManageMessages). Will post new.`);
@@ -448,7 +429,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         if (!settings.leaderboardMessageId && !messageUpdated) {
-            const newMessage = await channel.send({ embeds: [overallEmbed, leaderboardEmbed, coinEmbed, gemEmbed, valueEmbed], components });
+            const newMessage = await channel.send({ embeds: [overallEmbed], components });
             newMsgId = newMessage.id;
         }
         
