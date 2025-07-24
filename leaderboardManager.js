@@ -5,12 +5,8 @@ const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY
 
 const LEADERBOARD_BLACKLIST_ROLE_IDS = ['1381232791198367754', '1372979474857197688'];
 
-const LEADERBOARD_REWARD_ROLE_IDS = {
-    level: '1384876972844257352',
-    gem: '1384939346380984454',
-    coin: '1384939352236490842',
-    value: '1384939352412393493',
-};
+// Single reward role for overall leaderboard champion
+const LEADERBOARD_REWARD_ROLE_ID = '1384939352236490842';
 
 const FIRST_PLACE_ALERT_DELETE_TIMEOUT = 24 * 60 * 60 * 1000; // 1 day
 
@@ -483,47 +479,34 @@ async function updateLeaderboardRewards(client, guildId, systemsManager) {
             if (role) role.members.forEach(m => blacklistSet.add(m.id));
         }
 
-        const topLevel = systemsManager.getLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
-        const topCoin = systemsManager.getCoinLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
-        const topGem = systemsManager.getGemLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
-        const topValue = systemsManager.getValueLeaderboard(guildId, 5).find(u => !blacklistSet.has(u.userId));
+        const overallRaw = systemsManager.getOverallStats(guildId);
+        const overallData = overallRaw
+            .map(u => calculateUserPoints(u))
+            .filter(u => !blacklistSet.has(u.userId))
+            .sort((a, b) => b.finalPts - a.finalPts);
+        const topOverall = overallData[0];
 
-        const roleSpecs = [
-            { roleId: LEADERBOARD_REWARD_ROLE_IDS.level, userId: topLevel?.userId },
-            { roleId: LEADERBOARD_REWARD_ROLE_IDS.coin, userId: topCoin?.userId },
-            { roleId: LEADERBOARD_REWARD_ROLE_IDS.gem, userId: topGem?.userId },
-            { roleId: LEADERBOARD_REWARD_ROLE_IDS.value, userId: topValue?.userId },
-        ];
+        const roleSpec = { roleId: LEADERBOARD_REWARD_ROLE_ID, userId: topOverall?.userId };
 
         const newTops = {
-            topLevelUserId: topLevel?.userId || null,
-            topCoinUserId: topCoin?.userId || null,
-            topGemUserId: topGem?.userId || null,
-            topValueUserId: topValue?.userId || null,
+            topFinalUserId: topOverall?.userId || null,
         };
 
-        for (const [key, newId] of Object.entries(newTops)) {
-            const oldId = settings[key];
-            if (oldId !== newId) {
-                const type = key.replace('top', '').replace('UserId', '').toLowerCase();
-                const roleId = LEADERBOARD_REWARD_ROLE_IDS[type];
-                const role = guild.roles.cache.get(roleId);
-                await sendFirstPlaceAlert(guild, channelId, type, oldId, newId, role ? role.toString() : null);
-                settings[key] = newId;
-            }
+        const oldId = settings.topFinalUserId;
+        if (oldId !== newTops.topFinalUserId) {
+            const role = guild.roles.cache.get(LEADERBOARD_REWARD_ROLE_ID);
+            await sendFirstPlaceAlert(guild, channelId, 'overall', oldId, newTops.topFinalUserId, role ? role.toString() : null);
+            settings.topFinalUserId = newTops.topFinalUserId;
         }
 
         if (!guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) return;
 
-        for (const spec of roleSpecs) {
-            const role = guild.roles.cache.get(spec.roleId);
-            if (!role) continue;
-            if (guild.members.me.roles.highest.position <= role.position) continue;
-
+        const role = guild.roles.cache.get(roleSpec.roleId);
+        if (role && guild.members.me.roles.highest.position > role.position) {
             const currentMembers = Array.from(role.members.values());
-            const newMember = spec.userId ? guild.members.cache.get(spec.userId) : null;
+            const newMember = roleSpec.userId ? guild.members.cache.get(roleSpec.userId) : null;
 
-            if (newMember && !blacklistSet.has(spec.userId)) {
+            if (newMember && !blacklistSet.has(roleSpec.userId)) {
                 if (!newMember.roles.cache.has(role.id)) {
                     await newMember.roles.add(role).catch(() => {});
                 }
