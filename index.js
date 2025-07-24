@@ -3885,7 +3885,8 @@ module.exports = {
                      await safeDeferReply(interaction, { ephemeral: true });
                      deferredThisInteraction = true;
                  }
-                 await rerollUserTheme(interaction).catch(e => {
+                 const targetUser = interaction.options.getUser('user') || interaction.user;
+                 await rerollUserTheme(interaction, targetUser).catch(e => {
                      console.error('[reroll-theme]', e);
                      sendInteractionError(interaction, 'Failed to reroll theme.', true, deferredThisInteraction);
                  });

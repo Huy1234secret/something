@@ -273,23 +273,24 @@ async function handleJoinInteraction(interaction) {
   }
 }
 
-async function rerollUserTheme(interaction) {
+async function rerollUserTheme(interaction, targetUser = interaction.user) {
   const data = await loadData();
-  if (!data.userThemes || !data.userThemes[interaction.user.id]) {
-    return interaction.reply({ content: 'You have not joined the build battle.', ephemeral: true });
+  if (!data.userThemes || !data.userThemes[targetUser.id]) {
+    const msg = targetUser.id === interaction.user.id ? 'You have' : 'That user has';
+    return interaction.reply({ content: `${msg} not joined the build battle.`, ephemeral: true });
   }
   const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
-  data.userThemes[interaction.user.id] = theme;
+  data.userThemes[targetUser.id] = theme;
   await saveData(data);
-  await interaction.reply({ content: 'Check your DMs for your new theme!', ephemeral: true });
+  await interaction.reply({ content: `Check your DMs for the new theme!`, ephemeral: true });
   const embed = new EmbedBuilder()
     .setTitle('PSST')
-    .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+    .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
     .setFooter({ text: 'have fun!' });
-  await interaction.user.send({ embeds: [embed] }).catch(() => {});
+  await targetUser.send({ embeds: [embed] }).catch(() => {});
   const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
   if (logChannel && logChannel.isTextBased()) {
-    await logChannel.send({ content: `Username: ${interaction.user}\nTheme rerolled: ${theme}` }).catch(() => {});
+    await logChannel.send({ content: `Username: ${targetUser}\nTheme rerolled: ${theme}` }).catch(() => {});
   }
 }
 

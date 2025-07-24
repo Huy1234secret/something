@@ -3,8 +3,13 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reroll-theme')
-        .setDescription('Reroll your build battle theme.'),
+        .setDescription('Reroll a build battle theme for yourself or another user.')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('User to reroll the theme for')
+                .setRequired(false)
+        ),
     async execute(interaction) {
-        await interaction.reply({ content: 'Rerolling your theme...', ephemeral: true });
+        await interaction.reply({ content: 'Rerolling theme...', ephemeral: true });
     },
 };

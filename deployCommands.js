@@ -623,6 +623,18 @@ const commands = [
         description: 'Create a private build submission channel.'
     },
     {
+        name: 'reroll-theme',
+        description: 'Reroll a build battle theme for a user.',
+        options: [
+            {
+                name: 'user',
+                description: 'User to reroll the theme for',
+                type: ApplicationCommandOptionType.User,
+                required: false,
+            }
+        ]
+    },
+    {
         name: 'split-steal',
         description: 'Start a Split or Steal game between two users.',
         options: [
