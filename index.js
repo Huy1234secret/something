@@ -143,6 +143,8 @@ const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const NEW_MEMBER_ROLE_ID = '1372573060057530398';
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
 const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) || 7;
+// Hour of day (in UTC) to run the daily leaderboard update. 17 UTC == 24:00 UTC+7
+const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
@@ -1325,8 +1327,8 @@ async function scheduleDailyLeaderboardUpdate(client) {
     const scheduleNextRun = () => {
         const now = new Date();
         const nextUpdate = new Date(now);
-        // 24:00 in UTC+7 corresponds to 17:00 UTC
-        nextUpdate.setUTCHours(17, 0, 0, 0);
+        // 24:00 in UTC+7 corresponds to 17:00 UTC by default
+        nextUpdate.setUTCHours(LEADERBOARD_DAILY_UPDATE_HOUR_UTC, 0, 0, 0);
         if (nextUpdate <= now) {
             nextUpdate.setUTCDate(nextUpdate.getUTCDate() + 1);
         }
