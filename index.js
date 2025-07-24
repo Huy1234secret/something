@@ -46,7 +46,7 @@ const {
     ROBUX_WITHDRAWAL_COOLDOWN_MS // New constant from systems.js
 } = require('./systems.js');
 
-const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatOverallLeaderboardEmbed, calculateUserPoints, getMsUntilNextDailyUpdate } = require('./leaderboardManager.js');
+const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatOverallLeaderboardEmbed, calculateUserPoints, getMsUntilNextDailyUpdate, LEVEL_TO_EMOJI_ID_MAP, FINAL_POINTS_EMOJI } = require('./leaderboardManager.js');
 const DEFAULT_COIN_EMOJI_FALLBACK = '<:JAGcoin:1397581543354142881>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
@@ -6253,32 +6253,36 @@ module.exports = {
                 return;
             }
 
-            if (customId.startsWith('check_rank_')) {
+            if (customId === 'check_rank') {
                 if (!interaction.guild) return sendInteractionError(interaction, 'Rank check requires a server context.', true);
                 if (!interaction.isButton()) return;
                 if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
-                const type = customId.replace('check_rank_', '');
-                await interaction.guild.members.fetch().catch(()=>{});
+                await interaction.guild.members.fetch().catch(() => {});
                 const blacklistSet = new Set();
                 for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
                     const role = interaction.guild.roles.cache.get(rId);
                     if (role) role.members.forEach(m => blacklistSet.add(m.id));
                 }
-                let replyMsg = 'Rank info unavailable.';
-                if (type === 'level') {
-                    const info = client.levelSystem.getLevelInfo(interaction.user.id, interaction.guild.id);
-                    replyMsg = `Your level rank is **#${info.rank}**.`;
-                } else if (type === 'coins') {
-                    const data = client.levelSystem.getCoinRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
-                    replyMsg = `Your coins rank is **#${data.rank}** with ${data.totalCoins.toLocaleString()} coins.`;
-                } else if (type === 'gems') {
-                    const data = client.levelSystem.getGemRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
-                    replyMsg = `Your gems rank is **#${data.rank}** with ${data.totalGems.toLocaleString()} gems.`;
-                } else if (type === 'value') {
-                    const data = client.levelSystem.getValueRank(interaction.user.id, interaction.guild.id, Array.from(blacklistSet));
-                    replyMsg = `Your value rank is **#${data.rank}** with total value ${data.totalValue.toLocaleString()}.`;
+                const overallRaw = client.levelSystem.getOverallStats(interaction.guild.id);
+                const overallData = overallRaw
+                    .map(u => calculateUserPoints(u))
+                    .filter(u => !blacklistSet.has(u.userId))
+                    .sort((a, b) => b.finalPts - a.finalPts);
+
+                let userData = overallData.find(u => u.userId === interaction.user.id);
+                const rank = userData ? overallData.indexOf(userData) + 1 : overallData.length + 1;
+                if (!userData) {
+                    const selfRaw = overallRaw.find(u => u.userId === interaction.user.id) || client.levelSystem.getUser(interaction.user.id, interaction.guild.id);
+                    userData = calculateUserPoints(selfRaw);
                 }
-                await safeEditReply(interaction, { content: replyMsg, ephemeral: true });
+
+                const coinEmoji = client.levelSystem?.coinEmoji || '🪙';
+                const gemEmoji = client.levelSystem?.gemEmoji || '💎';
+                const valueEmoji = '<:sstar:1397839647656378419>';
+                const levelEmoji = LEVEL_TO_EMOJI_ID_MAP[Math.min(userData.level, 40)] || '';
+                const desc = `${coinEmoji} Coin: ${userData.coinPts.toFixed(2)}pts\n${gemEmoji} Gem: ${userData.gemPts.toFixed(2)}pts\n${valueEmoji} Value: ${userData.valuePts.toFixed(2)}pts\n${levelEmoji} Level: ${userData.levelPts.toFixed(2)}pts\n-----------------------------------\n${FINAL_POINTS_EMOJI} Final Score: ${userData.finalPts.toFixed(2)}pts`;
+                const embed = new EmbedBuilder().setColor('#0099FF').setTitle(`You are ranked ${rank}`).setDescription(desc);
+                await safeEditReply(interaction, { embeds: [embed], ephemeral: true });
                 return;
             }
 
