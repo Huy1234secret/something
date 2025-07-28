@@ -22,7 +22,7 @@ const config = {
         NON_DAILY_NOTIFICATIONS_ENABLED: true,
 
         BASE_COINS_PER_MESSAGE: [1, 10],
-        BASE_XP_PER_MESSAGE: 15,
+        BASE_XP_PER_MESSAGE: 1,
         XP_COOLDOWN_SECONDS: 60,
         VOICE_XP_PER_INTERVAL: 5,
         VOICE_COIN_PER_INTERVAL: [1, 2],
