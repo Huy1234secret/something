@@ -13,6 +13,7 @@ class MusicQueue {
         this.player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Pause } });
         this.connection = null;
         this.volume = 0.5; // default volume
+        this.retryLimit = 2;
         this.player.on(AudioPlayerStatus.Idle, () => {
             this.queue.shift();
             this.playNext();
@@ -51,9 +52,17 @@ class MusicQueue {
             return;
         }
         const { url } = this.queue[0];
+        await this._playUrl(url, 0);
+    }
+
+    async _playUrl(url, attempt = 0) {
         try {
             const stream = ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 });
             stream.on('error', async (streamErr) => {
+                if (this._is410(streamErr) && attempt < this.retryLimit) {
+                    setTimeout(() => this._playUrl(url, attempt + 1), 1000);
+                    return;
+                }
                 console.error('Stream error:', streamErr);
                 if (streamErr && streamErr.statusCode === 410) {
                     console.warn('Trying play-dl fallback due to 410...');
@@ -74,6 +83,10 @@ class MusicQueue {
             resource.volume.setVolume(this.volume);
             this.player.play(resource);
         } catch (err) {
+            if (this._is410(err) && attempt < this.retryLimit) {
+                setTimeout(() => this._playUrl(url, attempt + 1), 1000);
+                return;
+            }
             console.error('Music play error:', err);
             if (err && err.statusCode === 410) {
                 console.warn('Audio resource unavailable (410). Trying play-dl fallback...');
@@ -90,6 +103,13 @@ class MusicQueue {
             this.queue.shift();
             await this.playNext();
         }
+    }
+
+    _is410(error) {
+        return (
+            error &&
+            (error.statusCode === 410 || (error.message && error.message.includes('410')))
+        );
     }
 
     skip() {
