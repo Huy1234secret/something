@@ -2457,7 +2457,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             if (wk.currency && wk.currency > 1) coinBoost += (wk.currency - 1) * 100;
             if (wk.gem && wk.gem > 1) gemBoost += (wk.gem - 1) * 100;
             if (wk.xp && wk.xp > 1) {
-                const baseXp = systemsManager.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
+                const baseXp = systemsManager.gameConfig.globalSettings.BASE_XP_PER_MESSAGE || XP_PER_MESSAGE_BASE;
                 xpBoost += (baseXp + xpBoost) * (wk.xp - 1);
             }
 
@@ -2857,9 +2857,9 @@ client.on('messageCreate', async message => {
         let xpResult;
         try {
             // Use configured XP per message, fallback to global const
-            const configuredXpPerMessage = client.levelSystem.gameConfig.globalSettings.BASE_XP_PER_MESSAGE[0] || XP_PER_MESSAGE_BASE;
-            const xpWithPerks = configuredXpPerMessage + (rolePerkData.totals.xpPerMessage || 0);
-            xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, xpWithPerks, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
+            const configuredXpPerMessage = client.levelSystem.gameConfig.globalSettings.BASE_XP_PER_MESSAGE || XP_PER_MESSAGE_BASE;
+            // Role perks are handled in addXP to avoid double counting
+            xpResult = await client.levelSystem.addXP(message.author.id, message.guild.id, configuredXpPerMessage, member, false, WEEKEND_MULTIPLIERS.xp); // Pass current weekend XP multiplier
             if (xpResult.leveledUp) {
                 const gemReward = Math.pow(xpResult.newLevel, 2);
                 client.levelSystem.addGems(message.author.id, message.guild.id, gemReward, "level_up");
