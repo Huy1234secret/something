@@ -696,59 +696,6 @@ const commands = [
             },
         ]
     },
-    // Music commands
-    {
-        name: 'play',
-        description: 'Play music from a YouTube link',
-        options: [
-            {
-                name: 'url',
-                description: 'YouTube URL',
-                type: ApplicationCommandOptionType.String,
-                required: true,
-            }
-        ]
-    },
-    {
-        name: 'skip',
-        description: 'Skip the current song'
-    },
-    {
-        name: 'stop',
-        description: 'Stop playback and clear the queue'
-    },
-    {
-        name: 'pause',
-        description: 'Pause the current song'
-    },
-    {
-        name: 'resume',
-        description: 'Resume playback'
-    },
-    {
-        name: 'queue',
-        description: 'Show the current music queue'
-    },
-    {
-        name: 'nowplaying',
-        description: 'Show the currently playing song'
-    },
-    {
-        name: 'volume',
-        description: 'Set playback volume (0-100)',
-        options: [
-            {
-                name: 'level',
-                description: 'Volume level (0-100)',
-                type: ApplicationCommandOptionType.Integer,
-                required: true,
-            }
-        ]
-    },
-    {
-        name: 'shuffle',
-        description: 'Shuffle the queue'
-    }
 ];
 
 async function deployCommands(token = process.env.DISCORD_TOKEN, clientId = process.env.CLIENT_ID, guildId = process.env.GUILD_ID) {
