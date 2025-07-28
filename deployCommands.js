@@ -696,6 +696,22 @@ const commands = [
             },
         ]
     },
+    {
+        name: 'play',
+        description: 'Play YouTube audio in your voice channel.',
+        options: [
+            {
+                name: 'url',
+                description: 'YouTube URL',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
+    },
+    {
+        name: 'stop',
+        description: 'Stop audio playback and leave the voice channel.',
+    },
 ];
 
 async function deployCommands(token = process.env.DISCORD_TOKEN, clientId = process.env.CLIENT_ID, guildId = process.env.GUILD_ID) {
