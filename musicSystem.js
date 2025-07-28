@@ -67,57 +67,41 @@ class MusicQueue {
 
     async _playUrl(url) {
         try {
-            const stream = ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 });
-            stream.on('error', async (streamErr) => {
-                if ((streamErr && streamErr.statusCode === 410) || (streamErr.message && streamErr.message.includes('410'))) {
+            const pd = await play.stream(url);
+            const resource = createAudioResource(pd.stream, { inputType: pd.type, inlineVolume: true });
+            resource.volume.setVolume(this.volume);
+            this.player.play(resource);
+        } catch (playErr) {
+            console.error('play-dl error:', playErr);
+            try {
+                const stream = ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 });
+                stream.on('error', async (streamErr) => {
+                    if ((streamErr && streamErr.statusCode === 410) || (streamErr.message && streamErr.message.includes('410'))) {
+                        if (this.playRetries < this.retryLimit) {
+                            this.playRetries++;
+                            setTimeout(() => this._playUrl(url), 1000);
+                            return;
+                        }
+                    }
+                    console.error('Stream error:', streamErr);
+                    this.queue.shift();
+                    this.playNext();
+                });
+                const res = createAudioResource(stream, { inputType: StreamType.Arbitrary, inlineVolume: true });
+                res.volume.setVolume(this.volume);
+                this.player.play(res);
+            } catch (err) {
+                if ((err && err.statusCode === 410) || (err.message && err.message.includes('410'))) {
                     if (this.playRetries < this.retryLimit) {
                         this.playRetries++;
                         setTimeout(() => this._playUrl(url), 1000);
                         return;
                     }
                 }
-                console.error('Stream error:', streamErr);
-                if (streamErr && streamErr.statusCode === 410) {
-                    console.warn('Trying play-dl fallback due to 410...');
-                    try {
-                        const pd = await play.stream(url);
-                        const res = createAudioResource(pd.stream, { inputType: pd.type, inlineVolume: true });
-                        res.volume.setVolume(this.volume);
-                        this.player.play(res);
-                        return;
-                    } catch (fallbackErr) {
-                        console.error('play-dl error:', fallbackErr);
-                    }
-                }
+                console.error('Music play error:', err);
                 this.queue.shift();
-                this.playNext();
-            });
-            const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary, inlineVolume: true });
-            resource.volume.setVolume(this.volume);
-            this.player.play(resource);
-        } catch (err) {
-            if ((err && err.statusCode === 410) || (err.message && err.message.includes('410'))) {
-                if (this.playRetries < this.retryLimit) {
-                    this.playRetries++;
-                    setTimeout(() => this._playUrl(url), 1000);
-                    return;
-                }
+                await this.playNext();
             }
-            console.error('Music play error:', err);
-            if (err && err.statusCode === 410) {
-                console.warn('Audio resource unavailable (410). Trying play-dl fallback...');
-                try {
-                    const pd = await play.stream(url);
-                    const res = createAudioResource(pd.stream, { inputType: pd.type, inlineVolume: true });
-                    res.volume.setVolume(this.volume);
-                    this.player.play(res);
-                    return;
-                } catch (fallbackErr) {
-                    console.error('play-dl error:', fallbackErr);
-                }
-            }
-            this.queue.shift();
-            await this.playNext();
         }
     }
 

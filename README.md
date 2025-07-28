@@ -15,4 +15,11 @@ npm install discord-player@latest
 npm install @discordjs/voice@latest
 ```
 
+If you continue having problems with `ytdl-core`, consider switching to `play-dl` as the main
+stream provider:
+
+```bash
+npm install play-dl@latest
+```
+
 Avoid caching YouTube links; always fetch a fresh stream.
