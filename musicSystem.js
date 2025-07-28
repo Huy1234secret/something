@@ -1,5 +1,7 @@
 const { ensureOpus } = require('./utils/opusInstaller');
+const { ensureLatestYtdlCore } = require('./utils/ytdlUpdater');
 ensureOpus();
+ensureLatestYtdlCore();
 
 const { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, StreamType, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
