@@ -8,6 +8,7 @@ module.exports = {
     async execute(interaction) {
         const queue = getQueue(interaction.guild.id);
         queue.stop();
-        await interaction.reply({ content: 'Stopped playback and cleared queue.' });
+        const method = interaction.deferred || interaction.replied ? 'editReply' : 'reply';
+        await interaction[method]({ content: 'Stopped playback and cleared queue.' });
     }
 };

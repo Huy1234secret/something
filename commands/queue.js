@@ -8,12 +8,13 @@ module.exports = {
     async execute(interaction) {
         const queue = getQueue(interaction.guild.id);
         const list = queue.list();
+        const method = interaction.deferred || interaction.replied ? 'editReply' : 'reply';
         if (!list.length) {
-            return interaction.reply({ content: 'The queue is empty.', ephemeral: true });
+            return interaction[method]({ content: 'The queue is empty.', ephemeral: true });
         }
         const embed = new EmbedBuilder()
             .setTitle('Music Queue')
             .setDescription(list.map((item, idx) => `${idx + 1}. ${item.url}`).join('\n'));
-        await interaction.reply({ embeds: [embed] });
+        await interaction[method]({ embeds: [embed] });
     }
 };
