@@ -1180,14 +1180,21 @@ function buildWeekendAnnouncementEmbed(client, enabled) {
 function buildWeekendStatusEmbed(enabled) {
     const endDate = enabled ? getCurrentWeekendEndDate() : getNextWeekendStartDate();
     const countdown = endDate ? `<t:${Math.floor(endDate.getTime()/1000)}:R>` : 'unknown';
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setColor(enabled ? 0x2ECC71 : 0xE74C3C)
         .setTitle('Weekend Boss Status')
-        .setDescription(enabled ? `### * Active! <:sno:1392188104202387647>\n-# Ending ${countdown}` : `### * Not active! <:sno:1392188104202387647>\n-# Enabling ${countdown}`)
-        .addFields({
+        .setDescription(enabled ?
+            `### * Active! <:sno:1392188104202387647>\n-# Ending ${countdown}` :
+            `### * Not active! <:sno:1392188104202387647>\n-# Enabling ${countdown}`);
+
+    if (enabled) {
+        embed.addFields({
             name: 'Boosts \uD83D\uDCC8',
             value: ` * ×2 all Coin earning <:scoinmulti:1384503519330959380>!\n* ×2 all Gem earning <:sgemmulti:1384507113048506428>!\n* ×2 Shop's Stock \uD83D\uDCE6!\n* Weekend discount! 🤑\n-# discount up to 100%!`
         });
+    }
+
+    return embed;
 }
 
 async function ensureWeekendStatusMessage(client, enabled, forceUpdate = false) {
