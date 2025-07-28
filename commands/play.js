@@ -12,7 +12,7 @@ module.exports = {
                 .setRequired(true)),
     async execute(interaction) {
         const url = interaction.options.getString('url');
-        await interaction.deferReply();
+        // The parent handler already deferred the interaction if needed.
 
         if (!playdl.yt_validate(url)) {
             return interaction.editReply('❌ Please provide a valid YouTube URL.');
