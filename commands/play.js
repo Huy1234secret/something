@@ -2,6 +2,15 @@ const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 const playdl = require('play-dl');
 
+// Allow authenticated YouTube access if a cookie is provided via env variable
+if (process.env.YT_COOKIE) {
+    playdl.setToken({
+        youtube: {
+            cookie: process.env.YT_COOKIE,
+        },
+    });
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
