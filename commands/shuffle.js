@@ -8,10 +8,11 @@ module.exports = {
     async execute(interaction) {
         const queue = getQueue(interaction.guild.id);
         const list = queue.list();
+        const method = interaction.deferred || interaction.replied ? 'editReply' : 'reply';
         if (list.length <= 1) {
-            return interaction.reply({ content: 'Not enough songs in queue to shuffle.', ephemeral: true });
+            return interaction[method]({ content: 'Not enough songs in queue to shuffle.', ephemeral: true });
         }
         queue.shuffle();
-        await interaction.reply({ content: 'Queue shuffled.' });
+        await interaction[method]({ content: 'Queue shuffled.' });
     }
 };

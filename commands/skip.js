@@ -8,6 +8,7 @@ module.exports = {
     async execute(interaction) {
         const queue = getQueue(interaction.guild.id);
         queue.skip();
-        await interaction.reply({ content: 'Skipped current song.' });
+        const method = interaction.deferred || interaction.replied ? 'editReply' : 'reply';
+        await interaction[method]({ content: 'Skipped current song.' });
     }
 };

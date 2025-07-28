@@ -1,3 +1,6 @@
+const { ensureOpus } = require('./utils/opusInstaller');
+ensureOpus();
+
 const { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, StreamType, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
 
@@ -42,11 +45,19 @@ class MusicQueue {
         const { url } = this.queue[0];
         try {
             const stream = ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 });
+            stream.on('error', (streamErr) => {
+                console.error('Stream error:', streamErr);
+                this.queue.shift();
+                this.playNext();
+            });
             const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary, inlineVolume: true });
             resource.volume.setVolume(this.volume);
             this.player.play(resource);
         } catch (err) {
             console.error('Music play error:', err);
+            if (err && err.statusCode === 410) {
+                console.warn('Audio resource unavailable (410). Skipping.');
+            }
             this.queue.shift();
             await this.playNext();
         }

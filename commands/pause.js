@@ -8,6 +8,7 @@ module.exports = {
     async execute(interaction) {
         const queue = getQueue(interaction.guild.id);
         queue.pause();
-        await interaction.reply({ content: 'Paused playback.' });
+        const method = interaction.deferred || interaction.replied ? 'editReply' : 'reply';
+        await interaction[method]({ content: 'Paused playback.' });
     }
 };
