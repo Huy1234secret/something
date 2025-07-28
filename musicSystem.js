@@ -14,6 +14,11 @@ class MusicQueue {
             this.queue.shift();
             this.playNext();
         });
+        this.player.on('error', (err) => {
+            console.error('Audio player error:', err);
+            this.queue.shift();
+            this.playNext();
+        });
     }
 
     async connect(voiceChannel) {
