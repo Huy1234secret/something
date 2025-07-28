@@ -142,6 +142,7 @@ const CHARM_ALERT_CHANNEL_ID = process.env.CHARM_ALERT_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
 const NEW_MEMBER_ROLE_ID = '1372573060057530398';
 const WEEKEND_ANNOUNCEMENT_CHANNEL_ID = process.env.WEEKEND_ANNOUNCEMENT_CHANNEL_ID || LOOTBOX_DROP_CHANNEL_ID;
+const WEEKEND_STATUS_CHANNEL_ID = '1399362726312153198';
 const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) || 7;
 // Hour of day (in UTC) to run the daily leaderboard update. 17 UTC == 24:00 UTC+7
 const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
@@ -1176,6 +1177,35 @@ function buildWeekendAnnouncementEmbed(client, enabled) {
     return embed;
 }
 
+function buildWeekendStatusEmbed(enabled) {
+    const endDate = enabled ? getCurrentWeekendEndDate() : getNextWeekendStartDate();
+    const countdown = endDate ? `<t:${Math.floor(endDate.getTime()/1000)}:R>` : 'unknown';
+    return new EmbedBuilder()
+        .setColor(enabled ? 0x2ECC71 : 0xE74C3C)
+        .setTitle('Weekend Boss Status')
+        .setDescription(enabled ? `### * Active! <:sno:1392188104202387647>\n-# Ending ${countdown}` : `### * Not active! <:sno:1392188104202387647>\n-# Enabling ${countdown}`)
+        .addFields({
+            name: 'Boosts \uD83D\uDCC8',
+            value: ` * ×2 all Coin earning <:scoinmulti:1384503519330959380>!\n* ×2 all Gem earning <:sgemmulti:1384507113048506428>!\n* ×2 Shop's Stock \uD83D\uDCE6!\n* Weekend discount! 🤑\n-# discount up to 100%!`
+        });
+}
+
+async function ensureWeekendStatusMessage(client, enabled, forceUpdate = false) {
+    const ch = await client.channels.fetch(WEEKEND_STATUS_CHANNEL_ID).catch(() => null);
+    if (!ch || !ch.isTextBased()) return;
+    const settings = client.levelSystem.getGuildSettings(ch.guildId);
+    let existing = null;
+    if (settings.weekendStatusMessageId) {
+        existing = await ch.messages.fetch(settings.weekendStatusMessageId).catch(() => null);
+        if (!existing) client.levelSystem.setGuildSettings(ch.guildId, { weekendStatusMessageId: null });
+    }
+    if (!existing || forceUpdate) {
+        if (existing && existing.deletable) await existing.delete().catch(() => {});
+        const msg = await ch.send({ embeds: [buildWeekendStatusEmbed(enabled)] }).catch(() => null);
+        if (msg) client.levelSystem.setGuildSettings(ch.guildId, { weekendStatusMessageId: msg.id });
+    }
+}
+
 
 
 async function refreshShopDisplayForGuild(guildIdToRefresh, clientInstance) {
@@ -1503,6 +1533,7 @@ async function scheduleWeekendBoosts(client) {
             Boost is ON from 00:00 Saturday to 00:00 Monday UTC+7.
             Any other moment ⇒ boost OFF.
         */
+        const prevGlobalState = WEEKEND_BOOST_ACTIVE;
         const isCurrentlyWeekend = isDateInWeekendRange(current);
 
         if (!isCurrentlyWeekend) {
@@ -1630,6 +1661,7 @@ async function scheduleWeekendBoosts(client) {
                 }
             }
         }
+        await ensureWeekendStatusMessage(client, isCurrentlyWeekend, isCurrentlyWeekend !== prevGlobalState);
     };
 
     const scheduleNextBoundary = () => {
