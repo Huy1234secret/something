@@ -2,11 +2,17 @@ const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 const playdl = require('play-dl');
 
-// Allow authenticated YouTube access if a cookie is provided via env variable
-if (process.env.YT_COOKIE) {
+// Hardcoded YouTube cookie for authenticated access
+const YT_COOKIE =
+  "SID=g.a000zQj5D7Z0Z9x037QE_AGNEDAdp1OnrypLt_nPpCMegw9mi92hbcaNrPINuN6Opp2zcF4MbQACgYKAYwSARASFQHGX2MiE9BUhbiTBZigYlJStP-C_BoVAUF8yKr0807F-t93GI11s9qSd_Ig0076; HSID=Axzqy65PdufuUx4vv; SSID=AYH3ihpBSNN9fIhya; SAPISID=Toi2BQEtoKzsPKsb/A3VXYHQ8523zxcZ6y;";
+
+// Allow authenticated YouTube access from env variable or fallback to hardcoded cookie
+const ytCookie = process.env.YT_COOKIE || YT_COOKIE;
+
+if (ytCookie) {
     playdl.setToken({
         youtube: {
-            cookie: process.env.YT_COOKIE,
+            cookie: ytCookie,
         },
     });
 }
