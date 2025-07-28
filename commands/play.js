@@ -2,6 +2,13 @@ const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 const playdl = require('play-dl');
 
+// Use a YouTube cookie for authenticated streaming
+playdl.setToken({
+    youtube: {
+        cookie: 'SID=g.a000zQj5D7Z0Z9x037QE_AGNEDAdp1OnrypLt_nPpCMegw9mi92hbcaNrPINuN6Opp2zcF4MbQACgYKAYwSARASFQHGX2MiE9BUhbiTBZigYlJStP-C_BoVAUF8yKr0807F-t93GI11s9qSd_Ig0076; HSID=Axzqy65PdufuUx4vv; SSID=AYH3ihpBSNN9fIhya; SAPISID=Toi2BQEtoKzsPKsb/A3VXYHQ8523zxcZ6y;'
+    },
+});
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
