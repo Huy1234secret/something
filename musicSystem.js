@@ -5,6 +5,7 @@ ensureLatestYtdlCore();
 
 const { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, StreamType, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
+const play = require('play-dl');
 
 class MusicQueue {
     constructor() {
@@ -52,8 +53,20 @@ class MusicQueue {
         const { url } = this.queue[0];
         try {
             const stream = ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 });
-            stream.on('error', (streamErr) => {
+            stream.on('error', async (streamErr) => {
                 console.error('Stream error:', streamErr);
+                if (streamErr && streamErr.statusCode === 410) {
+                    console.warn('Trying play-dl fallback due to 410...');
+                    try {
+                        const pd = await play.stream(url);
+                        const res = createAudioResource(pd.stream, { inputType: pd.type, inlineVolume: true });
+                        res.volume.setVolume(this.volume);
+                        this.player.play(res);
+                        return;
+                    } catch (fallbackErr) {
+                        console.error('play-dl error:', fallbackErr);
+                    }
+                }
                 this.queue.shift();
                 this.playNext();
             });
@@ -63,7 +76,16 @@ class MusicQueue {
         } catch (err) {
             console.error('Music play error:', err);
             if (err && err.statusCode === 410) {
-                console.warn('Audio resource unavailable (410). Skipping.');
+                console.warn('Audio resource unavailable (410). Trying play-dl fallback...');
+                try {
+                    const pd = await play.stream(url);
+                    const res = createAudioResource(pd.stream, { inputType: pd.type, inlineVolume: true });
+                    res.volume.setVolume(this.volume);
+                    this.player.play(res);
+                    return;
+                } catch (fallbackErr) {
+                    console.error('play-dl error:', fallbackErr);
+                }
             }
             this.queue.shift();
             await this.playNext();
