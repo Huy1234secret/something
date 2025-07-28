@@ -23,3 +23,15 @@ npm install play-dl@latest
 ```
 
 Avoid caching YouTube links; always fetch a fresh stream.
+
+## Handling YouTube verification
+
+If `play-dl` fails with a message like `Sign in to confirm you're not a bot`,
+YouTube requires a valid account cookie.  Set the cookie string in the `YT_COOKIE`
+environment variable before starting the bot:
+
+```bash
+export YT_COOKIE="PREF=...; SID=...;"
+```
+
+The `musicSystem` module automatically applies this cookie when available.

@@ -6,6 +6,8 @@ ensureLatestYtdlCore();
 const { joinVoiceChannel, createAudioPlayer, NoSubscriberBehavior, createAudioResource, StreamType, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
 const play = require('play-dl');
+const { applyPlayDlCookie } = require('./utils/playDlToken');
+applyPlayDlCookie();
 
 class MusicQueue {
     constructor() {
