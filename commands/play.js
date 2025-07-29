@@ -1,6 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, AudioPlayerStatus } = require('@discordjs/voice');
-const ytdlp = require('yt-dlp-exec');
+let ytdlp;
+try {
+    ytdlp = require('yt-dlp-exec');
+} catch (err) {
+    console.error("Missing dependency: yt-dlp-exec. Please run 'npm install' before starting the bot.");
+    throw err;
+}
 const serverQueue = require('../queueManager');
 
 function createControlPanel(song, queue, playerState) {

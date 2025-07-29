@@ -23,3 +23,6 @@ Alternatively, run the provided **start.sh** script which will run `install_deps
 ```bash
 bash start.sh
 ```
+
+## Troubleshooting
+If you see an error like `Cannot find module 'yt-dlp-exec'`, make sure you have installed dependencies by running `npm install` or the provided `install_deps.sh` script.
