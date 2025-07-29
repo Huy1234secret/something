@@ -10,7 +10,7 @@ Run the installation script which automatically installs all required dependenci
 sudo bash install_deps.sh
 ```
 
-This script ensures Node.js (v16 or higher) and Python 3 are present, creates the `python` symlink needed for `yt-dlp-exec`, and installs the Node.js packages with `npm install`.
+This script ensures Node.js (v16 or higher) is installed and then installs the required Node.js packages with `npm install`.
 
 You can then start the bot with:
 
@@ -40,4 +40,4 @@ node index.js
 ```
 
 ## Troubleshooting
-If you see an error like `Cannot find module 'yt-dlp-exec'`, make sure you have installed dependencies by running `npm install` or the provided `install_deps.sh` script.
+If you encounter missing package errors, ensure dependencies are installed by running `npm install` or the provided `install_deps.sh` script.

@@ -3,7 +3,7 @@
 # Useful for bot-hosting environments that already provide Node.js.
 set -e
 
-if [ ! -d node_modules/yt-dlp-exec ]; then
+if [ ! -d node_modules ]; then
     echo "Installing Node.js packages..."
     npm install
 else

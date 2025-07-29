@@ -2618,13 +2618,6 @@ function getSessionBuilderComponents(sessionId) {
 client.once('ready', async c => {
     console.log(`Logged in as ${c.user.tag}! Bot is ready at ${new Date().toISOString()}.`);
     startGitHubWebhookServer(c);
-    exec('ffmpeg -version', (error) => {
-        if (error) {
-            console.error(`❌ FFmpeg not found: ${error.message}`);
-        } else {
-            console.log(`✅ FFmpeg is available.`);
-        }
-    });
 
     try {
         await getDeployCommands()();
@@ -6812,18 +6805,6 @@ module.exports = {
                         await channel.send({ embeds: [embed] }).catch(() => {});
                     }
                     splitStealGames.delete(gameId);
-                }
-                return;
-            }
-            if (customId === "music_pause_resume" || customId === "music_skip" || customId === "music_stop") {
-                if (!interaction.isButton()) return;
-                const command = interaction.client.commands.get(interaction.message.interaction.commandName);
-                if (!command || !command.handleButton) return;
-                try {
-                    await command.handleButton(interaction);
-                } catch (error) {
-                    console.error(error);
-                    await interaction.reply({ content: "There was an error handling this button!", ephemeral: true }).catch(() => {});
                 }
                 return;
             }
