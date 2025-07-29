@@ -93,6 +93,18 @@ const ITEM_IDS = {
     SEAWEED: gameConfig.items.seaweed?.id || 'seaweed',
 };
 
+const NON_USABLE_ITEM_IDS = [
+    ITEM_IDS.DISCOUNT_10,
+    ITEM_IDS.DISCOUNT_25,
+    ITEM_IDS.DISCOUNT_50,
+    ITEM_IDS.DISCOUNT_100,
+    ITEM_IDS.DAILY_SKIP_TICKET,
+    ITEM_IDS.KING_KEY,
+    ITEM_IDS.GIFTCARD_10,
+    ITEM_IDS.GIFTCARD_25,
+    ITEM_IDS.GIFTCARD_50,
+];
+
 const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -3233,13 +3245,7 @@ client.on('interactionCreate', async interaction => {
                     ...userInventoryCategorized.lootBoxes,
                     ...userInventoryCategorized.cosmicTokens,
                     ...userInventoryCategorized.charms
-                ].filter(i => ![
-                    ITEM_IDS.DISCOUNT_10,
-                    ITEM_IDS.DISCOUNT_25,
-                    ITEM_IDS.DISCOUNT_50,
-                    ITEM_IDS.DISCOUNT_100,
-                    ITEM_IDS.DAILY_SKIP_TICKET
-                ].includes(i.itemId));
+                ].filter(i => !NON_USABLE_ITEM_IDS.includes(i.itemId));
                 choices = usableItems
                     .filter(item => item.name.toLowerCase().includes(searchTerm) || item.itemId.toLowerCase().includes(searchTerm))
                     .map(item => ({ name: `${item.name} (Qty: ${item.quantity}, ID: ${item.itemId})`, value: item.itemId }))
@@ -3887,6 +3893,7 @@ module.exports = {
                      const itemToUse = [...userInventoryCategorized.generalItems, ...userInventoryCategorized.lootBoxes, ...userInventoryCategorized.cosmicTokens, ...userInventoryCategorized.charms].find(item => item.itemId === selectedItemId);
                      if (!itemToUse) return safeEditReply(interaction, { content: `❌ Item "${itemConfig.name || selectedItemId}" not in inventory.`, ephemeral: true });
                      if (itemToUse.quantity < amount) return safeEditReply(interaction, { content: `❌ Not enough ${itemConfig.name || selectedItemId}. You have ${itemToUse.quantity}.`, ephemeral: true });
+                     if (NON_USABLE_ITEM_IDS.includes(selectedItemId)) return safeEditReply(interaction, { content: '❌ This item cannot be used directly.', ephemeral: true });
                      const itemType = itemConfig.type;
                      const maxUnboxConfig = client.levelSystem.gameConfig.globalSettings.MAX_UNBOX_AMOUNTS || MAX_UNBOX_AMOUNTS;
 
