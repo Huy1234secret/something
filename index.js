@@ -154,6 +154,7 @@ const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) ||
 const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
 const SUBMIT_TICKET_ANNOUNCE_CHANNEL_ID = '1372572234949853367';
+const SUBMIT_TICKET_PING_ROLE_ID = '1389139332064870431';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
 const DISABLE_WEEKEND_FAILSAFE = process.env.DISABLE_WEEKEND_FAILSAFE === '1';
@@ -1879,7 +1880,7 @@ function scheduleSubmitTicketAnnouncement(client) {
                 `⏳ Event ends <t:${Math.floor(endTime / 1000)}:R>\n` +
                 `Submit when you're ready! 🛠️`)
             .setFooter({ text: 'Good luck, builders!' });
-        await channel.send({ content: '@everyone', embeds: [embed] }).catch(e => console.error('[SubmitTicketAnnouncement]', e));
+        await channel.send({ content: `<@&${SUBMIT_TICKET_PING_ROLE_ID}>`, embeds: [embed] }).catch(e => console.error('[SubmitTicketAnnouncement]', e));
     };
 
     const now = Date.now();
