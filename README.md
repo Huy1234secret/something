@@ -12,8 +12,14 @@ sudo bash install_deps.sh
 
 This script ensures Node.js (v16 or higher) and Python 3 are present, creates the `python` symlink needed for `yt-dlp-exec`, and installs the Node.js packages with `npm install`.
 
-Start the bot with:
+You can then start the bot with:
 
 ```bash
 node index.js
+```
+
+Alternatively, run the provided **start.sh** script which will run `install_deps.sh` on every startup to ensure everything is installed and then launch the bot automatically:
+
+```bash
+bash start.sh
 ```
