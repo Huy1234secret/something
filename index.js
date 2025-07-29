@@ -3894,8 +3894,21 @@ module.exports = {
                      if (!itemToUse) return safeEditReply(interaction, { content: `❌ Item "${itemConfig.name || selectedItemId}" not in inventory.`, ephemeral: true });
                      if (itemToUse.quantity < amount) return safeEditReply(interaction, { content: `❌ Not enough ${itemConfig.name || selectedItemId}. You have ${itemToUse.quantity}.`, ephemeral: true });
                      if (NON_USABLE_ITEM_IDS.includes(selectedItemId)) return safeEditReply(interaction, { content: '❌ This item cannot be used directly.', ephemeral: true });
-                     const itemType = itemConfig.type;
-                     const maxUnboxConfig = client.levelSystem.gameConfig.globalSettings.MAX_UNBOX_AMOUNTS || MAX_UNBOX_AMOUNTS;
+                    const itemType = itemConfig.type;
+                    const maxUnboxConfig = client.levelSystem.gameConfig.globalSettings.MAX_UNBOX_AMOUNTS || MAX_UNBOX_AMOUNTS;
+
+                    if (selectedItemId === client.levelSystem.KING_CHEST_ID) {
+                        const keyInv = client.levelSystem.getItemFromInventory(interaction.user.id, interaction.guild.id, client.levelSystem.KING_KEY_ID);
+                        if (!keyInv || keyInv.quantity < 1) {
+                            const sealedEmbed = new EmbedBuilder()
+                                .setColor(0x000000)
+                                .setTitle('ᛏᚺᛖ ᚲᚺᛖᛋᛏ ᚱᛖᛗᚨᛁᚾ ᛋᛖᚨᛚᛖᛞ')
+                                .setThumbnail('https://i.ibb.co/k66pRv6r/creepy-eye-png-by-solarmaker2005-dhue8bn-fullview.png')
+                                .setDescription('ᛁᛟᚢ ᚨᚱᛖ ᚾᛟᛏ ᚢᛟᚱᛏᚺᛁ ᛏᛟ ᛟᛈᛖᚾ ᛏᚺᛖ ᚲᚺᛖᛋᛏ!');
+                            await safeEditReply(interaction, { embeds: [sealedEmbed], ephemeral: false }, true, USE_ITEM_REPLY_TIMEOUT_MS);
+                            return;
+                        }
+                    }
 
                      if (itemType === client.levelSystem.itemTypes.LOOT_BOX || itemType === SHOP_ITEM_TYPES.LOOTBOX) {
                          const maxUnbox = maxUnboxConfig[selectedItemId];
