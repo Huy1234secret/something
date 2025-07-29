@@ -47,7 +47,7 @@ const {
     ROBUX_WITHDRAWAL_COOLDOWN_MS // New constant from systems.js
 } = require('./systems.js');
 
-const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatOverallLeaderboardEmbed, calculateUserPoints, getMsUntilNextDailyUpdate, LEVEL_TO_EMOJI_ID_MAP, FINAL_POINTS_EMOJI } = require('./leaderboardManager.js');
+const { postOrUpdateLeaderboard, updateLeaderboardRewards, formatOverallLeaderboardEmbed, calculateUserPoints, getMsUntilNextDailyUpdate, LEVEL_TO_EMOJI_ID_MAP, FINAL_POINTS_EMOJI, formatLeaderboardRewardEmbed, getNextWeeklyAwardTimestamp, WEEKLY_REWARD_TABLE } = require('./leaderboardManager.js');
 const DEFAULT_COIN_EMOJI_FALLBACK = '<:JAGcoin:1397581543354142881>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
@@ -1378,6 +1378,83 @@ async function scheduleDailyLeaderboardUpdate(client) {
         }, delay);
     };
     scheduleNextRun();
+}
+
+function pickWeeklyReward(systemsManager, guildId, userId) {
+    const total = WEEKLY_REWARD_TABLE.reduce((a,b) => a + b.chance, 0);
+    let roll = Math.random() * total;
+    let chosen = WEEKLY_REWARD_TABLE[WEEKLY_REWARD_TABLE.length - 1];
+    for (const spec of WEEKLY_REWARD_TABLE) {
+        roll -= spec.chance;
+        if (roll <= 0) { chosen = spec; break; }
+    }
+    const qty = chosen.min === chosen.max ? chosen.min : Math.floor(Math.random() * (chosen.max - chosen.min + 1)) + chosen.min;
+    if (chosen.type === 'currency') {
+        if (chosen.subType === 'coins') systemsManager.addCoins(userId, guildId, qty, 'weekly_reward');
+        else if (chosen.subType === 'gems') systemsManager.addGems(userId, guildId, qty, 'weekly_reward');
+        else if (chosen.subType === 'robux') systemsManager.addRobux(userId, guildId, qty, 'weekly_reward');
+    } else if (chosen.type === 'item') {
+        systemsManager.giveItem(userId, guildId, chosen.id, qty, systemsManager.itemTypes.LOOT_BOX, 'weekly_reward');
+    }
+    const name = chosen.name || systemsManager._getItemMasterProperty(chosen.subType || chosen.id, 'name') || chosen.subType || chosen.id;
+    const emoji = chosen.emoji || (chosen.subType === 'coins' ? systemsManager.coinEmoji : chosen.subType === 'gems' ? systemsManager.gemEmoji : chosen.subType === 'robux' ? systemsManager.robuxEmoji : systemsManager._getItemMasterProperty(chosen.id, 'emoji') || '');
+    return { name, emoji, quantity: qty };
+}
+
+async function scheduleWeeklyLeaderboardReward(client) {
+    console.log("[Leaderboard Reward Scheduler] Initializing weekly rewards...");
+    const runRewards = async () => {
+        const guilds = client.guilds.cache;
+        for (const [guildId, guild] of guilds) {
+            try {
+                const settings = client.levelSystem.getGuildSettings(guildId);
+                if (!settings.leaderboardChannelId) continue;
+                const channel = await guild.channels.fetch(settings.leaderboardChannelId).catch(() => null);
+                if (!channel) continue;
+
+                await guild.members.fetch().catch(() => {});
+                const blacklistSet = new Set();
+                for (const rId of LEADERBOARD_BLACKLIST_ROLE_IDS) {
+                    const role = guild.roles.cache.get(rId);
+                    if (role) role.members.forEach(m => blacklistSet.add(m.id));
+                }
+                const overallRaw = client.levelSystem.getOverallStats(guildId);
+                const overallData = overallRaw
+                    .map(u => calculateUserPoints(u))
+                    .filter(u => !blacklistSet.has(u.userId))
+                    .sort((a,b) => b.finalPts - a.finalPts);
+
+                const winners = [overallData[0], overallData[1], overallData[2]].filter(Boolean);
+                const rolls = [5,3,1];
+
+                for (let i = 0; i < winners.length; i++) {
+                    const w = winners[i];
+                    const userId = w.userId;
+                    const results = [];
+                    for (let r = 0; r < rolls[i]; r++) {
+                        const reward = pickWeeklyReward(client.levelSystem, guildId, userId);
+                        if (reward) results.push(reward);
+                    }
+                    const lines = results.map(res => `${res.emoji} ×${res.quantity} ${res.name}`).join('\n');
+                    const embed = new EmbedBuilder()
+                        .setColor('#FFD700')
+                        .setTitle('🏆 Weekly Reward!')
+                        .setDescription(lines || 'No reward');
+                    const msg = await channel.send({ content: `<@${userId}>`, embeds: [embed] }).catch(() => null);
+                    if (msg) setTimeout(() => msg.delete().catch(()=>{}), 24*60*60*1000);
+                }
+            } catch (err) {
+                console.error(`[WeeklyReward] Failed for guild ${guildId}:`, err);
+            }
+        }
+    };
+    const scheduleNext = () => {
+        const nextTs = getNextWeeklyAwardTimestamp();
+        const delay = nextTs - Date.now();
+        setTimeout(async () => { await runRewards(); scheduleNext(); }, delay);
+        console.log(`[Leaderboard Reward Scheduler] Next reward in ${Math.floor(delay/1000)} seconds`);
+    };
+    scheduleNext();
 }
 
 async function scheduleShopRestock(client) {
@@ -2804,6 +2881,7 @@ client.once('ready', async c => {
 
     // Start scheduled tasks
 scheduleDailyLeaderboardUpdate(client);
+scheduleWeeklyLeaderboardReward(client);
 
 // ✅ Make sure weekend state is correct *first*
 await scheduleWeekendBoosts(client);   // ← moved up (it runs an immediate check)
