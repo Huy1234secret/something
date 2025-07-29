@@ -24,5 +24,20 @@ Alternatively, run the provided **start.sh** script which will run `install_deps
 bash start.sh
 ```
 
+### BotHosting.net quick setup
+
+If your hosting provider already has Node.js installed (for example, on
+BotHosting.net), you can install only the Node packages by running:
+
+```bash
+bash install_npm_deps.sh
+```
+
+Then launch the bot normally with:
+
+```bash
+node index.js
+```
+
 ## Troubleshooting
 If you see an error like `Cannot find module 'yt-dlp-exec'`, make sure you have installed dependencies by running `npm install` or the provided `install_deps.sh` script.
