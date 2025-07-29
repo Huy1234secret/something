@@ -129,6 +129,11 @@ class SystemsManager {
         this.DISCOUNT_TICKET_50_ID = this.gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50';
         this.DISCOUNT_TICKET_100_ID = this.gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100';
         this.DAILY_SKIP_TICKET_ID = this.gameConfig.items.daily_skip_ticket?.id || 'daily_skip_ticket';
+        this.KING_CHEST_ID = this.gameConfig.items.king_chest?.id || 'king_chest';
+        this.KING_KEY_ID = this.gameConfig.items.king_key?.id || 'king_key';
+        this.GIFTCARD_10_ID = this.gameConfig.items.giftcard_ticket_10?.id || 'giftcard_ticket_10';
+        this.GIFTCARD_25_ID = this.gameConfig.items.giftcard_ticket_25?.id || 'giftcard_ticket_25';
+        this.GIFTCARD_50_ID = this.gameConfig.items.giftcard_ticket_50?.id || 'giftcard_ticket_50';
         this.xpCooldowns = new Map();
         this.itemTypes = {
             CURRENCY: 'currency',
@@ -257,6 +262,8 @@ class SystemsManager {
                 rewardsLastShiftedAt INTEGER DEFAULT 0,
                 lastDailyNotifyTimestamp INTEGER DEFAULT 0,
                 dailySkipCount INTEGER DEFAULT 0,
+                kingChestObtained INTEGER DEFAULT 0,
+                kingKeyObtained INTEGER DEFAULT 0,
                 bpPoints INTEGER DEFAULT 0,
                 PRIMARY KEY (userId, guildId)
             );`,
@@ -351,6 +358,12 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'dailySkipCount')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN dailySkipCount INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'kingChestObtained')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN kingChestObtained INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'kingKeyObtained')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN kingKeyObtained INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'fishDollars')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN fishDollars INTEGER DEFAULT 0;`);
@@ -627,6 +640,68 @@ class SystemsManager {
 
     }
 
+    async openKingChest(userId, guildId) {
+        const coinTiers = [];
+        let prob = 0.6;
+        let mult = 1;
+        for (let i = 0; i < 6; i++) {
+            coinTiers.push({ mult, prob });
+            mult *= 1000;
+            prob /= 3;
+        }
+        const gemTiers = [];
+        prob = 0.6; mult = 1;
+        for (let i = 0; i < 6; i++) {
+            gemTiers.push({ mult, prob });
+            mult *= 1000;
+            prob /= 5;
+        }
+        const pickTier = (tiers) => {
+            const total = tiers.reduce((a,b)=>a+b.prob,0);
+            let r = Math.random()*total;
+            for(const t of tiers){ r-=t.prob; if(r<=0) return t; }
+            return tiers[tiers.length-1];
+        };
+        const coinTier = pickTier(coinTiers);
+        const gemTier = pickTier(gemTiers);
+        const coinAmt = Math.round(coinTier.mult);
+        const gemAmt = Math.round(gemTier.mult);
+        this.addCoins(userId, guildId, coinAmt, 'king_chest');
+        this.addGems(userId, guildId, gemAmt, 'king_chest');
+
+        const ticketTable = [
+            { id: this.GIFTCARD_10_ID, prob: 99 },
+            { id: this.GIFTCARD_25_ID, prob: 0.99 },
+            { id: this.GIFTCARD_50_ID, prob: 0.01 }
+        ];
+        const chestTable = [
+            { id: this.COMMON_CHEST_ID, qty: 10000, prob: 90 },
+            { id: this.RARE_CHEST_ID, qty: 2000, prob: 7 },
+            { id: this.EPIC_CHEST_ID, qty: 1000, prob: 2.5 },
+            { id: this.LEGENDARY_CHEST_ID, qty: 500, prob: 0.49 },
+            { id: this.MYTHICAL_CHEST_ID, qty: 333, prob: 0.007 },
+            { id: this.VOID_CHEST_ID, qty: 69, prob: 0.003 }
+        ];
+        const weightedPick = (table) => {
+            const total = table.reduce((a,b)=>a+b.prob,0);
+            let r = Math.random()*total;
+            for(const t of table){ r-=t.prob; if(r<=0) return t; }
+            return table[table.length-1];
+        };
+        const ticketChoice = weightedPick(ticketTable);
+        const chestChoice = weightedPick(chestTable);
+        this.giveItem(userId, guildId, ticketChoice.id, 1, this.itemTypes.ITEM, 'king_chest');
+        this.giveItem(userId, guildId, chestChoice.id, chestChoice.qty, this.itemTypes.LOOT_BOX, 'king_chest');
+
+        const rewards = [
+            { id: this.COINS_ID, name: this._getItemMasterProperty(this.COINS_ID,'name'), emoji: this.coinEmoji, quantity: coinAmt },
+            { id: this.GEMS_ID, name: this._getItemMasterProperty(this.GEMS_ID,'name'), emoji: this.gemEmoji, quantity: gemAmt },
+            { id: ticketChoice.id, name: this._getItemMasterProperty(ticketChoice.id,'name'), emoji: this._getItemMasterProperty(ticketChoice.id,'emoji'), quantity: 1 },
+            { id: chestChoice.id, name: this._getItemMasterProperty(chestChoice.id,'name'), emoji: this._getItemMasterProperty(chestChoice.id,'emoji'), quantity: chestChoice.qty }
+        ];
+        return { rewards };
+    }
+
     getBalance(userId, guildId) {
         const user = this.getUser(userId, guildId);
         return { coins: user.coins, gems: user.gems, robux: user.robux, fishDollars: user.fishDollars };
@@ -637,6 +712,7 @@ class SystemsManager {
         if (newLevel > MAX_LEVEL) newLevel = MAX_LEVEL; const newXp = 0;
         this.updateUser(userId, guildId, { level: newLevel, xp: newXp });
         if (member) await this.checkAndAwardRoles(member, newLevel);
+        this.checkAndGrantKingKey(userId, guildId);
         return { newLevel: newLevel, newXp: newXp, oldLevel: user.level };
     }
 
@@ -1001,6 +1077,7 @@ this.db.prepare(`
         }
         this.updateUser(userId, guildId, { xp: newXp, level: newLevel, totalXp: (user.totalXp || 0) + finalAmount });
         if (leveledUp && member) { this.checkAndAwardRoles(member, newLevel); }
+        if (leveledUp) { this.checkAndGrantKingKey(userId, guildId); }
         return { leveledUp, oldLevel, newLevel, newXp, assignedRole, xpEarned: finalAmount, xpToNextLevel: newLevel >= MAX_LEVEL ? 0 : xpForNextLevel - newXp, levelUpMessage };
     }
     async checkAndAwardRoles(member, currentLevel) {
@@ -1023,6 +1100,7 @@ this.db.prepare(`
         if (newLevel > MAX_LEVEL) newLevel = MAX_LEVEL; const newXp = 0;
         this.updateUser(userId, guildId, { level: newLevel, xp: newXp });
         if (member) await this.checkAndAwardRoles(member, newLevel);
+        this.checkAndGrantKingKey(userId, guildId);
         return { newLevel: newLevel, newXp: newXp, oldLevel: user.level };
     }
     async buildItemInfoEmbed(itemId, category, userId, guildId, clientInstance) {
@@ -1306,6 +1384,17 @@ this.db.prepare(`
         if (!itemInInventory || itemInInventory.quantity < amount) return { success: false, message: "Not enough items in inventory." };
         const effectiveItemType = itemInInventory.itemType || itemMasterConfig.type;
         const itemName = itemMasterConfig.name; const itemEmoji = itemMasterConfig.emoji;
+
+        if (itemId === this.KING_CHEST_ID) {
+            const keyInv = this.getItemFromInventory(userId, guildId, this.KING_KEY_ID);
+            if (!keyInv || keyInv.quantity < 1) {
+                return { success: false, message: "You tried to open the King Chest, but the chest is sealed..." };
+            }
+            this.takeItem(userId, guildId, this.KING_KEY_ID, 1);
+            this.takeItem(userId, guildId, itemId, 1);
+            const result = await this.openKingChest(userId, guildId);
+            return { success: true, message: "Opened 1x King Chest!", itemsRolled: result.rewards };
+        }
 
         if (effectiveItemType === this.itemTypes.LOOT_BOX || effectiveItemType === SHOP_ITEM_TYPES.LOOTBOX) {
             let allRewardsFromOpening = []; let itemsToNotifyUserAbout = []; let anySpecialRoleGrantedThisOpening = false;
@@ -1939,6 +2028,28 @@ this.db.prepare(`
         if (foundInLootboxesHeaderAdded) ways.push("---");
         if (itemId === this.COSMIC_ROLE_TOKEN_ID) ways.push("🌌 Also a very rare random award for various bot activities.");
         return ways.length > 0 ? ways : ['This item is obtained through special means not listed here or is currently unobtainable.'];
+    }
+
+    hasObtainedKingChest(userId, guildId) {
+        const user = this.getUser(userId, guildId); return !!user.kingChestObtained;
+    }
+    markObtainedKingChest(userId, guildId) {
+        const user = this.getUser(userId, guildId); if (!user.kingChestObtained) this.updateUser(userId, guildId, { kingChestObtained: 1 });
+    }
+    hasObtainedKingKey(userId, guildId) {
+        const user = this.getUser(userId, guildId); return !!user.kingKeyObtained;
+    }
+    markObtainedKingKey(userId, guildId) {
+        const user = this.getUser(userId, guildId); if (!user.kingKeyObtained) this.updateUser(userId, guildId, { kingKeyObtained: 1 });
+    }
+    checkAndGrantKingKey(userId, guildId) {
+        const user = this.getUser(userId, guildId);
+        if (user.level >= 40 && !user.kingKeyObtained) {
+            this.giveItem(userId, guildId, this.KING_KEY_ID, 1, this.itemTypes.ITEM, 'level_40_reward');
+            this.updateUser(userId, guildId, { kingKeyObtained: 1 });
+            return true;
+        }
+        return false;
     }
 
     async _getLootBoxContentsFormatted(boxId, userId, guildId) {

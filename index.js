@@ -77,6 +77,11 @@ const ITEM_IDS = {
     GEM_CHEST: gameConfig.items.gem_chest?.id || 'gem_chest',
     VOID_CHEST: gameConfig.items.void_chest?.id || 'void_chest',
     INF_CHEST: gameConfig.items.inf_chest?.id || 'inf_chest',
+    KING_CHEST: gameConfig.items.king_chest?.id || 'king_chest',
+    KING_KEY: gameConfig.items.king_key?.id || 'king_key',
+    GIFTCARD_10: gameConfig.items.giftcard_ticket_10?.id || 'giftcard_ticket_10',
+    GIFTCARD_25: gameConfig.items.giftcard_ticket_25?.id || 'giftcard_ticket_25',
+    GIFTCARD_50: gameConfig.items.giftcard_ticket_50?.id || 'giftcard_ticket_50',
     DAILY_SKIP_TICKET: gameConfig.items.daily_skip_ticket?.id || 'daily_skip_ticket',
     DISCOUNT_10: gameConfig.items.discount_ticket_10?.id || 'discount_ticket_10',
     DISCOUNT_25: gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25',
@@ -1381,10 +1386,14 @@ async function scheduleDailyLeaderboardUpdate(client) {
 }
 
 function pickWeeklyReward(systemsManager, guildId, userId) {
-    const total = WEEKLY_REWARD_TABLE.reduce((a,b) => a + b.chance, 0);
+    let table = WEEKLY_REWARD_TABLE;
+    if (systemsManager.hasObtainedKingChest(userId, guildId)) {
+        table = WEEKLY_REWARD_TABLE.filter(s => s.id !== systemsManager.KING_CHEST_ID);
+    }
+    const total = table.reduce((a,b) => a + b.chance, 0);
     let roll = Math.random() * total;
-    let chosen = WEEKLY_REWARD_TABLE[WEEKLY_REWARD_TABLE.length - 1];
-    for (const spec of WEEKLY_REWARD_TABLE) {
+    let chosen = table[table.length - 1];
+    for (const spec of table) {
         roll -= spec.chance;
         if (roll <= 0) { chosen = spec; break; }
     }
@@ -1395,6 +1404,7 @@ function pickWeeklyReward(systemsManager, guildId, userId) {
         else if (chosen.subType === 'robux') systemsManager.addRobux(userId, guildId, qty, 'weekly_reward');
     } else if (chosen.type === 'item') {
         systemsManager.giveItem(userId, guildId, chosen.id, qty, systemsManager.itemTypes.LOOT_BOX, 'weekly_reward');
+        if (chosen.id === systemsManager.KING_CHEST_ID) systemsManager.markObtainedKingChest(userId, guildId);
     }
     const name = chosen.name || systemsManager._getItemMasterProperty(chosen.subType || chosen.id, 'name') || chosen.subType || chosen.id;
     const emoji = chosen.emoji || (chosen.subType === 'coins' ? systemsManager.coinEmoji : chosen.subType === 'gems' ? systemsManager.gemEmoji : chosen.subType === 'robux' ? systemsManager.robuxEmoji : systemsManager._getItemMasterProperty(chosen.id, 'emoji') || '');
@@ -3593,6 +3603,16 @@ client.on('interactionCreate', async interaction => {
                     if (amount <= 0) return sendInteractionError(interaction, "Amount must be positive.", true, deferredThisInteraction);
                     const itemConfig = client.levelSystem._getItemMasterProperty(itemId, null, {});
                     if (!itemConfig || !itemConfig.id) return sendInteractionError(interaction, `Invalid item ID: \`${itemId}\`. Config not found.`, true, deferredThisInteraction);
+                    const restrictedIds = [
+                        client.levelSystem.KING_CHEST_ID,
+                        client.levelSystem.KING_KEY_ID,
+                        client.levelSystem.GIFTCARD_10_ID,
+                        client.levelSystem.GIFTCARD_25_ID,
+                        client.levelSystem.GIFTCARD_50_ID
+                    ];
+                    if (!remove && restrictedIds.includes(itemId) && interaction.user.id !== interaction.guild.ownerId) {
+                        return sendInteractionError(interaction, 'Only the server owner can gift this item.', true, deferredThisInteraction);
+                    }
                     let itemTypeToGive = itemConfig.type;
                     if (!itemTypeToGive) {
                         console.warn(`[GiveItem Command] Item ID: ${itemId} (Name: ${itemConfig.name || 'Unknown'}) has undefined type in master config. Attempting to infer...`);
