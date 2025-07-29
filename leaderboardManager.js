@@ -13,6 +13,24 @@ const LEADERBOARD_REWARD_ROLE_ID = '1384939352236490842';
 
 const FIRST_PLACE_ALERT_DELETE_TIMEOUT = 24 * 60 * 60 * 1000; // 1 day
 
+// --- Leaderboard weekly reward constants ---
+const KING_CHEST_EMOJI = '<:kingchest:1397836454515834890>';
+const WEEKLY_REWARD_TABLE = [
+    { type: 'currency', subType: 'robux', min: 1, max: 100, chance: 1 },
+    { type: 'currency', subType: 'coins', min: 1, max: 10000, chance: 30 },
+    { type: 'currency', subType: 'gems', min: 1, max: 555, chance: 20 },
+    { type: 'item', id: 'common_chest', min: 1, max: 25, chance: 20 },
+    { type: 'item', id: 'rare_chest', min: 1, max: 15, chance: 15 },
+    { type: 'item', id: 'epic_chest', min: 1, max: 10, chance: 8 },
+    { type: 'item', id: 'legendary_chest', min: 1, max: 5, chance: 4 },
+    { type: 'item', id: 'mythical_chest', min: 1, max: 3, chance: 1 },
+    { type: 'item', id: 'void_chest', min: 1, max: 1, chance: 0.0099 },
+    { type: 'item', id: 'gem_chest', min: 1, max: 1, chance: 0.2 },
+    { type: 'item', id: 'magic_chest', min: 1, max: 2, chance: 0.79 },
+    { type: 'item', id: 'king_chest', min: 1, max: 1, chance: 0.0001, emoji: KING_CHEST_EMOJI, name: '??? Chest' }
+];
+
+
 function getMsUntilNextDailyUpdate() {
     const now = new Date();
     const nextUpdate = new Date(now);
@@ -21,6 +39,20 @@ function getMsUntilNextDailyUpdate() {
         nextUpdate.setUTCDate(nextUpdate.getUTCDate() + 1);
     }
     return nextUpdate.getTime() - now.getTime();
+}
+
+function getNextWeeklyAwardTimestamp(from = Date.now()) {
+    const OFFSET_MS = 7 * 60 * 60 * 1000; // UTC+7
+    const now = new Date(from + OFFSET_MS);
+    const day = now.getUTCDay();
+    const diff = (7 - day) % 7;
+    const next = new Date(now);
+    next.setUTCDate(now.getUTCDate() + diff);
+    next.setUTCHours(12, 0, 0, 0); // 12:00 UTC+7
+    if (next <= now) {
+        next.setUTCDate(next.getUTCDate() + 7);
+    }
+    return next.getTime() - OFFSET_MS;
 }
 
 async function sendFirstPlaceAlert(guild, channelId, typeName, oldUserId, newUserId, role) {
@@ -342,6 +374,36 @@ async function formatOverallLeaderboardEmbed(data, client, timeUntilNextUpdateMs
     return embed;
 }
 
+function buildRewardFields(client) {
+    const coinEmoji = client.levelSystem?.coinEmoji || '🪙';
+    const gemEmoji = client.levelSystem?.gemEmoji || '💎';
+    const robuxEmoji = client.levelSystem?.robuxEmoji || '<a:robux:1378395622683574353>';
+    const chestEmoji = id => client.levelSystem?._getItemMasterProperty?.(id, 'emoji') || '';
+
+    const table = [...WEEKLY_REWARD_TABLE].sort((a,b) => b.chance - a.chance);
+    return table.map(spec => {
+        const emoji = spec.emoji ||
+            (spec.subType === 'coins' ? coinEmoji :
+             spec.subType === 'gems' ? gemEmoji :
+             spec.subType === 'robux' ? robuxEmoji :
+             chestEmoji(spec.id));
+        let qty = spec.min === spec.max ? `×${spec.min}` : `${spec.min}-${spec.max}`;
+        const name = spec.name || client.levelSystem?._getItemMasterProperty?.(spec.subType || spec.id, 'name') || spec.subType || spec.id;
+        const chanceDisplay = spec.chance >= 1 ? `${spec.chance}%` : '???%';
+        return { name: `${qty} ${name} ${emoji}`, value: `\`${chanceDisplay}\``, inline: true };
+    });
+}
+
+function formatLeaderboardRewardEmbed(client, nextTs) {
+    const embed = new EmbedBuilder()
+        .setColor('#FFD700')
+        .setTitle('Leaderboard Reward 🏆')
+        .setDescription(`* Award weekly! - next award <t:${Math.floor(nextTs/1000)}:R>\n### Roll amount:\n* 🥇 placed 1st: \`5 rolls\`\n* 🥈 placed 2nd: \`3 rolls\`\n* 🥉 placed third: \`1 roll\``);
+    const fields = buildRewardFields(client);
+    embed.addFields(fields);
+    return embed;
+}
+
 /**
  * Posts or updates the leaderboard message in the designated channel.
  * @param {import('discord.js').Client} client - The Discord.js client.
@@ -383,6 +445,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
             .slice(0, limit);
 
         const overallEmbed = await formatOverallLeaderboardEmbed(overallData, client, timeUntilNextDailyUpdate);
+        const rewardEmbed = formatLeaderboardRewardEmbed(client, getNextWeeklyAwardTimestamp());
 
         const components = [
             new ActionRowBuilder().addComponents(
@@ -428,7 +491,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
                 const oldMessage = await channel.messages.fetch(messageId);
                 if (oldMessage.author.id === client.user.id) { // Check if bot owns message
                     if (botPermissionsInChannel.has(PermissionsBitField.Flags.ManageMessages) || oldMessage.editable) { // Check editability
-                        await oldMessage.edit({ embeds: [overallEmbed], components });
+                        await oldMessage.edit({ embeds: [overallEmbed, rewardEmbed], components });
                         messageUpdated = true;
                     } else {
                          console.warn(`[Leaderboard] Cannot edit message ${messageId} (not editable or missing ManageMessages). Will post new.`);
@@ -445,7 +508,7 @@ async function postOrUpdateLeaderboard(client, guildId, systemsManager, limit, i
         }
 
         if (!settings.leaderboardMessageId && !messageUpdated) {
-            const newMessage = await channel.send({ embeds: [overallEmbed], components });
+            const newMessage = await channel.send({ embeds: [overallEmbed, rewardEmbed], components });
             newMsgId = newMessage.id;
         }
         
@@ -537,5 +600,8 @@ module.exports = {
     calculateUserPoints,
     getMsUntilNextDailyUpdate,
     LEVEL_TO_EMOJI_ID_MAP,
-    FINAL_POINTS_EMOJI
+    FINAL_POINTS_EMOJI,
+    formatLeaderboardRewardEmbed,
+    getNextWeeklyAwardTimestamp,
+    WEEKLY_REWARD_TABLE
 };
