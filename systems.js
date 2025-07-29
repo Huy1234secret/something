@@ -1385,6 +1385,10 @@ this.db.prepare(`
         const effectiveItemType = itemInInventory.itemType || itemMasterConfig.type;
         const itemName = itemMasterConfig.name; const itemEmoji = itemMasterConfig.emoji;
 
+        if ([this.GIFTCARD_10_ID, this.GIFTCARD_25_ID, this.GIFTCARD_50_ID].includes(itemId)) {
+            return { success: false, message: "Gift card tickets cannot be used through this command." };
+        }
+
         if (itemId === this.KING_CHEST_ID) {
             const keyInv = this.getItemFromInventory(userId, guildId, this.KING_KEY_ID);
             if (!keyInv || keyInv.quantity < 1) {

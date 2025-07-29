@@ -3238,7 +3238,10 @@ client.on('interactionCreate', async interaction => {
                     ITEM_IDS.DISCOUNT_25,
                     ITEM_IDS.DISCOUNT_50,
                     ITEM_IDS.DISCOUNT_100,
-                    ITEM_IDS.DAILY_SKIP_TICKET
+                    ITEM_IDS.DAILY_SKIP_TICKET,
+                    ITEM_IDS.GIFTCARD_10,
+                    ITEM_IDS.GIFTCARD_25,
+                    ITEM_IDS.GIFTCARD_50
                 ].includes(i.itemId));
                 choices = usableItems
                     .filter(item => item.name.toLowerCase().includes(searchTerm) || item.itemId.toLowerCase().includes(searchTerm))
