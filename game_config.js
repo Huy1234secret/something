@@ -320,6 +320,40 @@ const config = {
             ]
         },
 
+        "king_chest": {
+            id: "king_chest", name: "King Chest", type: "loot_box_item",
+            directDropWeight: 0,
+            emoji: "<:kingchest:1397836454515834890>", rarityValue: 3000000,
+            description: "A legendary chest awarded to leaderboard champions.",
+            basePrice: 0, appearanceChanceInShop: 0, stockRangeShop: [1, 1],
+            isRareForShopAlert: true,
+            isAlertWorthyByIdShop: true,
+            color: 0xFFD700,
+            numRolls: 1,
+            itemPool: []
+        },
+        "king_key": {
+            id: "king_key", name: "King Key", type: "item",
+            emoji: "<:kingkey:1399668224928252116>",
+            rarityValue: 3000000,
+            description: "Opens the mighty King Chest."
+        },
+        "giftcard_ticket_10": {
+            id: "giftcard_ticket_10", name: "10$ Giftcard Ticket", type: "item",
+            emoji: "🎫", rarityValue: 3000000,
+            description: "Redeemable for a $10 gift card."
+        },
+        "giftcard_ticket_25": {
+            id: "giftcard_ticket_25", name: "25$ Giftcard Ticket", type: "item",
+            emoji: "🎫", rarityValue: 3000000,
+            description: "Redeemable for a $25 gift card."
+        },
+        "giftcard_ticket_50": {
+            id: "giftcard_ticket_50", name: "50$ Giftcard Ticket", type: "item",
+            emoji: "🎫", rarityValue: 3000000,
+            description: "Redeemable for a $50 gift card."
+        },
+
         "xp_charm": {
             id: "xp_charm", name: "XP Charm", type: "charm_item",
             directDropWeight: 0.0001,
