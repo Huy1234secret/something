@@ -4276,13 +4276,6 @@ module.exports = {
                     .setCustomId('submit_ticket_modal')
                     .setTitle('Build Submission Form');
 
-                const ignInput = new TextInputBuilder()
-                    .setCustomId('ign_input')
-                    .setLabel('🏷️ IGN (discord username)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('vietnamph')
-                    .setRequired(true);
-
                 const titleInput = new TextInputBuilder()
                     .setCustomId('build_title_input')
                     .setLabel('✨ Build title')
@@ -4297,18 +4290,11 @@ module.exports = {
                     .setPlaceholder('Floating islands with a zen temple and cherry-blossom garden.')
                     .setRequired(true);
 
-                const gameInput = new TextInputBuilder()
-                    .setCustomId('game_version_input')
-                    .setLabel('🗺️ Game & Version')
+                const gameDeviceInput = new TextInputBuilder()
+                    .setCustomId('game_device_input')
+                    .setLabel('🗺️ Game & Version + Device used')
                     .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Minecraft Java 1.20.6 (no mods, OptiFine only)')
-                    .setRequired(true);
-
-                const deviceInput = new TextInputBuilder()
-                    .setCustomId('device_used_input')
-                    .setLabel('💻 Device used')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('PC / Mobile / Console + basic specs')
+                    .setPlaceholder('Minecraft Java 1.20.6 on PC (basic specs)')
                     .setRequired(true);
 
                 const descInput = new TextInputBuilder()
@@ -4326,11 +4312,9 @@ module.exports = {
                     .setRequired(true);
 
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(ignInput),
                     new ActionRowBuilder().addComponents(titleInput),
                     new ActionRowBuilder().addComponents(themeInput),
-                    new ActionRowBuilder().addComponents(gameInput),
-                    new ActionRowBuilder().addComponents(deviceInput),
+                    new ActionRowBuilder().addComponents(gameDeviceInput),
                     new ActionRowBuilder().addComponents(descInput),
                     new ActionRowBuilder().addComponents(verifyInput)
                 );
@@ -4847,13 +4831,12 @@ module.exports = {
                     deferredThisInteraction = true;
                 }
 
-                const ign = interaction.fields.getTextInputValue('ign_input');
-                const title = interaction.fields.getTextInputValue('build_title_input');
-                const theme = interaction.fields.getTextInputValue('theme_fit_input');
-                const gameVersion = interaction.fields.getTextInputValue('game_version_input');
-                const deviceUsed = interaction.fields.getTextInputValue('device_used_input');
-                const shortDesc = interaction.fields.getTextInputValue('short_desc_input');
-                const verification = interaction.fields.getTextInputValue('verification_input');
+                    const ign = interaction.user.tag;
+                    const title = interaction.fields.getTextInputValue('build_title_input');
+                    const theme = interaction.fields.getTextInputValue('theme_fit_input');
+                    const gameDevice = interaction.fields.getTextInputValue('game_device_input');
+                    const shortDesc = interaction.fields.getTextInputValue('short_desc_input');
+                    const verification = interaction.fields.getTextInputValue('verification_input');
 
                 try {
                     const newChannel = await interaction.guild.channels.create({
@@ -4869,11 +4852,10 @@ module.exports = {
                     const embed = new EmbedBuilder()
                         .setTitle('Build Submission')
                         .addFields(
-                            { name: 'IGN', value: ign || 'N/A' },
+                            { name: 'User', value: ign || 'N/A' },
                             { name: 'Build Title', value: title || 'N/A' },
                             { name: 'Theme Fit', value: theme || 'N/A' },
-                            { name: 'Game & Version', value: gameVersion || 'N/A' },
-                            { name: 'Device Used', value: deviceUsed || 'N/A' },
+                            { name: 'Game & Device', value: gameDevice || 'N/A' },
                             { name: 'Short Description', value: shortDesc || 'N/A' },
                             { name: 'Verification', value: verification || 'N/A' }
                         )
