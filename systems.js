@@ -2303,12 +2303,23 @@ this.db.prepare(`
             if (!rewardsMap.has(i)) {
                 rewardsMap.set(i, this._generateSingleDailyReward(userId, guildId));
             }
+
+            // Every 100th upcoming claim should award 100 Robux
+            const upcomingStreak = (user.dailyStreak || 0) + i; // streak after claiming day i
+            if (upcomingStreak % 100 === 0) {
+                rewardsMap.set(i, { type: 'currency', data: { id: this.ROBUX_ID, amount: 100 } });
+            }
         }
 
-        // Check for rare Robux reward on day 3
+        // Check for rare Robux reward on day 3 (if not already a 100th-day reward)
         const day3Reward = rewardsMap.get(3);
-        if (day3Reward && user.dailyStreak >= 7 && Math.random() < 0.005) {
-            const robuxReward = { type: 'currency', data: { id: this.ROBUX_ID, amount: Math.floor(Math.random() * 5) + 1 }};
+        if (
+            day3Reward &&
+            ((user.dailyStreak || 0) + 3) % 100 !== 0 &&
+            user.dailyStreak >= 7 &&
+            Math.random() < 0.005
+        ) {
+            const robuxReward = { type: 'currency', data: { id: this.ROBUX_ID, amount: Math.floor(Math.random() * 5) + 1 } };
             rewardsMap.set(3, robuxReward);
         }
 
