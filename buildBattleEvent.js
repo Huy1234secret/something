@@ -263,7 +263,7 @@ async function handleJoinInteraction(interaction) {
     await interaction.reply({ content: 'Check your DMs for your theme!', ephemeral: true });
     const embed = new EmbedBuilder()
       .setTitle('PSST')
-      .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+      .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
       .setFooter({ text: 'have fun!' });
     await interaction.user.send({ embeds: [embed] }).catch(() => {});
     const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
@@ -296,7 +296,7 @@ async function rerollUserTheme(interaction, targetUser = interaction.user) {
   }
   const embed = new EmbedBuilder()
     .setTitle('PSST')
-    .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+    .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
     .setFooter({ text: 'have fun!' });
   await targetUser.send({ embeds: [embed] }).catch(() => {});
   const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
