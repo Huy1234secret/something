@@ -619,10 +619,6 @@ const commands = [
         ]
     },
     {
-        name: 'submit-ticket',
-        description: 'Create a private build submission channel.'
-    },
-    {
         name: 'reroll-theme',
         description: 'Reroll a build battle theme for a user.',
         options: [
