@@ -165,8 +165,6 @@ const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) ||
 // Hour of day (in UTC) to run the daily leaderboard update. 17 UTC == 24:00 UTC+7
 const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
-const SUBMIT_TICKET_ANNOUNCE_CHANNEL_ID = '1372572234949853367';
-const SUBMIT_TICKET_PING_ROLE_ID = '1389139332064870431';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
 const DISABLE_WEEKEND_FAILSAFE = process.env.DISABLE_WEEKEND_FAILSAFE === '1';
@@ -1877,32 +1875,6 @@ async function scheduleVoiceActivityRewards(client) {
     setInterval(processVoiceRewards, VOICE_ACTIVITY_INTERVAL_MS);
 }
 
-function scheduleSubmitTicketAnnouncement(client) {
-    const year = new Date().getUTCFullYear();
-    const startTime = new Date(Date.UTC(year, 6, 31, 17, 0, 0)).getTime();
-    const endTime = new Date(Date.UTC(year, 7, 7, 17, 0, 0)).getTime();
-
-    const sendAnnouncement = async () => {
-        const channel = await client.channels.fetch(SUBMIT_TICKET_ANNOUNCE_CHANNEL_ID).catch(() => null);
-        if (!channel || !channel.isTextBased()) return;
-        const embed = new EmbedBuilder()
-            .setTitle('🎉 Submit Ticket Open!')
-            .setColor('#FF7F00')
-            .setDescription(`The command </submit-ticket:1392510566945525781> is now **enabled**!\n` +
-                `⏳ Event ends <t:${Math.floor(endTime / 1000)}:R>\n` +
-                `Submit when you're ready! 🛠️`)
-            .setFooter({ text: 'Good luck, builders!' });
-        await channel.send({ content: `<@&${SUBMIT_TICKET_PING_ROLE_ID}>`, embeds: [embed] }).catch(e => console.error('[SubmitTicketAnnouncement]', e));
-    };
-
-    const now = Date.now();
-    if (now >= startTime && now < endTime) {
-        sendAnnouncement();
-    } else if (now < startTime) {
-        setTimeout(sendAnnouncement, startTime - now);
-    }
-}
-
 async function safeDeferReply(interaction, options = {}) {
     if (!interaction.isRepliable() || interaction.deferred || interaction.replied) return;
     try {
@@ -2931,12 +2903,11 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 scheduleVoiceActivityRewards(client);
-scheduleSubmitTicketAnnouncement(client);
-    initBuildBattleEvent(client);
-    initFishSeason(client);
-    initFishMarket(client);
-    initFishStore(client);
-    initWeather(client);
+initBuildBattleEvent(client);
+initFishSeason(client);
+initFishMarket(client);
+initFishStore(client);
+initWeather(client);
 
     // Config checks
     if (!LEVEL_UP_CHANNEL_ID) console.warn("[Config Check] LEVEL_UP_CHANNEL_ID not defined.");
