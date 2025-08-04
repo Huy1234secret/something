@@ -25,6 +25,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageRoles),
     async execute(interaction) {
         // Logic handled centrally in index.js
-        await interaction.reply({ content: 'Processing give role command...', ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+        }
     },
 };
