@@ -76,7 +76,7 @@ async function loadData() {
     const raw = await fs.readFile(DATA_FILE, 'utf8');
     return JSON.parse(raw);
   } catch {
-    return { userThemes: {} };
+    return { userThemes: {}, submissionClosed: false };
   }
 }
 
@@ -184,6 +184,27 @@ async function scheduleBattleEnd(message, client, data) {
   setTimeout(() => endBuildBattle(message, client, data).catch(() => {}), delay * 1000);
 }
 
+async function announceSubmissionClosed(client, data) {
+  if (data.submissionClosed) return;
+  const announce = await client.channels.fetch(ANNOUNCE_CHANNEL_ID).catch(() => null);
+  if (announce && announce.isTextBased()) {
+    const embed = new EmbedBuilder()
+      .setTitle('🚫 Submissions Closed')
+      .setDescription('Build submissions are no longer being accepted. Good luck to all participants!')
+      .setColor('#FF0000');
+    await announce.send({ content: '@everyone', embeds: [embed] }).catch(() => {});
+  }
+  data.submissionClosed = true;
+  await saveData(data);
+}
+
+function scheduleSubmissionClose(client, data) {
+  const now = Math.floor(Date.now() / 1000);
+  const delay = THEME_CLOSE_TS - now;
+  if (delay <= 0) return announceSubmissionClosed(client, data);
+  setTimeout(() => announceSubmissionClosed(client, data).catch(() => {}), delay * 1000);
+}
+
 async function ensureSignupMessage(client, channel, data) {
   if (data.countdownMessageId) {
     const old = await channel.messages.fetch(data.countdownMessageId).catch(() => null);
@@ -240,6 +261,7 @@ async function initBuildBattleEvent(client) {
   } else {
     await ensureSignupMessage(client, channel, data);
   }
+  scheduleSubmissionClose(client, data);
 }
 
 async function handleJoinInteraction(interaction) {
@@ -263,7 +285,7 @@ async function handleJoinInteraction(interaction) {
     await interaction.reply({ content: 'Check your DMs for your theme!', ephemeral: true });
     const embed = new EmbedBuilder()
       .setTitle('PSST')
-      .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+      .setDescription(`${interaction.user}, you have got a theme!\n# ${theme}\n* You should start your building now! The submission window closes on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
       .setFooter({ text: 'have fun!' });
     await interaction.user.send({ embeds: [embed] }).catch(() => {});
     const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
@@ -296,7 +318,7 @@ async function rerollUserTheme(interaction, targetUser = interaction.user) {
   }
   const embed = new EmbedBuilder()
     .setTitle('PSST')
-    .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submit ticket will be closed on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!. Also if you have done building, please create a submit ticket by using command </submit-ticket:1392510566945525781>\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
+    .setDescription(`${targetUser}, you have got a theme!\n# ${theme}\n* You should start your building now! The submission window closes on <t:${THEME_CLOSE_TS}:F>!\n* Besure to screenshot some of your building progress!! Trust me you gonna need it!\n* Also read the rules in https://discord.com/channels/1372572233930903592/1390743854487044136 before submitting!`)
     .setFooter({ text: 'have fun!' });
   await targetUser.send({ embeds: [embed] }).catch(() => {});
   const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
