@@ -165,6 +165,8 @@ const WEEKEND_TZ_OFFSET_HOURS = parseInt(process.env.WEEKEND_TZ_OFFSET_HOURS) ||
 // Hour of day (in UTC) to run the daily leaderboard update. 17 UTC == 24:00 UTC+7
 const LEADERBOARD_DAILY_UPDATE_HOUR_UTC = parseInt(process.env.LEADERBOARD_DAILY_UPDATE_HOUR_UTC) || 17;
 const RARE_ITEM_ANNOUNCE_CHANNEL_ID = '1373564899199811625';
+const SUBMIT_TICKET_ANNOUNCE_CHANNEL_ID = '1372572234949853367';
+const SUBMIT_TICKET_PING_ROLE_ID = '1389139332064870431';
 const LOGO_SYNC_GUILD_ID = process.env.LOGO_SYNC_GUILD_ID;
 // Skip weekend boost failsafe logic when this env var is set to "1"
 const DISABLE_WEEKEND_FAILSAFE = process.env.DISABLE_WEEKEND_FAILSAFE === '1';
@@ -416,6 +418,7 @@ let userManagementSessions = new Map(); // New: For /add-user panel
 client.fishInventorySessions = new Map();
 client.fishIndexSessions = new Map();
 let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawal log messages { withdrawalId: messageId }
+const SUBMIT_TICKET_VERIFICATION_TEXT = 'I confirm this is my original work and follows all Build-Battle rules';
 
 let slotsSessions = new Map();
 let slotsCooldowns = new Map();
@@ -1874,6 +1877,31 @@ async function scheduleVoiceActivityRewards(client) {
     setInterval(processVoiceRewards, VOICE_ACTIVITY_INTERVAL_MS);
 }
 
+function scheduleSubmitTicketAnnouncement(client) {
+    const year = new Date().getUTCFullYear();
+    const startTime = new Date(Date.UTC(year, 6, 31, 17, 0, 0)).getTime();
+    const endTime = new Date(Date.UTC(year, 7, 7, 17, 0, 0)).getTime();
+
+    const sendAnnouncement = async () => {
+        const channel = await client.channels.fetch(SUBMIT_TICKET_ANNOUNCE_CHANNEL_ID).catch(() => null);
+        if (!channel || !channel.isTextBased()) return;
+        const embed = new EmbedBuilder()
+            .setTitle('🎉 Submit Ticket Open!')
+            .setColor('#FF7F00')
+            .setDescription(`The command </submit-ticket:1392510566945525781> is now **enabled**!\n` +
+                `⏳ Event ends <t:${Math.floor(endTime / 1000)}:R>\n` +
+                `Submit when you're ready! 🛠️`)
+            .setFooter({ text: 'Good luck, builders!' });
+        await channel.send({ content: `<@&${SUBMIT_TICKET_PING_ROLE_ID}>`, embeds: [embed] }).catch(e => console.error('[SubmitTicketAnnouncement]', e));
+    };
+
+    const now = Date.now();
+    if (now >= startTime && now < endTime) {
+        sendAnnouncement();
+    } else if (now < startTime) {
+        setTimeout(sendAnnouncement, startTime - now);
+    }
+}
 
 async function safeDeferReply(interaction, options = {}) {
     if (!interaction.isRepliable() || interaction.deferred || interaction.replied) return;
@@ -2903,6 +2931,7 @@ if (client.levelSystem && client.levelSystem.shopManager) {
 scheduleStreakLossCheck(client);
 scheduleDailyReadyNotifications(client);
 scheduleVoiceActivityRewards(client);
+scheduleSubmitTicketAnnouncement(client);
     initBuildBattleEvent(client);
     initFishSeason(client);
     initFishMarket(client);
@@ -4231,6 +4260,75 @@ module.exports = {
                 }
                 return;
             }
+            if (commandName === 'submit-ticket') {
+                const now = Date.now();
+                const year = new Date().getUTCFullYear();
+                const startTime = new Date(Date.UTC(year, 6, 31, 17, 0, 0)).getTime();
+                const endTime = new Date(Date.UTC(year, 7, 7, 17, 0, 0)).getTime();
+                if (now < startTime) {
+                    return sendInteractionError(interaction, 'This command is not active yet.', true);
+                }
+                if (now >= endTime) {
+                    return sendInteractionError(interaction, 'This command is no longer active.', true);
+                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId('submit_ticket_modal')
+                    .setTitle('Build Submission Form');
+
+                const titleInput = new TextInputBuilder()
+                    .setCustomId('build_title_input')
+                    .setLabel('✨ Build title')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('<Your build\u2019s name>')
+                    .setRequired(true);
+
+                const themeInput = new TextInputBuilder()
+                    .setCustomId('theme_fit_input')
+                    .setLabel('🎯 Theme fit (1-2 sentences)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Floating islands with a zen temple and cherry-blossom garden.')
+                    .setRequired(true);
+
+                const gameDeviceInput = new TextInputBuilder()
+                    .setCustomId('game_device_input')
+                    .setLabel('🗺️ Game & Version + Device used')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Minecraft Java 1.20.6 on PC (basic specs)')
+                    .setRequired(true);
+
+                const descInput = new TextInputBuilder()
+                    .setCustomId('short_desc_input')
+                    .setLabel('📝 Short description (≤1000 words)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('What makes your build special, key details, inspiration')
+                    .setRequired(true);
+
+                const verifyInput = new TextInputBuilder()
+                    .setCustomId('verification_input')
+                    .setLabel('Verification')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder(SUBMIT_TICKET_VERIFICATION_TEXT)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(titleInput),
+                    new ActionRowBuilder().addComponents(themeInput),
+                    new ActionRowBuilder().addComponents(gameDeviceInput),
+                    new ActionRowBuilder().addComponents(descInput),
+                    new ActionRowBuilder().addComponents(verifyInput)
+                );
+
+                await interaction.showModal(modal).catch(async e => {
+                    console.error('Failed to show submit_ticket_modal:', e);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await sendInteractionError(interaction, 'Failed to open submission form.', true);
+                    } else {
+                        await sendInteractionError(interaction, 'Failed to open submission form.', true, true);
+                    }
+                });
+                return;
+            }
             if (commandName === 'leaderboard') {
                 const guildId = interaction.guild.id;
                 const subcommandGroup = interaction.options.getSubcommandGroup(false);
@@ -4724,6 +4822,53 @@ module.exports = {
                 return;
             }
 
+            if (customId === 'submit_ticket_modal') {
+                if (!interaction.isModalSubmit()) return;
+                if (!interaction.guild) return sendInteractionError(interaction, 'This interaction must be used in a server.', true);
+
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: true });
+                    deferredThisInteraction = true;
+                }
+
+                    const ign = interaction.user.tag;
+                    const title = interaction.fields.getTextInputValue('build_title_input');
+                    const theme = interaction.fields.getTextInputValue('theme_fit_input');
+                    const gameDevice = interaction.fields.getTextInputValue('game_device_input');
+                    const shortDesc = interaction.fields.getTextInputValue('short_desc_input');
+                    const verification = interaction.fields.getTextInputValue('verification_input');
+
+                try {
+                    const newChannel = await interaction.guild.channels.create({
+                        name: `${interaction.user.username}-build`,
+                        type: ChannelType.GuildText,
+                        permissionOverwrites: [
+                            { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+                            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                        ]
+                    });
+                    await newChannel.setName(`${interaction.user.username}'s Build`).catch(() => {});
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('Build Submission')
+                        .addFields(
+                            { name: 'User', value: ign || 'N/A' },
+                            { name: 'Build Title', value: title || 'N/A' },
+                            { name: 'Theme Fit', value: theme || 'N/A' },
+                            { name: 'Game & Device', value: gameDevice || 'N/A' },
+                            { name: 'Short Description', value: shortDesc || 'N/A' },
+                            { name: 'Verification', value: verification || 'N/A' }
+                        )
+                        .setTimestamp();
+
+                    await newChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed] });
+                    await safeEditReply(interaction, { content: `Channel created: <#${newChannel.id}>`, ephemeral: true });
+                } catch (ticketError) {
+                    console.error('[submit-ticket]', ticketError);
+                    await sendInteractionError(interaction, 'Failed to create build channel.', true, deferredThisInteraction);
+                }
+                return;
+            }
 
             if (customId === 'start_vote_modal') {
                 if (!interaction.isModalSubmit()) return;
