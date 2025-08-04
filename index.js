@@ -3613,6 +3613,44 @@ client.on('interactionCreate', async interaction => {
                 } catch (giveItemError) { console.error('[GiveItem Command] Error:', giveItemError); await sendInteractionError(interaction, "Failed to give item. Internal error.", true, deferredThisInteraction); }
                 return;
             }
+
+            if (commandName === 'give' && interaction.options.getSubcommand() === 'role') {
+                if (!isStaff()) return sendInteractionError(interaction, "You don't have permission.", true, false);
+                if (!interaction.replied && !interaction.deferred) { await safeDeferReply(interaction, { ephemeral: true }); deferredThisInteraction = true; }
+                try {
+                    const role = interaction.options.getRole('role');
+                    const targetUser = interaction.options.getUser('user');
+                    const duration = interaction.options.getString('time');
+                    const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                    if (!role || !targetMember) return sendInteractionError(interaction, 'Invalid role or user.', true, deferredThisInteraction);
+
+                    await targetMember.roles.add(role);
+                    let replyMsg = `✅ ${targetUser} has been given the ${role} role.`;
+                    const parseDuration = str => {
+                        const m = /^([0-9]+)([smhdw])$/.exec(str);
+                        if (!m) return null;
+                        const n = parseInt(m[1], 10);
+                        const mult = { s:1000, m:60000, h:3600000, d:86400000, w:604800000 }[m[2]];
+                        return n * mult;
+                    };
+                    const ms = duration ? parseDuration(duration) : null;
+                    if (duration && !ms) return sendInteractionError(interaction, 'Invalid time format. Use s, m, h, d, or w.', true, deferredThisInteraction);
+                    if (ms) {
+                        setTimeout(async () => {
+                            const m = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                            if (m && m.roles.cache.has(role.id)) {
+                                await m.roles.remove(role).catch(() => {});
+                            }
+                        }, ms);
+                        replyMsg += ` Role will be removed in ${duration}.`;
+                    }
+                    await safeEditReply(interaction, { content: replyMsg });
+                } catch (err) {
+                    console.error('[Give Role Command]', err);
+                    await sendInteractionError(interaction, 'Failed to give role.', true, deferredThisInteraction);
+                }
+                return;
+            }
 const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
 
 module.exports = {
