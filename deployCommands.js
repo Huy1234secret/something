@@ -358,6 +358,23 @@ const commands = [
         default_member_permissions: PermissionsBitField.Flags.ManageGuild.toString()
     },
     {
+        name: 'give',
+        description: 'Give items such as roles to users (Staff Only).',
+        options: [
+            {
+                name: 'role',
+                description: 'Give a role to a user optionally for a limited time.',
+                type: ApplicationCommandOptionType.Subcommand,
+                options: [
+                    { name: 'role', description: 'The role to give.', type: ApplicationCommandOptionType.Role, required: true },
+                    { name: 'user', description: 'The user to receive the role.', type: ApplicationCommandOptionType.User, required: true },
+                    { name: 'time', description: 'Duration to keep the role (e.g., 7d). Leave empty for permanent.', type: ApplicationCommandOptionType.String, required: false }
+                ]
+            }
+        ],
+        default_member_permissions: PermissionsBitField.Flags.ManageRoles.toString()
+    },
+    {
         name: 'add-user',
         description: "Manage a user's items, roles, and currencies (Staff Only).",
         options: [
