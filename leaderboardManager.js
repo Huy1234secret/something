@@ -379,8 +379,10 @@ function buildRewardFields(client) {
     const gemEmoji = client.levelSystem?.gemEmoji || '💎';
     const robuxEmoji = client.levelSystem?.robuxEmoji || '<a:robux:1378395622683574353>';
     const chestEmoji = id => client.levelSystem?._getItemMasterProperty?.(id, 'emoji') || '';
-
-    const table = [...WEEKLY_REWARD_TABLE].sort((a,b) => b.chance - a.chance);
+    // Hide the secret king chest reward from the public reward embed
+    const table = [...WEEKLY_REWARD_TABLE]
+        .filter(spec => spec.id !== 'king_chest')
+        .sort((a, b) => b.chance - a.chance);
     return table.map(spec => {
         const emoji = spec.emoji ||
             (spec.subType === 'coins' ? coinEmoji :
