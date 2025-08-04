@@ -4240,7 +4240,14 @@ module.exports = {
                     return sendInteractionError(interaction, 'This command is not active yet.', true);
                 }
                 if (now >= endTime) {
-                    return sendInteractionError(interaction, 'This command is no longer active.', true);
+                    const closedEmbed = new EmbedBuilder()
+                        .setTitle('⛔ Submissions Closed')
+                        .setDescription('The build battle has ended and new submissions are no longer being accepted.\nThanks for participating!')
+                        .setColor(0xff5555)
+                        .setFooter({ text: 'Stay tuned for the next event!' })
+                        .setTimestamp();
+
+                    return interaction.reply({ embeds: [closedEmbed], ephemeral: true });
                 }
 
                 const modal = new ModalBuilder()
