@@ -1,5 +1,5 @@
 // commands/toggle-notifications.js
-const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,10 +23,11 @@ module.exports = {
         // Update the client flag controlling notification behaviour
         (client || interaction.client).NON_DAILY_NOTIFICATIONS_ENABLED = enabled;
 
-        const response = {
-            content: `✅ All non-daily notifications have been **${enabled ? 'ENABLED' : 'DISABLED'}**.`,
-            ephemeral: true
-        };
+        const embed = new EmbedBuilder()
+            .setColor(enabled ? 0x57F287 : 0xED4245)
+            .setTitle(enabled ? 'Alerts Enabled' : 'Alerts Disabled')
+            .setDescription(`All non-daily notifications have been **${enabled ? 'ENABLED' : 'DISABLED'}**.`);
+        const response = { embeds: [embed], ephemeral: true };
         if (interaction.deferred || interaction.replied) return interaction.editReply(response);
         return interaction.reply(response);
     },
