@@ -102,6 +102,11 @@ const NON_USABLE_ITEM_IDS = [
     ITEM_IDS.GIFTCARD_50,
 ];
 
+// Secret message challenge configuration
+const SECRET_CHANNEL_ID = '1402693272106831932';
+const SECRET_KEY_MESSAGE = '-just-act-like-this-server-didnt-exist😳';
+const SECRET_HEART_EMOJI = '<:pixelheart:1391070636876759121>';
+
 const fs = require('node:fs').promises;
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -430,6 +435,10 @@ client.fishInventorySessions = new Map();
 client.fishIndexSessions = new Map();
 let robuxWithdrawalRequests = new Map(); // New: To store active Robux withdrawal log messages { withdrawalId: messageId }
 const SUBMIT_TICKET_VERIFICATION_TEXT = 'I confirm this is my original work and follows all Build-Battle rules';
+
+// In-memory storage for secret channel hearts and solved status
+const secretChannelHearts = new Map(); // userId -> remaining hearts
+let secretChannelSolved = false;
 
 let slotsSessions = new Map();
 let slotsCooldowns = new Map();
@@ -2987,6 +2996,29 @@ initWeather(client);
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
+
+    // Secret channel game logic
+    if (message.channel.id === SECRET_CHANNEL_ID) {
+        if (!secretChannelSolved && message.content === SECRET_KEY_MESSAGE) {
+            const robuxEmoji = client.levelSystem?.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
+            await message.channel.send(`😎 ${message.author} Congrats, you earned 100 robux ${robuxEmoji}\n-# Secret has been solved, prize no longer reward after`).catch(() => {});
+            client.levelSystem.addRobux(message.author.id, message.guild.id, 100, 'secret_channel');
+            const everyoneRole = message.guild.roles.everyone;
+            await message.channel.permissionOverwrites.edit(everyoneRole, { SendMessages: false }).catch(() => {});
+            secretChannelSolved = true;
+        } else if (!secretChannelSolved) {
+            const currentHearts = secretChannelHearts.get(message.author.id) ?? 3;
+            const newHearts = currentHearts - 1;
+            secretChannelHearts.set(message.author.id, newHearts);
+            if (newHearts > 0) {
+                await message.channel.send(`${message.author}, you lost 1 heart ${SECRET_HEART_EMOJI}\n-# You have ${newHearts} ${SECRET_HEART_EMOJI} left! OUCH!`).catch(() => {});
+            } else {
+                await message.channel.send(`${message.author}, eliminated!\n-# get better next time!`).catch(() => {});
+                await message.channel.permissionOverwrites.edit(message.author.id, { SendMessages: false }).catch(() => {});
+            }
+        }
+        return;
+    }
 
     if (client.afkUsers.has(message.author.id)) {
         const data = client.afkUsers.get(message.author.id);
