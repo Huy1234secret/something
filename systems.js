@@ -2303,12 +2303,6 @@ this.db.prepare(`
             if (!rewardsMap.has(i)) {
                 rewardsMap.set(i, this._generateSingleDailyReward(userId, guildId));
             }
-
-            // Every 100th upcoming claim should award 100 Robux
-            const upcomingStreak = (user.dailyStreak || 0) + i; // streak after claiming day i
-            if (upcomingStreak % 100 === 0) {
-                rewardsMap.set(i, { type: 'currency', data: { id: this.ROBUX_ID, amount: 100 } });
-            }
         }
 
         // Check for rare Robux reward on day 3 (if not already a 100th-day reward)
@@ -2388,6 +2382,13 @@ this.db.prepare(`
         const streakCooldown = 24 * 60 * 60 * 1000;
         const newStreak = now - (user.lastDailyTimestamp || 0) < streakCooldown ? user.dailyStreak + 1 : 1;
 
+        // Bonus Robux every 100th streak
+        let bonusMessage = "";
+        if (newStreak % 100 === 0) {
+            this.addRobux(userId, guildId, 100, 'daily_bonus');
+            bonusMessage = ` You also received 100 ${this.robuxEmoji}!`;
+        }
+
         // Update the user's claim timestamp and streak
         this.updateUser(userId, guildId, { lastDailyTimestamp: now, dailyStreak: newStreak, lostStreak: 0 });
         this.updateUserLuckBonus(userId, guildId);
@@ -2395,7 +2396,7 @@ this.db.prepare(`
         // Shift rewards forward now that today's reward was claimed
         this.getDailyRewards(userId, guildId, true);
 
-
+        if (bonusMessage) claimedRewardMessage += bonusMessage;
 
         return { success: true, message: claimedRewardMessage };
     }
@@ -2488,6 +2489,14 @@ this.db.prepare(`
         this.getDailyRewards(userId, guildId, true);
 
         return { success: true, message: `Reward skipped using a ticket. ${claimedRewardMessage}` };
+    }
+
+    refreshAllDailyRewards() {
+        const rows = this.db.prepare('SELECT userId, guildId FROM users').all();
+        for (const row of rows) {
+            this.db.prepare('DELETE FROM userDailyRewards WHERE userId = ? AND guildId = ?').run(row.userId, row.guildId);
+            this.getDailyRewards(row.userId, row.guildId);
+        }
     }
 
     // --- End Daily System Methods ---

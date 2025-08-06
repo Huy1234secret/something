@@ -1000,6 +1000,8 @@ async function buildDailyEmbed(interaction, client) {
     const cooldown = 12 * 60 * 60 * 1000; // 12 hours
     const nextClaimTimestamp = lastClaim + cooldown;
     const canClaim = now >= nextClaimTimestamp;
+    const upcomingStreak = (user.dailyStreak || 0) + 1;
+    const bonusActive = canClaim && upcomingStreak % 100 === 0;
     
     let nextClaimText = '';
     if (canClaim) {
@@ -1039,12 +1041,17 @@ async function buildDailyEmbed(interaction, client) {
         embed.addFields({ name: field.title, value: rewardText, inline: true });
     }
 
+    if (bonusActive) {
+        embed.addFields({ name: 'Bonus Prize ⭐', value: `100 Robux ${systemsManager.robuxEmoji}`, inline: false });
+    }
+
     embed.addFields({ name: '⏳ Next Claim', value: nextClaimText, inline: false });
     embed.setFooter({ text: "Rewards shift forward each time you claim. Don't lose your streak!" });
 
     const skipCount = user.dailySkipCount || 0;
     const skipCost = Math.min(1000, Math.round(Math.pow(SKIP_COST_BASE, skipCount)));
 
+    const skipDisabled = canClaim || bonusActive;
     const components = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('claim_daily_reward')
@@ -1057,13 +1064,13 @@ async function buildDailyEmbed(interaction, client) {
             .setLabel(`Skip Reward (${skipCost} Gems)`)
             .setStyle(ButtonStyle.Primary)
             .setEmoji('⏭️')
-            .setDisabled(canClaim),
+            .setDisabled(skipDisabled),
         new ButtonBuilder()
             .setCustomId('skip_daily_ticket')
             .setLabel('Skip Reward (1 Ticket)')
             .setStyle(ButtonStyle.Secondary)
             .setEmoji('<:skipdailyticket:1389239150703673448>')
-            .setDisabled(canClaim)
+            .setDisabled(skipDisabled)
     );
 
     return { embed, components: [components] };
@@ -2789,6 +2796,11 @@ client.once('ready', async c => {
     if (client.levelSystem && typeof client.levelSystem.recalculateAllLuckBonuses === 'function') {
         client.levelSystem.recalculateAllLuckBonuses();
         console.log('[Startup] Recalculated luck bonuses for all users.');
+    }
+
+    if (client.levelSystem && typeof client.levelSystem.refreshAllDailyRewards === 'function') {
+        client.levelSystem.refreshAllDailyRewards();
+        console.log('[Startup] Refreshed daily rewards for all users.');
     }
 
     if (client.levelSystem && typeof client.levelSystem.resumeVoiceSessions === 'function') {
