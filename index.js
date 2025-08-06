@@ -13,7 +13,7 @@ const { initBuildBattleEvent, handleJoinInteraction, rerollUserTheme } = require
 const { initFishSeason } = require('./utils/fishSeasonManager');
 const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
-const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive } = require('./utils/weatherManager');
+const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive, isGoldenRainActive, isPrismaticTideActive, isEclipseActive, isSolarFlareActive, isSnowRainActive, isAuroraActive } = require('./utils/weatherManager');
 const afkMessages = require('./utils/afkMessages');
 
 // Corrected code
@@ -204,6 +204,22 @@ const RARITY_SYMBOL_TO_NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', E: 'Epic'
 const RARITY_NAME_TO_SYMBOL = { Common: 'C', Uncommon: 'U', Rare: 'R', Epic: 'E', Legendary: 'L', Mythical: 'M', Secret: 'S', Prismatic: 'P' };
 const ORDERED_RARITIES = ['Common','Uncommon','Rare','Epic','Legendary','Mythical','Secret','Prismatic'];
 const MUTATION_BLOSSOM_EMOJI = '<:mutBlossom:1397487879281971200>';
+const MUTATION_EMOJIS = {
+    Gold: '<:mutGold:1397489488040558602>',
+    Rainbow: '<:mutRainbow:1397489477815107605>',
+    Darkmatter: '<:mutDarkmatter:1397490928473870447>',
+    Radiant: '<:mutRadiant:1397515991076049007>',
+    Frosty: '<:mutFrosty:1397516059937865860>',
+    Blossom: MUTATION_BLOSSOM_EMOJI,
+    Aurora: '<:Aurora:1402301875268882462>'
+};
+
+function formatMutation(fish) {
+    const parts = [];
+    if (fish.classicMutation) parts.push(MUTATION_EMOJIS[fish.classicMutation] || '');
+    if (fish.otherMutation) parts.push(MUTATION_EMOJIS[fish.otherMutation] || '');
+    return parts.join('');
+}
 const BASE_FISH_CHANCE = 0.6;
 
 const BANK_MAXED_ROLE_ID = '1380872298143416340';
@@ -637,7 +653,7 @@ function buildFishingSuccessEmbed(fish, rod, dLoss, bLoss, rodBroken = false) {
     ].join('\n');
     const desc = [
         `* ⚖️ Weigh: ${fish.weight} kg`,
-        `* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI}` : ''}`,
+        `* ☢️ Mutation: ${formatMutation(fish)}`,
         `* ✨ Rarity: ${fish.rarity}`,
         `* 🆔 Fish ID: \`${fish.id}\``
     ];
@@ -695,7 +711,21 @@ function pickRandomFish() {
     const id = `${prefix}${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`;
     const rarityName = RARITY_SYMBOL_TO_NAME[fish.rarity] || fish.rarity;
     const obj = { name: fish.name, emoji: fish.emoji, rarity: rarityName, weight, id, durabilityLoss: fish.durabilityLoss, powerReq: fish.powerReq };
-    if (isBlossomActive() && Math.random() < 0.20) obj.mutation = 'Blossom';
+    const classicRolls = [
+        { name: 'Gold', chance: isGoldenRainActive() ? 0.20 : 0.01 },
+        { name: 'Rainbow', chance: isPrismaticTideActive() ? 0.01 : 0.001 },
+        { name: 'Darkmatter', chance: isEclipseActive() ? 0.001 : 0.0001 }
+    ];
+    for (const m of classicRolls) {
+        if (!obj.classicMutation && Math.random() < m.chance) obj.classicMutation = m.name;
+    }
+    if (isBlossomActive() && Math.random() < 0.20) obj.otherMutation = 'Blossom';
+    if (!obj.otherMutation && isSolarFlareActive() && Math.random() < 0.10) {
+        obj.otherMutation = 'Radiant';
+        obj.weight = +(obj.weight * 0.9).toFixed(2);
+    }
+    if (!obj.otherMutation && isSnowRainActive() && Math.random() < 0.10) obj.otherMutation = 'Frosty';
+    if (!obj.otherMutation && isAuroraActive() && Math.random() < 0.05) obj.otherMutation = 'Aurora';
     return obj;
 }
 
@@ -731,7 +761,7 @@ function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = fals
     if (!rod.itemId) gearField = `Fishing Rod: None\nBait: ${baitAmt}/${MAX_BAIT}`;
     embed.addFields({ name: 'Fishing Gear', value: gearField, inline:false });
     for (const fish of inv.slice((page-1)*pageSize, page*pageSize)) {
-        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: ${fish.mutation ? `${MUTATION_BLOSSOM_EMOJI}` : ''}\n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
+        let valStr = `* ⚖️ Weigh: ${fish.weight} kg\n* ☢️ Mutation: ${formatMutation(fish)}\n* ✨ Rarity: ${fish.rarity}\n* 🆔 Fish ID: \`${fish.id}\``;
         if (fish.value !== undefined) {
             const fishEmoji = client.levelSystem.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
             valStr += `\n* ${fishEmoji} Value: ${fish.value.toFixed(2)}`;
@@ -1520,8 +1550,19 @@ function calculateFishValue(fish) {
     const mults = { common: 5, uncommon: 8, rare: 15, epic: 30, legendary: 50, mythical: 250, secret: 1000, prismatic: 2000 };
     const m = mults[fish.rarity?.toLowerCase()] || 0;
     const base = +(fish.weight * m).toFixed(2);
-    let value = base;
-    if (fish.mutation === 'Blossom') value = +(base * 1.25).toFixed(2);
+    let mult = 1;
+    switch (fish.classicMutation) {
+        case 'Gold': mult *= 2; break;
+        case 'Rainbow': mult *= 5; break;
+        case 'Darkmatter': mult *= 10; break;
+    }
+    switch (fish.otherMutation) {
+        case 'Blossom': mult *= 1.25; break;
+        case 'Radiant': mult *= 1.5; break;
+        case 'Frosty': mult *= 1.45; break;
+        case 'Aurora': mult *= 2.5; break;
+    }
+    const value = +(base * mult).toFixed(2);
     fish.baseValue = base;
     return value;
 }
