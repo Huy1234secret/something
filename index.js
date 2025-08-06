@@ -87,10 +87,7 @@ const ITEM_IDS = {
     DISCOUNT_25: gameConfig.items.discount_ticket_25?.id || 'discount_ticket_25',
     DISCOUNT_50: gameConfig.items.discount_ticket_50?.id || 'discount_ticket_50',
     DISCOUNT_100: gameConfig.items.discount_ticket_100?.id || 'discount_ticket_100',
-    WATER_BOTTLE: gameConfig.items.waterbottle?.id || 'waterbottle',
-    NEWSPAPER: gameConfig.items.newspaper?.id || 'newspaper',
-    EMPTY_CAN: gameConfig.items.emptycan?.id || 'emptycan',
-    SEAWEED: gameConfig.items.seaweed?.id || 'seaweed',
+    TRASH_BAG: gameConfig.items.trashbag?.id || 'trashbag',
 };
 
 const NON_USABLE_ITEM_IDS = [
@@ -730,13 +727,14 @@ function pickRandomFish() {
 }
 
 function pickRandomTrash() {
-    const trash = [
-        gameConfig.items.waterbottle,
-        gameConfig.items.newspaper,
-        gameConfig.items.emptycan,
-        gameConfig.items.seaweed,
+    const displayTrash = [
+        { name: 'Empty Bottle', emoji: '<:junkemptybottle:1402668764985561139>' },
+        { name: 'Empty Can', emoji: '<:junkemptycan:1402668752415490109>' },
+        { name: 'Newspaper', emoji: '<:junknewspaper:1402668741371887687>' },
+        { name: 'Plastic Bag', emoji: '<:junkplasticbag:1402668727312322685>' }
     ];
-    return trash[Math.floor(Math.random() * trash.length)];
+    const chosen = displayTrash[Math.floor(Math.random() * displayTrash.length)];
+    return { id: gameConfig.items.trashbag.id, name: chosen.name, emoji: chosen.emoji };
 }
 
 function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = false) {
