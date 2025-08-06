@@ -2,13 +2,44 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { buildWeatherEmbed, getActiveWeatherList, activeUntil, DISPLAY_NAMES } = require('../utils/weatherManager');
 
-const MUTATION_BLOSSOM_EMOJI = '<:mutBlossom:1397487879281971200>';
+const MUTATION_EMOJIS = {
+    Blossom: '<:mutBlossom:1397487879281971200>',
+    Gold: '<:mutGold:1397489488040558602>',
+    Rainbow: '<:mutRainbow:1397489477815107605>',
+    Darkmatter: '<:mutDarkmatter:1397490928473870447>',
+    Radiant: '<:mutRadiant:1397515991076049007>',
+    Frosty: '<:mutFrosty:1397516059937865860>',
+    Aurora: '<:Aurora:1402301875268882462>'
+};
 
 const WEATHER_INFO = {
-    rain: { boost: '+25% fish chance' },
+    rain: {
+        boost: '+25% fish chance',
+        mutation: `Chance for **Gold Mutation ${MUTATION_EMOJIS.Gold}**`
+    },
+    goldenRain: {
+        boost: '+25% fish chance',
+        mutation: `20% chance for **Gold Mutation ${MUTATION_EMOJIS.Gold}**`
+    },
+    snowRain: {
+        boost: '+25% fish chance',
+        mutation: `10% chance for **Frosty Mutation ${MUTATION_EMOJIS.Frosty}**`
+    },
     blossom: {
         boost: '+10% fish chance',
-        mutation: `Chance for **Blossom Mutation ${MUTATION_BLOSSOM_EMOJI}**`
+        mutation: `Chance for **Blossom Mutation ${MUTATION_EMOJIS.Blossom}**`
+    },
+    prismatic: {
+        mutation: `1% chance for **Rainbow Mutation ${MUTATION_EMOJIS.Rainbow}**`
+    },
+    eclipse: {
+        mutation: `0.1% chance for **Darkmatter Mutation ${MUTATION_EMOJIS.Darkmatter}**`
+    },
+    solarFlare: {
+        mutation: `10% chance for **Radiant Mutation ${MUTATION_EMOJIS.Radiant}**`
+    },
+    aurora: {
+        mutation: `5% chance for **Aurora Mutation ${MUTATION_EMOJIS.Aurora}**`
     }
 };
 
