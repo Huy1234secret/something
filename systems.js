@@ -59,6 +59,7 @@ const DEFAULT_COIN_EMOJI = gameConfig.items.coins?.emoji || '<:JAGcoin:139758154
 const DEFAULT_GEM_EMOJI = gameConfig.items.gems?.emoji || '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI = gameConfig.items.robux?.emoji || '<a:robux:1378395622683574353>';
 const DEFAULT_FISH_DOLLAR_EMOJI = gameConfig.items.fish_dollar?.emoji || '<:fishdollar:1393480559573078027>';
+const DEFAULT_CANDY_EMOJI = gameConfig.items.candy?.emoji || '<:candyha:1402891882593521766>';
 const ROBUX_WITHDRAWAL_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 const SKIP_COST_BASE = Math.pow(1000, 1 / 31);
 
@@ -113,10 +114,12 @@ class SystemsManager {
         this.gemEmoji = this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
         this.robuxEmoji = this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
         this.fishDollarEmoji = this.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI;
+        this.candyEmoji = this.gameConfig.items.candy?.emoji || DEFAULT_CANDY_EMOJI;
         this.COINS_ID = this.gameConfig.items.coins?.id || 'coins';
         this.GEMS_ID = this.gameConfig.items.gems?.id || 'gems';
         this.ROBUX_ID = this.gameConfig.items.robux?.id || 'robux';
         this.FISH_DOLLAR_ID = this.gameConfig.items.fish_dollar?.id || 'fish_dollar';
+        this.CANDY_ID = this.gameConfig.items.candy?.id || 'candy';
         this.COMMON_CHEST_ID = this.gameConfig.items.common_chest?.id || 'common_chest';
         this.RARE_CHEST_ID = this.gameConfig.items.rare_chest?.id || 'rare_chest';
         this.EPIC_CHEST_ID = this.gameConfig.items.epic_chest?.id || 'epic_chest';
@@ -2668,6 +2671,6 @@ module.exports = {
     DEFAULT_ANNOUNCE_RARITY_THRESHOLD, DEFAULT_SHOP_RESTOCK_DM_ENABLED,
     SETTINGS_EMOJI_ENABLED, SETTINGS_EMOJI_DISABLED,
     VOICE_ACTIVITY_INTERVAL_MS, MAX_LEVEL, ROBUX_WITHDRAWAL_COOLDOWN_MS,
-    DEFAULT_COIN_EMOJI, DEFAULT_GEM_EMOJI, DEFAULT_ROBUX_EMOJI, DEFAULT_FISH_DOLLAR_EMOJI,
+    DEFAULT_COIN_EMOJI, DEFAULT_GEM_EMOJI, DEFAULT_ROBUX_EMOJI, DEFAULT_FISH_DOLLAR_EMOJI, DEFAULT_CANDY_EMOJI,
     ROLE_PERKS,
 };
