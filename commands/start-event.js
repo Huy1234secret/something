@@ -35,14 +35,18 @@ module.exports = {
 
         if (!response) {
             if (!result.started) {
-                const endTs = Math.floor((Date.now() + result.remaining) / 1000);
-                const nameMap = {
-                    blossom: 'Cherry Blossom Breeze',
-                    prismatic: 'Prismatic Tide',
-                    eclipse: 'Eclipse',
-                    aurora: 'Aurora'
-                };
-                response = { content: `The event ${nameMap[id]} is currently active, you can use again in <t:${endTs}:R>`, ephemeral: true };
+                if (result.seasonMismatch && id === 'blossom') {
+                    response = { content: 'Cherry Blossom Breeze can only be started during the Spring season.', ephemeral: true };
+                } else {
+                    const endTs = Math.floor((Date.now() + result.remaining) / 1000);
+                    const nameMap = {
+                        blossom: 'Cherry Blossom Breeze',
+                        prismatic: 'Prismatic Tide',
+                        eclipse: 'Eclipse',
+                        aurora: 'Aurora'
+                    };
+                    response = { content: `The event ${nameMap[id]} is currently active, you can use again in <t:${endTs}:R>`, ephemeral: true };
+                }
             } else {
                 const nameMap = {
                     blossom: 'Cherry Blossom Breeze',
