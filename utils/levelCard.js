@@ -1,4 +1,5 @@
-const { createCanvas, loadImage } = require('canvas');
+// Use @napi-rs/canvas for better compatibility with recent Node versions
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 /**
  * Generate a level card image for a user.
