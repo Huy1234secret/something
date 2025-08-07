@@ -714,7 +714,7 @@ const commands = [
         ]
     },
     {
-        name: 'trick-or-treat🎃',
+        name: 'trick-or-treat',
         description: 'Knock on a door for a Halloween surprise.'
     },
 ];

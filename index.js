@@ -3929,7 +3929,7 @@ module.exports = {
                 return;
                 }
             }
-            if (commandName === 'trick-or-treat🎃') {
+            if (commandName === 'trick-or-treat') {
                 if (interaction.channelId !== TRICK_OR_TREAT_CHANNEL_ID) {
                     return sendInteractionError(interaction, 'This command can only be used in the trick-or-treat channel.', true);
                 }
