@@ -269,12 +269,6 @@ const LEVEL_SPECIFIC_IMAGE_URLS = {
 
 function getImageUrlForLevel(level) { return LEVEL_SPECIFIC_IMAGE_URLS[level] || LEVEL_SPECIFIC_IMAGE_URLS.default; }
 
-const LEVEL_ROLE_COLORS = {
-    "1372582451741851699": 0xff8800, "1372583177729867787": 0xffff00, "1372583185887662151": 0xaaff00,
-    "1372583186357555242": 0x00ff00, "1374410299180060762": 0x00ffff, "1374410304984977548": 0x00aaff,
-    "1374410304456495296": 0x0055ff, "1372583187653595297": 0x0000ff, default: 0xff0000
-};
-
 let WEEKEND_BOOST_ACTIVE = false;
 let WEEKEND_MULTIPLIERS = { luck: 1.0, xp: 1.0, currency: 1.0, gem: 1.0, shopDiscount: 0.0 };
 const WEEKEND_CHECK_INTERVAL_MS = 15 * 60 * 1000;
@@ -4278,10 +4272,6 @@ module.exports = {
                     if (!targetMemberForLevel) return sendInteractionError(interaction, "Member not found.", true, deferredThisInteraction); // Use deferred flag
                     const levelInfo = client.levelSystem.getLevelInfo(targetUser.id, interaction.guild.id);
                     const highestRoleNameAndId = client.levelSystem.getHighestCurrentLevelRoleNameAndId(targetMemberForLevel, levelInfo.level);
-                    let embedColor = LEVEL_ROLE_COLORS.default;
-                    if (highestRoleNameAndId?.id && LEVEL_ROLE_COLORS[highestRoleNameAndId.id]) {
-                        embedColor = LEVEL_ROLE_COLORS[highestRoleNameAndId.id];
-                    }
                     const xpProgress = levelInfo.xp;
                     const xpToNext = levelInfo.xpNeeded;
                     const maxLevelConfigured = client.levelSystem.gameConfig.globalSettings.MAX_LEVEL || MAX_LEVEL;
@@ -4300,8 +4290,7 @@ module.exports = {
                         levelIconUrl: getImageUrlForLevel(levelInfo.level)
                     });
                     const attachment = new AttachmentBuilder(cardBuffer, { name: 'level.png' });
-                    const embed = new EmbedBuilder().setColor(embedColor).setImage('attachment://level.png');
-                    await safeEditReply(interaction, { embeds: [embed], files: [attachment], ephemeral: false }, true);
+                    await safeEditReply(interaction, { files: [attachment], ephemeral: false }, true);
             } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
                 return;
             }
@@ -4340,8 +4329,6 @@ module.exports = {
                     } else if (infoType === 'level') {
                         const levelInfo = client.levelSystem.getLevelInfo(targetUser.id, interaction.guild.id);
                         const highestRoleNameAndId = client.levelSystem.getHighestCurrentLevelRoleNameAndId(targetMember, levelInfo.level);
-                        let embedColor = LEVEL_ROLE_COLORS.default;
-                        if (highestRoleNameAndId?.id && LEVEL_ROLE_COLORS[highestRoleNameAndId.id]) embedColor = LEVEL_ROLE_COLORS[highestRoleNameAndId.id];
                         const xpProgress = levelInfo.xp;
                         const xpToNext = levelInfo.xpNeeded;
                         const maxLevelConfigured = client.levelSystem.gameConfig.globalSettings.MAX_LEVEL || MAX_LEVEL;
@@ -4360,8 +4347,7 @@ module.exports = {
                             levelIconUrl: getImageUrlForLevel(levelInfo.level)
                         });
                         const attachment = new AttachmentBuilder(cardBuffer, { name: 'level.png' });
-                        const embed = new EmbedBuilder().setColor(embedColor).setImage('attachment://level.png');
-                        await safeEditReply(interaction, { embeds: [embed], files: [attachment], ephemeral: false }, true);
+                        await safeEditReply(interaction, { files: [attachment], ephemeral: false }, true);
                     } else {
                         await sendInteractionError(interaction, 'Invalid info type.', true, deferredThisInteraction);
                     }

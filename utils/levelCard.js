@@ -1,20 +1,25 @@
-// Sci‑Fi themed Level Card generator for Discord bots
+// ⚡ Ultra‑HUD Level Card Generator
+// Completely re‑imagined "glass‑HUD" design with radial XP ring, metric chips, and animated‑ready layers.
 // Requires @napi-rs/canvas ≥0.1.43
-// Optional: place a copy of the free "Orbitron" font in ./assets/Orbitron-Bold.ttf for a better futuristic look.
+// Optional fonts: Orbitron (bold) & Rajdhani (regular) in ./assets
 
 const { createCanvas, loadImage, registerFont } = require('@napi-rs/canvas');
 const path = require('path');
 
-// ---- OPTIONAL CUSTOM FONT --------------------------------------------------
+// ────────────────────────────────────────────────────────────────────────────────
+// FONT REGISTRATION (optional but recommended)
 try {
-  registerFont(path.join(__dirname, 'assets', 'Orbitron-Bold.ttf'), { family: 'Orbitron', weight: 'bold' });
-} catch (_) {
-  // Font registration fails silently; default system sans-serif will be used.
-}
+  registerFont(path.join(__dirname, 'assets', 'Orbitron-Bold.ttf'), {
+    family: 'Orbitron', weight: 'bold'
+  });
+  registerFont(path.join(__dirname, 'assets', 'Rajdhani-Regular.ttf'), {
+    family: 'Rajdhani', weight: 'normal'
+  });
+} catch (_) { /* fall back to system fonts */ }
 
-// ---------------------------------------------------------------------------
-// Helper to draw rounded rectangles (with option for glow)
-function drawRoundedRect(ctx, x, y, w, h, r) {
+// ────────────────────────────────────────────────────────────────────────────────
+// UTILITY HELPERS
+function roundedRect(ctx, x, y, w, h, r = 20) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
@@ -28,134 +33,208 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/**
- * Generate a neon‑styled level card.
- * @param {Object} data – same contract as the previous implementation.
- * @returns {Promise<Buffer>} PNG buffer.
- */
-async function generateLevelCard(data) {
-  const width  = 940;
-  const height = 300;
-  const canvas = createCanvas(width, height);
-  const ctx    = canvas.getContext('2d');
-
-  // 1️⃣  Cosmic gradient backdrop ------------------------------------------------
-  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-  bgGrad.addColorStop(0,  '#0d0a1a');  // deep space violet
-  bgGrad.addColorStop(0.5,'#141e30');  // dark indigo
-  bgGrad.addColorStop(1,  '#1f4068');  // star‑blue
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, width, height);
-
-  // Scatter a subtle starfield (≈ 120 stars)
-  for (let i = 0; i < 120; i++) {
-    const sx = Math.random() * width;
-    const sy = Math.random() * height;
-    const r  = Math.random() * 1.6 + 0.2;
-    ctx.globalAlpha = Math.random() * 0.8 + 0.2;
+function drawStars(ctx, w, h, count) {
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  for (let i = 0; i < count; i++) {
+    const x = Math.random() * w;
+    const y = Math.random() * h;
+    const r = Math.random() * 1.2 + 0.2;
+    ctx.globalAlpha = Math.random() * 0.7 + 0.3;
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
 
-  // 2️⃣  Central neon panel ------------------------------------------------------
-  const panel = { x: 24, y: 24, w: width - 48, h: height - 48, r: 28 };
+// ────────────────────────────────────────────────────────────────────────────────
+// TYPE DEFINITIONS (JSDoc)
+/**
+ * @typedef {Object} LevelCardData
+ * @property {string}  username
+ * @property {string}  avatarURL
+ * @property {number}  level
+ * @property {number}  xp
+ * @property {number}  xpNeeded
+ * @property {number}  progressPercentage  // 0‑100
+ * @property {number}  rank
+ * @property {number} [prestige]
+ * @property {number} [dailyXP]
+ * @property {number} [streak]
+ * @property {string[]} [badgeUrls]
+ */
+
+// ────────────────────────────────────────────────────────────────────────────────
+// MAIN FUNCTION
+/**
+ * Generate an ultra‑HUD style level card.
+ * @param {LevelCardData} d
+ * @returns {Promise<Buffer>} PNG buffer
+ */
+async function generateLevelCard(d) {
+  const W = 1080, H = 420;
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
+
+  // 1⃣  BACKGROUND – Deep gradient + subtle starfield
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#051021');
+  g.addColorStop(0.5, '#071e35');
+  g.addColorStop(1, '#04101c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  drawStars(ctx, W, H, 160);
+
+  // 2⃣  GLASS FRAME with layered neon edges
   ctx.save();
-  drawRoundedRect(ctx, panel.x, panel.y, panel.w, panel.h, panel.r);
-  ctx.fillStyle = 'rgba(5, 8, 20, 0.65)'; // translucent midnight overlay
+  roundedRect(ctx, 18, 18, W - 36, H - 36, 30);
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fill();
-
-  // Outer glow
-  ctx.shadowColor = '#00d0ff';
-  ctx.shadowBlur  = 25;
   ctx.lineWidth   = 2;
-  ctx.strokeStyle = '#00d0ff';
+  ctx.shadowColor = '#00e1ff';
+  ctx.shadowBlur  = 18;
+  ctx.strokeStyle = '#00e1ff';
+  ctx.stroke();
+  ctx.shadowColor = '#007bff';
+  ctx.shadowBlur  = 8;
+  ctx.strokeStyle = 'rgba(0,123,255,0.8)';
   ctx.stroke();
   ctx.restore();
 
-  // 3️⃣  Optional level icon -----------------------------------------------------
-  if (data.levelIconUrl) {
-    try {
-      const iconImg  = await loadImage(data.levelIconUrl);
-      const iconSize = 86;
-      ctx.drawImage(iconImg, panel.x + panel.w - iconSize - 20, panel.y + 20, iconSize, iconSize);
-    } catch (_) {}
-  }
-
-  // 4️⃣  Avatar ---------------------------------------------------------------
+  // 3⃣  AVATAR with radial progress ring ----------------------------------
+  const AV_SIZE = 200;
+  const avX = 100, avY = H / 2;
   try {
-    const avatar = await loadImage(data.avatarURL);
-    const size   = 176;
-    const ax     = panel.x + 30;
-    const ay     = panel.y + (panel.h - size) / 2;
-
+    const avatar = await loadImage(d.avatarURL);
     ctx.save();
-    // Avatar glow ring
-    ctx.shadowColor = '#03e9f4';
-    ctx.shadowBlur  = 25;
+    // Clip avatar circle
     ctx.beginPath();
-    ctx.arc(ax + size/2, ay + size/2, size/2, 0, Math.PI * 2);
+    ctx.arc(avX, avY, AV_SIZE / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.strokeStyle = '#03e9f4';
-    ctx.lineWidth   = 6;
-    ctx.stroke();
     ctx.clip();
-
-    // Draw avatar
-    ctx.shadowBlur = 0; // disable glow for image
-    ctx.drawImage(avatar, ax, ay, size, size);
+    ctx.drawImage(avatar, avX - AV_SIZE / 2, avY - AV_SIZE / 2, AV_SIZE, AV_SIZE);
     ctx.restore();
   } catch (_) {}
 
-  // 5️⃣  Text block -------------------------------------------------------------
-  const textX = panel.x + 250;
-  const titleFont = ctx.measureText(' ').actualBoundingBoxAscent ? 'Orbitron' : 'sans-serif';
+  // Glow ring background
+  ctx.beginPath();
+  ctx.arc(avX, avY, AV_SIZE / 2 + 6, 0, Math.PI * 2);
+  ctx.shadowColor = '#24faff';
+  ctx.shadowBlur  = 25;
+  ctx.lineWidth   = 6;
+  ctx.strokeStyle = '#24faff';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  ctx.fillStyle = '#e4f7ff';
-  ctx.font = `bold 42px "${titleFont}"`;
-  ctx.fillText(data.username, textX, panel.y + 70);
+  // XP progress ring (360° arc proportionate to progress)
+  const pct = Math.max(0, Math.min(1, d.progressPercentage / 100));
+  const startAng = -Math.PI / 2;
+  const endAng   = startAng + pct * Math.PI * 2;
+  ctx.beginPath();
+  ctx.arc(avX, avY, AV_SIZE / 2 + 16, startAng, endAng);
+  const ringGrad = ctx.createLinearGradient(avX, avY - AV_SIZE / 2 - 16, avX, avY + AV_SIZE / 2 + 16);
+  ringGrad.addColorStop(0, '#29ffe4');
+  ringGrad.addColorStop(1, '#2a7dff');
+  ctx.lineWidth   = 10;
+  ctx.strokeStyle = ringGrad;
+  ctx.shadowColor = '#00d1ff';
+  ctx.shadowBlur  = 15;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
+  ctx.shadowBlur  = 0;
 
-  ctx.font = `28px "${titleFont}"`;
-  ctx.fillStyle = '#8be9ff';
-  ctx.fillText(`LEVEL ${data.level}`, textX, panel.y + 110);
+  // 4⃣  USERNAME & LEVEL ----------------------------------------------------
+  const fontTitle  = "'Orbitron', sans-serif";
+  const fontMetric = "'Rajdhani', sans-serif";
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `24px "${titleFont}"`;
-  ctx.fillText(`RANK #${data.rank}`, textX, panel.y + 150);
-  if (data.highestRoleName) ctx.fillText(`ROLE • ${data.highestRoleName}`, textX, panel.y + 190);
-  ctx.fillText(`TO NEXT • ${data.xpToNextDisplay}`, textX, panel.y + 230);
+  ctx.fillStyle = '#eafcff';
+  ctx.font = `bold 56px ${fontTitle}`;
+  ctx.fillText(d.username, 260, 110);
 
-  // 6️⃣  Neon progress bar ------------------------------------------------------
-  const bar = { x: textX, y: panel.y + panel.h - 70, w: panel.w - (textX - panel.x) - 30, h: 32, r: 16 };
-  drawRoundedRect(ctx, bar.x, bar.y, bar.w, bar.h, bar.r);
+  ctx.font = `34px ${fontMetric}`;
+  ctx.fillStyle = '#8dfaff';
+  ctx.fillText(`LEVEL ${d.level}`, 260, 160);
+
+  // 5⃣  METRIC CHIPS --------------------------------------------------------
+  const chips = [
+    { label: 'RANK',   value: `#${d.rank}` },
+    { label: 'PRESTIGE', value: d.prestige ?? 0 },
+    { label: 'STREAK',  value: d.streak ?? 0 },
+    { label: 'DAILY XP', value: d.dailyXP?.toLocaleString() ?? 0 }
+  ];
+  let chipX = 260, chipY = 200;
+  const chipH = 36, padH = 14, padV = 8;
+  ctx.font = `20px ${fontMetric}`;
+  chips.forEach(c => {
+    const txt = `${c.label}: ${c.value}`;
+    const txtW = ctx.measureText(txt).width;
+    const chipW = txtW + padH * 2;
+
+    // Background pill
+    roundedRect(ctx, chipX, chipY, chipW, chipH, chipH / 2);
+    ctx.fillStyle   = 'rgba(255,255,255,0.08)';
+    ctx.shadowColor = 'rgba(0,224,255,0.7)';
+    ctx.shadowBlur  = 6;
+    ctx.fill();
+    ctx.shadowBlur  = 0;
+
+    // Text
+    ctx.fillStyle = '#b3f4ff';
+    ctx.fillText(txt, chipX + padH, chipY + chipH / 1.5);
+
+    // Move to next chip position
+    chipX += chipW + 18;
+    if (chipX > W - 260) {
+      chipX = 260;
+      chipY += chipH + 14;
+    }
+  });
+
+  // 6⃣  HORIZONTAL PROGRESS BAR -------------------------------------------
+  const bar = { x: 260, y: H - 130, w: W - 320, h: 40, r: 20 };
+  roundedRect(ctx, bar.x, bar.y, bar.w, bar.h, bar.r);
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
   ctx.fill();
 
-  const progress = Math.max(0, Math.min(1, data.progressPercentage / 100));
-  if (progress > 0) {
-    const innerW = bar.w * progress;
-    drawRoundedRect(ctx, bar.x, bar.y, innerW, bar.h, bar.r);
+  if (pct > 0) {
+    const innerW = bar.w * pct;
+    roundedRect(ctx, bar.x, bar.y, innerW, bar.h, bar.r);
     const grad = ctx.createLinearGradient(bar.x, bar.y, bar.x + innerW, bar.y);
-    grad.addColorStop(0, '#00e5ff');
-    grad.addColorStop(1, '#3a7dff');
-    ctx.shadowColor = '#00cfff';
-    ctx.shadowBlur  = 15;
+    grad.addColorStop(0, '#23fbff');
+    grad.addColorStop(1, '#2b6dff');
+    ctx.shadowColor = '#22e9ff';
+    ctx.shadowBlur  = 16;
     ctx.fillStyle   = grad;
     ctx.fill();
-    ctx.shadowBlur  = 0; // reset glow
+    ctx.shadowBlur  = 0;
   }
 
-  // Progress text (centered)
-  const progressTxt = `${data.xp.toLocaleString()} / ${data.xpNeeded ? data.xpNeeded.toLocaleString() : '-'}  •  ${data.progressPercentage.toFixed(1)}%`;
-  ctx.font = `20px "${titleFont}"`;
-  ctx.fillStyle = '#e4f7ff';
-  const txtWidth = ctx.measureText(progressTxt).width;
-  ctx.fillText(progressTxt, bar.x + (bar.w - txtWidth) / 2, bar.y + bar.h / 1.6);
+  // Progress text overlay
+  const barTxt = `${d.xp.toLocaleString()} / ${d.xpNeeded > 0 ? d.xpNeeded.toLocaleString() : '-'} • ${d.progressPercentage.toFixed(1)}%`;
+  ctx.font = `22px ${fontMetric}`;
+  ctx.fillStyle = '#eafcff';
+  const tW = ctx.measureText(barTxt).width;
+  ctx.fillText(barTxt, bar.x + (bar.w - tW) / 2, bar.y + bar.h / 1.6);
+
+  // 7⃣  BADGE ROW -----------------------------------------------------------
+  if (Array.isArray(d.badgeUrls) && d.badgeUrls.length) {
+    const B = 48;
+    const startX = bar.x;
+    const y = bar.y + 60;
+    for (let i = 0; i < Math.min(d.badgeUrls.length, 10); i++) {
+      const x = startX + i * (B + 12);
+      // Badge placeholder background
+      roundedRect(ctx, x, y, B, B, 12);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fill();
+      try {
+        const img = await loadImage(d.badgeUrls[i]);
+        ctx.drawImage(img, x, y, B, B);
+      } catch (_) {}
+    }
+  }
 
   return canvas.toBuffer('image/png');
 }
 
 module.exports = { generateLevelCard };
-
