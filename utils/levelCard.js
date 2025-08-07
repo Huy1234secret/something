@@ -1,137 +1,161 @@
-// Use @napi-rs/canvas for better compatibility with recent Node versions
-const { createCanvas, loadImage } = require('@napi-rs/canvas');
+// Sci‑Fi themed Level Card generator for Discord bots
+// Requires @napi-rs/canvas ≥0.1.43
+// Optional: place a copy of the free "Orbitron" font in ./assets/Orbitron-Bold.ttf for a better futuristic look.
 
-/**
- * Generate a level card image for a user.
- * @param {Object} data - Card data
- * @param {string} data.username - Username to display
- * @param {string} data.avatarURL - Avatar URL
- * @param {number} data.level - Current level
- * @param {number} data.xp - Current XP
- * @param {number} data.xpNeeded - XP needed for next level
- * @param {string} data.xpToNextDisplay - Display string for XP to next level
- * @param {number} data.rank - User's rank
- * @param {string} [data.highestRoleName] - Highest level role name
- * @param {number} data.progressPercentage - Progress percentage towards next level
- * @param {string} [data.levelIconUrl] - Optional URL for level icon
- * @returns {Promise<Buffer>} PNG buffer
- */
-function drawRoundedRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+const { createCanvas, loadImage, registerFont } = require('@napi-rs/canvas');
+const path = require('path');
+
+// ---- OPTIONAL CUSTOM FONT --------------------------------------------------
+try {
+  registerFont(path.join(__dirname, 'assets', 'Orbitron-Bold.ttf'), { family: 'Orbitron', weight: 'bold' });
+} catch (_) {
+  // Font registration fails silently; default system sans-serif will be used.
 }
 
+// ---------------------------------------------------------------------------
+// Helper to draw rounded rectangles (with option for glow)
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/**
+ * Generate a neon‑styled level card.
+ * @param {Object} data – same contract as the previous implementation.
+ * @returns {Promise<Buffer>} PNG buffer.
+ */
 async function generateLevelCard(data) {
-    const width = 900;
-    const height = 280;
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+  const width  = 940;
+  const height = 300;
+  const canvas = createCanvas(width, height);
+  const ctx    = canvas.getContext('2d');
 
-    // Vibrant background gradient
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#4e54c8');
-    gradient.addColorStop(1, '#8f94fb');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+  // 1️⃣  Cosmic gradient backdrop ------------------------------------------------
+  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+  bgGrad.addColorStop(0,  '#0d0a1a');  // deep space violet
+  bgGrad.addColorStop(0.5,'#141e30');  // dark indigo
+  bgGrad.addColorStop(1,  '#1f4068');  // star‑blue
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
 
-    // Semi-transparent inner panel for smoother look
-    ctx.save();
-    drawRoundedRect(ctx, 20, 20, width - 40, height - 40, 25);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  // Scatter a subtle starfield (≈ 120 stars)
+  for (let i = 0; i < 120; i++) {
+    const sx = Math.random() * width;
+    const sy = Math.random() * height;
+    const r  = Math.random() * 1.6 + 0.2;
+    ctx.globalAlpha = Math.random() * 0.8 + 0.2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
-    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 
-    // Optional level icon in top-right
-    if (data.levelIconUrl) {
-        try {
-            const levelImg = await loadImage(data.levelIconUrl);
-            const iconSize = 90;
-            ctx.drawImage(levelImg, width - iconSize - 40, 40, iconSize, iconSize);
-        } catch (e) {
-            // Ignore loading errors
-        }
-    }
+  // 2️⃣  Central neon panel ------------------------------------------------------
+  const panel = { x: 24, y: 24, w: width - 48, h: height - 48, r: 28 };
+  ctx.save();
+  drawRoundedRect(ctx, panel.x, panel.y, panel.w, panel.h, panel.r);
+  ctx.fillStyle = 'rgba(5, 8, 20, 0.65)'; // translucent midnight overlay
+  ctx.fill();
 
-    // Avatar with circular crop and outline
+  // Outer glow
+  ctx.shadowColor = '#00d0ff';
+  ctx.shadowBlur  = 25;
+  ctx.lineWidth   = 2;
+  ctx.strokeStyle = '#00d0ff';
+  ctx.stroke();
+  ctx.restore();
+
+  // 3️⃣  Optional level icon -----------------------------------------------------
+  if (data.levelIconUrl) {
     try {
-        const avatar = await loadImage(data.avatarURL);
-        const avatarSize = 170;
-        const avatarX = 60;
-        const avatarY = height / 2 - avatarSize / 2;
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(avatar, avatarX, avatarY, avatarSize, avatarSize);
-        ctx.restore();
+      const iconImg  = await loadImage(data.levelIconUrl);
+      const iconSize = 86;
+      ctx.drawImage(iconImg, panel.x + panel.w - iconSize - 20, panel.y + 20, iconSize, iconSize);
+    } catch (_) {}
+  }
 
-        // Outline ring
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-        ctx.stroke();
-    } catch (e) {
-        // ignore avatar load errors
-    }
+  // 4️⃣  Avatar ---------------------------------------------------------------
+  try {
+    const avatar = await loadImage(data.avatarURL);
+    const size   = 176;
+    const ax     = panel.x + 30;
+    const ay     = panel.y + (panel.h - size) / 2;
 
-    const textX = 260;
-
-    // Username and stats
-    ctx.font = 'bold 40px Sans';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(data.username, textX, 80);
-
-    ctx.font = '28px Sans';
-    ctx.fillStyle = '#cce2ff';
-    ctx.fillText(`Level ${data.level}`, textX, 120);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '24px Sans';
-    ctx.fillText(`Rank #${data.rank}`, textX, 160);
-    if (data.highestRoleName) ctx.fillText(`Role: ${data.highestRoleName}`, textX, 200);
-    ctx.fillText(`To Next: ${data.xpToNextDisplay}`, textX, 240);
-
-    // Progress bar with rounded edges
-    const barX = textX;
-    const barWidth = width - barX - 60;
-    const barHeight = 30;
-    const barY = height - 60;
     ctx.save();
-    drawRoundedRect(ctx, barX, barY, barWidth, barHeight, barHeight / 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fill();
+    // Avatar glow ring
+    ctx.shadowColor = '#03e9f4';
+    ctx.shadowBlur  = 25;
+    ctx.beginPath();
+    ctx.arc(ax + size/2, ay + size/2, size/2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.strokeStyle = '#03e9f4';
+    ctx.lineWidth   = 6;
+    ctx.stroke();
+    ctx.clip();
+
+    // Draw avatar
+    ctx.shadowBlur = 0; // disable glow for image
+    ctx.drawImage(avatar, ax, ay, size, size);
     ctx.restore();
+  } catch (_) {}
 
-    const progress = Math.min(1, Math.max(0, data.progressPercentage / 100));
-    ctx.save();
-    drawRoundedRect(ctx, barX, barY, barWidth * progress, barHeight, barHeight / 2);
-    const barGradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
-    barGradient.addColorStop(0, '#00c6ff');
-    barGradient.addColorStop(1, '#0072ff');
-    ctx.fillStyle = barGradient;
+  // 5️⃣  Text block -------------------------------------------------------------
+  const textX = panel.x + 250;
+  const titleFont = ctx.measureText(' ').actualBoundingBoxAscent ? 'Orbitron' : 'sans-serif';
+
+  ctx.fillStyle = '#e4f7ff';
+  ctx.font = `bold 42px "${titleFont}"`;
+  ctx.fillText(data.username, textX, panel.y + 70);
+
+  ctx.font = `28px "${titleFont}"`;
+  ctx.fillStyle = '#8be9ff';
+  ctx.fillText(`LEVEL ${data.level}`, textX, panel.y + 110);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `24px "${titleFont}"`;
+  ctx.fillText(`RANK #${data.rank}`, textX, panel.y + 150);
+  if (data.highestRoleName) ctx.fillText(`ROLE • ${data.highestRoleName}`, textX, panel.y + 190);
+  ctx.fillText(`TO NEXT • ${data.xpToNextDisplay}`, textX, panel.y + 230);
+
+  // 6️⃣  Neon progress bar ------------------------------------------------------
+  const bar = { x: textX, y: panel.y + panel.h - 70, w: panel.w - (textX - panel.x) - 30, h: 32, r: 16 };
+  drawRoundedRect(ctx, bar.x, bar.y, bar.w, bar.h, bar.r);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fill();
+
+  const progress = Math.max(0, Math.min(1, data.progressPercentage / 100));
+  if (progress > 0) {
+    const innerW = bar.w * progress;
+    drawRoundedRect(ctx, bar.x, bar.y, innerW, bar.h, bar.r);
+    const grad = ctx.createLinearGradient(bar.x, bar.y, bar.x + innerW, bar.y);
+    grad.addColorStop(0, '#00e5ff');
+    grad.addColorStop(1, '#3a7dff');
+    ctx.shadowColor = '#00cfff';
+    ctx.shadowBlur  = 15;
+    ctx.fillStyle   = grad;
     ctx.fill();
-    ctx.restore();
+    ctx.shadowBlur  = 0; // reset glow
+  }
 
-    const progressText = `${data.xp.toLocaleString()} / ${data.xpNeeded > 0 ? data.xpNeeded.toLocaleString() : '-'} (${data.progressPercentage.toFixed(1)}%)`;
-    ctx.font = '20px Sans';
-    ctx.fillStyle = '#ffffff';
-    const textWidth = ctx.measureText(progressText).width;
-    ctx.fillText(progressText, barX + (barWidth - textWidth) / 2, barY + barHeight / 1.7);
+  // Progress text (centered)
+  const progressTxt = `${data.xp.toLocaleString()} / ${data.xpNeeded ? data.xpNeeded.toLocaleString() : '-'}  •  ${data.progressPercentage.toFixed(1)}%`;
+  ctx.font = `20px "${titleFont}"`;
+  ctx.fillStyle = '#e4f7ff';
+  const txtWidth = ctx.measureText(progressTxt).width;
+  ctx.fillText(progressTxt, bar.x + (bar.w - txtWidth) / 2, bar.y + bar.h / 1.6);
 
-    return canvas.toBuffer('image/png');
+  return canvas.toBuffer('image/png');
 }
 
 module.exports = { generateLevelCard };
+
