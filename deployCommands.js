@@ -713,6 +713,10 @@ const commands = [
             },
         ]
     },
+    {
+        name: 'trick-or-treat🎃',
+        description: 'Knock on a door for a Halloween surprise.'
+    },
 ];
 
 async function deployCommands(token = process.env.DISCORD_TOKEN, clientId = process.env.CLIENT_ID, guildId = process.env.GUILD_ID) {

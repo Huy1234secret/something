@@ -132,6 +132,11 @@ const config = {
             rarityValue: 3000000,
             description: "A premium-grade currency from another realm."
         },
+        candy: {
+            id: "candy", name: "Candy", type: "currency",
+            emoji: "<:candyha:1402891882593521766>", rarityValue: 1000,
+            description: "Sweet treats gathered from Halloween adventures."
+        },
 
         "nothing_drop": {
             id: "nothing_drop", name: "Nothing", type: "junk",

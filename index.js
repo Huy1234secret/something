@@ -15,6 +15,7 @@ const { initFishMarket } = require('./utils/fishMarketNotifier');
 const { initFishStore } = require('./utils/fishStoreNotifier');
 const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive, isGoldenRainActive, isPrismaticTideActive, isEclipseActive, isSolarFlareActive, isSnowRainActive, isAuroraActive } = require('./utils/weatherManager');
 const afkMessages = require('./utils/afkMessages');
+const { names: TOT_NAMES, treatMessages: TOT_TREAT_MESSAGES, trickMessages: TOT_TRICK_MESSAGES } = require('./utils/trickOrTreatData.js');
 
 // Corrected code
 const originalUserSend = User.prototype.send;
@@ -68,6 +69,7 @@ const ITEM_IDS = {
     COINS: gameConfig.items.coins?.id || 'coins',
     GEMS: gameConfig.items.gems?.id || 'gems',
     ROBUX: gameConfig.items.robux?.id || 'robux',
+    CANDY: gameConfig.items.candy?.id || 'candy',
     COMMON_CHEST: gameConfig.items.common_chest?.id || 'common_chest',
     RARE_CHEST: gameConfig.items.rare_chest?.id || 'rare_chest',
     EPIC_CHEST: gameConfig.items.epic_chest?.id || 'epic_chest',
@@ -101,6 +103,12 @@ const NON_USABLE_ITEM_IDS = [
     ITEM_IDS.GIFTCARD_25,
     ITEM_IDS.GIFTCARD_50,
 ];
+
+const TRICK_OR_TREAT_CHANNEL_ID = '1402847034171592725';
+const TRICK_OR_TREAT_COOLDOWN_MS = 30 * 1000;
+const TRICK_OR_TREAT_DEATH_MS = 24 * 60 * 60 * 1000;
+const REAPER_EMOJI = '<:reaperha:1402891869360226415>';
+const CANDY_EMOJI = '<:candyha:1402891882593521766>';
 
 // Secret message challenge configuration
 const SECRET_CHANNEL_ID = '1402693272106831932';
@@ -447,6 +455,7 @@ const SLOT_LUCK_BOOST_DURATION_MS = 5 * 60 * 1000;
 
 let fishingSessions = new Map();
 let splitStealGames = new Map();
+let trickOrTreatStates = new Map();
 const RARE_SLOT_IDS = ['lucky7','diamond_gem','triple_bar','double_bar','single_bar','lucky_clover'];
 const SLOTS_COOLDOWN_MS = 10 * 60 * 1000;
 
@@ -2792,7 +2801,8 @@ client.once('ready', async c => {
     client.levelSystem.gemEmoji = client.levelSystem.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI_FALLBACK;
     client.levelSystem.robuxEmoji = client.levelSystem.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI_FALLBACK; // New
     client.levelSystem.fishDollarEmoji = client.levelSystem.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
-    console.log(`[Emojis] Initialized Coin Emoji: ${client.levelSystem.coinEmoji}, Gem Emoji: ${client.levelSystem.gemEmoji}, Robux Emoji: ${client.levelSystem.robuxEmoji}, Fish Dollar Emoji: ${client.levelSystem.fishDollarEmoji}`);
+    client.levelSystem.candyEmoji = client.levelSystem.gameConfig.items.candy?.emoji || CANDY_EMOJI;
+    console.log(`[Emojis] Initialized Coin Emoji: ${client.levelSystem.coinEmoji}, Gem Emoji: ${client.levelSystem.gemEmoji}, Robux Emoji: ${client.levelSystem.robuxEmoji}, Fish Dollar Emoji: ${client.levelSystem.fishDollarEmoji}, Candy Emoji: ${client.levelSystem.candyEmoji}`);
 
     // Set client instance in SystemsManager
     if (client.levelSystem && typeof client.levelSystem.setClient === 'function') {
@@ -3918,6 +3928,91 @@ module.exports = {
                 fishingSessions.set(key, { messageId: sent.id, stage: 'start', rod: rodInfo, rodItemId: rodItem.itemId, remainingDurability: rodInfo.durability, bait: baitCount, durabilityLoss: 0, shakeTimeout: null });
                 return;
                 }
+            }
+            if (commandName === 'trick-or-treat🎃') {
+                if (interaction.channelId !== TRICK_OR_TREAT_CHANNEL_ID) {
+                    return sendInteractionError(interaction, 'This command can only be used in the trick-or-treat channel.', true);
+                }
+                const key = `${interaction.user.id}_${interaction.guild.id}`;
+                const now = Date.now();
+                let state = trickOrTreatStates.get(key) || { lastUsed: 0, warns: 0, warnReset: 0, deathUntil: 0 };
+                if (state.warnReset && now > state.warnReset) {
+                    state.warns = 0;
+                    state.warnReset = 0;
+                }
+                if (state.deathUntil && now < state.deathUntil) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('You are death')
+                        .setDescription('Wait a while for us to revive you')
+                        .setColor(0xFF0000)
+                        .setFooter({ text: 'you know 30s is not that long...' });
+                    const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
+                    setTimeout(() => { msg.delete().catch(() => {}); }, 15000);
+                    return;
+                } else if (state.deathUntil && now >= state.deathUntil) {
+                    state.deathUntil = 0;
+                    state.warns = 0;
+                    state.warnReset = 0;
+                }
+                const remaining = state.lastUsed + TRICK_OR_TREAT_COOLDOWN_MS - now;
+                if (remaining > 0) {
+                    state.warns = (state.warns || 0) + 1;
+                    state.warnReset = now + TRICK_OR_TREAT_DEATH_MS;
+                    trickOrTreatStates.set(key, state);
+                    const timeStr = `<t:${Math.floor((state.lastUsed + TRICK_OR_TREAT_COOLDOWN_MS)/1000)}:R>`;
+                    if (state.warns === 1) {
+                        return interaction.reply({ content: `${REAPER_EMOJI} **Reaper:** ${interaction.user}! The sands still fall, wanderer. Touch this hourglass again too soon, and my scythe will remember your name.\n-# Trick-or-treating again in ${timeStr}` });
+                    } else if (state.warns === 2) {
+                        return interaction.reply({ content: `${REAPER_EMOJI} **Reaper:** ${interaction.user}! Impatient still? I can already taste the chill on your breath. One more trespass, and the blade tilts toward you..\n-# Trick-or-treating again in ${timeStr}` });
+                    } else if (state.warns === 3) {
+                        return interaction.reply({ content: `${REAPER_EMOJI} **Reaper:** ${interaction.user}! Mercy’s wick burns out. Another stolen second and your soul joins the tally etched on my steel..\n-# Trick-or-treating again in ${timeStr}` });
+                    } else {
+                        state.deathUntil = now + TRICK_OR_TREAT_DEATH_MS;
+                        trickOrTreatStates.set(key, state);
+                        const reviveStr = `<t:${Math.floor(state.deathUntil/1000)}:R>`;
+                        return interaction.reply({ content: `${REAPER_EMOJI} **Reaper:** ${interaction.user}! Time’s debt is due. The scythe descends—your spirit is mine, bound to the endless dark.\n-# You got killed, reviving in ${reviveStr}` });
+                    }
+                }
+                state.lastUsed = now;
+                trickOrTreatStates.set(key, state);
+
+                const roll = Math.random();
+                const name = TOT_NAMES[Math.floor(Math.random() * TOT_NAMES.length)];
+                if (roll < 0.6) {
+                    const candies = Math.floor(Math.random() * 10) + 1;
+                    client.levelSystem.addItemToInventory(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY, client.levelSystem.itemTypes.CURRENCY, candies, 'trick_or_treat');
+                    const msg = TOT_TREAT_MESSAGES[Math.floor(Math.random() * TOT_TREAT_MESSAGES.length)];
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ name: 'You knocked a neighbor door' })
+                        .setTitle(name)
+                        .setDescription(`"${msg}"\n-# You got ${candies} candies ${client.levelSystem.candyEmoji || CANDY_EMOJI}`)
+                        .setColor(Math.floor(Math.random() * 0xffffff))
+                        .setFooter({ text: 'You have a lovely neighbor :0' });
+                    await interaction.reply({ embeds: [embed] });
+                } else if (roll < 0.8) {
+                    const lossRoll = Math.floor(Math.random() * 200) + 1;
+                    const row = client.levelSystem.db.prepare('SELECT quantity FROM userInventory WHERE userId = ? AND guildId = ? AND itemId = ?').get(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY);
+                    const currentQty = row ? row.quantity : 0;
+                    const loss = Math.min(lossRoll, currentQty);
+                    if (loss > 0) client.levelSystem.takeItem(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY, loss);
+                    const msg = TOT_TRICK_MESSAGES[Math.floor(Math.random() * TOT_TRICK_MESSAGES.length)];
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ name: 'You knocked a neighbor door' })
+                        .setTitle(name)
+                        .setDescription(`"${msg}"\n-# You lost ${loss} candies ${client.levelSystem.candyEmoji || CANDY_EMOJI}... as a punishment...`)
+                        .setColor(0xFF0000)
+                        .setFooter({ text: "aw man... they doesn't like you :[" });
+                    await interaction.reply({ embeds: [embed] });
+                } else {
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ name: 'You knocked a neighbor door' })
+                        .setTitle('...')
+                        .setDescription('Maybe no one is home!\n-# You didn\'t get any candies!')
+                        .setColor(0x000000)
+                        .setFooter({ text: 'sad' });
+                    await interaction.reply({ embeds: [embed] });
+                }
+                return;
             }
             if (commandName === 'slots') {
                 const key = `${interaction.user.id}_${interaction.guild.id}`;
