@@ -212,12 +212,14 @@ class SystemsManager {
             if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.name || 'Gems';
             if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.name || 'Robux';
             if (itemId === this.FISH_DOLLAR_ID) return this.gameConfig.items.fish_dollar?.name || 'Fish Dollar';
+            if (itemId === this.CANDY_ID) return this.gameConfig.items.candy?.name || 'Candy';
         }
         if (propertyName === 'emoji') {
             if (itemId === this.COINS_ID) return this.gameConfig.items.coins?.emoji || DEFAULT_COIN_EMOJI;
             if (itemId === this.GEMS_ID) return this.gameConfig.items.gems?.emoji || DEFAULT_GEM_EMOJI;
             if (itemId === this.ROBUX_ID) return this.gameConfig.items.robux?.emoji || DEFAULT_ROBUX_EMOJI;
             if (itemId === this.FISH_DOLLAR_ID) return this.gameConfig.items.fish_dollar?.emoji || DEFAULT_FISH_DOLLAR_EMOJI;
+            if (itemId === this.CANDY_ID) return this.gameConfig.items.candy?.emoji || DEFAULT_CANDY_EMOJI;
         }
         return defaultValue;
     }
@@ -251,7 +253,7 @@ class SystemsManager {
             );`,
             `CREATE TABLE IF NOT EXISTS users (
                 userId TEXT NOT NULL, guildId TEXT NOT NULL, xp INTEGER DEFAULT 0, level INTEGER DEFAULT 0,
-                coins INTEGER DEFAULT 0, gems INTEGER DEFAULT 0, robux INTEGER DEFAULT 0, fishDollars INTEGER DEFAULT 0,
+                coins INTEGER DEFAULT 0, gems INTEGER DEFAULT 0, robux INTEGER DEFAULT 0, fishDollars INTEGER DEFAULT 0, candy INTEGER DEFAULT 0,
                 bankCoins INTEGER DEFAULT 0, bankGems INTEGER DEFAULT 0,
                 bankTier INTEGER DEFAULT 0, lastMessageTimestamp INTEGER DEFAULT 0, lastDailyTimestamp INTEGER DEFAULT 0,
                 totalMessages INTEGER DEFAULT 0, totalXp INTEGER DEFAULT 0, totalCoinsEarned INTEGER DEFAULT 0,
@@ -370,6 +372,9 @@ class SystemsManager {
         }
         if (!usersInfo.some(col => col.name === 'fishDollars')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN fishDollars INTEGER DEFAULT 0;`);
+        }
+        if (!usersInfo.some(col => col.name === 'candy')) {
+            this.db.exec(`ALTER TABLE users ADD COLUMN candy INTEGER DEFAULT 0;`);
         }
         if (!usersInfo.some(col => col.name === 'bpPoints')) {
             this.db.exec(`ALTER TABLE users ADD COLUMN bpPoints INTEGER DEFAULT 0;`);
@@ -512,6 +517,20 @@ class SystemsManager {
 
         newBal = Math.round(newBal * 100) / 100;
         this.updateUser(userId, guildId, { fishDollars: newBal });
+        return { success: true, added: actualAdded, newBalance: newBal };
+    }
+
+    addCandy(userId, guildId, amount, source = "unknown") {
+        if (amount === 0) return { success: false, added: 0, newBalance: this.getBalance(userId, guildId).candy, reason: "Amount was zero." };
+
+        const user = this.getUser(userId, guildId);
+        let finalAmount = Math.round(amount);
+        let newBal = (user.candy || 0) + finalAmount;
+        let actualAdded = finalAmount;
+
+        if (newBal < 0) { actualAdded = -user.candy; newBal = 0; }
+
+        this.updateUser(userId, guildId, { candy: newBal });
         return { success: true, added: actualAdded, newBalance: newBal };
     }
 
@@ -707,7 +726,7 @@ class SystemsManager {
 
     getBalance(userId, guildId) {
         const user = this.getUser(userId, guildId);
-        return { coins: user.coins, gems: user.gems, robux: user.robux, fishDollars: user.fishDollars };
+        return { coins: user.coins, gems: user.gems, robux: user.robux, fishDollars: user.fishDollars, candy: user.candy };
     }
 
     async addLevelManually(userId, guildId, levelsToAdd, member) {
@@ -823,7 +842,7 @@ class SystemsManager {
 this.db.prepare(`
   INSERT INTO users (
     userId, guildId,
-    coins, gems, robux, fishDollars,
+    coins, gems, robux, fishDollars, candy,
     bankCoins, bankGems, bankTier,
     xp, level,
     totalRobuxEarned, lastRobuxWithdrawalTimestamp,
@@ -841,7 +860,7 @@ this.db.prepare(`
             user = this.db.prepare('SELECT * FROM users WHERE userId = ? AND guildId = ?').get(userId, guildId);
         }
         user.xp = user.xp || 0; user.level = user.level || 0; user.coins = user.coins || 0;
-        user.gems = user.gems || 0; user.robux = user.robux || 0; user.fishDollars = user.fishDollars || 0;
+        user.gems = user.gems || 0; user.robux = user.robux || 0; user.fishDollars = user.fishDollars || 0; user.candy = user.candy || 0;
         user.bankCoins = user.bankCoins || 0; user.bankGems = user.bankGems || 0;
         user.bankTier = user.bankTier || 0; user.lastMessageTimestamp = user.lastMessageTimestamp || 0;
         user.lastDailyTimestamp = user.lastDailyTimestamp || 0; user.totalMessages = user.totalMessages || 0;
@@ -1164,6 +1183,9 @@ this.db.prepare(`
             } else if (itemId === this.ROBUX_ID || itemConfig.id === this.ROBUX_ID) {
                 currencyEmoji = this.robuxEmoji;
                 currentWallet = balance.robux;
+            } else if (itemId === this.CANDY_ID || itemConfig.id === this.CANDY_ID) {
+                currencyEmoji = this.candyEmoji;
+                currentWallet = balance.candy;
             }
             embed.addFields({ name: 'Balance', value: `Wallet: \`${formatNumber(currentWallet)}\` ${currencyEmoji}${ (itemId === this.COINS_ID || itemId === this.GEMS_ID) ? `\nBank: \`${formatNumber(currentBank)}\` ${currencyEmoji}` : ''}`, inline: false });
         }
@@ -1217,6 +1239,13 @@ this.db.prepare(`
                 return { success: true, activated: false, message: `${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) added to your balance.` };
             } else {
                 return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.gemEmoji || '💎'} **${itemName}** (x${quantity}) to your balance.` };
+            }
+        } else if (itemId === this.CANDY_ID && (effectiveItemType === this.itemTypes.CURRENCY || effectiveItemType === this.itemTypes.CURRENCY_ITEM)) {
+            const candyResult = this.addCandy(userId, guildId, quantity, source);
+            if (candyResult.success) {
+                return { success: true, activated: false, message: `${itemEmoji || this.candyEmoji || '<:candyha:1402891882593521766>'} **${itemName}** (x${quantity}) added to your balance.` };
+            } else {
+                return { success: false, activated: false, message: `Failed to add ${itemEmoji || this.candyEmoji || '<:candyha:1402891882593521766>'} **${itemName}** (x${quantity}) to your balance.` };
             }
         }
 
@@ -1315,7 +1344,7 @@ this.db.prepare(`
     inventoryItems.forEach(dbItem => {
         // *** ADD FILTER FOR CURRENCIES ***
         const masterItemCheck = this._getItemMasterProperty(dbItem.itemId, null);
-        if (masterItemCheck && (masterItemCheck.type === this.itemTypes.CURRENCY || masterItemCheck.type === this.itemTypes.CURRENCY_ITEM || dbItem.itemId === this.ROBUX_ID || dbItem.itemId === this.COINS_ID || dbItem.itemId === this.GEMS_ID)) {
+        if (masterItemCheck && (masterItemCheck.type === this.itemTypes.CURRENCY || masterItemCheck.type === this.itemTypes.CURRENCY_ITEM || dbItem.itemId === this.ROBUX_ID || dbItem.itemId === this.COINS_ID || dbItem.itemId === this.GEMS_ID || dbItem.itemId === this.CANDY_ID)) {
             // console.warn(`[UserInventory] Currency item '${dbItem.itemId}' found in userInventory table for ${userId}. This should be a direct balance. Ignoring for inventory display.`);
             return; // Skip currency items from appearing as inventory items
         }
@@ -1589,7 +1618,7 @@ this.db.prepare(`
     resetUserData(userId, guildId) {
         const user = this.getUser(userId, guildId);
         this.updateUser(userId, guildId, {
-            xp: 0, level: 0, coins: 0, gems: 0, robux: 0,
+            xp: 0, level: 0, coins: 0, gems: 0, robux: 0, candy: 0,
             bankCoins: 0, bankGems: 0, bankTier: 0,
             lastMessageTimestamp: 0, lastDailyTimestamp: 0,
             totalMessages: 0, totalXp: 0, totalCoinsEarned: 0, totalGemsEarned: 0, totalRobuxEarned: 0, dailyStreak: 0,
@@ -1610,9 +1639,9 @@ this.db.prepare(`
             details.push("Levels and XP reset.");
         }
         if (options.doBalances) {
-            this.db.prepare('UPDATE users SET coins = 0, gems = 0, robux = 0, bankCoins = 0, bankGems = 0, totalCoinsEarned = 0, totalGemsEarned = 0, totalRobuxEarned = 0, totalVoiceCoins = 0, lastRobuxWithdrawalTimestamp = 0 WHERE userId = ? AND guildId = ?').run(userId, guildId);
+            this.db.prepare('UPDATE users SET coins = 0, gems = 0, robux = 0, candy = 0, bankCoins = 0, bankGems = 0, totalCoinsEarned = 0, totalGemsEarned = 0, totalRobuxEarned = 0, totalVoiceCoins = 0, lastRobuxWithdrawalTimestamp = 0 WHERE userId = ? AND guildId = ?').run(userId, guildId);
             this.db.prepare(`DELETE FROM robux_withdrawals WHERE guildId = ? AND userId = ?`).run(guildId, userId);
-            details.push("Coin, Gem, and Robux balances (inventory & bank) reset.");
+            details.push("Coin, Gem, Robux, and Candy balances (inventory & bank) reset.");
             details.push("Pending Robux withdrawal requests cleared.");
         }
         if (options.doInventory) {
@@ -1637,8 +1666,8 @@ this.db.prepare(`
             details.push("Levels and XP reset for all users.");
         }
         if (options.doBalances) {
-            this.db.prepare('UPDATE users SET coins = 0, gems = 0, robux = 0, bankCoins = 0, bankGems = 0, totalCoinsEarned = 0, totalGemsEarned = 0, totalRobuxEarned = 0, totalVoiceCoins = 0, lastRobuxWithdrawalTimestamp = 0 WHERE guildId = ?').run(guildId);
-            details.push("Coin, Gem, and Robux balances (inventory & bank) reset for all users.");
+            this.db.prepare('UPDATE users SET coins = 0, gems = 0, robux = 0, candy = 0, bankCoins = 0, bankGems = 0, totalCoinsEarned = 0, totalGemsEarned = 0, totalRobuxEarned = 0, totalVoiceCoins = 0, lastRobuxWithdrawalTimestamp = 0 WHERE guildId = ?').run(guildId);
+            details.push("Coin, Gem, Robux, and Candy balances (inventory & bank) reset for all users.");
             this.db.prepare(`DELETE FROM robux_withdrawals WHERE guildId = ?`).run(guildId); // Clear withdrawal requests
             details.push("Pending Robux withdrawal requests cleared.");
         }
