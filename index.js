@@ -16,7 +16,7 @@ const { initFishStore } = require('./utils/fishStoreNotifier');
 const { initWeather, buildWeatherEmbed, getCatchMultiplier, isBlossomActive, isGoldenRainActive, isPrismaticTideActive, isEclipseActive, isSolarFlareActive, isSnowRainActive, isAuroraActive } = require('./utils/weatherManager');
 const afkMessages = require('./utils/afkMessages');
 const { names: TOT_NAMES, treatMessages: TOT_TREAT_MESSAGES, trickMessages: TOT_TRICK_MESSAGES } = require('./utils/trickOrTreatData.js');
-
+const { generateLevelCard } = require('./utils/levelCard');
 // Corrected code
 const originalUserSend = User.prototype.send;
 User.prototype.send = function (...args) {
@@ -4282,23 +4282,26 @@ module.exports = {
                     if (highestRoleNameAndId?.id && LEVEL_ROLE_COLORS[highestRoleNameAndId.id]) {
                         embedColor = LEVEL_ROLE_COLORS[highestRoleNameAndId.id];
                     }
-                    const xpProgress = levelInfo.xp; const xpToNext = levelInfo.xpNeeded;
+                    const xpProgress = levelInfo.xp;
+                    const xpToNext = levelInfo.xpNeeded;
                     const maxLevelConfigured = client.levelSystem.gameConfig.globalSettings.MAX_LEVEL || MAX_LEVEL;
                     const progressPercentage = xpToNext > 0 ? Math.min(100, Math.max(0, (xpProgress / xpToNext) * 100)) : (levelInfo.level >= maxLevelConfigured ? 100 : 0);
-                    const progressBar = '🟩'.repeat(Math.floor(progressPercentage / 10)) + '⬛'.repeat(10 - Math.floor(progressPercentage / 10));
                     const xpToNextDisplay = levelInfo.level >= maxLevelConfigured ? 'Max Level Reached' : `${(xpToNext - xpProgress).toLocaleString()} XP`;
-                    const levelEmbed = new EmbedBuilder()
-                        .setColor(embedColor).setAuthor({ name: `${targetUser.username}'s Level Progress`, iconURL: targetUser.displayAvatarURL({ dynamic: true })})
-                        .setThumbnail(getImageUrlForLevel(levelInfo.level))
-                        .addFields(
-                            { name: '🏆 Level', value: `\`${levelInfo.level}\``, inline: true },
-                            { name: '✨ XP', value: `\`${levelInfo.xp.toLocaleString()} / ${xpToNext > 0 ? xpToNext.toLocaleString() : '-'}\``, inline: true },
-                            { name: '📈 Rank', value: `\`#${levelInfo.rank}\``, inline: true },
-                            { name: '📊 Progress', value: `${progressBar} \`${progressPercentage.toFixed(1)}%\``, inline: false},
-                            { name: '🎯 XP to Next Level', value: `\`${xpToNextDisplay}\``, inline: false },
-                            { name: '🎖️ Highest Role', value: `${highestRoleNameAndId.name} (<@&${highestRoleNameAndId.id}>)`, inline: false}
-                        ).setTimestamp().setFooter({ text: `Viewing stats in: ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-                await safeEditReply(interaction, { embeds: [levelEmbed], ephemeral: false }, true);
+                    const cardBuffer = await generateLevelCard({
+                        username: targetUser.username,
+                        avatarURL: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
+                        level: levelInfo.level,
+                        xp: levelInfo.xp,
+                        xpNeeded: xpToNext,
+                        xpToNextDisplay,
+                        rank: levelInfo.rank,
+                        highestRoleName: highestRoleNameAndId.name,
+                        progressPercentage,
+                        levelIconUrl: getImageUrlForLevel(levelInfo.level)
+                    });
+                    const attachment = new AttachmentBuilder(cardBuffer, { name: 'level.png' });
+                    const embed = new EmbedBuilder().setColor(embedColor).setImage('attachment://level.png');
+                    await safeEditReply(interaction, { embeds: [embed], files: [attachment], ephemeral: false }, true);
             } catch (levelError) { console.error(`[Level Command] Error:`, levelError); await sendInteractionError(interaction, "Could not fetch level info.", true, deferredThisInteraction); }
                 return;
             }
@@ -4339,25 +4342,26 @@ module.exports = {
                         const highestRoleNameAndId = client.levelSystem.getHighestCurrentLevelRoleNameAndId(targetMember, levelInfo.level);
                         let embedColor = LEVEL_ROLE_COLORS.default;
                         if (highestRoleNameAndId?.id && LEVEL_ROLE_COLORS[highestRoleNameAndId.id]) embedColor = LEVEL_ROLE_COLORS[highestRoleNameAndId.id];
-                        const xpProgress = levelInfo.xp; const xpToNext = levelInfo.xpNeeded;
+                        const xpProgress = levelInfo.xp;
+                        const xpToNext = levelInfo.xpNeeded;
                         const maxLevelConfigured = client.levelSystem.gameConfig.globalSettings.MAX_LEVEL || MAX_LEVEL;
                         const progressPercentage = xpToNext > 0 ? Math.min(100, Math.max(0, (xpProgress / xpToNext) * 100)) : (levelInfo.level >= maxLevelConfigured ? 100 : 0);
-                        const progressBar = '🟩'.repeat(Math.floor(progressPercentage / 10)) + '⬛'.repeat(10 - Math.floor(progressPercentage / 10));
                         const xpToNextDisplay = levelInfo.level >= maxLevelConfigured ? 'Max Level Reached' : `${(xpToNext - xpProgress).toLocaleString()} XP`;
-                        const levelEmbed = new EmbedBuilder()
-                            .setColor(embedColor).setAuthor({ name: `${targetUser.username}'s Level Progress`, iconURL: targetUser.displayAvatarURL({ dynamic: true })})
-                            .setThumbnail(getImageUrlForLevel(levelInfo.level))
-                            .addFields(
-                                { name: '🏆 Level', value: `\`${levelInfo.level}\``, inline: true },
-                                { name: '✨ XP', value: `\`${levelInfo.xp.toLocaleString()} / ${xpToNext > 0 ? xpToNext.toLocaleString() : '-'}\``, inline: true },
-                                { name: '📈 Rank', value: `\`#${levelInfo.rank}\``, inline: true },
-                                { name: '📊 Progress', value: `${progressBar} \`${progressPercentage.toFixed(1)}%\``, inline: false },
-                                { name: '🎯 XP to Next Level', value: `\`${xpToNextDisplay}\``, inline: false },
-                                { name: '🎖️ Highest Role', value: `${highestRoleNameAndId.name} (<@&${highestRoleNameAndId.id}>)`, inline: false }
-                            )
-                            .setTimestamp()
-                            .setFooter({ text: `Viewing stats in: ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) });
-                        await safeEditReply(interaction, { embeds: [levelEmbed], ephemeral: false }, true);
+                        const cardBuffer = await generateLevelCard({
+                            username: targetUser.username,
+                            avatarURL: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
+                            level: levelInfo.level,
+                            xp: levelInfo.xp,
+                            xpNeeded: xpToNext,
+                            xpToNextDisplay,
+                            rank: levelInfo.rank,
+                            highestRoleName: highestRoleNameAndId.name,
+                            progressPercentage,
+                            levelIconUrl: getImageUrlForLevel(levelInfo.level)
+                        });
+                        const attachment = new AttachmentBuilder(cardBuffer, { name: 'level.png' });
+                        const embed = new EmbedBuilder().setColor(embedColor).setImage('attachment://level.png');
+                        await safeEditReply(interaction, { embeds: [embed], files: [attachment], ephemeral: false }, true);
                     } else {
                         await sendInteractionError(interaction, 'Invalid info type.', true, deferredThisInteraction);
                     }
