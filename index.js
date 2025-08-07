@@ -2488,7 +2488,6 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
 
         const coinEmoji = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
         const gemEmoji = systemsManager.gemEmoji || DEFAULT_GEM_EMOJI_FALLBACK;
-        const robuxEmoji = systemsManager.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK;
 
         embed.setAuthor({ name: `${user.username}'s Inventory`, iconURL: user.displayAvatarURL() })
              .setTimestamp();
@@ -2557,23 +2556,28 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             embed.setTitle('💰 Wallet & Bank');
             embed.setColor(0x58D68D); // Green
             const bankInfo = systemsManager.getBankBalance(user.id, guildId);
-            const bankCapacity = systemsManager.getBankCapacity(user.id, guildId);
-            const robuxEmoji = systemsManager.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK; // New
             const fishEmoji = systemsManager.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
             const candyEmoji = systemsManager.candyEmoji || DEFAULT_CANDY_EMOJI_FALLBACK;
 
             embed.setDescription("Your current currency holdings.")
                  .addFields(
-                    { name: `${coinEmoji} Wallet Coins`, value: `\`${formatNumber(balance.coins)}\``, inline: true },
-                    { name: `${gemEmoji} Wallet Gems`, value: `\`${formatNumber(balance.gems)}\``, inline: true },
-                    { name: `${robuxEmoji} Wallet Robux`, value: `\`${formatNumber(balance.robux)}\``, inline: true },
-                    { name: `${fishEmoji} Wallet Fish Dollars`, value: `\`${formatNumber(balance.fishDollars)}\``, inline: true },
-                    { name: `${candyEmoji} Wallet Candy`, value: `\`${formatNumber(balance.candy)}\``, inline: true },
-                    { name: '\u200B', value: '\u200B', inline: false }, // Spacer
-                    { name: `🏛️ Bank Coins`, value: `\`${formatNumber(bankInfo.bankCoins)}\``, inline: true },
-                    { name: `🏛️ Bank Gems`, value: `\`${formatNumber(bankInfo.bankGems)}\``, inline: true },
-                    // Robux not bankable, so no bank display for it yet
-                    { name: `🏦 Bank Tier`, value: `\`${bankInfo.bankTier}\``, inline: true }
+                    {
+                        name: 'WALLET 👛',
+                        value:
+                            `${coinEmoji} Coin: \`${formatNumber(balance.coins)}\`\n` +
+                            `${gemEmoji} Gem: \`${formatNumber(balance.gems)}\`\n` +
+                            `${fishEmoji} Fish Buck: \`${formatNumber(balance.fishDollars)}\`\n` +
+                            `${candyEmoji} Candy: \`${formatNumber(balance.candy)}\``,
+                        inline: false
+                    },
+                    {
+                        name: 'BANK 💳',
+                        value:
+                            `🏛️ Tier: \`${bankInfo.bankTier}\`\n` +
+                            `${coinEmoji} Coin: \`${formatNumber(bankInfo.bankCoins)}\`\n` +
+                            `${gemEmoji} Gem: \`${formatNumber(bankInfo.bankGems)}\``,
+                        inline: false
+                    }
                  );
         } else if (currentTab === 'charms') {
             embed.setTitle('✨ Active Charms & Boosts');
@@ -3940,9 +3944,10 @@ module.exports = {
                     state.warnReset = 0;
                 }
                 if (state.deathUntil && now < state.deathUntil) {
+                    const reviveStr = `<t:${Math.floor(state.deathUntil/1000)}:R>`;
                     const embed = new EmbedBuilder()
                         .setTitle('You are death')
-                        .setDescription('Wait a while for us to revive you')
+                        .setDescription(`Wait a while for us to revive you\n-# reviving in ${reviveStr}`)
                         .setColor(0xFF0000)
                         .setFooter({ text: 'you know 30s is not that long...' });
                     const msg = await interaction.reply({ embeds: [embed], fetchReply: true });
