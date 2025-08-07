@@ -694,7 +694,7 @@ function buildFishingTrashEmbed(trash, rod, dLoss, bLoss, rodBroken = false) {
     ].join('\n');
     const embed = new EmbedBuilder()
         .setAuthor({ name: 'FISHING' })
-        .setTitle(`You caught trash ${trash.name} ${trash.emoji}`)
+        .setTitle(`You caught a ${trash.name} ${trash.emoji}`)
         .addFields(
             { name: 'Tool', value: toolLines, inline: false },
             { name: 'Lost', value: `* You lost ${bLoss} bait`, inline: false }
@@ -745,14 +745,8 @@ function pickRandomFish() {
 }
 
 function pickRandomTrash() {
-    const displayTrash = [
-        { name: 'Empty Bottle', emoji: '<:junkemptybottle:1402668764985561139>' },
-        { name: 'Empty Can', emoji: '<:junkemptycan:1402668752415490109>' },
-        { name: 'Newspaper', emoji: '<:junknewspaper:1402668741371887687>' },
-        { name: 'Plastic Bag', emoji: '<:junkplasticbag:1402668727312322685>' }
-    ];
-    const chosen = displayTrash[Math.floor(Math.random() * displayTrash.length)];
-    return { id: gameConfig.items.trashbag.id, name: chosen.name, emoji: chosen.emoji };
+    const { id, name, emoji } = gameConfig.items.trashbag;
+    return { id, name, emoji };
 }
 
 function buildFishInventoryEmbed(userId, guildId, page = 1, favoritesOnly = false) {
