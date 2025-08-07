@@ -53,6 +53,7 @@ const DEFAULT_COIN_EMOJI_FALLBACK = '<:JAGcoin:1397581543354142881>';
 const DEFAULT_GEM_EMOJI_FALLBACK = '<a:gem:1374405019918401597>';
 const DEFAULT_ROBUX_EMOJI_FALLBACK = '<a:robux:1378395622683574353>'; // New
 const DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK = '<:fishdollar:1393480559573078027>';
+const DEFAULT_CANDY_EMOJI_FALLBACK = '<:candyha:1402891882593521766>';
 const COIN_BOOST_EMOJI = '<:scoinmulti:1384503519330959380>';
 const XP_BOOST_EMOJI = '<:sxpmulti:1384502410059317410>';
 const GEM_BOOST_EMOJI = '<:sgemmulti:1384507113048506428>';
@@ -2391,6 +2392,7 @@ async function buildBankEmbed(user, guildId, systemsManager) {
 
     const coinEmoji    = systemsManager.coinEmoji || DEFAULT_COIN_EMOJI_FALLBACK;
     const gemEmoji     = systemsManager.gemEmoji  || DEFAULT_GEM_EMOJI_FALLBACK;
+    const candyEmoji   = systemsManager.candyEmoji || DEFAULT_CANDY_EMOJI_FALLBACK;
 
 
     /* ------------------------------------------------------------------
@@ -2420,7 +2422,8 @@ const nextInterestTs = baseTs + ONE_DAY_MS;
             {
                 name: '💰 Your Inventory',
                 value: `${coinEmoji} Coins: \`${formatNumber(balance.coins)}\`\n` +
-                       `${gemEmoji} Gems:  \`${formatNumber(balance.gems)}\``,
+                       `${gemEmoji} Gems:  \`${formatNumber(balance.gems)}\`\n` +
+                       `${candyEmoji} Candy: \`${formatNumber(balance.candy)}\``,
                 inline: false
             },
             {
@@ -2557,6 +2560,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
             const bankCapacity = systemsManager.getBankCapacity(user.id, guildId);
             const robuxEmoji = systemsManager.robuxEmoji || DEFAULT_ROBUX_EMOJI_FALLBACK; // New
             const fishEmoji = systemsManager.fishDollarEmoji || DEFAULT_FISH_DOLLAR_EMOJI_FALLBACK;
+            const candyEmoji = systemsManager.candyEmoji || DEFAULT_CANDY_EMOJI_FALLBACK;
 
             embed.setDescription("Your current currency holdings.")
                  .addFields(
@@ -2564,6 +2568,7 @@ async function buildInventoryEmbed(user, guildId, systemsManager, currentTab = '
                     { name: `${gemEmoji} Wallet Gems`, value: `\`${formatNumber(balance.gems)}\``, inline: true },
                     { name: `${robuxEmoji} Wallet Robux`, value: `\`${formatNumber(balance.robux)}\``, inline: true },
                     { name: `${fishEmoji} Wallet Fish Dollars`, value: `\`${formatNumber(balance.fishDollars)}\``, inline: true },
+                    { name: `${candyEmoji} Wallet Candy`, value: `\`${formatNumber(balance.candy)}\``, inline: true },
                     { name: '\u200B', value: '\u200B', inline: false }, // Spacer
                     { name: `🏛️ Bank Coins`, value: `\`${formatNumber(bankInfo.bankCoins)}\``, inline: true },
                     { name: `🏛️ Bank Gems`, value: `\`${formatNumber(bankInfo.bankGems)}\``, inline: true },
@@ -3974,7 +3979,7 @@ module.exports = {
                 const name = TOT_NAMES[Math.floor(Math.random() * TOT_NAMES.length)];
                 if (roll < 0.6) {
                     const candies = Math.floor(Math.random() * 10) + 1;
-                    client.levelSystem.addItemToInventory(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY, client.levelSystem.itemTypes.CURRENCY, candies, 'trick_or_treat');
+                    client.levelSystem.addCandy(interaction.user.id, interaction.guild.id, candies, 'trick_or_treat');
                     const msg = TOT_TREAT_MESSAGES[Math.floor(Math.random() * TOT_TREAT_MESSAGES.length)];
                     const embed = new EmbedBuilder()
                         .setAuthor({ name: 'You knocked a neighbor door' })
@@ -3985,10 +3990,10 @@ module.exports = {
                     await interaction.reply({ embeds: [embed] });
                 } else if (roll < 0.8) {
                     const lossRoll = Math.floor(Math.random() * 200) + 1;
-                    const row = client.levelSystem.db.prepare('SELECT quantity FROM userInventory WHERE userId = ? AND guildId = ? AND itemId = ?').get(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY);
-                    const currentQty = row ? row.quantity : 0;
+                    const balance = client.levelSystem.getBalance(interaction.user.id, interaction.guild.id);
+                    const currentQty = balance.candy || 0;
                     const loss = Math.min(lossRoll, currentQty);
-                    if (loss > 0) client.levelSystem.takeItem(interaction.user.id, interaction.guild.id, ITEM_IDS.CANDY, loss);
+                    if (loss > 0) client.levelSystem.addCandy(interaction.user.id, interaction.guild.id, -loss, 'trick_or_treat_loss');
                     const msg = TOT_TRICK_MESSAGES[Math.floor(Math.random() * TOT_TRICK_MESSAGES.length)];
                     const embed = new EmbedBuilder()
                         .setAuthor({ name: 'You knocked a neighbor door' })
