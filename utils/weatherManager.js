@@ -201,6 +201,10 @@ async function startSnowRain(client, opts = {}) {
 }
 
 async function startBlossom(client, opts = {}) {
+    const seasonIndex = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : -1;
+    if (seasonIndex !== 0) {
+        return { started: false, remaining: 0, seasonMismatch: true };
+    }
     if (active.blossom) {
         return { started: false, remaining: Math.max(0, activeUntil.blossom - Date.now()) };
     }
@@ -272,7 +276,7 @@ async function startAurora(client, opts = {}) {
 
 async function rollWeather(client) {
     if (!active.rain && !active.goldenRain && !active.snowRain && Math.random() < 0.1) await startRain(client);
-    const seasonIndex = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : 0;
+    const seasonIndex = typeof client.getCurrentSeasonIndex === 'function' ? client.getCurrentSeasonIndex() : -1;
     if (seasonIndex === 0 && !active.blossom && Math.random() < 0.1) await startBlossom(client);
     if (!active.prismatic && Math.random() < 0.01) await startPrismaticTide(client);
     if (seasonIndex === 1 && isDay() && !active.solarFlare && Math.random() < 0.35) await startSolarFlare(client);
