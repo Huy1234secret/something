@@ -145,7 +145,7 @@ function drawDataGrid(ctx, x, y, w, h, step = 22, alpha = 0.08) {
  * @property {number} [prestige]
  * @property {number} [dailyXP]
  * @property {number} [streak]
- * @property {string[]} [badgeUrls]
+ * @property {string[]} [badgeUrls] // each points to a level-specific badge URL
  * @property {string} [accent] // optional hex like "#24faff" to recolor the theme
  */
 
@@ -158,6 +158,12 @@ async function generateLevelCard(d) {
   const W = 1080, H = 420;
   const canvas = createCanvas(W, H);
   const ctx    = canvas.getContext('2d');
+
+  // smooth strokes
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.lineJoin = 'round';
+  ctx.lineCap  = 'round';
 
   // THEME
   const ACCENT = d.accent || '#24faff';
@@ -176,41 +182,48 @@ async function generateLevelCard(d) {
   vignette(ctx, W, H);
 
   // 2) GLASS FRAME: body + inner stroke + glow + glare band
+  // tighter frame near the canvas edge
+  const MARGIN = 10;          // was 18
+  const RADIUS = 28;          // feel free to bump to 32 if you like rounder corners
+
   ctx.save();
-  roundedRect(ctx, 18, 18, W - 36, H - 36, 30);
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  roundedRect(ctx, MARGIN, MARGIN, W - MARGIN*2, H - MARGIN*2, RADIUS);
+  ctx.fillStyle = 'rgba(255,255,255,0.045)';
   ctx.fill();
 
-  // outer glow edge
-  ctx.lineWidth = 2;
+  // outer glow edge (crisper because it's closer to the edge)
+  ctx.lineWidth   = 2;
   ctx.shadowColor = ACCENT;
   ctx.shadowBlur  = 18;
   ctx.strokeStyle = ACCENT;
   ctx.stroke();
 
-  // inner stroke for depth
+  // faint inner stroke for depth
   ctx.shadowBlur = 0;
   ctx.clip();
   ctx.globalAlpha = 0.6;
   ring(ctx, W/2, H/2, Math.max(W,H), 1.2, 'rgba(255,255,255,0.22)');
   ctx.globalAlpha = 1;
 
-  // diagonal glare
+  // diagonal glare band
   const glare = ctx.createLinearGradient(0, 0, W, H);
   glare.addColorStop(0.0, 'rgba(255,255,255,0.00)');
   glare.addColorStop(0.45, 'rgba(255,255,255,0.06)');
   glare.addColorStop(0.55, 'rgba(255,255,255,0.00)');
   ctx.fillStyle = glare;
-  ctx.fillRect(18, 18, W - 36, H - 36);
+  ctx.fillRect(MARGIN, MARGIN, W - MARGIN*2, H - MARGIN*2);
   ctx.restore();
 
-  // decorative brackets + HUD grid
-  drawCornerBrackets(ctx, 18, 18, W - 36, H - 36, 28, 2, 'rgba(36,250,255,0.65)');
-  drawDataGrid(ctx, 40, 40, W - 80, H - 80, 24, 0.06);
+  // update brackets/grid to match the new margin
+  drawCornerBrackets(ctx, MARGIN, MARGIN, W - MARGIN*2, H - MARGIN*2, 26, 2, 'rgba(36,250,255,0.65)');
+  drawDataGrid(ctx, MARGIN + 20, MARGIN + 20, W - (MARGIN + 40), H - (MARGIN + 40), 24, 0.06);
 
   // 3) AVATAR + PROGRESS RING
   const AV_SIZE = 200;
-  const avX = 110, avY = H / 2;
+
+  // place avatar fully inside the frame (12px breathing room)
+  const avX = MARGIN + AV_SIZE / 2 + 12;
+  const avY = H / 2;
 
   try {
     const avatar = await loadImage(d.avatarURL);
@@ -232,8 +245,27 @@ async function generateLevelCard(d) {
     ctx.restore();
   } catch (_) {}
 
-  // avatar glow ring
-  ring(ctx, avX, avY, AV_SIZE/2 + 6, 6, ACCENT);
+  // **avatar outline** (clean white rim + soft glow)
+  ctx.beginPath();
+  ctx.arc(avX, avY, AV_SIZE/2, 0, Math.PI*2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.stroke();
+
+  // subtle outer rim (gives definition even on bright avatars)
+  ctx.beginPath();
+  ctx.arc(avX, avY, AV_SIZE/2 + 4, 0, Math.PI*2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.stroke();
+
+  // accent glow just outside the rim
+  ctx.shadowColor = ACCENT;
+  ctx.shadowBlur  = 16;
+  ring(ctx, avX, avY, AV_SIZE/2 + 7, 2, ACCENT);
+  ctx.shadowBlur = 0;
+
+  // keep your progress ring as-is (it now sits outside the glow/rim)
 
   // base dashed track
   ctx.save();
@@ -318,7 +350,8 @@ async function generateLevelCard(d) {
   ctx.beginPath();
   ctx.moveTo(nameX, nameY + 12);
   ctx.lineTo(nameX + Math.min(520, ctx.measureText(d.username).width + 36), nameY + 12);
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3.5;   // tiny bump helps smoothness
+  ctx.lineCap   = 'round';
   ctx.shadowColor = ACCENT;
   ctx.shadowBlur = 12;
   ctx.strokeStyle = ACCENT;
@@ -414,7 +447,7 @@ async function generateLevelCard(d) {
   const tW = ctx.measureText(barTxt).width;
   ctx.fillText(barTxt, bar.x + (bar.w - tW) / 2, bar.y + bar.h / 1.6);
 
-  // 7) BADGE ROW
+  // 7) BADGE ROW (each badge uses its own level-specific URL)
   if (Array.isArray(d.badgeUrls) && d.badgeUrls.length) {
     const B = 48;
     const startX = bar.x;
