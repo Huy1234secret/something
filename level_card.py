@@ -5,8 +5,8 @@ provides a single public function, :func:`render_level_card`, which accepts
 user information and returns the path to the generated PNG file.
 
 The implementation is adapted from the user's supplied UI design and
-supports optional Discord avatar fetching and a configurable progress bar
-opacity.
+supports optional Discord avatar fetching (or a preloaded avatar image) and a
+configurable progress bar opacity.
 """
 
 from __future__ import annotations
@@ -181,30 +181,45 @@ def paste_avatar(
     avatar_url: str | None = None,
     discord_user_id: str | None = None,
     discord_avatar_hash: str | None = None,
+    avatar_image: Image.Image | None = None,
 ) -> None:
-    """Paste a Discord avatar clipped to a rounded rect inside ``rect``."""
+    """Paste a Discord avatar clipped to a rounded rect inside ``rect``.
+
+    The avatar can be provided directly via ``avatar_image`` to avoid network
+    fetching.  If not supplied, the function will attempt to retrieve the
+    image from ``avatar_url`` or by constructing a Discord CDN URL from
+    ``discord_user_id`` and ``discord_avatar_hash``.
+    """
 
     x0, y0, x1, y1 = rect
     pad = 10
     inner = (x0 + pad, y0 + pad, x1 - pad, y1 - pad)
     iw, ih = inner[2] - inner[0], inner[3] - inner[1]
 
-    url = avatar_url
-    if (not url) and discord_user_id and discord_avatar_hash:
-        url = discord_avatar_url(discord_user_id, discord_avatar_hash, size=max(iw, ih))
+    av = None
+    if avatar_image is not None:
+        av = avatar_image.resize((iw, ih), Image.LANCZOS)
+    else:
+        url = avatar_url
+        if (not url) and discord_user_id and discord_avatar_hash:
+            url = discord_avatar_url(
+                discord_user_id, discord_avatar_hash, size=max(iw, ih)
+            )
 
-    if url:
-        try:
-            av = fetch_image(url, size=(iw, ih), to_rgba=True)
-            mask = Image.new("L", (iw, ih), 0)
-            ImageDraw.Draw(mask).rounded_rectangle((0, 0, iw, ih), radius=18, fill=255)
-            tile = Image.new("RGBA", (iw, ih), (0, 0, 0, 0))
-            tile.paste(av, (0, 0))
-            tile.putalpha(mask)
-            img.alpha_composite(tile, (inner[0], inner[1]))
-            return
-        except Exception:  # pragma: no cover - network best effort
-            pass
+        if url:
+            try:
+                av = fetch_image(url, size=(iw, ih), to_rgba=True)
+            except Exception:  # pragma: no cover - network best effort
+                av = None
+
+    if av is not None:
+        mask = Image.new("L", (iw, ih), 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, iw, ih), radius=18, fill=255)
+        tile = Image.new("RGBA", (iw, ih), (0, 0, 0, 0))
+        tile.paste(av, (0, 0))
+        tile.putalpha(mask)
+        img.alpha_composite(tile, (inner[0], inner[1]))
+        return
 
     # Placeholder if URL missing or fetch failed
     d = ImageDraw.Draw(img)
@@ -237,6 +252,7 @@ def render_level_card(
     avatar_url: str | None = None,
     discord_user_id: str | None = None,
     discord_avatar_hash: str | None = None,
+    avatar_image: Image.Image | None = None,
     outfile: str = "level_card.png",
 ) -> str:
     """Render a full level card and return the output file path."""
@@ -276,6 +292,7 @@ def render_level_card(
         base,
         av_rect,
         avatar_url=avatar_url,
+        avatar_image=avatar_image,
         discord_user_id=discord_user_id,
         discord_avatar_hash=discord_avatar_hash,
     )
