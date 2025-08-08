@@ -1,7 +1,10 @@
 import os
+from io import BytesIO
+
 import discord
 from discord import app_commands
 from dotenv import load_dotenv
+from PIL import Image
 from level_card import render_level_card
 
 
@@ -32,11 +35,11 @@ def main() -> None:
     @tree.command(name="level", description="Show your level card")
     async def level_command(interaction: discord.Interaction):
         await interaction.response.defer()
-        avatar_url = (
-            interaction.user.display_avatar.replace(
-                size=256, static_format="png"
-            ).url
+        avatar_asset = (
+            interaction.user.display_avatar.with_size(256).with_static_format("png")
         )
+        avatar_bytes = await avatar_asset.read()
+        avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
         path = render_level_card(
             username=interaction.user.name,
             nickname=getattr(interaction.user, "display_name", interaction.user.name),
@@ -46,7 +49,7 @@ def main() -> None:
             rank=0,
             prestige=0,
             total_xp=0,
-            avatar_url=avatar_url,
+            avatar_image=avatar_image,
             outfile=f"level_{interaction.user.id}.png",
         )
         await interaction.followup.send(file=discord.File(path))
