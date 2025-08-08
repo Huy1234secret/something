@@ -32,6 +32,10 @@ def main() -> None:
     @tree.command(name="level", description="Show your level card")
     async def level_command(interaction: discord.Interaction):
         await interaction.response.defer()
+        avatar_hash = (
+            interaction.user.avatar.key if interaction.user.avatar else None
+        )
+        avatar_url = None if avatar_hash else interaction.user.display_avatar.url
         path = render_level_card(
             username=interaction.user.name,
             nickname=getattr(interaction.user, "display_name", interaction.user.name),
@@ -41,7 +45,9 @@ def main() -> None:
             rank=0,
             prestige=0,
             total_xp=0,
-            avatar_url=interaction.user.display_avatar.url,
+            avatar_url=avatar_url,
+            discord_user_id=str(interaction.user.id),
+            discord_avatar_hash=avatar_hash,
             outfile=f"level_{interaction.user.id}.png",
         )
         await interaction.followup.send(file=discord.File(path))
