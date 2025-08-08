@@ -1,33 +1,27 @@
-# Maxwell Bot
+# Discord Bot
 
-This project is now a minimal Discord bot that supports only the `/level` command.
+This is a simple Discord bot written in Python using [`discord.py`](https://pypi.org/project/discord.py/).
 
 ## Setup
 
-Install dependencies:
+1. Create a virtual environment and install dependencies:
 
-```bash
-npm install
-```
+   ```bash
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-Deploy the slash command (optional, run once per guild):
+2. Create a `.env` file in the project root with your bot token:
 
-```bash
-node deploy-commands.js
-```
+   ```env
+   BOT_TOKEN=your_bot_token_here
+   ```
 
-Start the bot:
+3. Run the bot:
 
-```bash
-node index.js
-```
+   ```bash
+   python bot.py
+   ```
 
-Create a `.env` file with the following variables:
-
-```
-TOKEN=your_bot_token
-CLIENT_ID=your_application_id
-GUILD_ID=your_guild_id
-```
-
-`CLIENT_ID` and `GUILD_ID` are required for deploying commands.
+The bot will respond to `!ping` messages with `Pong!`.

@@ -1,22 +1,32 @@
 import os
 import discord
-from discord import app_commands
+from dotenv import load_dotenv
 
-COMMAND_TO_REMOVE = os.getenv("COMMAND_TO_REMOVE", "command_name")
-GUILD_ID = int(os.getenv("GUILD_ID", "0")) or None
 
-class MyBot(discord.Client):
-    def __init__(self):
-        super().__init__(intents=discord.Intents.default())
-        self.tree = app_commands.CommandTree(self)
+def main() -> None:
+    """Run the bot."""
+    load_dotenv()
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        raise RuntimeError("BOT_TOKEN not set in environment")
 
-    async def setup_hook(self):
-        guild = discord.Object(id=GUILD_ID) if GUILD_ID else None
-        self.tree.remove_command(COMMAND_TO_REMOVE, guild=guild)
-        await self.tree.sync(guild=guild)
+    intents = discord.Intents.default()
+    client = discord.Client(intents=intents)
 
-    async def on_ready(self):
-        print(f"Logged in as {self.user}")
+    @client.event
+    async def on_ready():
+        print(f"Logged in as {client.user} (ID: {client.user.id})")
+        print("------")
 
-bot = MyBot()
-bot.run(os.getenv("TOKEN"))
+    @client.event
+    async def on_message(message: discord.Message):
+        if message.author == client.user:
+            return
+        if message.content == "!ping":
+            await message.channel.send("Pong!")
+
+    client.run(token)
+
+
+if __name__ == "__main__":
+    main()
