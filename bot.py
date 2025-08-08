@@ -31,6 +31,7 @@ def main() -> None:
 
     @tree.command(name="level", description="Show your level card")
     async def level_command(interaction: discord.Interaction):
+        await interaction.response.defer()
         path = render_level_card(
             username=interaction.user.name,
             nickname=getattr(interaction.user, "display_name", interaction.user.name),
@@ -42,7 +43,7 @@ def main() -> None:
             total_xp=0,
             outfile=f"level_{interaction.user.id}.png",
         )
-        await interaction.response.send_message(file=discord.File(path))
+        await interaction.followup.send(file=discord.File(path))
         try:
             os.remove(path)
         except OSError:
