@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from urllib.request import urlopen
+from functools import lru_cache
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
@@ -41,11 +42,28 @@ def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
+@lru_cache(maxsize=32)
+def _fetch_png_cached(url: str, size: tuple[int, int] | None) -> Image.Image:
+    with urlopen(url) as r:  # nosec - controlled URLs
+        im = Image.open(BytesIO(r.read())).convert("RGBA")
+    if size:
+        im = im.resize(size, Image.LANCZOS)
+    return im
+
+
 def fetch_png(url: str, size: tuple[int, int] | None = None) -> Image.Image:
     """Retrieve a PNG image from ``url`` and return it as ``RGBA``."""
 
+    return _fetch_png_cached(url, size).copy()
+
+
+@lru_cache(maxsize=32)
+def _fetch_image_cached(
+    url: str, size: tuple[int, int] | None, to_rgba: bool
+) -> Image.Image:
     with urlopen(url) as r:  # nosec - controlled URLs
-        im = Image.open(BytesIO(r.read())).convert("RGBA")
+        im = Image.open(BytesIO(r.read()))
+    im = im.convert("RGBA" if to_rgba else "RGB")
     if size:
         im = im.resize(size, Image.LANCZOS)
     return im
@@ -54,24 +72,9 @@ def fetch_png(url: str, size: tuple[int, int] | None = None) -> Image.Image:
 def fetch_image(
     url: str, size: tuple[int, int] | None = None, to_rgba: bool = False
 ) -> Image.Image:
-    """Fetch an image from ``url``.
+    """Fetch an image from ``url``."""
 
-    Parameters
-    ----------
-    url:
-        Source URL.
-    size:
-        Optional size to resize the image to.
-    to_rgba:
-        If ``True`` the image is converted to RGBA, otherwise RGB.
-    """
-
-    with urlopen(url) as r:  # nosec - controlled URLs
-        im = Image.open(BytesIO(r.read()))
-    im = im.convert("RGBA" if to_rgba else "RGB")
-    if size:
-        im = im.resize(size, Image.LANCZOS)
-    return im
+    return _fetch_image_cached(url, size, to_rgba).copy()
 
 
 def discord_avatar_url(
