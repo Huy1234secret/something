@@ -41,6 +41,7 @@ def main() -> None:
             rank=0,
             prestige=0,
             total_xp=0,
+            avatar_url=interaction.user.display_avatar.url,
             outfile=f"level_{interaction.user.id}.png",
         )
         await interaction.followup.send(file=discord.File(path))
