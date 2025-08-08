@@ -1,43 +1,33 @@
 # Maxwell Bot
 
-This project is a Discord bot for managing various server functions.
+This project is now a minimal Discord bot that supports only the `/level` command.
 
 ## Setup
 
-Run the installation script which automatically installs all required dependencies:
+Install dependencies:
 
 ```bash
-sudo bash install_deps.sh
+npm install
 ```
 
-This script ensures Node.js (v16 or higher) is installed and then installs the required Node.js packages with `npm install`.
-
-You can then start the bot with:
+Deploy the slash command (optional, run once per guild):
 
 ```bash
-node index.js
+node deploy-commands.js
 ```
 
-Alternatively, run the provided **start.sh** script which will run `install_deps.sh` on every startup to ensure everything is installed and then launch the bot automatically:
-
-```bash
-bash start.sh
-```
-
-### BotHosting.net quick setup
-
-If your hosting provider already has Node.js installed (for example, on
-BotHosting.net), you can install only the Node packages by running:
-
-```bash
-bash install_npm_deps.sh
-```
-
-Then launch the bot normally with:
+Start the bot:
 
 ```bash
 node index.js
 ```
 
-## Troubleshooting
-If you encounter missing package errors, ensure dependencies are installed by running `npm install` or the provided `install_deps.sh` script.
+Create a `.env` file with the following variables:
+
+```
+TOKEN=your_bot_token
+CLIENT_ID=your_application_id
+GUILD_ID=your_guild_id
+```
+
+`CLIENT_ID` and `GUILD_ID` are required for deploying commands.
