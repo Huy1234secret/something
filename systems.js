@@ -769,10 +769,11 @@ class SystemsManager {
     }
 
     getOverallStats(guildId) {
-        const users = this.db.prepare('SELECT userId, level, xp, coins, bankCoins, gems, bankGems FROM users WHERE guildId = ?').all(guildId);
+        const users = this.db.prepare('SELECT userId, level, xp, coins, bankCoins, gems, bankGems, robux FROM users WHERE guildId = ?').all(guildId);
         return users.map(user => {
             const totalCoins = (user.coins || 0) + (user.bankCoins || 0);
             const totalGems = (user.gems || 0) + (user.bankGems || 0);
+            const robux = user.robux || 0;
             let totalValue = 0;
             const inventory = this.db.prepare('SELECT itemId, quantity FROM userInventory WHERE userId = ? AND guildId = ? AND quantity > 0').all(user.userId, guildId);
             const counted = new Set();
@@ -788,6 +789,7 @@ class SystemsManager {
                 xp: user.xp,
                 totalCoins,
                 totalGems,
+                robux,
                 totalValue
             };
         });

@@ -4517,6 +4517,43 @@ module.exports = {
                 });
                 return;
             }
+            if (commandName === 'everyone-stats') {
+                if (!interaction.replied && !interaction.deferred) {
+                    await safeDeferReply(interaction, { ephemeral: false });
+                    deferredThisInteraction = true;
+                }
+                try {
+                    await interaction.guild.members.fetch().catch(() => {});
+                    const stats = client.levelSystem.getOverallStats(interaction.guild.id);
+                    if (!stats.length) {
+                        await safeEditReply(interaction, { content: 'No stats found for this server.', ephemeral: false }, true);
+                        return;
+                    }
+                    const lines = stats.map(s => {
+                        const member = interaction.guild.members.cache.get(s.userId);
+                        const name = member ? (member.user.tag || member.user.username) : s.userId;
+                        return `${name}: Value ${formatNumber(s.totalValue)} | Level ${s.level} | Coins ${formatNumber(s.totalCoins)} | Gems ${formatNumber(s.totalGems)} | Robux ${formatNumber(s.robux || 0)}`;
+                    });
+                    const chunks = [];
+                    let chunk = '';
+                    for (const line of lines) {
+                        if (chunk.length + line.length + 1 > 1900) {
+                            chunks.push(chunk);
+                            chunk = '';
+                        }
+                        chunk += line + '\n';
+                    }
+                    if (chunk) chunks.push(chunk);
+                    await safeEditReply(interaction, { content: '```' + (chunks[0] || '') + '```', ephemeral: false }, false);
+                    for (let i = 1; i < chunks.length; i++) {
+                        await interaction.followUp({ content: '```' + chunks[i] + '```', ephemeral: false });
+                    }
+                } catch (statsError) {
+                    console.error('[Everyone-Stats Command] Error:', statsError);
+                    await sendInteractionError(interaction, 'Failed to fetch stats.', true, deferredThisInteraction);
+                }
+                return;
+            }
             if (commandName === 'leaderboard') {
                 const guildId = interaction.guild.id;
                 const subcommandGroup = interaction.options.getSubcommandGroup(false);

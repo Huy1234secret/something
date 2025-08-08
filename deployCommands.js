@@ -714,6 +714,10 @@ const commands = [
         ]
     },
     {
+        name: 'everyone-stats',
+        description: 'List stats for all members including value, level, coins, gems, and robux.'
+    },
+    {
         name: 'trick-or-treat',
         description: 'Knock on a door for a Halloween surprise.'
     },
