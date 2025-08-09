@@ -15,7 +15,14 @@ from io import BytesIO
 from urllib.request import urlopen
 from functools import lru_cache
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import (
+    Image,
+    ImageChops,
+    ImageDraw,
+    ImageFilter,
+    ImageFont,
+    UnidentifiedImageError,
+)
 
 # Canvas size for the level card
 W, H = 1100, 420
@@ -62,7 +69,11 @@ def _fetch_image_cached(
     url: str, size: tuple[int, int] | None, to_rgba: bool
 ) -> Image.Image:
     with urlopen(url) as r:  # nosec - controlled URLs
-        im = Image.open(BytesIO(r.read()))
+        data = r.read()
+    try:
+        im = Image.open(BytesIO(data))
+    except UnidentifiedImageError as exc:
+        raise ValueError(f"URL did not contain a valid image: {url}") from exc
     im = im.convert("RGBA" if to_rgba else "RGB")
     if size:
         im = im.resize(size, Image.LANCZOS)

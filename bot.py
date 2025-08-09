@@ -67,30 +67,38 @@ def main() -> None:
                     "Invalid background URL.", ephemeral=True
                 )
                 return
-            user_card_settings[interaction.user.id] = {
-                "color": tuple(parts),
-                "background_url": url,
-            }
             await interaction.response.defer()
             avatar_asset = (
                 interaction.user.display_avatar.with_size(256).with_static_format("png")
             )
             avatar_bytes = await avatar_asset.read()
             avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
-            path = render_level_card(
-                username=interaction.user.name,
-                nickname=getattr(interaction.user, "display_name", interaction.user.name),
-                level=1,
-                xp=0,
-                xp_total=100,
-                rank=0,
-                prestige=0,
-                total_xp=0,
-                avatar_image=avatar_image,
-                background_url=url,
-                bar_color=tuple(parts),
-                outfile=f"level_{interaction.user.id}.png",
-            )
+            try:
+                path = render_level_card(
+                    username=interaction.user.name,
+                    nickname=getattr(
+                        interaction.user, "display_name", interaction.user.name
+                    ),
+                    level=1,
+                    xp=0,
+                    xp_total=100,
+                    rank=0,
+                    prestige=0,
+                    total_xp=0,
+                    avatar_image=avatar_image,
+                    background_url=url,
+                    bar_color=tuple(parts),
+                    outfile=f"level_{interaction.user.id}.png",
+                )
+            except ValueError:
+                await interaction.followup.send(
+                    "Background image could not be loaded.", ephemeral=True
+                )
+                return
+            user_card_settings[interaction.user.id] = {
+                "color": tuple(parts),
+                "background_url": url,
+            }
             view = CardSettingsView(tuple(parts), url)
             await self.message.edit(attachments=[discord.File(path)], view=view)
             try:
@@ -147,26 +155,50 @@ def main() -> None:
         )
         avatar_bytes = await avatar_asset.read()
         avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
-        path = render_level_card(
-            username=interaction.user.name,
-            nickname=getattr(interaction.user, "display_name", interaction.user.name),
-            level=1,
-            xp=0,
-            xp_total=100,
-            rank=0,
-            prestige=0,
-            total_xp=0,
-            avatar_image=avatar_image,
-            background_url=background_url,
-            bar_color=color,
-            outfile=f"level_{user_id}.png",
-        )
-        view = CardSettingsView(color, background_url)
-        await interaction.followup.send(file=discord.File(path), view=view)
         try:
-            os.remove(path)
-        except OSError:
-            pass
+            path = render_level_card(
+                username=interaction.user.name,
+                nickname=getattr(interaction.user, "display_name", interaction.user.name),
+                level=1,
+                xp=0,
+                xp_total=100,
+                rank=0,
+                prestige=0,
+                total_xp=0,
+                avatar_image=avatar_image,
+                background_url=background_url,
+                bar_color=color,
+                outfile=f"level_{user_id}.png",
+            )
+            view = CardSettingsView(color, background_url)
+            await interaction.followup.send(file=discord.File(path), view=view)
+        except ValueError:
+            settings["background_url"] = DEFAULT_BACKGROUND
+            path = render_level_card(
+                username=interaction.user.name,
+                nickname=getattr(interaction.user, "display_name", interaction.user.name),
+                level=1,
+                xp=0,
+                xp_total=100,
+                rank=0,
+                prestige=0,
+                total_xp=0,
+                avatar_image=avatar_image,
+                background_url=DEFAULT_BACKGROUND,
+                bar_color=color,
+                outfile=f"level_{user_id}.png",
+            )
+            view = CardSettingsView(color, DEFAULT_BACKGROUND)
+            await interaction.followup.send(
+                "Background image invalid; using default.",
+                file=discord.File(path),
+                view=view,
+            )
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
     client.run(token)
 
