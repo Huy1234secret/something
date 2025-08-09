@@ -13,7 +13,7 @@ import urllib.parse
 user_card_settings: dict[int, dict[str, Any]] = {}
 DEFAULT_COLOR = (92, 220, 140)
 DEFAULT_BACKGROUND = "https://i.ibb.co/9337ZnxF/wdwdwd.jpg"
-CARD_SETTING_EMOJI = discord.PartialEmoji(name="JAGGear", id=1403607883786223759)
+CARD_SETTING_EMOJI = discord.PartialEmoji(name="Botgear", id=1403611995814629447)
 
 
 def main() -> None:
@@ -28,7 +28,12 @@ def main() -> None:
     tree = app_commands.CommandTree(client)
 
     class CardSettingsModal(discord.ui.Modal):
-        def __init__(self, color: tuple[int, int, int], background_url: str) -> None:
+        def __init__(
+            self,
+            color: tuple[int, int, int],
+            background_url: str,
+            message: discord.Message,
+        ) -> None:
             super().__init__(title="Card Settings")
             self.color_input = discord.ui.TextInput(
                 label="Color [RGB]", default=f"{color[0]},{color[1]},{color[2]}"
@@ -36,6 +41,7 @@ def main() -> None:
             self.bg_input = discord.ui.TextInput(
                 label="Background URL", default=background_url
             )
+            self.message = message
             self.add_item(self.color_input)
             self.add_item(self.bg_input)
 
@@ -65,7 +71,33 @@ def main() -> None:
                 "color": tuple(parts),
                 "background_url": url,
             }
-            await interaction.response.send_message(
+            await interaction.response.defer()
+            avatar_asset = (
+                interaction.user.display_avatar.with_size(256).with_static_format("png")
+            )
+            avatar_bytes = await avatar_asset.read()
+            avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
+            path = render_level_card(
+                username=interaction.user.name,
+                nickname=getattr(interaction.user, "display_name", interaction.user.name),
+                level=1,
+                xp=0,
+                xp_total=100,
+                rank=0,
+                prestige=0,
+                total_xp=0,
+                avatar_image=avatar_image,
+                background_url=url,
+                bar_color=tuple(parts),
+                outfile=f"level_{interaction.user.id}.png",
+            )
+            view = CardSettingsView(tuple(parts), url)
+            await self.message.edit(attachments=[discord.File(path)], view=view)
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            await interaction.followup.send(
                 "Card settings updated.", ephemeral=True
             )
 
@@ -84,7 +116,7 @@ def main() -> None:
             self, interaction: discord.Interaction, button: discord.ui.Button
         ) -> None:
             await interaction.response.send_modal(
-                CardSettingsModal(self.color, self.background_url)
+                CardSettingsModal(self.color, self.background_url, interaction.message)
             )
 
     @client.event
