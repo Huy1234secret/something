@@ -1,4 +1,5 @@
 import os
+import json
 from io import BytesIO
 from typing import Any
 
@@ -12,6 +13,7 @@ import urllib.parse
 import random
 from datetime import datetime
 
+DATA_FILE = "user_data.json"
 user_card_settings: dict[int, dict[str, Any]] = {}
 user_stats: dict[int, dict[str, int]] = {}
 voice_sessions: dict[int, datetime] = {}
@@ -26,6 +28,36 @@ MAX_LEVEL = 9999
 
 def xp_needed(level: int) -> int:
     return int(100 * (level ** 1.5))
+
+
+def load_data() -> None:
+    """Load user stats and card settings from disk if available."""
+
+    global user_stats, user_card_settings
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        user_stats = {int(k): v for k, v in data.get("user_stats", {}).items()}
+        user_card_settings = {
+            int(k): {
+                "color": tuple(v.get("color", DEFAULT_COLOR)),
+                "background_url": v.get("background_url", DEFAULT_BACKGROUND),
+            }
+            for k, v in data.get("user_card_settings", {}).items()
+        }
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
+
+def save_data() -> None:
+    """Persist user stats and card settings to disk."""
+
+    data = {
+        "user_stats": user_stats,
+        "user_card_settings": user_card_settings,
+    }
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f)
 
 
 async def add_xp(user: discord.abc.User, amount: int, client: discord.Client) -> None:
@@ -47,10 +79,12 @@ async def add_xp(user: discord.abc.User, amount: int, client: discord.Client) ->
                 description=f"{user.mention} have leveled up from level {prev_level} to {stats['level']}",
             )
             await channel.send(embed=embed)
+    save_data()
 
 
 def main() -> None:
     """Run the bot."""
+    load_data()
     load_dotenv()
     token = os.getenv("BOT_TOKEN")
     if not token:
@@ -137,6 +171,7 @@ def main() -> None:
                 "color": tuple(parts),
                 "background_url": url,
             }
+            save_data()
             view = CardSettingsView(tuple(parts), url, interaction.user.id)
             await self.message.edit(attachments=[discord.File(path)], view=view)
             try:
@@ -230,6 +265,10 @@ def main() -> None:
             user_id,
             {"color": DEFAULT_COLOR, "background_url": DEFAULT_BACKGROUND},
         )
+        stats = user_stats.setdefault(
+            user_id, {"level": 1, "xp": 0, "total_xp": 0}
+        )
+        save_data()
         color = settings["color"]
         background_url = settings["background_url"]
         avatar_asset = (
@@ -238,9 +277,6 @@ def main() -> None:
         avatar_bytes = await avatar_asset.read()
         avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
         try:
-            stats = user_stats.setdefault(
-                user_id, {"level": 1, "xp": 0, "total_xp": 0}
-            )
             path = render_level_card(
                 username=interaction.user.name,
                 nickname=getattr(interaction.user, "display_name", interaction.user.name),
@@ -259,6 +295,7 @@ def main() -> None:
             await interaction.followup.send(file=discord.File(path), view=view)
         except ValueError:
             settings["background_url"] = DEFAULT_BACKGROUND
+            save_data()
             path = render_level_card(
                 username=interaction.user.name,
                 nickname=getattr(interaction.user, "display_name", interaction.user.name),

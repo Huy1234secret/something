@@ -25,3 +25,6 @@ This is a simple Discord bot written in Python using [`discord.py`](https://pypi
    ```
 
 The bot will respond to `!ping` messages with `Pong!`.
+
+User level statistics and card design preferences are stored in
+`user_data.json` so they persist between restarts.
