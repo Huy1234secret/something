@@ -26,5 +26,8 @@ This is a simple Discord bot written in Python using [`discord.py`](https://pypi
 
 The bot will respond to `!ping` messages with `Pong!`.
 
+A slash command `/add-role` can give a role to a user, optionally for a
+limited time (`1h`, `1d`, `7w`, `1m`).
+
 User level statistics and card design preferences are stored in
 `user_data.json` so they persist between restarts.
