@@ -13,7 +13,8 @@ def setup(tree,
           DEFAULT_COLOR,
           DEFAULT_BACKGROUND,
           render_level_card,
-          CardSettingsView):
+          CardSettingsView,
+          **__):
     """Register the level command with the provided command tree."""
 
     @tree.command(name="level", description="Show your level card")

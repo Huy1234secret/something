@@ -1,7 +1,6 @@
-import asyncio
-
 import discord
 from discord import app_commands
+from datetime import datetime
 
 
 def parse_duration(time_str: str) -> int | None:
@@ -17,6 +16,7 @@ def parse_duration(time_str: str) -> int | None:
 
 def setup(tree, *_, **__):
     """Register the add-role command with the provided command tree."""
+    schedule_role = __["schedule_role"]
 
     @tree.command(
         name="add-role", description="Give a role to a user, optionally for a limited time"
@@ -60,11 +60,11 @@ def setup(tree, *_, **__):
                 )
                 return
 
-            async def remove_later() -> None:
-                await asyncio.sleep(seconds)
-                try:
-                    await user.remove_roles(role)
-                except discord.HTTPException:
-                    pass
-
-            asyncio.create_task(remove_later())
+            expires_at = datetime.utcnow().timestamp() + seconds
+            schedule_role(
+                user.id,
+                interaction.guild.id,
+                role.id,
+                expires_at,
+                save=True,
+            )

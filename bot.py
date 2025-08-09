@@ -3,6 +3,7 @@ import json
 from io import BytesIO
 from typing import Any
 import importlib
+import asyncio
 
 import discord
 from discord import app_commands
@@ -18,6 +19,7 @@ DATA_FILE = "user_data.json"
 user_card_settings: dict[int, dict[str, Any]] = {}
 user_stats: dict[int, dict[str, int]] = {}
 voice_sessions: dict[int, datetime] = {}
+timed_roles: list[dict[str, float]] = []
 DEFAULT_COLOR = (92, 220, 140)
 DEFAULT_BACKGROUND = "https://i.ibb.co/9337ZnxF/wdwdwd.jpg"
 CARD_SETTING_EMOJI = discord.PartialEmoji(name="Botgear", id=1403611995814629447)
@@ -32,9 +34,9 @@ def xp_needed(level: int) -> int:
 
 
 def load_data() -> None:
-    """Load user stats and card settings from disk if available."""
+    """Load user stats, card settings and timed roles from disk."""
 
-    global user_stats, user_card_settings
+    global user_stats, user_card_settings, timed_roles
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -46,16 +48,18 @@ def load_data() -> None:
             }
             for k, v in data.get("user_card_settings", {}).items()
         }
+        timed_roles = data.get("timed_roles", [])
     except (FileNotFoundError, json.JSONDecodeError):
         pass
 
 
 def save_data() -> None:
-    """Persist user stats and card settings to disk."""
+    """Persist user stats, card settings and timed roles to disk."""
 
     data = {
         "user_stats": user_stats,
         "user_card_settings": user_card_settings,
+        "timed_roles": timed_roles,
     }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f)
@@ -96,6 +100,43 @@ def main() -> None:
     intents.voice_states = True
     client = discord.Client(intents=intents)
     tree = app_commands.CommandTree(client)
+
+    def schedule_role(
+        user_id: int,
+        guild_id: int,
+        role_id: int,
+        expires_at: float,
+        *,
+        save: bool = False,
+    ) -> None:
+        entry = {
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "role_id": role_id,
+            "expires_at": expires_at,
+        }
+        if save:
+            timed_roles.append(entry)
+            save_data()
+
+        async def remove_later() -> None:
+            delay = expires_at - datetime.utcnow().timestamp()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            guild = client.get_guild(guild_id)
+            if guild:
+                member = guild.get_member(user_id)
+                role = guild.get_role(role_id)
+                if member and role:
+                    try:
+                        await member.remove_roles(role)
+                    except discord.HTTPException:
+                        pass
+            if entry in timed_roles:
+                timed_roles.remove(entry)
+                save_data()
+
+        asyncio.create_task(remove_later())
 
     class CardSettingsModal(discord.ui.Modal):
         def __init__(
@@ -220,6 +261,13 @@ def main() -> None:
         print(f"Logged in as {client.user} (ID: {client.user.id})")
         print("------")
         await tree.sync()
+        for entry in list(timed_roles):
+            schedule_role(
+                entry["user_id"],
+                entry["guild_id"],
+                entry["role_id"],
+                entry["expires_at"],
+            )
 
     @client.event
     async def on_message(message: discord.Message):
@@ -278,6 +326,7 @@ def main() -> None:
                         DEFAULT_BACKGROUND,
                         render_level_card,
                         CardSettingsView,
+                        schedule_role=schedule_role,
                     )
 
     load_commands()
