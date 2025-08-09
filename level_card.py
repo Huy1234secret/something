@@ -249,6 +249,7 @@ def render_level_card(
     badges: tuple[str | None, str | None, str | None] = (None, None, None),
     stats_offset: int = 50,
     bar_opacity: float = 0.55,
+    bar_color: tuple[int, int, int] = (92, 220, 140),
     avatar_url: str | None = None,
     discord_user_id: str | None = None,
     discord_avatar_hash: str | None = None,
@@ -303,7 +304,8 @@ def render_level_card(
 
     bar_rect = (info_x, 156, W - pad, 204)
     p = 0 if xp_total <= 0 else max(0, min(1, xp / xp_total))
-    progress_bar(base, bar_rect, p, bar_opacity=bar_opacity)
+    dark = tuple(max(0, min(255, c - 60)) for c in bar_color)
+    progress_bar(base, bar_rect, p, c0=bar_color, c1=dark, bar_opacity=bar_opacity)
 
     # Star + XP text
     try:
