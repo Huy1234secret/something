@@ -139,9 +139,16 @@ def progress_bar(
 
 
 def badge_slot(
-    img: Image.Image, rect: tuple[int, int, int, int], url: str | None = None
+    img: Image.Image,
+    rect: tuple[int, int, int, int],
+    url: str | None = None,
+    color: tuple[int, int, int] = (255, 255, 255),
 ) -> None:
-    """Render a badge placeholder or image at ``rect``."""
+    """Render a badge placeholder or image at ``rect``.
+
+    The optional ``color`` is used for the placeholder ring and background
+    fill when no ``url`` is supplied.
+    """
 
     x0, y0, x1, y1 = rect
     w, h = x1 - x0, y1 - y0
@@ -151,17 +158,25 @@ def badge_slot(
         r = min(w, h) // 2
         d.ellipse(
             (w // 2 - r, h // 2 - r, w // 2 + r, h // 2 + r),
-            outline=(255, 255, 255, 110),
+            outline=(*color, 110),
             width=4,
-            fill=(255, 255, 255, 18),
+            fill=(*color, 18),
         )
-        ring = ring.filter(ImageFilter.GaussianBlur(0.6))
+        ring = ring.filter(ImageFilter.GaussianBlur(1))
         img.alpha_composite(ring, (x0, y0))
     else:
-        glass_rect(img, rect, radius=20, fill=(255, 255, 255, 38), stroke=(255, 255, 255, 85))
+        glass_rect(
+            img,
+            rect,
+            radius=20,
+            fill=(*color, 38),
+            stroke=(*color, 85),
+        )
         try:
             ic = fetch_png(url, size=(w - 14, h - 14))
-            img.alpha_composite(ic, (x0 + (w - ic.width) // 2, y0 + (h - ic.height) // 2))
+            img.alpha_composite(
+                ic, (x0 + (w - ic.width) // 2, y0 + (h - ic.height) // 2)
+            )
         except Exception:  # pragma: no cover - network best effort
             pass
 
@@ -206,6 +221,7 @@ def paste_avatar(
     if av is not None:
         mask = Image.new("L", (iw, ih), 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, iw, ih), radius=18, fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(1))
         tile = Image.new("RGBA", (iw, ih), (0, 0, 0, 0))
         tile.paste(av, (0, 0))
         tile.putalpha(mask)
@@ -279,7 +295,13 @@ def render_level_card(
     # Avatar glass tile + avatar image
     av_size = 180
     av_rect = (pad, 116, pad + av_size, 116 + av_size)
-    glass_rect(base, av_rect, radius=22, fill=(255, 255, 255, 40), stroke=(255, 255, 255, 90))
+    glass_rect(
+        base,
+        av_rect,
+        radius=22,
+        fill=(*bar_color, 40),
+        stroke=(*bar_color, 90),
+    )
     paste_avatar(
         base,
         av_rect,
@@ -355,6 +377,7 @@ def render_level_card(
             base,
             (x, badges_y, x + badge_w, badges_y + badge_h),
             url=(badges[i] if i < len(badges) else None),
+            color=bar_color,
         )
 
     base.save(outfile)
