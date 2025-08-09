@@ -116,15 +116,18 @@ def main() -> None:
             self.add_item(self.bg_input)
 
         async def on_submit(self, interaction: discord.Interaction) -> None:
+            await interaction.response.defer(thinking=True)
+
             try:
                 parts = [int(p.strip()) for p in self.color_input.value.split(",")]
                 if len(parts) != 3 or not all(0 <= c <= 255 for c in parts):
                     raise ValueError
             except Exception:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "Invalid color. Use R,G,B between 0-255.", ephemeral=True
                 )
                 return
+
             url = self.bg_input.value.strip()
             try:
                 parsed = urllib.parse.urlparse(url)
@@ -133,11 +136,11 @@ def main() -> None:
                 with urlopen(url) as r:
                     r.read(1)
             except Exception:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "Invalid background URL.", ephemeral=True
                 )
                 return
-            await interaction.response.defer()
+
             avatar_asset = (
                 interaction.user.display_avatar.with_size(256).with_static_format("png")
             )
