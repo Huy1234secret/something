@@ -113,8 +113,15 @@ def glass_rect(
     d.rounded_rectangle(
         (0, 0, x1 - x0, y1 - y0), radius=radius, fill=fill, outline=stroke, width=1
     )
-    hi = Image.new("RGBA", (x1 - x0, max(2, (y1 - y0) // 2)), (255, 255, 255, 28))
+    hi_h = max(2, (y1 - y0) // 2)
+    hi = Image.new("RGBA", (x1 - x0, hi_h), (255, 255, 255, 28))
     hi = hi.filter(ImageFilter.GaussianBlur(3))
+    mask_full = Image.new("L", (x1 - x0, y1 - y0), 0)
+    ImageDraw.Draw(mask_full).rounded_rectangle(
+        (0, 0, x1 - x0, y1 - y0), radius=radius, fill=255
+    )
+    hi_mask = mask_full.crop((0, 0, x1 - x0, hi_h))
+    hi = Image.composite(hi, Image.new("RGBA", (x1 - x0, hi_h), (0, 0, 0, 0)), hi_mask)
     layer.alpha_composite(hi, (0, 0))
     img.alpha_composite(layer, (x0, y0))
 
