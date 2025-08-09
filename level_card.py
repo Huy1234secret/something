@@ -112,8 +112,7 @@ def progress_bar(
     img: Image.Image,
     rect: tuple[int, int, int, int],
     p: float,
-    c0: tuple[int, int, int] = (92, 220, 140),
-    c1: tuple[int, int, int] = (32, 170, 100),
+    color: tuple[int, int, int] = (92, 220, 140),
     bar_opacity: float = 0.55,
 ) -> None:
     """Render a progress bar inside ``rect`` with fill percentage ``p``."""
@@ -125,23 +124,15 @@ def progress_bar(
         img,
         rect,
         radius=16,
-        fill=(255, 255, 255, alpha),
-        stroke=(255, 255, 255, alpha + 20),
+        fill=(*color, alpha),
+        stroke=(*color, min(alpha + 20, 255)),
     )
     fill_w = max(0, min(w, int(w * p)))
     if fill_w > 0:
-        grad = Image.new("RGBA", (fill_w, h))
-        gdraw = ImageDraw.Draw(grad)
-        for x in range(fill_w):
-            t = x / max(1, fill_w - 1)
-            r = round(c0[0] * (1 - t) + c1[0] * t)
-            g = round(c0[1] * (1 - t) + c1[1] * t)
-            b = round(c0[2] * (1 - t) + c1[2] * t)
-            gdraw.line([(x, 0), (x, h)], fill=(r, g, b, 230))
         mask = Image.new("L", (w, h), 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, w, h), radius=16, fill=255)
         bar = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        bar.paste(grad, (0, 0))
+        bar.paste(Image.new("RGBA", (fill_w, h), (*color, 255)), (0, 0))
         img.alpha_composite(
             Image.composite(bar, Image.new("RGBA", (w, h)), mask), (x0, y0)
         )
@@ -304,8 +295,7 @@ def render_level_card(
 
     bar_rect = (info_x, 156, W - pad, 204)
     p = 0 if xp_total <= 0 else max(0, min(1, xp / xp_total))
-    dark = tuple(max(0, min(255, c - 60)) for c in bar_color)
-    progress_bar(base, bar_rect, p, c0=bar_color, c1=dark, bar_opacity=bar_opacity)
+    progress_bar(base, bar_rect, p, color=bar_color, bar_opacity=bar_opacity)
 
     # Star + XP text
     try:
