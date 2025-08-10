@@ -269,7 +269,7 @@ def render_level_card(
     prestige: int = 0,
     total_xp: int = 0,
     background_url: str = "https://i.ibb.co/9337ZnxF/wdwdwd.jpg",
-    star_url: str = "https://i.ibb.co/fdtb13YH/d744eea4-bcd5-44cb-ae95-458044c0e3b7.png",
+    star_url: str = "https://i.ibb.co/1Nbf5NG/4a8ffc72-efd2-47d7-b33b-3f2c6d5133fd.png",
     medal_url: str = "https://i.ibb.co/7dw9RjgV/7cbb626b-1509-463f-a5b9-dce886ba4619.png",
     badges: tuple[str | None, str | None, str | None] = (None, None, None),
     stats_offset: int = 50,
