@@ -70,19 +70,13 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
-        if allow_ephemeral:
-            await send(
-                f"{WARNING_EMOJI}Background image invalid; using default.",
-                file=discord.File(path),
-                view=view,
-                ephemeral=True,
-            )
-        else:
-            await send(
-                f"{WARNING_EMOJI}Background image invalid; using default.",
-                file=discord.File(path),
-                view=view,
-            )
+        kwargs = {"ephemeral": True} if allow_ephemeral else {}
+        await send(
+            f"{WARNING_EMOJI}Background image invalid; using default.",
+            file=discord.File(path),
+            view=view,
+            **kwargs,
+        )
     finally:
         try:
             os.remove(path)

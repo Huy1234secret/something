@@ -159,7 +159,7 @@ def main() -> None:
             self.add_item(self.bg_input)
 
         async def on_submit(self, interaction: discord.Interaction) -> None:
-            await interaction.response.defer(thinking=True)
+            await interaction.response.defer(thinking=True, ephemeral=True)
 
             try:
                 parts = [int(p.strip()) for p in self.color_input.value.split(",")]
