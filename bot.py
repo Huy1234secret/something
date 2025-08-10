@@ -14,6 +14,7 @@ from urllib.request import urlopen
 import urllib.parse
 import random
 from datetime import datetime
+from command.level import send_level_card
 
 DATA_FILE = "user_data.json"
 user_card_settings: dict[int, dict[str, Any]] = {}
@@ -274,6 +275,25 @@ def main() -> None:
         if message.author == client.user:
             return
         await add_xp(message.author, random.randint(1, 10), client)
+        content = message.content.strip()
+        lower = content.lower()
+        if lower.startswith("a."):
+            cmd = lower[2:].lstrip()
+            if cmd == "level":
+                await send_level_card(
+                    message.author,
+                    message.channel.send,
+                    user_stats,
+                    user_card_settings,
+                    save_data,
+                    xp_needed,
+                    DEFAULT_COLOR,
+                    DEFAULT_BACKGROUND,
+                    render_level_card,
+                    CardSettingsView,
+                    allow_ephemeral=False,
+                )
+                return
         if message.content == "!ping":
             await message.channel.send("Pong!")
 
