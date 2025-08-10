@@ -4,6 +4,8 @@ from io import BytesIO
 import discord
 from PIL import Image
 
+WARNING_EMOJI = "<:warning:1404101025849147432> "
+
 
 async def send_level_card(
     user,
@@ -70,14 +72,14 @@ async def send_level_card(
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
         if allow_ephemeral:
             await send(
-                "Background image invalid; using default.",
+                f"{WARNING_EMOJI}Background image invalid; using default.",
                 file=discord.File(path),
                 view=view,
                 ephemeral=True,
             )
         else:
             await send(
-                "Background image invalid; using default.",
+                f"{WARNING_EMOJI}Background image invalid; using default.",
                 file=discord.File(path),
                 view=view,
             )
