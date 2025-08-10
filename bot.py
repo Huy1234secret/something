@@ -27,6 +27,7 @@ CARD_SETTING_EMOJI = discord.PartialEmoji(name="Botgear", id=1403611995814629447
 XP_EMOJI = "<:xp:1403665761825980457>"
 REPLY = "<:reply:1403665761825980456>"
 REPLY1 = "<:reply1:1403665779404050562>"
+WARNING_EMOJI = "<:warning:1404101025849147432> "
 LEVEL_UP_CHANNEL_ID = 1373578620634665052
 MAX_LEVEL = 9999
 
@@ -166,7 +167,8 @@ def main() -> None:
                     raise ValueError
             except Exception:
                 await interaction.followup.send(
-                    "Invalid color. Use R,G,B between 0-255.", ephemeral=True
+                    f"{WARNING_EMOJI}Invalid color. Use R,G,B between 0-255.",
+                    ephemeral=True,
                 )
                 return
 
@@ -179,7 +181,7 @@ def main() -> None:
                     r.read(1)
             except Exception:
                 await interaction.followup.send(
-                    "Invalid background URL.", ephemeral=True
+                    f"{WARNING_EMOJI}Invalid background URL.", ephemeral=True
                 )
                 return
 
@@ -210,7 +212,8 @@ def main() -> None:
                 )
             except ValueError:
                 await interaction.followup.send(
-                    "Background image could not be loaded.", ephemeral=True
+                    f"{WARNING_EMOJI}Background image could not be loaded.",
+                    ephemeral=True,
                 )
                 return
             user_card_settings[interaction.user.id] = {
@@ -240,7 +243,8 @@ def main() -> None:
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
                 await interaction.response.send_message(
-                    "You can't interact with this command.", ephemeral=True
+                    f"{WARNING_EMOJI}You can't interact with this command.",
+                    ephemeral=True,
                 )
                 return False
             return True

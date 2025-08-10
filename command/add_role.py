@@ -2,6 +2,8 @@ import discord
 from discord import app_commands
 from datetime import datetime, timezone
 
+WARNING_EMOJI = "<:warning:1404101025849147432> "
+
 
 def parse_duration(time_str: str) -> int | None:
     """Convert a duration string like '1h' or '7w' to seconds."""
@@ -38,12 +40,13 @@ def setup(tree, *_, **__):
             await user.add_roles(role)
         except discord.Forbidden:
             await interaction.followup.send(
-                "I don't have permission to assign that role.", ephemeral=True
+                f"{WARNING_EMOJI}I don't have permission to assign that role.",
+                ephemeral=True,
             )
             return
         except discord.HTTPException:
             await interaction.followup.send(
-                "Failed to assign the role.", ephemeral=True
+                f"{WARNING_EMOJI}Failed to assign the role.", ephemeral=True
             )
             return
 
@@ -55,7 +58,7 @@ def setup(tree, *_, **__):
             seconds = parse_duration(time)
             if seconds is None:
                 await interaction.followup.send(
-                    "Invalid time format. Use number followed by h/d/w/m.",
+                    f"{WARNING_EMOJI}Invalid time format. Use number followed by h/d/w/m.",
                     ephemeral=True,
                 )
                 return
