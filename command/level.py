@@ -74,6 +74,7 @@ def setup(tree,
                 "Background image invalid; using default.",
                 file=discord.File(path),
                 view=view,
+                ephemeral=True,
             )
         finally:
             try:
