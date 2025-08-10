@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def parse_duration(time_str: str) -> int | None:
@@ -60,7 +60,7 @@ def setup(tree, *_, **__):
                 )
                 return
 
-            expires_at = datetime.utcnow().timestamp() + seconds
+            expires_at = datetime.now(timezone.utc).timestamp() + seconds
             schedule_role(
                 user.id,
                 interaction.guild.id,

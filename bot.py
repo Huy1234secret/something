@@ -13,7 +13,7 @@ from level_card import render_level_card
 from urllib.request import urlopen
 import urllib.parse
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from command.level import send_level_card
 
 DATA_FILE = "user_data.json"
@@ -121,7 +121,7 @@ def main() -> None:
             save_data()
 
         async def remove_later() -> None:
-            delay = expires_at - datetime.utcnow().timestamp()
+            delay = expires_at - datetime.now(timezone.utc).timestamp()
             if delay > 0:
                 await asyncio.sleep(delay)
             guild = client.get_guild(guild_id)
@@ -304,11 +304,11 @@ def main() -> None:
         after: discord.VoiceState,
     ) -> None:
         if before.channel is None and after.channel is not None:
-            voice_sessions[member.id] = datetime.utcnow()
+            voice_sessions[member.id] = datetime.now(timezone.utc)
         elif before.channel is not None and after.channel is None:
             start = voice_sessions.pop(member.id, None)
             if start:
-                duration = datetime.utcnow() - start
+                duration = datetime.now(timezone.utc) - start
                 minutes = int(duration.total_seconds() // 60)
                 if minutes > 0:
                     xp = sum(random.randint(1, 3) for _ in range(minutes))
