@@ -50,8 +50,11 @@ async def send_level_card(
             bar_color=color,
             outfile=f"level_{user_id}.png",
         )
+        file = discord.File(path, filename=f"level_{user_id}.png")
+        embed = discord.Embed()
+        embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
-        await send(file=discord.File(path), view=view)
+        await send(embed=embed, file=file, view=view)
     except ValueError:
         settings["background_url"] = DEFAULT_BACKGROUND
         save_data()
@@ -69,11 +72,15 @@ async def send_level_card(
             bar_color=color,
             outfile=f"level_{user_id}.png",
         )
+        file = discord.File(path, filename=f"level_{user_id}.png")
+        embed = discord.Embed()
+        embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
         kwargs = {"ephemeral": True} if allow_ephemeral else {}
         await send(
             f"{WARNING_EMOJI}Background image invalid; using default.",
-            file=discord.File(path),
+            embed=embed,
+            file=file,
             view=view,
             **kwargs,
         )
