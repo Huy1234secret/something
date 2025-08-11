@@ -111,4 +111,26 @@ def setup(
     save_data,
     xp_needed,
     DEFAULT_COLOR,
-    DEFAULT
+    DEFAULT_BACKGROUND,
+    render_level_card,
+    CardSettingsView,
+    **__
+):
+    """Register the level command with the provided command tree."""
+
+    @tree.command(name="level", description="Show your level card")
+    async def level_command(interaction: discord.Interaction):
+        await interaction.response.defer()
+        await send_level_card(
+            interaction.user,
+            interaction.followup.send,
+            user_stats,
+            user_card_settings,
+            save_data,
+            xp_needed,
+            DEFAULT_COLOR,
+            DEFAULT_BACKGROUND,
+            render_level_card,
+            CardSettingsView,
+            allow_ephemeral=True,
+        )
