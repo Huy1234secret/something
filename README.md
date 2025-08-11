@@ -1,40 +1,25 @@
-# Discord Bot
+# Discord Bot (JavaScript)
 
-This is a simple Discord bot written in Python using [`discord.py`](https://pypi.org/project/discord.py/).
+This project provides a simple Discord bot written in Node.js using [`discord.js`](https://www.npmjs.com/package/discord.js).
 
 ## Setup
 
-1. Create a virtual environment (optional):
+1. Install dependencies:
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   ```
+```bash
+npm install
+```
 
 2. Create a `.env` file in the project root with your bot token:
 
-   ```env
-   BOT_TOKEN=your_bot_token_here
-   ```
+```env
+BOT_TOKEN=your_bot_token_here
+```
 
-3. Run the bot. It will automatically install the required dependencies on
-   first start:
+3. Run the bot:
 
-   ```bash
-   python bot.py
-   ```
+```bash
+node bot.js
+```
 
-The bot will respond to `!ping` messages with `Pong!`.
-
-The level card can also be requested with the `a.` or `A.` prefix. For example,
-you can type `a. level` or `A.level` to see your card.
-
-Use `/wallet` or the prefix `a.wallet` to view a wallet-style card showing your
-coins, diamonds and deluxe coins along with their total value.
-
-A slash command `/add-role` can give a role to a user, optionally for a
-limited time (`1h`, `1d`, `7w`, `1m`). Timed roles are stored so they persist
-even if the bot restarts.
-
-User level statistics and card design preferences are stored in
-`user_data.json` so they persist between restarts.
+The bot responds to `!ping` and supports the `a.level` and `a.wallet` prefix commands.
