@@ -280,18 +280,13 @@ def main() -> None:
             self.owner_id = owner_id
 
         def to_components(self) -> list[dict[str, Any]]:
-            # Wrap the standard button row in a container and prepend a separator so
-            # the interface remains visually grouped with the embed image.
+            """Insert a divider before the button row so it stays near the embed."""
             rows = super().to_components()
-            return [
-                {
-                    "type": 17,
-                    "components": [
-                        {"type": 14, "divider": True, "spacing": 1},
-                        *rows,
-                    ],
-                }
-            ]
+            if rows:
+                rows[0]["components"].insert(
+                    0, {"type": 14, "divider": True, "spacing": 1}
+                )
+            return rows
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
