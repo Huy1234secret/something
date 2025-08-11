@@ -51,7 +51,9 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         file = discord.File(path, filename=f"level_{user_id}.png")
-        embed = discord.Embed()
+        # Include a blank description so component rows render within the embed
+        # area when using Discord's v2 components.
+        embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
         await send(embed=embed, file=file, view=view)
@@ -73,7 +75,9 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         file = discord.File(path, filename=f"level_{user_id}.png")
-        embed = discord.Embed()
+        # Maintain spacing so the divider and button are visually attached to the
+        # embed image when an invalid background is provided.
+        embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
         kwargs = {"ephemeral": True} if allow_ephemeral else {}
