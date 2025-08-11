@@ -6,9 +6,6 @@ import discord
 from PIL import Image
 
 WARNING_EMOJI = "<:warning:1404101025849147432> "
-# Message flag enabling Discord's v2 component system
-COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
-
 
 async def send_level_card(
     user,
@@ -38,6 +35,7 @@ async def send_level_card(
     avatar_asset = user.display_avatar.with_size(256).with_static_format("png")
     avatar_bytes = await avatar_asset.read()
     avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
+    path = None  # Define path here to ensure it exists for the finally block
     try:
         path = render_level_card(
             username=user.name,
@@ -54,15 +52,19 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         file = discord.File(path, filename=f"level_{user_id}.png")
-        # Include a blank description so component rows render within the embed
-        # area when using Discord's v2 components.
-        embed = discord.Embed(description="\u200b")
+        embed = discord.Embed()
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
+        
         send_kwargs = {"embed": embed, "file": file, "view": view}
-        if "flags" in inspect.signature(send).parameters:
-            send_kwargs["flags"] = COMPONENTS_V2_FLAG
+        if not allow_ephemeral:
+             # For non-ephemeral messages, check if flags is a valid parameter
+            if "flags" in inspect.signature(send).parameters:
+                 # This is for older message sending, might not be needed now
+                pass
+        
         await send(**send_kwargs)
+
     except ValueError:
         settings["background_url"] = DEFAULT_BACKGROUND
         save_data()
@@ -81,27 +83,26 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         file = discord.File(path, filename=f"level_{user_id}.png")
-        # Maintain spacing so the separator and button are visually attached to the
-        # embed image when an invalid background is provided.
-        embed = discord.Embed(description="\u200b")
+        embed = discord.Embed()
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
-        kwargs = {"ephemeral": True} if allow_ephemeral else {}
+        
         send_kwargs = {
             "content": f"{WARNING_EMOJI}Background image invalid; using default.",
             "embed": embed,
             "file": file,
             "view": view,
-            **kwargs,
         }
-        if "flags" in inspect.signature(send).parameters:
-            send_kwargs["flags"] = COMPONENTS_V2_FLAG
+        if allow_ephemeral:
+            send_kwargs["ephemeral"] = True
+
         await send(**send_kwargs)
     finally:
-        try:
-            os.remove(path)
-        except (OSError, NameError):
-            pass
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 def setup(
@@ -120,7 +121,7 @@ def setup(
 
     @tree.command(name="level", description="Show your level card")
     async def level_command(interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         await send_level_card(
             interaction.user,
             interaction.followup.send,
