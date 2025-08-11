@@ -285,10 +285,12 @@ def main() -> None:
             Discord's components v2 API requires a container to be the top-level
             layout component. The button row is wrapped in a ``type 17``
             container with a ``type 14`` separator to provide spacing between the
-            embed image and the button.
+            embed image and the button. The container itself must be wrapped in
+            a top-level ``type 1`` action row as required by the API.
             """
             rows = super().to_components()
-            return [{"type": 17, "components": [{"type": 14}, *rows]}]
+            container = {"type": 17, "components": [{"type": 14}, *rows]}
+            return [{"type": 1, "components": [container]}]
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
