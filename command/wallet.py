@@ -1,11 +1,4 @@
-"""Wallet command renderer using a stylised card UI (improved).
-
-This module defines :func:`render_wallet_card`, which produces a
-leather-textured wallet style image summarising a user's currency holdings.
-The rest of the public API mirrors the previous implementation so other
-modules can continue to call :func:`send_wallet_card` unchanged.
-"""
-
+# Wallet command renderer using a stylised card UI (flat + bigger elements).
 from __future__ import annotations
 
 import os
@@ -13,50 +6,42 @@ from io import BytesIO
 from urllib.request import urlopen
 
 import discord
-from PIL import (
-    Image,
-    ImageChops,
-    ImageDraw,
-    ImageFilter,
-    ImageFont,
-    ImageOps,
-)
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
-COIN_URL = "https://i.ibb.co/LDbB8Db5/Coin.png"
-# TODO: put the correct Diamond URL here:
+COIN_URL    = "https://i.ibb.co/LDbB8Db5/Coin.png"
 DIAMOND_URL = os.getenv("DIAMOND_URL", "https://i.ibb.co/R400ZFyT/Diamond.png")
-DELUXE_URL = "https://i.ibb.co/Q7LtJxXt/Deluxe-Coin.png"
+DELUXE_URL  = "https://i.ibb.co/Q7LtJxXt/Deluxe-Coin.png"
 
-COIN_VALUE = 1
+COIN_VALUE    = 1
 DIAMOND_VALUE = 20
-DELUXE_VALUE = 100
+DELUXE_VALUE  = 100
 
-
-# ---------------------------
-# Helpers (fonts, textures, shapes)
-# ---------------------------
+# --------- Style Toggles ---------
+FLAT_MODE = True              # no shadows
+CARD_SIZE = (900, 520)        # default size
+CARD_CORNER_SCALE = 1.2       # rounder outer corners
+POCKET_CORNER = 0.28          # pocket corner as a fraction of height
+ICON_SCALE = 0.72             # icon size relative to pocket height (bigger)
+COUNT_HEIGHT = 0.78           # numbers occupy this fraction of pocket height
+LABEL_MARGIN_TOP = 8          # px (at 1x) gap between label and bar
+LABEL_AFTER_ICON_GAP = 16     # px (at 1x) gap to the right of icon
 
 _ICON_CACHE: dict[str, Image.Image] = {}
 
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    """Return a truetype font of ``size``; fall back to Pillow default."""
-
     try:
-        name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-        return ImageFont.truetype(name, size)
-    except Exception:  # pragma: no cover - font lookup best effort
+        return ImageFont.truetype("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf", size)
+    except Exception:
         return ImageFont.load_default()
 
 
 def _text_size(text: str, font: ImageFont.FreeTypeFont) -> tuple[int, int]:
-    bbox = font.getbbox(text)
-    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+    b = font.getbbox(text)
+    return b[2] - b[0], b[3] - b[1]
 
 
-def _fit_font(
-    text: str, max_w: int, max_h: int, start_size: int, bold: bool = False
-) -> ImageFont.FreeTypeFont:
+def _fit_font(text: str, max_w: int, max_h: int, start_size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     size = start_size
     while size > 10:
         f = _load_font(size, bold=bold)
@@ -69,19 +54,15 @@ def _fit_font(
 
 def _safe_open_icon(url: str, size: int) -> Image.Image:
     if url in _ICON_CACHE:
-        return _ICON_CACHE[url].copy()
+        return _ICON_CACHE[url].copy().resize((size, size), Image.LANCZOS)
     try:
-        with urlopen(url, timeout=5) as r:  # nosec - controlled URLs
+        with urlopen(url, timeout=5) as r:
             im = Image.open(BytesIO(r.read())).convert("RGBA")
     except Exception:
         im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
         d.ellipse((0, 0, size - 1, size - 1), fill=(230, 200, 120, 255))
-        d.ellipse(
-            (size * 0.2, size * 0.2, size * 0.8, size * 0.8),
-            outline=(140, 110, 60, 255),
-            width=max(1, size // 16),
-        )
+        d.ellipse((size * 0.2, size * 0.2, size * 0.8, size * 0.8), outline=(140, 110, 60, 255), width=max(1, size // 16))
     im = im.resize((size, size), Image.LANCZOS)
     _ICON_CACHE[url] = im.copy()
     return im
@@ -94,38 +75,33 @@ def _leather_base(size: tuple[int, int], base=(73, 48, 36)) -> Image.Image:
     vd = ImageDraw.Draw(vignette)
     vd.ellipse((-int(0.2 * w), -int(0.35 * h), int(1.2 * w), int(1.35 * h)), fill=255)
     vignette = vignette.filter(ImageFilter.GaussianBlur(radius=max(8, w // 60)))
-    base_img = Image.composite(
-        base_img, Image.new("RGB", size, (38, 25, 18)), ImageOps.invert(vignette)
-    )
-
+    base_img = Image.composite(base_img, Image.new("RGB", size, (38, 25, 18)), ImageOps.invert(vignette))
     try:
         noise = Image.effect_noise(size, 20).convert("L")
-        noise = ImageOps.autocontrast(noise)
-        noise = noise.filter(ImageFilter.GaussianBlur(radius=1))
+        noise = ImageOps.autocontrast(noise).filter(ImageFilter.GaussianBlur(radius=1))
         grain = Image.merge("RGB", (noise, noise, noise))
-        base_img = ImageChops.screen(
-            base_img, ImageChops.multiply(grain, Image.new("RGB", size, (60, 40, 30)))
-        )
-    except Exception:  # pragma: no cover - effect_noise best effort
+        base_img = ImageChops.screen(base_img, ImageChops.multiply(grain, Image.new("RGB", size, (60, 40, 30))))
+    except Exception:
         pass
     return base_img
 
 
 def _rounded_rect_mask(size: tuple[int, int], radius: int) -> Image.Image:
-    """High-quality mask for smooth edges (gets rid of sharp artifacts)."""
-
     w, h = size
-    scale = 4  # supersample for crisper curves
+    scale = 4
     mw, mh = w * scale, h * scale
     mr = max(1, radius * scale)
     m = Image.new("L", (mw, mh), 0)
     d = ImageDraw.Draw(m)
     d.rounded_rectangle((0, 0, mw - 1, mh - 1), radius=mr, fill=255)
     m = m.resize((w, h), Image.LANCZOS)
-    return m.filter(ImageFilter.GaussianBlur(0.6))
+    return m  # flat mode → no extra blur to avoid any fuzzy "sharp" artifacts
 
 
 def _inner_shadow(img: Image.Image, radius: int = 20, opacity: int = 120) -> Image.Image:
+    if FLAT_MODE:
+        # return unchanged in flat mode
+        return img.convert("RGBA")
     alpha = img.split()[-1] if img.mode == "RGBA" else Image.new("L", img.size, 255)
     inv = ImageOps.invert(alpha).filter(ImageFilter.GaussianBlur(radius=radius))
     shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
@@ -133,16 +109,10 @@ def _inner_shadow(img: Image.Image, radius: int = 20, opacity: int = 120) -> Ima
     return Image.alpha_composite(img.convert("RGBA"), shadow)
 
 
-def _draw_stitches(
-    draw: ImageDraw.ImageDraw,
-    bbox: tuple[int, int, int, int],
-    radius: int,
-    spacing: int,
-    stitch_color=(245, 225, 190),
-    width: int = 2,
-) -> None:
+def _draw_stitches(draw: ImageDraw.ImageDraw, bbox, radius, spacing, stitch_color=(245, 225, 190), width=2) -> None:
+    # stitches kept but slightly lighter; they already have rounded geometry
     x0, y0, x1, y1 = bbox
-    path: list[tuple[tuple[int, int], tuple[int, int]]] = []
+    path = []
     x = x0 + radius
     while x < x1 - radius:
         path.append(((x, y0), (min(x + spacing // 2, x1 - radius), y0)))
@@ -163,44 +133,27 @@ def _draw_stitches(
         draw.line(seg, fill=stitch_color, width=width)
 
 
-def _emboss_text(
-    draw: ImageDraw.ImageDraw,
-    xy: tuple[int, int],
-    text: str,
-    font: ImageFont.FreeTypeFont,
-    base_color: tuple[int, int, int],
-) -> None:
+def _emboss_text(draw: ImageDraw.ImageDraw, xy, text, font, base_color):
+    # flat text (no shadow/emboss) when FLAT_MODE
     x, y = xy
-    draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0, 160))
-    draw.text((x - 1, y - 1), text, font=font, fill=(255, 255, 255, 80))
-    draw.text((x, y), text, font=font, fill=base_color)
+    if FLAT_MODE:
+        draw.text((x, y), text, font=font, fill=base_color)
+    else:
+        draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0, 160))
+        draw.text((x - 1, y - 1), text, font=font, fill=(255, 255, 255, 80))
+        draw.text((x, y), text, font=font, fill=base_color)
 
 
 def _avatar_badge(avatar: Image.Image, diameter: int) -> Image.Image:
+    # flat avatar, no drop shadow
     avatar = avatar.resize((diameter, diameter), Image.LANCZOS)
     mask = Image.new("L", (diameter, diameter), 0)
     ImageDraw.Draw(mask).ellipse((0, 0, diameter - 1, diameter - 1), fill=255)
     badge = Image.new("RGBA", (diameter, diameter), (0, 0, 0, 0))
-    ring = Image.new("RGBA", (diameter, diameter), (0, 0, 0, 0))
-    ImageDraw.Draw(ring).ellipse(
-        (0, 0, diameter - 1, diameter - 1),
-        outline=(250, 240, 210, 220),
-        width=max(2, diameter // 28),
-    )
-    ring = ring.filter(ImageFilter.GaussianBlur(radius=1))
     badge.paste(avatar, (0, 0), mask)
-    badge = Image.alpha_composite(badge, ring)
-    shadow = Image.new("RGBA", badge.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).ellipse((2, 2, diameter, diameter), fill=(0, 0, 0, 120))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=6))
-    out = Image.new("RGBA", (diameter + 6, diameter + 6), (0, 0, 0, 0))
-    out.alpha_composite(shadow, (0, 0))
-    out.alpha_composite(badge, (3, 3))
-    return out
+    return badge
 
 
-# ---------------------------
-# Wallet renderer
 # ---------------------------
 
 
@@ -212,7 +165,7 @@ def render_wallet_card(
     deluxe: int,
     total: int,
     outfile: str = "wallet.png",
-    size: tuple[int, int] = (900, 520),  # ← taller default height
+    size: tuple[int, int] = CARD_SIZE,  # taller card
 ) -> str:
     W, H = size
     SCALE = 2
@@ -222,11 +175,10 @@ def render_wallet_card(
     wallet = Image.new("RGBA", (w, h))
     wallet.paste(leather.convert("RGBA"))
 
-    corner = max(24, W // 18) * SCALE // 2
+    corner = int(max(24, W // 18) * SCALE // 2 * CARD_CORNER_SCALE)
     mask = _rounded_rect_mask((w, h), radius=corner)
     wallet.putalpha(mask)
     wallet = _inner_shadow(wallet, radius=28 * SCALE // 2, opacity=140)
-
     draw = ImageDraw.Draw(wallet)
 
     inset = 20 * SCALE
@@ -239,14 +191,12 @@ def render_wallet_card(
         width=3 * SCALE // 2,
     )
 
-    # ---- Flap (fix: size matches inner width; no overhang → no sharp edge) ----
+    # flap
     flap_h = int(h * 0.26)
     flap_bbox = (inset * 2, inset * 2, w - inset * 2, inset * 2 + flap_h)
     flap_w = flap_bbox[2] - flap_bbox[0]
-    flap = Image.new("RGBA", (flap_w, flap_h), (0, 0, 0, 0))
-    flap_leather = _leather_base((flap_w, flap_h), base=(62, 41, 30))
-    flap.alpha_composite(flap_leather.convert("RGBA"))
-    flap_mask = _rounded_rect_mask((flap_w, flap_h), radius=int(corner * 0.8))
+    flap = Image.new("RGBA", (flap_w, flap_h), (62, 41, 30, 255))
+    flap_mask = _rounded_rect_mask((flap_w, flap_h), radius=int(corner * 0.95))
     flap.putalpha(flap_mask)
     flap = _inner_shadow(flap, radius=18, opacity=160)
     wallet.alpha_composite(flap, (flap_bbox[0], flap_bbox[1]))
@@ -259,7 +209,7 @@ def render_wallet_card(
             flap_bbox[2] - 12 * SCALE,
             flap_bbox[3] - 10 * SCALE,
         ),
-        radius=int(corner * 0.6),
+        radius=int(corner * 0.7),
         spacing=24 * SCALE // 2,
         stitch_color=(240, 220, 185),
         width=2 * SCALE // 2,
@@ -268,56 +218,46 @@ def render_wallet_card(
     avatar_badge = _avatar_badge(avatar_image.convert("RGBA"), diameter=int(flap_h * 0.75))
     wallet.alpha_composite(
         avatar_badge,
-        (flap_bbox[0] + 16 * SCALE, flap_bbox[1] + int(flap_h * 0.5) - avatar_badge.size[1] // 2),
+        (
+            flap_bbox[0] + 16 * SCALE,
+            flap_bbox[1] + int(flap_h * 0.5) - avatar_badge.size[1] // 2,
+        ),
     )
 
+    # name
     name_left = flap_bbox[0] + int(flap_h * 0.75) + 40 * SCALE
     name_top = flap_bbox[1] + int(flap_h * 0.20)
     name_w = (flap_bbox[2] - 20 * SCALE) - name_left
     name_h = int(flap_h * 0.40)
-
-    font_name = _fit_font(username, name_w, name_h, start_size=48 * SCALE // 2, bold=True)
+    font_name = _fit_font(username, name_w, name_h, start_size=50 * SCALE // 2, bold=True)
     _emboss_text(draw, (name_left, name_top), username, font_name, base_color=(235, 220, 200))
 
+    # total plate (flat, no rivets)
     total_txt = f"Total Value: {total:,}"
     plate_h = int(flap_h * 0.46)
-    plate_w = min(int(name_w * 0.55), 350 * SCALE)
+    plate_w = min(int(name_w * 0.58), 360 * SCALE)
     plate_x = flap_bbox[2] - plate_w - 20 * SCALE
     plate_y = flap_bbox[1] + int((flap_h - plate_h) / 2)
     plate = Image.new("RGBA", (plate_w, plate_h), (90, 62, 47, 255))
-    plate_mask = _rounded_rect_mask((plate_w, plate_h), radius=int(plate_h * 0.4))
+    plate_mask = _rounded_rect_mask((plate_w, plate_h), radius=int(plate_h * 0.5))
     plate.putalpha(plate_mask)
-    plate = _inner_shadow(plate, radius=10, opacity=120)
+    plate = _inner_shadow(plate, radius=10, opacity=100)
     wallet.alpha_composite(plate, (plate_x, plate_y))
-    rd = ImageDraw.Draw(wallet)
-    r = max(4, SCALE * 3)
-    for cx in (plate_x + plate_h // 3, plate_x + plate_w - plate_h // 3):
-        cy = plate_y + plate_h // 2
-        rd.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(230, 215, 180, 255))
-        rd.ellipse((cx - r // 2, cy - r // 2, cx + r // 2, cy + r // 2), fill=(160, 140, 110, 255))
-
-    font_total = _fit_font(
-        total_txt, plate_w - 24 * SCALE, plate_h - 10 * SCALE, start_size=40 * SCALE // 2, bold=True
-    )
+    font_total = _fit_font(total_txt, plate_w - 24 * SCALE, plate_h - 10 * SCALE, start_size=42 * SCALE // 2, bold=True)
     tw, th = _text_size(total_txt, font_total)
-    _emboss_text(
-        draw,
-        (plate_x + (plate_w - tw) // 2, plate_y + (plate_h - th) // 2),
-        total_txt,
-        font_total,
-        base_color=(250, 235, 210),
-    )
+    _emboss_text(draw, (plate_x + (plate_w - tw) // 2, plate_y + (plate_h - th) // 2), total_txt, font_total, base_color=(250, 235, 210))
 
-    pockets_top = flap_bbox[3] + 22 * SCALE  # a bit more breathing room under the flap
+    # pockets
+    pockets_top = flap_bbox[3] + 22 * SCALE
     pocket_h = int((h - pockets_top - inset * 3) / 3)
     pocket_gap = 14 * SCALE
-    pocket_radius = int(pocket_h * 0.22)
-    icon_size = int(pocket_h * 0.62)  # ← bigger icons
+    pocket_radius = int(pocket_h * POCKET_CORNER)
+    icon_size = int(pocket_h * ICON_SCALE)
 
     items = [
         ("Coin", coins, COIN_URL),
         ("Diamond", diamonds, DIAMOND_URL),
-        ("Deluxe Coin", deluxe, DELUXE_URL),  # ensure wording
+        ("Deluxe Coin", deluxe, DELUXE_URL),
     ]
 
     for i, (label, count, url) in enumerate(items):
@@ -326,7 +266,7 @@ def render_wallet_card(
         x0 = inset * 2
         x1 = w - inset * 2
 
-        # pocket bar (smooth mask)
+        # pocket bar
         pocket = Image.new("RGBA", (x1 - x0, pocket_h), (82, 55, 41, 255))
         pocket.putalpha(_rounded_rect_mask(pocket.size, radius=pocket_radius))
         pocket = _inner_shadow(pocket, radius=14, opacity=120)
@@ -336,37 +276,32 @@ def render_wallet_card(
         _draw_stitches(
             draw,
             (x0 + 14 * SCALE, y0 + 10 * SCALE, x1 - 14 * SCALE, y1 - 10 * SCALE),
-            radius=int(pocket_radius * 0.8),
+            radius=int(pocket_radius * 0.9),
             spacing=24 * SCALE // 2,
             stitch_color=(245, 225, 190),
             width=2 * SCALE // 2,
         )
 
-        # icon + count
+        # icon
         icon = _safe_open_icon(url, icon_size)
-        wallet.alpha_composite(icon, (x0 + 22 * SCALE, y0 + (pocket_h - icon_size) // 2))
+        icon_left = x0 + 22 * SCALE
+        wallet.alpha_composite(icon, (icon_left, y0 + (pocket_h - icon_size) // 2))
 
-        # exact vertical center for numbers
+        # count (exact vertical center, bigger size)
         num_text = f"{count:,}"
         count_color = (255, 247, 230)
-        big = _fit_font(
-            num_text,
-            (x1 - x0) - (icon_size + 140 * SCALE),
-            int(pocket_h * 0.72),
-            start_size=54 * SCALE // 2,
-            bold=True,
-        )
+        big = _fit_font(num_text, (x1 - x0) - (icon_size + 180 * SCALE), int(pocket_h * COUNT_HEIGHT), start_size=64 * SCALE // 2, bold=True)
         tw, th = _text_size(num_text, big)
-        cx = x0 + 22 * SCALE + icon_size + 24 * SCALE
-        cy = y0 + (pocket_h - th) // 2  # ← TRUE center vertically
+        cx = icon_left + icon_size + 24 * SCALE
+        cy = y0 + (pocket_h - th) // 2
         _emboss_text(draw, (cx, cy), num_text, big, base_color=count_color)
 
-        # label ABOVE bar (exactly on top with consistent margin)
-        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
+        # label ABOVE bar, a bit to the right of the icon
+        label_font = _fit_font(label, (x1 - x0) // 2, int(pocket_h * 0.38), start_size=32 * SCALE // 2, bold=True)
         lw, lh = _text_size(label, label_font)
-        label_x = x0 + 22 * SCALE  # left aligned with icon
-        margin = 6 * SCALE
-        label_y = y0 - lh - margin  # bottom of label sits 'margin' above bar
+        label_x = icon_left + icon_size + LABEL_AFTER_ICON_GAP * SCALE // 2
+        margin = LABEL_MARGIN_TOP * SCALE // 2
+        label_y = y0 - lh - margin
         _emboss_text(draw, (label_x, label_y), label, label_font, base_color=(245, 232, 214))
 
     final_img = wallet.resize((W, H), Image.LANCZOS)
@@ -374,17 +309,9 @@ def render_wallet_card(
     return outfile
 
 
-async def send_wallet_card(
-    user: discord.abc.User,
-    send,
-    user_stats: dict[int, dict[str, int]],
-    save_data,
-) -> None:
+async def send_wallet_card(user: discord.abc.User, send, user_stats: dict[int, dict[str, int]], save_data) -> None:
     user_id = user.id
-    stats = user_stats.setdefault(
-        user_id,
-        {"level": 1, "xp": 0, "total_xp": 0, "coins": 0, "diamonds": 0, "deluxe_coins": 0},
-    )
+    stats = user_stats.setdefault(user_id, {"level": 1, "xp": 0, "total_xp": 0, "coins": 0, "diamonds": 0, "deluxe_coins": 0})
     stats.setdefault("coins", 0)
     stats.setdefault("diamonds", 0)
     stats.setdefault("deluxe_coins", 0)
@@ -399,7 +326,6 @@ async def send_wallet_card(
     avatar_bytes = await avatar_asset.read()
     avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
 
-    # change size here if you want a different card dimension, e.g. (820, 410)
     path = render_wallet_card(
         user.name,
         avatar_image,
@@ -408,7 +334,7 @@ async def send_wallet_card(
         deluxe,
         total,
         outfile=f"wallet_{user_id}.png",
-        size=(900, 520),  # ← taller
+        size=CARD_SIZE,
     )
     await send(file=discord.File(path))
     try:
@@ -421,10 +347,4 @@ def setup(tree, user_stats, user_card_settings, save_data, *_, **__):
     @tree.command(name="wallet", description="Show your wallet")
     async def wallet_command(interaction: discord.Interaction):
         await interaction.response.defer()
-        await send_wallet_card(
-            interaction.user,
-            interaction.followup.send,
-            user_stats,
-            save_data,
-        )
-
+        await send_wallet_card(interaction.user, interaction.followup.send, user_stats, save_data)
