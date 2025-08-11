@@ -280,16 +280,15 @@ def main() -> None:
             self.owner_id = owner_id
 
         def to_components(self) -> list[dict[str, Any]]:
-            """Return the default component rows.
+            """Return the default component rows wrapped for components v2.
 
-            The previous implementation inserted a raw divider component at the
-            beginning of the list. Discord expects all top-level components in a
-            message payload to be action rows (``type == 1``). Sending the
-            divider directly resulted in an ``HTTPException`` complaining about an
-            invalid form body where ``components.0.type`` was not ``1``. Returning
-            the rows unchanged avoids constructing an invalid payload.
+            Discord's components v2 API requires a container to be the top-level
+            layout component. The button row is wrapped in a ``type 17``
+            container with a ``type 14`` separator to provide spacing between the
+            embed image and the button.
             """
-            return super().to_components()
+            rows = super().to_components()
+            return [{"type": 17, "components": [{"type": 14}, *rows]}]
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
