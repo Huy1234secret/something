@@ -255,6 +255,16 @@ def main() -> None:
             self.background_url = background_url
             self.owner_id = owner_id
 
+            # Add a disabled button as a visual divider above the settings button.
+            # This uses Discord's component system to keep the interface contained
+            # within the embed rather than appearing as a separate message element.
+            divider = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label="\u2014" * 23,
+                disabled=True,
+            )
+            self.add_item(divider)
+
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
                 await interaction.response.send_message(
@@ -268,6 +278,7 @@ def main() -> None:
             label="Card Setting",
             style=discord.ButtonStyle.gray,
             emoji=CARD_SETTING_EMOJI,
+            row=1,
         )
         async def card_setting(
             self, interaction: discord.Interaction, button: discord.ui.Button
