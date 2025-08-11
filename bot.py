@@ -50,7 +50,6 @@ REPLY1 = "<:reply1:1403665779404050562>"
 WARNING_EMOJI = "<:warning:1404101025849147432> "
 LEVEL_UP_CHANNEL_ID = 1373578620634665052
 MAX_LEVEL = 9999
-COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
 
 def xp_needed(level: int) -> int:
     return int(100 * (level ** 1.5))
