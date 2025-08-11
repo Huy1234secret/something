@@ -7,7 +7,7 @@ from PIL import Image
 
 WARNING_EMOJI = "<:warning:1404101025849147432> "
 # Message flag enabling Discord's v2 component system
-COMPONENTS_V2_FLAG = discord.MessageFlags(use_v2_components=True)
+COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
 
 
 async def send_level_card(
@@ -38,7 +38,6 @@ async def send_level_card(
     avatar_asset = user.display_avatar.with_size(256).with_static_format("png")
     avatar_bytes = await avatar_asset.read()
     avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
-    path = None
     try:
         path = render_level_card(
             username=user.name,
@@ -99,11 +98,10 @@ async def send_level_card(
             send_kwargs["flags"] = COMPONENTS_V2_FLAG
         await send(**send_kwargs)
     finally:
-        if path:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
+        try:
+            os.remove(path)
+        except (OSError, NameError):
+            pass
 
 
 def setup(
@@ -113,26 +111,4 @@ def setup(
     save_data,
     xp_needed,
     DEFAULT_COLOR,
-    DEFAULT_BACKGROUND,
-    render_level_card,
-    CardSettingsView,
-    **__
-):
-    """Register the level command with the provided command tree."""
-
-    @tree.command(name="level", description="Show your level card")
-    async def level_command(interaction: discord.Interaction):
-        await interaction.response.defer()
-        await send_level_card(
-            interaction.user,
-            interaction.followup.send,
-            user_stats,
-            user_card_settings,
-            save_data,
-            xp_needed,
-            DEFAULT_COLOR,
-            DEFAULT_BACKGROUND,
-            render_level_card,
-            CardSettingsView,
-            allow_ephemeral=True,
-        )
+    DEFAULT
