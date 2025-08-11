@@ -4,12 +4,11 @@ This is a simple Discord bot written in Python using [`discord.py`](https://pypi
 
 ## Setup
 
-1. Create a virtual environment and install dependencies:
+1. Create a virtual environment (optional):
 
    ```bash
    python -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
    ```
 
 2. Create a `.env` file in the project root with your bot token:
@@ -18,7 +17,8 @@ This is a simple Discord bot written in Python using [`discord.py`](https://pypi
    BOT_TOKEN=your_bot_token_here
    ```
 
-3. Run the bot:
+3. Run the bot. It will automatically install the required dependencies on
+   first start:
 
    ```bash
    python bot.py
