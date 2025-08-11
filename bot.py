@@ -15,6 +15,7 @@ import urllib.parse
 import random
 from datetime import datetime, timezone
 from command.level import send_level_card
+from command.wallet import send_wallet_card
 
 DATA_FILE = "user_data.json"
 user_card_settings: dict[int, dict[str, Any]] = {}
@@ -43,6 +44,10 @@ def load_data() -> None:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         user_stats = {int(k): v for k, v in data.get("user_stats", {}).items()}
+        for stats in user_stats.values():
+            stats.setdefault("coins", 0)
+            stats.setdefault("diamonds", 0)
+            stats.setdefault("deluxe_coins", 0)
         user_card_settings = {
             int(k): {
                 "color": tuple(v.get("color", DEFAULT_COLOR)),
@@ -68,7 +73,17 @@ def save_data() -> None:
 
 
 async def add_xp(user: discord.abc.User, amount: int, client: discord.Client) -> None:
-    stats = user_stats.setdefault(user.id, {"level": 1, "xp": 0, "total_xp": 0})
+    stats = user_stats.setdefault(
+        user.id,
+        {
+            "level": 1,
+            "xp": 0,
+            "total_xp": 0,
+            "coins": 0,
+            "diamonds": 0,
+            "deluxe_coins": 0,
+        },
+    )
     stats["xp"] += amount
     stats["total_xp"] += amount
     prev_level = stats["level"]
@@ -296,6 +311,14 @@ def main() -> None:
                     render_level_card,
                     CardSettingsView,
                     allow_ephemeral=False,
+                )
+                return
+            if cmd == "wallet":
+                await send_wallet_card(
+                    message.author,
+                    message.channel.send,
+                    user_stats,
+                    save_data,
                 )
                 return
         if message.content == "!ping":
