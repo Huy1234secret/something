@@ -291,9 +291,11 @@ def render_wallet_card(
         num_text = f"{count:,}"
         count_color = (255, 247, 230)
         big = _fit_font(num_text, (x1 - x0) - (icon_size + 180 * SCALE), int(pocket_h * COUNT_HEIGHT), start_size=64 * SCALE // 2, bold=True)
-        tw, th = _text_size(num_text, big)
+        bbox = big.getbbox(num_text)
+        th = bbox[3] - bbox[1]
         cx = icon_left + icon_size + 24 * SCALE
-        cy = y0 + (pocket_h - th) // 2
+        # Adjust y by bbox[1] so text baseline sits exactly centered
+        cy = y0 + (pocket_h - th) // 2 - bbox[1]
         _emboss_text(draw, (cx, cy), num_text, big, base_color=count_color)
 
         # label ABOVE bar, a bit to the right of the icon
