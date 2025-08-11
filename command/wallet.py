@@ -22,9 +22,10 @@ from PIL import (
     ImageOps,
 )
 
-COIN_URL = "https://i.ibb.co/LDbB8Db5/Coin.png"
-DIAMOND_URL = "https://i.ibb.co/R400ZFyT/Diamond.png"
-DELUXE_URL = "https://i.ibb.co/Q7LtJxXt/Deluxe-Coin.png"
+COIN_URL = "https://i.ibb.co/7NWGmKB2/Coin.png"
+# TODO: put the correct Diamond URL here:
+DIAMOND_URL = os.getenv("DIAMOND_URL", "https://i.ibb.co/xK1pNPzq/Diamond.png")
+DELUXE_URL = "https://i.ibb.co/PXDPtHZ/Deluxe-Coin.png"
 
 COIN_VALUE = 1
 DIAMOND_VALUE = 20
