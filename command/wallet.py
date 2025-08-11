@@ -22,10 +22,10 @@ from PIL import (
     ImageOps,
 )
 
-COIN_URL = "https://i.ibb.co/7NWGmKB2/Coin.png"
+COIN_URL = "https://i.ibb.co/LDbB8Db5/Coin.png"
 # TODO: put the correct Diamond URL here:
-DIAMOND_URL = os.getenv("DIAMOND_URL", "https://i.ibb.co/xK1pNPzq/Diamond.png")
-DELUXE_URL = "https://i.ibb.co/PXDPtHZ/Deluxe-Coin.png"
+DIAMOND_URL = os.getenv("DIAMOND_URL", "https://i.ibb.co/R400ZFyT/Diamond.png")
+DELUXE_URL = "https://i.ibb.co/Q7LtJxXt/Deluxe-Coin.png"
 
 COIN_VALUE = 1
 DIAMOND_VALUE = 20
@@ -112,30 +112,24 @@ def _leather_base(size: tuple[int, int], base=(73, 48, 36)) -> Image.Image:
 
 
 def _rounded_rect_mask(size: tuple[int, int], radius: int) -> Image.Image:
-    """Antialiased rounded-rectangle mask (super-sampled for smooth edges)."""
+    """High-quality mask for smooth edges (gets rid of sharp artifacts)."""
 
     w, h = size
-    scale = 3  # supersample for crisp edges
+    scale = 4  # supersample for crisper curves
     mw, mh = w * scale, h * scale
     mr = max(1, radius * scale)
     m = Image.new("L", (mw, mh), 0)
     d = ImageDraw.Draw(m)
     d.rounded_rectangle((0, 0, mw - 1, mh - 1), radius=mr, fill=255)
-    # Downsample with LANCZOS for clean antialiased curve (removes "sharp edge" artifacts)
     m = m.resize((w, h), Image.LANCZOS)
-    # tiny blur to blend alpha
-    return m.filter(ImageFilter.GaussianBlur(0.5))
+    return m.filter(ImageFilter.GaussianBlur(0.6))
 
 
 def _inner_shadow(img: Image.Image, radius: int = 20, opacity: int = 120) -> Image.Image:
-    alpha = img.split()[-1] if img.mode == "RGBA" else None
-    if alpha is None:
-        alpha = Image.new("L", img.size, 255)
+    alpha = img.split()[-1] if img.mode == "RGBA" else Image.new("L", img.size, 255)
     inv = ImageOps.invert(alpha).filter(ImageFilter.GaussianBlur(radius=radius))
     shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    shadow.putalpha(
-        Image.eval(inv, lambda p: min(int(p * (opacity / 255)), 255))
-    )
+    shadow.putalpha(Image.eval(inv, lambda p: min(int(p * (opacity / 255)), 255)))
     return Image.alpha_composite(img.convert("RGBA"), shadow)
 
 
@@ -218,8 +212,10 @@ def render_wallet_card(
     deluxe: int,
     total: int,
     outfile: str = "wallet.png",
+    size: tuple[int, int] = (900, 450),
 ) -> str:
-    W, H, SCALE = 900, 450, 2
+    W, H = size
+    SCALE = 2
     w, h = W * SCALE, H * SCALE
 
     leather = _leather_base((w, h), base=(74, 49, 36))
@@ -330,27 +326,13 @@ def render_wallet_card(
         x0 = inset * 2
         x1 = w - inset * 2
 
-        # label pill ABOVE the bar (left aligned)
-        label_font = _fit_font(label, max(1, (x1 - x0) // 2), pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
-        lw, lh = _text_size(label, label_font)
-        pad_x, pad_y = 14 * SCALE, 8 * SCALE
-        pill_w, pill_h = lw + pad_x * 2, lh + pad_y * 2
-        pill_x = x0 + 22 * SCALE
-        pill_y = y0 - pill_h - 6 * SCALE
-        pill = Image.new("RGBA", (pill_w, pill_h), (90, 62, 47, 255))
-        pill_mask = _rounded_rect_mask((pill_w, pill_h), radius=int(pill_h * 0.45))
-        pill.putalpha(pill_mask)
-        pill = _inner_shadow(pill, radius=6, opacity=110)
-        wallet.alpha_composite(pill, (pill_x, pill_y))
-        _emboss_text(draw, (pill_x + pad_x, pill_y + pad_y), label, label_font, base_color=(245, 232, 214))
-
-        # pocket bar
+        # pocket bar (smooth mask)
         pocket = Image.new("RGBA", (x1 - x0, pocket_h), (82, 55, 41, 255))
-        pocket_mask = _rounded_rect_mask(pocket.size, radius=pocket_radius)
-        pocket.putalpha(pocket_mask)
+        pocket.putalpha(_rounded_rect_mask(pocket.size, radius=pocket_radius))
         pocket = _inner_shadow(pocket, radius=14, opacity=120)
         wallet.alpha_composite(pocket, (x0, y0))
 
+        # stitches
         _draw_stitches(
             draw,
             (x0 + 14 * SCALE, y0 + 10 * SCALE, x1 - 14 * SCALE, y1 - 10 * SCALE),
@@ -360,7 +342,7 @@ def render_wallet_card(
             width=2 * SCALE // 2,
         )
 
-        # icon and count
+        # icon + count
         icon = _safe_open_icon(url, icon_size)
         wallet.alpha_composite(icon, (x0 + 22 * SCALE, y0 + (pocket_h - icon_size) // 2))
 
@@ -376,6 +358,13 @@ def render_wallet_card(
         cy = y0 + int(pocket_h * 0.55)
         _emboss_text(draw, (cx, cy), f"{count:,}", big, base_color=count_color)
 
+        # ---- label ABOVE bar (no fill) ----
+        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
+        lw, lh = _text_size(label, label_font)
+        label_x = x0 + 22 * SCALE
+        label_y = y0 - lh - 8 * SCALE
+        _emboss_text(draw, (label_x, label_y), label, label_font, base_color=(245, 232, 214))
+
     final_img = wallet.resize((W, H), Image.LANCZOS)
     final_img.save(outfile)
     return outfile
@@ -390,14 +379,7 @@ async def send_wallet_card(
     user_id = user.id
     stats = user_stats.setdefault(
         user_id,
-        {
-            "level": 1,
-            "xp": 0,
-            "total_xp": 0,
-            "coins": 0,
-            "diamonds": 0,
-            "deluxe_coins": 0,
-        },
+        {"level": 1, "xp": 0, "total_xp": 0, "coins": 0, "diamonds": 0, "deluxe_coins": 0},
     )
     stats.setdefault("coins", 0)
     stats.setdefault("diamonds", 0)
@@ -413,6 +395,7 @@ async def send_wallet_card(
     avatar_bytes = await avatar_asset.read()
     avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
 
+    # change size here if you want a different card dimension, e.g. (820, 410)
     path = render_wallet_card(
         user.name,
         avatar_image,
@@ -421,6 +404,7 @@ async def send_wallet_card(
         deluxe,
         total,
         outfile=f"wallet_{user_id}.png",
+        size=(900, 450),
     )
     await send(file=discord.File(path))
     try:
