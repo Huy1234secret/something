@@ -357,7 +357,6 @@ def main() -> None:
                     DEFAULT_COLOR,
                     DEFAULT_BACKGROUND,
                     render_level_card,
-                    CardSettingsView,
                     allow_ephemeral=False,
                 )
                 return
@@ -413,18 +412,33 @@ def main() -> None:
             module_name = path.stem
             module = importlib.import_module(f"command.{module_name}")
             if hasattr(module, "setup"):
-                module.setup(
-                    tree,
-                    user_stats,
-                    user_card_settings,
-                    save_data,
-                    xp_needed,
-                    DEFAULT_COLOR,
-                    DEFAULT_BACKGROUND,
-                    render_level_card,
-                    CardSettingsView,
-                    schedule_role=schedule_role,
-                )
+                # Pass CardSettingsModal to level module, CardSettingsView to others
+                if module_name == "level":
+                    module.setup(
+                        tree,
+                        user_stats,
+                        user_card_settings,
+                        save_data,
+                        xp_needed,
+                        DEFAULT_COLOR,
+                        DEFAULT_BACKGROUND,
+                        render_level_card,
+                        CardSettingsModal_class=CardSettingsModal,
+                        schedule_role=schedule_role,
+                    )
+                else:
+                    module.setup(
+                        tree,
+                        user_stats,
+                        user_card_settings,
+                        save_data,
+                        xp_needed,
+                        DEFAULT_COLOR,
+                        DEFAULT_BACKGROUND,
+                        render_level_card,
+                        CardSettingsView,
+                        schedule_role=schedule_role,
+                    )
 
     load_commands()
 
