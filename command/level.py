@@ -7,7 +7,7 @@ from PIL import Image
 
 WARNING_EMOJI = "<:warning:1404101025849147432> "
 # Message flag enabling Discord's v2 component system
-COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
+COMPONENTS_V2_FLAG = discord.MessageFlags(use_v2_components=True)
 
 
 async def send_level_card(
@@ -38,6 +38,7 @@ async def send_level_card(
     avatar_asset = user.display_avatar.with_size(256).with_static_format("png")
     avatar_bytes = await avatar_asset.read()
     avatar_image = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
+    path = None
     try:
         path = render_level_card(
             username=user.name,
@@ -98,10 +99,11 @@ async def send_level_card(
             send_kwargs["flags"] = COMPONENTS_V2_FLAG
         await send(**send_kwargs)
     finally:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 def setup(
