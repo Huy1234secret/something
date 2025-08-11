@@ -212,7 +212,7 @@ def render_wallet_card(
     deluxe: int,
     total: int,
     outfile: str = "wallet.png",
-    size: tuple[int, int] = (900, 450),
+    size: tuple[int, int] = (900, 500),
 ) -> str:
     W, H = size
     SCALE = 2
@@ -354,18 +354,21 @@ def render_wallet_card(
             start_size=54 * SCALE // 2,
             bold=True,
         )
+        tw, th = _text_size(f"{count:,}", big)
         cx = x0 + 22 * SCALE + icon_size + 20 * SCALE
-        cy = y0 + int(pocket_h * 0.55)
+        cy = y0 + (pocket_h - th) // 2
         _emboss_text(draw, (cx, cy), f"{count:,}", big, base_color=count_color)
 
         # ---- label ABOVE bar (no fill) ----
-        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
+        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=36 * SCALE // 2, bold=True)
         lw, lh = _text_size(label, label_font)
         label_x = x0 + 22 * SCALE
         label_y = y0 - lh - 8 * SCALE
         _emboss_text(draw, (label_x, label_y), label, label_font, base_color=(245, 232, 214))
 
     final_img = wallet.resize((W, H), Image.LANCZOS)
+    # ensure crisp rounded corners after downscaling
+    final_img.putalpha(_rounded_rect_mask((W, H), radius=corner // SCALE))
     final_img.save(outfile)
     return outfile
 
@@ -404,7 +407,7 @@ async def send_wallet_card(
         deluxe,
         total,
         outfile=f"wallet_{user_id}.png",
-        size=(900, 450),
+        size=(900, 500),
     )
     await send(file=discord.File(path))
     try:
