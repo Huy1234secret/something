@@ -115,7 +115,7 @@ def _rounded_rect_mask(size: tuple[int, int], radius: int) -> Image.Image:
     m = Image.new("L", size, 0)
     d = ImageDraw.Draw(m)
     d.rounded_rectangle((0, 0, w - 1, h - 1), radius=radius, fill=255)
-    return m
+    return m.filter(ImageFilter.GaussianBlur(1))
 
 
 def _inner_shadow(img: Image.Image, radius: int = 20, opacity: int = 120) -> Image.Image:
@@ -273,7 +273,7 @@ def render_wallet_card(
     font_name = _fit_font(username, name_w, name_h, start_size=48 * SCALE // 2, bold=True)
     _emboss_text(draw, (name_left, name_top), username, font_name, base_color=(235, 220, 200))
 
-    total_txt = f"Total: {total:,}"
+    total_txt = f"Total Value: {total:,}"
     plate_h = int(flap_h * 0.46)
     plate_w = min(int(name_w * 0.55), 350 * SCALE)
     plate_x = flap_bbox[2] - plate_w - 20 * SCALE
@@ -310,12 +310,12 @@ def render_wallet_card(
     label_pad = 20 * SCALE
 
     items = [
-        ("Coins", coins, COIN_VALUE, COIN_URL),
-        ("Diamonds", diamonds, DIAMOND_VALUE, DIAMOND_URL),
-        ("Deluxe", deluxe, DELUXE_VALUE, DELUXE_URL),
+        ("Coin", coins, COIN_URL),
+        ("Diamond", diamonds, DIAMOND_URL),
+        ("Deluxe Coin", deluxe, DELUXE_URL),
     ]
 
-    for i, (label, count, unit, url) in enumerate(items):
+    for i, (label, count, url) in enumerate(items):
         y0 = pockets_top + i * (pocket_h + pocket_gap)
         y1 = y0 + pocket_h
         x0 = inset * 2
@@ -346,20 +346,12 @@ def render_wallet_card(
         )
 
         lx = x0 + 22 * SCALE + icon_size + label_pad
-        ly = y0 + int(pocket_h * 0.20)
+        ly = y0 + int(pocket_h * 0.10)
         _emboss_text(draw, (lx, ly), label, small, base_color=label_color)
 
         cx = lx
-        cy = y0 + int(pocket_h * 0.50)
-        count_txt = f"{count:,}  (×{unit})"
-        count_main = f"{count:,}"
-        unit_txt = f"  (×{unit})"
-        _emboss_text(draw, (cx, cy), count_main, big, base_color=count_color)
-        small_unit = _fit_font(
-            unit_txt, (x1 - cx) - 20 * SCALE, pocket_h // 3, start_size=28 * SCALE // 2, bold=False
-        )
-        offx = _text_size(count_main, big)[0]
-        _emboss_text(draw, (cx + offx, cy + max(2, SCALE)), unit_txt, small_unit, base_color=label_color)
+        cy = y0 + int(pocket_h * 0.55)
+        _emboss_text(draw, (cx, cy), f"{count:,}", big, base_color=count_color)
 
     final_img = wallet.resize((W, H), Image.LANCZOS)
     final_img.save(outfile)
