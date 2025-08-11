@@ -280,16 +280,21 @@ def main() -> None:
             self.owner_id = owner_id
 
         def to_components(self) -> list[dict[str, Any]]:
-            """Return the component rows for this view.
+            """Return components using a separator and container layout."""
 
-            The previous implementation attempted to manually wrap the
-            components using Discord's experimental v2 layout API. That
-            structure is no longer accepted by the Discord API and resulted in
-            ``HTTPException: 400 Bad Request`` errors. The default conversion
-            provided by :class:`discord.ui.View` already produces the correct
-            payload for v2 components, so we simply delegate to ``super()``.
-            """
-            return super().to_components()
+            base_components = super().to_components()
+            accent_color = (
+                (self.color[0] << 16) + (self.color[1] << 8) + self.color[2]
+            )
+            return [
+                {"type": 10, "content": "Customize your card"},
+                {"type": 14, "divider": True, "spacing": 1},
+                {
+                    "type": 17,
+                    "accent_color": accent_color,
+                    "components": base_components,
+                },
+            ]
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
