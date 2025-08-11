@@ -1,9 +1,27 @@
 import os
 import json
+import sys
+import subprocess
 from io import BytesIO
 from typing import Any
 import importlib
 import asyncio
+
+
+def ensure_dependencies() -> None:
+    """Install required third-party packages if they're missing."""
+    try:
+        import discord  # noqa: F401
+        import dotenv  # noqa: F401
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
+        )
+
+
+ensure_dependencies()
+
 
 import discord
 from discord import app_commands
