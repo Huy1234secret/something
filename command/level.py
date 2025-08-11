@@ -1,4 +1,5 @@
 import os
+import inspect
 from io import BytesIO
 
 import discord
@@ -58,7 +59,10 @@ async def send_level_card(
         embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
-        await send(embed=embed, file=file, view=view, flags=COMPONENTS_V2_FLAG)
+        send_kwargs = {"embed": embed, "file": file, "view": view}
+        if "flags" in inspect.signature(send).parameters:
+            send_kwargs["flags"] = COMPONENTS_V2_FLAG
+        await send(**send_kwargs)
     except ValueError:
         settings["background_url"] = DEFAULT_BACKGROUND
         save_data()
@@ -83,14 +87,16 @@ async def send_level_card(
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
         kwargs = {"ephemeral": True} if allow_ephemeral else {}
-        await send(
-            f"{WARNING_EMOJI}Background image invalid; using default.",
-            embed=embed,
-            file=file,
-            view=view,
-            flags=COMPONENTS_V2_FLAG,
+        send_kwargs = {
+            "content": f"{WARNING_EMOJI}Background image invalid; using default.",
+            "embed": embed,
+            "file": file,
+            "view": view,
             **kwargs,
-        )
+        }
+        if "flags" in inspect.signature(send).parameters:
+            send_kwargs["flags"] = COMPONENTS_V2_FLAG
+        await send(**send_kwargs)
     finally:
         try:
             os.remove(path)
