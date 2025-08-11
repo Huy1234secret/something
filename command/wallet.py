@@ -1,4 +1,4 @@
-"""Wallet command renderer using a stylised card UI.
+"""Wallet command renderer using a stylised card UI (improved).
 
 This module defines :func:`render_wallet_card`, which produces a
 leather-textured wallet style image summarising a user's currency holdings.
@@ -212,7 +212,7 @@ def render_wallet_card(
     deluxe: int,
     total: int,
     outfile: str = "wallet.png",
-    size: tuple[int, int] = (900, 500),
+    size: tuple[int, int] = (900, 520),  # ← taller default height
 ) -> str:
     W, H = size
     SCALE = 2
@@ -308,11 +308,11 @@ def render_wallet_card(
         base_color=(250, 235, 210),
     )
 
-    pockets_top = flap_bbox[3] + 18 * SCALE
+    pockets_top = flap_bbox[3] + 22 * SCALE  # a bit more breathing room under the flap
     pocket_h = int((h - pockets_top - inset * 3) / 3)
-    pocket_gap = 12 * SCALE
+    pocket_gap = 14 * SCALE
     pocket_radius = int(pocket_h * 0.22)
-    icon_size = int(pocket_h * 0.54)
+    icon_size = int(pocket_h * 0.62)  # ← bigger icons
 
     items = [
         ("Coin", coins, COIN_URL),
@@ -346,29 +346,30 @@ def render_wallet_card(
         icon = _safe_open_icon(url, icon_size)
         wallet.alpha_composite(icon, (x0 + 22 * SCALE, y0 + (pocket_h - icon_size) // 2))
 
+        # exact vertical center for numbers
+        num_text = f"{count:,}"
         count_color = (255, 247, 230)
         big = _fit_font(
-            f"{count:,}",
-            (x1 - x0) - (icon_size + 120 * SCALE),
-            int(pocket_h * 0.7),
+            num_text,
+            (x1 - x0) - (icon_size + 140 * SCALE),
+            int(pocket_h * 0.72),
             start_size=54 * SCALE // 2,
             bold=True,
         )
-        tw, th = _text_size(f"{count:,}", big)
-        cx = x0 + 22 * SCALE + icon_size + 20 * SCALE
-        cy = y0 + (pocket_h - th) // 2
-        _emboss_text(draw, (cx, cy), f"{count:,}", big, base_color=count_color)
+        tw, th = _text_size(num_text, big)
+        cx = x0 + 22 * SCALE + icon_size + 24 * SCALE
+        cy = y0 + (pocket_h - th) // 2  # ← TRUE center vertically
+        _emboss_text(draw, (cx, cy), num_text, big, base_color=count_color)
 
-        # ---- label ABOVE bar (no fill) ----
-        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=36 * SCALE // 2, bold=True)
+        # label ABOVE bar (exactly on top with consistent margin)
+        label_font = _fit_font(label, (x1 - x0) // 2, pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
         lw, lh = _text_size(label, label_font)
-        label_x = x0 + 22 * SCALE
-        label_y = y0 - lh - 8 * SCALE
+        label_x = x0 + 22 * SCALE  # left aligned with icon
+        margin = 6 * SCALE
+        label_y = y0 - lh - margin  # bottom of label sits 'margin' above bar
         _emboss_text(draw, (label_x, label_y), label, label_font, base_color=(245, 232, 214))
 
     final_img = wallet.resize((W, H), Image.LANCZOS)
-    # ensure crisp rounded corners after downscaling
-    final_img.putalpha(_rounded_rect_mask((W, H), radius=corner // SCALE))
     final_img.save(outfile)
     return outfile
 
@@ -407,7 +408,7 @@ async def send_wallet_card(
         deluxe,
         total,
         outfile=f"wallet_{user_id}.png",
-        size=(900, 500),
+        size=(900, 520),  # ← taller
     )
     await send(file=discord.File(path))
     try:
