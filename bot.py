@@ -280,11 +280,16 @@ def main() -> None:
             self.owner_id = owner_id
 
         def to_components(self) -> list[dict[str, Any]]:
-            """Insert a divider before the button row so it stays near the embed."""
-            rows = super().to_components()
-            if rows:
-                rows.insert(0, {"type": 14, "divider": True, "spacing": 1})
-            return rows
+            """Return the default component rows.
+
+            The previous implementation inserted a raw divider component at the
+            beginning of the list. Discord expects all top-level components in a
+            message payload to be action rows (``type == 1``). Sending the
+            divider directly resulted in an ``HTTPException`` complaining about an
+            invalid form body where ``components.0.type`` was not ``1``. Returning
+            the rows unchanged avoids constructing an invalid payload.
+            """
+            return super().to_components()
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
