@@ -29,6 +29,9 @@ The bot will respond to `!ping` messages with `Pong!`.
 The level card can also be requested with the `a.` or `A.` prefix. For example,
 you can type `a. level` or `A.level` to see your card.
 
+Use `/wallet` or the prefix `a.wallet` to view a wallet-style card showing your
+coins, diamonds and deluxe coins along with their total value.
+
 A slash command `/add-role` can give a role to a user, optionally for a
 limited time (`1h`, `1d`, `7w`, `1m`). Timed roles are stored so they persist
 even if the bot restarts.
