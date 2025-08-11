@@ -283,9 +283,7 @@ def main() -> None:
             """Insert a divider before the button row so it stays near the embed."""
             rows = super().to_components()
             if rows:
-                rows[0]["components"].insert(
-                    0, {"type": 14, "divider": True, "spacing": 1}
-                )
+                rows.insert(0, {"type": 14, "divider": True, "spacing": 1})
             return rows
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
