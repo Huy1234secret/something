@@ -280,17 +280,16 @@ def main() -> None:
             self.owner_id = owner_id
 
         def to_components(self) -> list[dict[str, Any]]:
-            """Return the default component rows wrapped for components v2.
+            """Return the component rows for this view.
 
-            Discord's components v2 API requires a container to be the top-level
-            layout component. The button row is wrapped in a ``type 17``
-            container with a ``type 14`` separator to provide spacing between the
-            embed image and the button. The container itself must be wrapped in
-            a top-level ``type 1`` action row as required by the API.
+            The previous implementation attempted to manually wrap the
+            components using Discord's experimental v2 layout API. That
+            structure is no longer accepted by the Discord API and resulted in
+            ``HTTPException: 400 Bad Request`` errors. The default conversion
+            provided by :class:`discord.ui.View` already produces the correct
+            payload for v2 components, so we simply delegate to ``super()``.
             """
-            rows = super().to_components()
-            container = {"type": 17, "components": [{"type": 14}, *rows]}
-            return [{"type": 1, "components": [container]}]
+            return super().to_components()
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
