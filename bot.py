@@ -15,7 +15,6 @@ import urllib.parse
 import random
 from datetime import datetime, timezone
 from command.level import send_level_card
-from command.wallet import send_wallet
 
 DATA_FILE = "user_data.json"
 user_card_settings: dict[int, dict[str, Any]] = {}
@@ -283,9 +282,7 @@ def main() -> None:
         content = message.content.strip()
         lower = content.lower()
         if lower.startswith("a."):
-            remainder = message.content[2:].lstrip()
-            parts = remainder.split(maxsplit=1)
-            cmd = parts[0].lower() if parts else ""
+            cmd = lower[2:].lstrip()
             if cmd == "level":
                 await send_level_card(
                     message.author,
@@ -300,10 +297,6 @@ def main() -> None:
                     CardSettingsView,
                     allow_ephemeral=False,
                 )
-                return
-            if cmd == "wallet":
-                target = message.mentions[0] if message.mentions else message.author
-                await send_wallet(target, message.channel.send)
                 return
         if message.content == "!ping":
             await message.channel.send("Pong!")
