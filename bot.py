@@ -6,6 +6,7 @@ from io import BytesIO
 from typing import Any
 import importlib
 import asyncio
+from pathlib import Path
 
 
 def ensure_dependencies() -> None:
@@ -395,23 +396,25 @@ def main() -> None:
 
     def load_commands() -> None:
         """Dynamically load command modules from the command package."""
-        for filename in os.listdir("command"):
-            if filename.endswith(".py") and not filename.startswith("__"):
-                module_name = filename[:-3]
-                module = importlib.import_module(f"command.{module_name}")
-                if hasattr(module, "setup"):
-                    module.setup(
-                        tree,
-                        user_stats,
-                        user_card_settings,
-                        save_data,
-                        xp_needed,
-                        DEFAULT_COLOR,
-                        DEFAULT_BACKGROUND,
-                        render_level_card,
-                        CardSettingsView,
-                        schedule_role=schedule_role,
-                    )
+        commands_path = Path(__file__).parent / "command"
+        for path in commands_path.glob("*.py"):
+            if path.name.startswith("__"):
+                continue
+            module_name = path.stem
+            module = importlib.import_module(f"command.{module_name}")
+            if hasattr(module, "setup"):
+                module.setup(
+                    tree,
+                    user_stats,
+                    user_card_settings,
+                    save_data,
+                    xp_needed,
+                    DEFAULT_COLOR,
+                    DEFAULT_BACKGROUND,
+                    render_level_card,
+                    CardSettingsView,
+                    schedule_role=schedule_role,
+                )
 
     load_commands()
 
