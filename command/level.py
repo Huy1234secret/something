@@ -59,7 +59,13 @@ async def send_level_card(
         embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
-        send_kwargs = {"embed": embed, "file": file, "view": view}
+        components = view.to_components()
+        send_kwargs = {
+            "embed": embed,
+            "file": file,
+            "view": view,
+            "components": components,
+        }
         if "flags" in inspect.signature(send).parameters:
             send_kwargs["flags"] = COMPONENTS_V2_FLAG
         await send(**send_kwargs)
@@ -86,12 +92,14 @@ async def send_level_card(
         embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, DEFAULT_BACKGROUND, user_id)
+        components = view.to_components()
         kwargs = {"ephemeral": True} if allow_ephemeral else {}
         send_kwargs = {
             "content": f"{WARNING_EMOJI}Background image invalid; using default.",
             "embed": embed,
             "file": file,
             "view": view,
+            "components": components,
             **kwargs,
         }
         if "flags" in inspect.signature(send).parameters:
