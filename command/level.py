@@ -5,6 +5,8 @@ import discord
 from PIL import Image
 
 WARNING_EMOJI = "<:warning:1404101025849147432> "
+# Message flag enabling Discord's v2 component system
+COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
 
 
 async def send_level_card(
@@ -56,7 +58,7 @@ async def send_level_card(
         embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
-        await send(embed=embed, file=file, view=view)
+        await send(embed=embed, file=file, view=view, flags=COMPONENTS_V2_FLAG)
     except ValueError:
         settings["background_url"] = DEFAULT_BACKGROUND
         save_data()
@@ -75,7 +77,7 @@ async def send_level_card(
             outfile=f"level_{user_id}.png",
         )
         file = discord.File(path, filename=f"level_{user_id}.png")
-        # Maintain spacing so the divider and button are visually attached to the
+        # Maintain spacing so the separator and button are visually attached to the
         # embed image when an invalid background is provided.
         embed = discord.Embed(description="\u200b")
         embed.set_image(url=f"attachment://level_{user_id}.png")
@@ -86,6 +88,7 @@ async def send_level_card(
             embed=embed,
             file=file,
             view=view,
+            flags=COMPONENTS_V2_FLAG,
             **kwargs,
         )
     finally:
