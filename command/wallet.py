@@ -111,11 +111,19 @@ def _leather_base(size: tuple[int, int], base=(73, 48, 36)) -> Image.Image:
 
 
 def _rounded_rect_mask(size: tuple[int, int], radius: int) -> Image.Image:
+    """Antialiased rounded-rectangle mask (super-sampled for smooth edges)."""
+
     w, h = size
-    m = Image.new("L", size, 0)
+    scale = 3  # supersample for crisp edges
+    mw, mh = w * scale, h * scale
+    mr = max(1, radius * scale)
+    m = Image.new("L", (mw, mh), 0)
     d = ImageDraw.Draw(m)
-    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=radius, fill=255)
-    return m.filter(ImageFilter.GaussianBlur(1))
+    d.rounded_rectangle((0, 0, mw - 1, mh - 1), radius=mr, fill=255)
+    # Downsample with LANCZOS for clean antialiased curve (removes "sharp edge" artifacts)
+    m = m.resize((w, h), Image.LANCZOS)
+    # tiny blur to blend alpha
+    return m.filter(ImageFilter.GaussianBlur(0.5))
 
 
 def _inner_shadow(img: Image.Image, radius: int = 20, opacity: int = 120) -> Image.Image:
@@ -234,16 +242,17 @@ def render_wallet_card(
         width=3 * SCALE // 2,
     )
 
+    # ---- Flap (fix: size matches inner width; no overhang → no sharp edge) ----
     flap_h = int(h * 0.26)
     flap_bbox = (inset * 2, inset * 2, w - inset * 2, inset * 2 + flap_h)
-    flap = Image.new("RGBA", (w, flap_h + 2 * inset))
-    flap_leather = _leather_base(flap.size, base=(62, 41, 30))
-    flap.putalpha(255)
-    flap = Image.alpha_composite(flap, flap_leather.convert("RGBA"))
-    flap_mask = _rounded_rect_mask(flap.size, radius=int(corner * 0.8))
+    flap_w = flap_bbox[2] - flap_bbox[0]
+    flap = Image.new("RGBA", (flap_w, flap_h), (0, 0, 0, 0))
+    flap_leather = _leather_base((flap_w, flap_h), base=(62, 41, 30))
+    flap.alpha_composite(flap_leather.convert("RGBA"))
+    flap_mask = _rounded_rect_mask((flap_w, flap_h), radius=int(corner * 0.8))
     flap.putalpha(flap_mask)
     flap = _inner_shadow(flap, radius=18, opacity=160)
-    wallet.alpha_composite(flap, (inset * 2, inset * 2))
+    wallet.alpha_composite(flap, (flap_bbox[0], flap_bbox[1]))
 
     _draw_stitches(
         draw,
@@ -307,12 +316,11 @@ def render_wallet_card(
     pocket_gap = 12 * SCALE
     pocket_radius = int(pocket_h * 0.22)
     icon_size = int(pocket_h * 0.54)
-    label_pad = 20 * SCALE
 
     items = [
         ("Coin", coins, COIN_URL),
         ("Diamond", diamonds, DIAMOND_URL),
-        ("Deluxe Coin", deluxe, DELUXE_URL),
+        ("Deluxe Coin", deluxe, DELUXE_URL),  # ensure wording
     ]
 
     for i, (label, count, url) in enumerate(items):
@@ -320,6 +328,22 @@ def render_wallet_card(
         y1 = y0 + pocket_h
         x0 = inset * 2
         x1 = w - inset * 2
+
+        # label pill ABOVE the bar (left aligned)
+        label_font = _fit_font(label, max(1, (x1 - x0) // 2), pocket_h // 3, start_size=28 * SCALE // 2, bold=True)
+        lw, lh = _text_size(label, label_font)
+        pad_x, pad_y = 14 * SCALE, 8 * SCALE
+        pill_w, pill_h = lw + pad_x * 2, lh + pad_y * 2
+        pill_x = x0 + 22 * SCALE
+        pill_y = y0 - pill_h - 6 * SCALE
+        pill = Image.new("RGBA", (pill_w, pill_h), (90, 62, 47, 255))
+        pill_mask = _rounded_rect_mask((pill_w, pill_h), radius=int(pill_h * 0.45))
+        pill.putalpha(pill_mask)
+        pill = _inner_shadow(pill, radius=6, opacity=110)
+        wallet.alpha_composite(pill, (pill_x, pill_y))
+        _emboss_text(draw, (pill_x + pad_x, pill_y + pad_y), label, label_font, base_color=(245, 232, 214))
+
+        # pocket bar
         pocket = Image.new("RGBA", (x1 - x0, pocket_h), (82, 55, 41, 255))
         pocket_mask = _rounded_rect_mask(pocket.size, radius=pocket_radius)
         pocket.putalpha(pocket_mask)
@@ -335,21 +359,19 @@ def render_wallet_card(
             width=2 * SCALE // 2,
         )
 
+        # icon and count
         icon = _safe_open_icon(url, icon_size)
         wallet.alpha_composite(icon, (x0 + 22 * SCALE, y0 + (pocket_h - icon_size) // 2))
 
-        label_color = (242, 229, 210)
         count_color = (255, 247, 230)
-        small = _fit_font(label, max(1, (x1 - x0) // 3), pocket_h // 3, start_size=30 * SCALE // 2, bold=True)
         big = _fit_font(
-            f"{count:,}", (x1 - x0) - (icon_size + 120 * SCALE), int(pocket_h * 0.7), start_size=54 * SCALE // 2, bold=True
+            f"{count:,}",
+            (x1 - x0) - (icon_size + 120 * SCALE),
+            int(pocket_h * 0.7),
+            start_size=54 * SCALE // 2,
+            bold=True,
         )
-
-        lx = x0 + 22 * SCALE + icon_size + label_pad
-        ly = y0 + int(pocket_h * 0.10)
-        _emboss_text(draw, (lx, ly), label, small, base_color=label_color)
-
-        cx = lx
+        cx = x0 + 22 * SCALE + icon_size + 20 * SCALE
         cy = y0 + int(pocket_h * 0.55)
         _emboss_text(draw, (cx, cy), f"{count:,}", big, base_color=count_color)
 
