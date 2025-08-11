@@ -1,0 +1,16 @@
+{
+  "name": "something-bot",
+  "version": "1.0.0",
+  "description": "Discord bot rewritten in JavaScript",
+  "main": "bot.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "find . -name '*.js' -print0 | xargs -0 -n1 node --check"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "canvas": "^2.11.2"
+  }
+}
