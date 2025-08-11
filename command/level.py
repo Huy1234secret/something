@@ -120,10 +120,12 @@ def setup(
 
     @tree.command(name="level", description="Show your level card")
     async def level_command(interaction: discord.Interaction):
-        await interaction.response.defer()
+        # Acknowledge the slash command with an ephemeral message
+        await interaction.response.send_message("Generating your level card...", ephemeral=True)
+        # Send the actual level card as a regular channel message with v2 components
         await send_level_card(
             interaction.user,
-            interaction.followup.send,
+            interaction.channel.send,
             user_stats,
             user_card_settings,
             save_data,
@@ -132,5 +134,5 @@ def setup(
             DEFAULT_BACKGROUND,
             render_level_card,
             CardSettingsView,
-            allow_ephemeral=True,
+            allow_ephemeral=False,
         )
