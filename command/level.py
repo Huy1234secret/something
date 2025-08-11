@@ -1,13 +1,10 @@
 import os
-import inspect
 from io import BytesIO
 
 import discord
 from PIL import Image
 
 WARNING_EMOJI = "<:warning:1404101025849147432> "
-# Message flag enabling Discord's v2 component system
-COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
 
 
 async def send_level_card(
@@ -60,8 +57,6 @@ async def send_level_card(
         embed.set_image(url=f"attachment://level_{user_id}.png")
         view = CardSettingsView(color, background_url, user_id)
         send_kwargs = {"embed": embed, "file": file, "view": view}
-        if "flags" in inspect.signature(send).parameters:
-            send_kwargs["flags"] = COMPONENTS_V2_FLAG
         await send(**send_kwargs)
     except ValueError:
         settings["background_url"] = DEFAULT_BACKGROUND
@@ -94,8 +89,6 @@ async def send_level_card(
             "view": view,
             **kwargs,
         }
-        if "flags" in inspect.signature(send).parameters:
-            send_kwargs["flags"] = COMPONENTS_V2_FLAG
         await send(**send_kwargs)
     finally:
         try:
