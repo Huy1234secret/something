@@ -31,6 +31,7 @@ REPLY1 = "<:reply1:1403665779404050562>"
 WARNING_EMOJI = "<:warning:1404101025849147432> "
 LEVEL_UP_CHANNEL_ID = 1373578620634665052
 MAX_LEVEL = 9999
+COMPONENTS_V2_FLAG = discord.MessageFlags._from_value(1 << 15)
 
 def xp_needed(level: int) -> int:
     return int(100 * (level ** 1.5))
@@ -237,7 +238,11 @@ def main() -> None:
             }
             save_data()
             view = CardSettingsView(tuple(parts), url, interaction.user.id)
-            await self.message.edit(attachments=[discord.File(path)], view=view)
+            await self.message.edit(
+                attachments=[discord.File(path)],
+                view=view,
+                flags=COMPONENTS_V2_FLAG,
+            )
             try:
                 os.remove(path)
             except OSError:
@@ -255,15 +260,19 @@ def main() -> None:
             self.background_url = background_url
             self.owner_id = owner_id
 
-            # Add a disabled button as a visual divider above the settings button.
-            # This uses Discord's component system to keep the interface contained
-            # within the embed rather than appearing as a separate message element.
-            divider = discord.ui.Button(
-                style=discord.ButtonStyle.secondary,
-                label="\u2014" * 23,
-                disabled=True,
-            )
-            self.add_item(divider)
+        def to_components(self) -> list[dict[str, Any]]:
+            # Wrap the standard button row in a container and prepend a separator so
+            # the interface remains visually grouped with the embed image.
+            rows = super().to_components()
+            return [
+                {
+                    "type": 17,
+                    "components": [
+                        {"type": 14, "divider": True, "spacing": 1},
+                        *rows,
+                    ],
+                }
+            ]
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.owner_id:
@@ -278,7 +287,6 @@ def main() -> None:
             label="Card Setting",
             style=discord.ButtonStyle.gray,
             emoji=CARD_SETTING_EMOJI,
-            row=1,
         )
         async def card_setting(
             self, interaction: discord.Interaction, button: discord.ui.Button
