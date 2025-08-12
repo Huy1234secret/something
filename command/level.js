@@ -38,18 +38,42 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   });
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
-  const media = new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL(`attachment://level_${user.id}.png`),
-  );
+  
+  // Create the media gallery wrapped in an ActionRow
+  const mediaRow = new ActionRowBuilder()
+    .addComponents(
+      new MediaGalleryBuilder()
+        .addItems(
+          new MediaGalleryItemBuilder()
+            .setURL(`attachment://level_${user.id}.png`)
+        )
+    );
+  
+  // Create the separator wrapped in an ActionRow
+  const separatorRow = new ActionRowBuilder()
+    .addComponents(
+      new SeparatorBuilder()
+        .setDivider(true)
+    );
+  
+  // Create the button inside a container, wrapped in an ActionRow
   const button = new ButtonBuilder()
     .setCustomId('card-edit')
     .setLabel('Card Edit')
     .setEmoji('<:Botgear:1403611995814629447>')
     .setStyle(ButtonStyle.Secondary);
-  const row = new ActionRowBuilder().addComponents(button);
-  const separator = new SeparatorBuilder().setDivider(true);
-  const container = new ContainerBuilder().addActionRowComponents(row);
-  await send({ files:[attachment], components:[media, separator, container] });
+  
+  const containerRow = new ActionRowBuilder()
+    .addComponents(
+      new ContainerBuilder()
+        .addComponents([button])
+    );
+  
+  await send({ 
+    files: [attachment], 
+    components: [mediaRow, separatorRow, containerRow],
+    flags: MessageFlags.IsComponentsV2
+  });
 }
 
 function setup(client, resources) {
@@ -64,8 +88,15 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
+    // TextDisplayBuilder also needs to be in an ActionRow
+    const textRow = new ActionRowBuilder()
+      .addComponents(
+        new TextDisplayBuilder()
+          .setContent('Card editing is not available yet.')
+      );
+      
     await interaction.reply({
-      components: [new TextDisplayBuilder().setContent('Card editing is not available yet.')],
+      components: [textRow],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   });
