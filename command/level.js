@@ -10,20 +10,27 @@ const { ContainerBuilder, SeparatorBuilder } = require('@discordjs/builders');
 const { renderLevelCard } = require('../levelCard');
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
-  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0 };
+  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, prestige:0 };
   const settings = userCardSettings[user.id] || { color: defaultColor, background_url: defaultBackground };
   userStats[user.id] = stats;
   userCardSettings[user.id] = settings;
   saveData();
 
+  const sorted = Object.entries(userStats).sort((a, b) => (b[1].total_xp || 0) - (a[1].total_xp || 0));
+  const rank = sorted.findIndex(([id]) => id === user.id) + 1;
+  const tag = user.discriminator && user.discriminator !== '0' ? `#${user.discriminator}` : '';
+
   const buffer = await renderLevelCard({
     username: user.username,
+    tag,
+    avatarURL: user.displayAvatarURL({ extension: 'png', size: 256 }),
     level: stats.level,
-    xp: stats.xp,
-    xpTotal: xpNeeded(stats.level),
-    avatarUrl: user.displayAvatarURL({ extension: 'png', size: 256 }),
-    backgroundUrl: settings.background_url,
-    barColor: settings.color
+    prestige: stats.prestige || 0,
+    currentXP: stats.xp,
+    nextLevelXP: xpNeeded(stats.level),
+    totalXP: stats.total_xp,
+    rankText: `#${rank}`,
+    backgroundURL: settings.background_url
   });
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
