@@ -40,11 +40,9 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
   
   // Create the media gallery component
-  const mediaGallery = new MediaGalleryBuilder()
-    .addItems(
-      new MediaGalleryItemBuilder()
-        .setURL(`attachment://level_${user.id}.png`)
-    );
+  const mediaGallery = new MediaGalleryBuilder().addItems(
+    new MediaGalleryItemBuilder().setURL(`attachment://level_${user.id}.png`)
+  );
 
   // Create the separator component
   const separator = new SeparatorBuilder().setDivider(true);
@@ -59,13 +57,13 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(button)
-    );
+    .addMediaGalleryComponents(mediaGallery)
+    .addSeparatorComponents(separator)
+    .addActionRowComponents(new ActionRowBuilder().addComponents(button));
 
   await send({
     files: [attachment],
-    components: [mediaGallery, separator, container],
+    components: [container],
     flags: MessageFlags.IsComponentsV2
   });
 }
