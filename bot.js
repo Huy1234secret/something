@@ -5,6 +5,7 @@ require('dotenv').config();
 const levelCommand = require('./command/level');
 const walletCommand = require('./command/wallet');
 const addRoleCommand = require('./command/addRole');
+const inventoryCommand = require('./command/inventory');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -97,14 +98,15 @@ const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
 
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  addRoleCommand.setup(client, resources);
-  levelCommand.setup(client, resources);
-  require('./command/levelButton').setup(client, resources);
-  walletCommand.setup(client, resources);
-  timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
-});
+  client.once('ready', () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    addRoleCommand.setup(client, resources);
+    levelCommand.setup(client, resources);
+    require('./command/levelButton').setup(client, resources);
+    walletCommand.setup(client, resources);
+    inventoryCommand.setup(client, resources);
+    timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
+  });
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
@@ -122,6 +124,12 @@ client.on('messageCreate', async message => {
       );
     } else if (lowerAfter === 'wallet') {
       await walletCommand.sendWallet(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources
+      );
+    } else if (lowerAfter === 'inventory') {
+      await inventoryCommand.sendInventory(
         message.author,
         message.channel.send.bind(message.channel),
         resources
