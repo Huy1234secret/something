@@ -17,6 +17,8 @@ const {
 const { renderLevelCard } = require('../levelCard');
 const { loadImage } = require('canvas');
 
+const WARN = '<:warning:1404101025849147432> ';
+
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, prestige:0 };
   const settings = userCardSettings[user.id] || { color: defaultColor, background_url: defaultBackground };
@@ -115,7 +117,7 @@ function setup(client, resources) {
     const colorParts = colorValue.split(',').map(v => parseInt(v.trim(), 10));
     if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent('Invalid color.')],
+        components: [new TextDisplayBuilder().setContent(`${WARN}Invalid color.`)],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
@@ -126,7 +128,7 @@ function setup(client, resources) {
       await loadImage(bgValue);
     } catch {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent('Invalid background URL.')],
+        components: [new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`)],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
@@ -136,7 +138,7 @@ function setup(client, resources) {
 
     if (!changed) {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent('No changes made.')],
+        components: [new TextDisplayBuilder().setContent(`${WARN}No changes made.`)],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
