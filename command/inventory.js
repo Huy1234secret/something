@@ -53,7 +53,6 @@ async function sendInventory(user, send, { userStats }, state = { page: 1, types
       Array.from({ length: pages }, (_, i) => ({
         label: `${i + 1}`,
         value: `${i + 1}`,
-        default: i + 1 === page,
       })),
     );
 
@@ -76,7 +75,6 @@ async function sendInventory(user, send, { userStats }, state = { page: 1, types
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(listText)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('Page'))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(pageSelect),
       new ActionRowBuilder().addComponents(typeSelect),
