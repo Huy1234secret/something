@@ -62,6 +62,13 @@ async function addXp(user, amount, client) {
   saveData();
 }
 
+function addCoins(user, amount) {
+  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
+  stats.coins = (stats.coins || 0) + amount;
+  userStats[user.id] = stats;
+  saveData();
+}
+
 function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
   const entry = { user_id:userId, guild_id:guildId, role_id:roleId, expires_at:expiresAt };
   if (save) {
@@ -98,6 +105,7 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
+  addCoins(message.author, Math.floor(Math.random()*100)+1);
   if (message.content === '!ping') {
     message.channel.send({
       components: [new TextDisplayBuilder().setContent('Pong!')],
