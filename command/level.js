@@ -1,12 +1,16 @@
 const {
   SlashCommandBuilder,
   AttachmentBuilder,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
+  TextDisplayBuilder,
+  ContainerBuilder,
+  SeparatorBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
 } = require('discord.js');
-const { ContainerBuilder, SeparatorBuilder } = require('@discordjs/builders');
 const { renderLevelCard } = require('../levelCard');
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
@@ -34,7 +38,9 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   });
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
-  const embed = new EmbedBuilder().setImage(`attachment://level_${user.id}.png`);
+  const media = new MediaGalleryBuilder().addItems(
+    new MediaGalleryItemBuilder().setURL(`attachment://level_${user.id}.png`),
+  );
   const button = new ButtonBuilder()
     .setCustomId('card-edit')
     .setLabel('Card Edit')
@@ -43,7 +49,7 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   const row = new ActionRowBuilder().addComponents(button);
   const separator = new SeparatorBuilder().setDivider(true);
   const container = new ContainerBuilder().addActionRowComponents(row);
-  await send({ embeds:[embed], files:[attachment], components:[separator, container] });
+  await send({ files:[attachment], components:[media, separator, container] });
 }
 
 function setup(client, resources) {
@@ -52,13 +58,16 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'level') return;
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
     await sendLevelCard(interaction.user, interaction.editReply.bind(interaction), resources);
   });
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
-    await interaction.reply({ content: 'Card editing is not available yet.', ephemeral: true });
+    await interaction.reply({
+      components: [new TextDisplayBuilder().setContent('Card editing is not available yet.')],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    });
   });
 }
 
