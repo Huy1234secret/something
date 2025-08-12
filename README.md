@@ -1,6 +1,6 @@
 # Discord Bot (JavaScript)
 
-This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https://www.npmjs.com/package/discord.js) and [`canvas`](https://www.npmjs.com/package/canvas).
+This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https://www.npmjs.com/package/discord.js) and [`canvas`](https://www.npmjs.com/package/canvas). It requires **Node.js 22** or newer.
 
 ## Setup
 
