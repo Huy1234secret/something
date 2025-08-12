@@ -10,8 +10,12 @@ const {
   SeparatorBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const { renderLevelCard } = require('../levelCard');
+const { loadImage } = require('canvas');
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, prestige:0 };
@@ -34,7 +38,8 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
     nextLevelXP: xpNeeded(stats.level),
     totalXP: stats.total_xp,
     rankText: `#${rank}`,
-    backgroundURL: settings.background_url
+    backgroundURL: settings.background_url,
+    color: settings.color,
   });
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
@@ -69,6 +74,7 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
 }
 
 function setup(client, resources) {
+  const { userCardSettings, saveData, defaultColor, defaultBackground } = resources;
   const command = new SlashCommandBuilder().setName('level').setDescription('Show your level card');
   client.application.commands.create(command);
 
@@ -80,10 +86,59 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
-    const text = new TextDisplayBuilder().setContent('Card editing is not available yet.');
+    const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
+
+    const modal = new ModalBuilder().setCustomId('card-edit-modal').setTitle('Edit Card');
+    const colorInput = new TextInputBuilder()
+      .setCustomId('color')
+      .setLabel('Card color (R,G,B)')
+      .setStyle(TextInputStyle.Short)
+      .setValue(settings.color.join(','));
+    const bgInput = new TextInputBuilder()
+      .setCustomId('background')
+      .setLabel('Card background URL')
+      .setStyle(TextInputStyle.Short)
+      .setValue(settings.background_url);
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(colorInput),
+      new ActionRowBuilder().addComponents(bgInput)
+    );
+    await interaction.showModal(modal);
+  });
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isModalSubmit() || interaction.customId !== 'card-edit-modal') return;
+    const colorValue = interaction.fields.getTextInputValue('color');
+    const bgValue = interaction.fields.getTextInputValue('background');
+    const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
+
+    const colorParts = colorValue.split(',').map(v => parseInt(v.trim(), 10));
+    if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
+      await interaction.reply({
+        components: [new TextDisplayBuilder().setContent('Invalid color.')],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      });
+      return;
+    }
+
+    try {
+      new URL(bgValue);
+      await loadImage(bgValue);
+    } catch {
+      await interaction.reply({
+        components: [new TextDisplayBuilder().setContent('Invalid background URL.')],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      });
+      return;
+    }
+
+    settings.color = colorParts;
+    settings.background_url = bgValue;
+    userCardSettings[interaction.user.id] = settings;
+    saveData();
 
     await interaction.reply({
-      components: [text],
+      components: [new TextDisplayBuilder().setContent('Card updated.')],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   });

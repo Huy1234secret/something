@@ -49,36 +49,40 @@ function drawBadgeSlot(ctx, cx, cy, r) {
   ctx.stroke();
 }
 
-function drawProgressBar(ctx, x, y, w, h, progress, label, starImg) {
+function drawProgressBar(ctx, x, y, w, h, progress, label, starImg, color) {
+  const [r, g, b] = color;
   // Track
   ctx.globalAlpha = 0.9;
-  ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
+  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.2)`;
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // Fill
-  const fillW = Math.max(h, Math.min(w * progress, w));
-  const grad = ctx.createLinearGradient(x, y, x + w, y);
-  grad.addColorStop(0, 'rgba(0,255,255,1)');
-  grad.addColorStop(1, 'rgba(0,170,255,1)');
-  ctx.fillStyle = grad;
+  if (progress > 0) {
+    // Fill
+    const fillW = Math.max(h, Math.min(w * progress, w));
+    const grad = ctx.createLinearGradient(x, y, x + w, y);
+    const col = `rgba(${r},${g},${b},1)`;
+    grad.addColorStop(0, col);
+    grad.addColorStop(1, col);
+    ctx.fillStyle = grad;
 
-  if (progress >= 1) {
-    // full progress retains rounded corners
-    roundRect(ctx, x, y, fillW, h, h / 2);
-    ctx.fill();
-  } else {
-    // left side rounded, right side square
-    const r = h / 2;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x, y, x, y + h, r);
-    ctx.arcTo(x, y + h, x + r, y + h, r);
-    ctx.lineTo(x + fillW, y + h);
-    ctx.lineTo(x + fillW, y);
-    ctx.closePath();
-    ctx.fill();
+    if (progress >= 1) {
+      // full progress retains rounded corners
+      roundRect(ctx, x, y, fillW, h, h / 2);
+      ctx.fill();
+    } else {
+      // left side rounded, right side square
+      const rads = h / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + rads, y);
+      ctx.arcTo(x, y, x, y + h, rads);
+      ctx.arcTo(x, y + h, x + rads, y + h, rads);
+      ctx.lineTo(x + fillW, y + h);
+      ctx.lineTo(x + fillW, y);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   // Star icon
@@ -127,6 +131,7 @@ async function renderLevelCard({
   backgroundURL = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg',
   starURL = 'https://i.ibb.co/1Nbf5NG/4a8ffc72-efd2-47d7-b33b-3f2c6d5133fd.png',
   medalURL = 'https://i.ibb.co/7dw9RjgV/7cbb626b-1509-463f-a5b9-dce886ba4619.png',
+  color = [92,220,140],
 }) {
   const W = 1100;
   const H = 420;
@@ -273,10 +278,8 @@ async function renderLevelCard({
   const barX = 36;
   const barY = rowTop + 70 + 28;
 
-  if (currentXP > 0) {
-    const progress = Math.max(0, Math.min(1, currentXP / nextLevelXP));
-    drawProgressBar(ctx, barX, barY, barW, barH, progress, `${currentXP} / ${nextLevelXP}`, starImg);
-  }
+  const progress = Math.max(0, Math.min(1, currentXP / nextLevelXP));
+  drawProgressBar(ctx, barX, barY, barW, barH, progress, `${currentXP} / ${nextLevelXP}`, starImg, color);
 
   return canvas.toBuffer('image/png');
 }
