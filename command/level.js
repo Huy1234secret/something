@@ -66,7 +66,9 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   const containerRow = new ActionRowBuilder()
     .addComponents(
       new ContainerBuilder()
-        .addComponents([button])
+        .addActionRowComponents(
+          new ActionRowBuilder().addComponents(button)
+        )
     );
   
   await send({ 
