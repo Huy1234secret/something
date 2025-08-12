@@ -1,4 +1,12 @@
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  AttachmentBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
+const { ContainerBuilder, SeparatorBuilder } = require('@discordjs/builders');
 const { renderLevelCard } = require('../levelCard');
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
@@ -20,7 +28,15 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
   const embed = new EmbedBuilder().setImage(`attachment://level_${user.id}.png`);
-  await send({ embeds:[embed], files:[attachment] });
+  const button = new ButtonBuilder()
+    .setCustomId('card-edit')
+    .setLabel('Card Edit')
+    .setEmoji('<:Botgear:1403611995814629447>')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder().addComponents(button);
+  const separator = new SeparatorBuilder().setDivider(true);
+  const container = new ContainerBuilder().addActionRowComponents(row);
+  await send({ embeds:[embed], files:[attachment], components:[separator, container] });
 }
 
 function setup(client, resources) {
@@ -29,8 +45,13 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'level') return;
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
     await sendLevelCard(interaction.user, interaction.editReply.bind(interaction), resources);
+  });
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
+    await interaction.reply({ content: 'Card editing is not available yet.', ephemeral: true });
   });
 }
 
