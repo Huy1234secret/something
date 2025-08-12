@@ -15,9 +15,10 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function glowCircle(ctx, cx, cy, r) {
+function glowCircle(ctx, cx, cy, r, color) {
+  const [cr, cg, cb] = color;
   const g = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  g.addColorStop(0, 'rgba(0,255,255,0.45)');
+  g.addColorStop(0, `rgba(${cr},${cg},${cb},0.45)`);
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -25,16 +26,17 @@ function glowCircle(ctx, cx, cy, r) {
   ctx.fill();
 
   ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+  ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, 0.6)`;
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
   ctx.stroke();
 }
 
-function drawBadgeSlot(ctx, cx, cy, r) {
+function drawBadgeSlot(ctx, cx, cy, r, color) {
+  const [cr, cg, cb] = color;
   // subtle fill
   const g = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  g.addColorStop(0, 'rgba(0,255,255,0.14)');
+  g.addColorStop(0, `rgba(${cr},${cg},${cb},0.14)`);
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -43,7 +45,7 @@ function drawBadgeSlot(ctx, cx, cy, r) {
 
   // crisp ring
   ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(0,255,255,0.9)';
+  ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.9)`;
   ctx.beginPath();
   ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
   ctx.stroke();
@@ -138,6 +140,7 @@ async function renderLevelCard({
 
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
+  const [r, g, b] = color;
 
   // Background
   try {
@@ -177,7 +180,7 @@ async function renderLevelCard({
     ctx.restore();
 
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(0,255,255,0.9)';
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.9)`;
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 3, 0, Math.PI * 2);
     ctx.stroke();
@@ -207,7 +210,7 @@ async function renderLevelCard({
   const lvlX = nameX;
   const lvlY = nameY + 40;
 
-  ctx.fillStyle = 'rgba(0,255,255,0.18)';
+  ctx.fillStyle = `rgba(${r},${g},${b},0.18)`;
   roundRect(ctx, lvlX, lvlY, lvlW, lvlH, 18);
   ctx.fill();
 
@@ -241,7 +244,7 @@ async function renderLevelCard({
     const cardW = 260;
     const cardH = 70;
     const y = rowTop;
-    ctx.fillStyle = 'rgba(0, 255, 255, 0.06)';
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.06)`;
     roundRect(ctx, x, y, cardW, cardH, 14);
     ctx.fill();
 
@@ -270,7 +273,7 @@ async function renderLevelCard({
   const step = badgeR * 2 + badgeGap; // center-to-center distance
   const centers = [rightmostCx - step * 2, rightmostCx - step, rightmostCx];
 
-  centers.forEach((cx) => drawBadgeSlot(ctx, cx, cy, badgeR));
+  centers.forEach((cx) => drawBadgeSlot(ctx, cx, cy, badgeR, color));
 
   // ----- Progress bar (below everything)
   const barW = W - 72;
