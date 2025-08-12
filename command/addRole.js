@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, TextDisplayBuilder } = require('discord.js');
 
 function parseDuration(str) {
   const units = { h: 3600, d: 86400, w: 604800, m: 2592000 };
@@ -24,18 +24,25 @@ function setup(client, { scheduleRole }) {
     const user = interaction.options.getMember('user');
     const role = interaction.options.getRole('role');
     const time = interaction.options.getString('time');
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     try {
       await user.roles.add(role);
-      await interaction.editReply(`Added ${role} to ${user}.`);
+      await interaction.editReply({
+        components: [new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`)],
+      });
     } catch (err) {
-      await interaction.editReply('Failed to assign the role.');
+      await interaction.editReply({
+        components: [new TextDisplayBuilder().setContent('Failed to assign the role.')],
+      });
       return;
     }
     if (time) {
       const seconds = parseDuration(time);
       if (!seconds) {
-        await interaction.followUp({ content: 'Invalid time format.', ephemeral: true });
+        await interaction.followUp({
+          components: [new TextDisplayBuilder().setContent('Invalid time format.')],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
         return;
       }
       const expiresAt = Date.now() / 1000 + seconds;

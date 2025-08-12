@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 
 async function renderWalletCard(user, stats) {
@@ -20,8 +20,10 @@ async function sendWalletCard(user, send, { userStats }) {
   const stats = userStats[user.id] || { coins:0, diamonds:0, deluxe_coins:0 };
   const buffer = await renderWalletCard(user, stats);
   const attachment = new AttachmentBuilder(buffer, { name: `wallet_${user.id}.png` });
-  const embed = new EmbedBuilder().setImage(`attachment://wallet_${user.id}.png`);
-  await send({ embeds:[embed], files:[attachment] });
+  const media = new MediaGalleryBuilder().addItems(
+    new MediaGalleryItemBuilder().setURL(`attachment://wallet_${user.id}.png`),
+  );
+  await send({ files:[attachment], components:[media] });
 }
 
 function setup(client, resources) {
@@ -29,7 +31,7 @@ function setup(client, resources) {
   client.application.commands.create(command);
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'wallet') return;
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     await sendWalletCard(interaction.user, interaction.editReply.bind(interaction), resources);
   });
 }
