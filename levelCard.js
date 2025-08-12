@@ -102,9 +102,12 @@ function drawProgressBar(ctx, x, y, w, h, progress, label, starImg, color) {
 
   // Label
   ctx.font = 'bold 28px Manrope, Arial, Sans-Serif';
-  ctx.fillStyle = '#001014';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#000000';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeText(label, textLeft, y + h / 2);
   ctx.fillText(label, textLeft, y + h / 2);
 }
 

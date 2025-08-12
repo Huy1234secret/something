@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Partials, MessageFlags, TextDisplayBuilder } = require('discord.js');
 require('dotenv').config();
+const levelCommand = require('./command/level');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -88,15 +89,16 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
+const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole };
+
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole };
   require('./command/addRole').setup(client, resources);
-  require('./command/level').setup(client, resources);
+  levelCommand.setup(client, resources);
   require('./command/levelButton').setup(client, resources);
   require('./command/wallet').setup(client, resources);
   timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
@@ -106,6 +108,19 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
   addCoins(message.author, Math.floor(Math.random()*100)+1);
+  const content = message.content.trim();
+  if (content.toLowerCase().startsWith('a.')) {
+    const cmd = content.slice(2).trim().toLowerCase();
+    if (cmd === 'level') {
+      await levelCommand.sendLevelCard(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources
+      );
+    }
+    await message.delete().catch(() => {});
+    return;
+  }
   if (message.content === '!ping') {
     message.channel.send({
       components: [new TextDisplayBuilder().setContent('Pong!')],
