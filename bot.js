@@ -3,6 +3,8 @@ const path = require('path');
 const { Client, GatewayIntentBits, Partials, MessageFlags, TextDisplayBuilder } = require('discord.js');
 require('dotenv').config();
 const levelCommand = require('./command/level');
+const walletCommand = require('./command/wallet');
+const addRoleCommand = require('./command/addRole');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -97,10 +99,10 @@ const client = new Client({
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  require('./command/addRole').setup(client, resources);
+  addRoleCommand.setup(client, resources);
   levelCommand.setup(client, resources);
   require('./command/levelButton').setup(client, resources);
-  require('./command/wallet').setup(client, resources);
+  walletCommand.setup(client, resources);
   timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 });
 
@@ -110,13 +112,23 @@ client.on('messageCreate', async message => {
   addCoins(message.author, Math.floor(Math.random()*100)+1);
   const content = message.content.trim();
   if (content.toLowerCase().startsWith('a.')) {
-    const cmd = content.slice(2).trim().toLowerCase();
-    if (cmd === 'level') {
+    const afterPrefix = content.slice(2).trim();
+    const lowerAfter = afterPrefix.toLowerCase();
+    if (lowerAfter === 'level') {
       await levelCommand.sendLevelCard(
         message.author,
         message.channel.send.bind(message.channel),
         resources
       );
+    } else if (lowerAfter === 'wallet') {
+      await walletCommand.sendWallet(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources
+      );
+    } else if (lowerAfter.startsWith('add role')) {
+      const args = afterPrefix.split(/\s+/).slice(2);
+      await addRoleCommand.handleTextCommand(message, args, resources);
     }
     await message.delete().catch(() => {});
     return;

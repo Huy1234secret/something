@@ -47,5 +47,5 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, sendWallet };
 
