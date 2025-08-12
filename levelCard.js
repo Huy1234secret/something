@@ -31,6 +31,24 @@ function glowCircle(ctx, cx, cy, r) {
   ctx.stroke();
 }
 
+function drawBadgeSlot(ctx, cx, cy, r) {
+  // subtle fill
+  const g = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  g.addColorStop(0, 'rgba(0,255,255,0.14)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // crisp ring
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0,255,255,0.9)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
 function drawProgressBar(ctx, x, y, w, h, progress, label, starImg) {
   // Track
   ctx.globalAlpha = 0.9;
@@ -220,11 +238,19 @@ async function renderLevelCard({
   statCard('Prestige', prestige, leftPad);
   statCard('Total XP', totalXP, leftPad + 280);
 
-  // 3 circles on right
-  const circlesCenterY = rowTop + 35;
-  glowCircle(ctx, W - rightPad - 80,  circlesCenterY, 60);
-  glowCircle(ctx, W - rightPad - 150, circlesCenterY + 8, 48);
-  glowCircle(ctx, W - rightPad - 215, circlesCenterY - 6, 42);
+  // --- Badge slots (three separate circles, not overlapping)
+  const cy = rowTop + 35;
+  const badgeR = 42;      // circle radius
+  const badgeGap = 36;    // extra space between circles
+
+  // rightmost center; adjust the -10 padding if needed
+  const rightmostCx = W - rightPad - badgeR - 10;
+
+  // compute evenly spaced centers (left, middle, right)
+  const step = badgeR * 2 + badgeGap; // center-to-center distance
+  const centers = [rightmostCx - step * 2, rightmostCx - step, rightmostCx];
+
+  centers.forEach((cx) => drawBadgeSlot(ctx, cx, cy, badgeR));
 
   // ----- Progress bar (below everything)
   const barW = W - 72;
