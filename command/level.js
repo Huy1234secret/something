@@ -48,6 +48,7 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
 
   // Create the separator component
   const separator = new SeparatorBuilder().setDivider(true);
+  separator.data.accent_color = 0xffffff;
 
   // Create the button inside a container
   const button = new ButtonBuilder()
@@ -56,9 +57,11 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
     .setEmoji('<:Botgear:1403611995814629447>')
     .setStyle(ButtonStyle.Secondary);
 
-  const container = new ContainerBuilder().addActionRowComponents(
-    new ActionRowBuilder().addComponents(button)
-  );
+  const container = new ContainerBuilder()
+    .setAccentColor(0xffffff)
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(button)
+    );
 
   await send({
     files: [attachment],
