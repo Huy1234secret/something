@@ -42,7 +42,7 @@ function setup(client, resources) {
   client.application.commands.create(command);
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'wallet') return;
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
     await sendWallet(interaction.user, interaction.editReply.bind(interaction), resources);
   });
 }
