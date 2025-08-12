@@ -63,8 +63,23 @@ function drawProgressBar(ctx, x, y, w, h, progress, label, starImg) {
   grad.addColorStop(0, 'rgba(0,255,255,1)');
   grad.addColorStop(1, 'rgba(0,170,255,1)');
   ctx.fillStyle = grad;
-  roundRect(ctx, x, y, fillW, h, h / 2);
-  ctx.fill();
+
+  if (progress >= 1) {
+    // full progress retains rounded corners
+    roundRect(ctx, x, y, fillW, h, h / 2);
+    ctx.fill();
+  } else {
+    // left side rounded, right side square
+    const r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x, y, x, y + h, r);
+    ctx.arcTo(x, y + h, x + r, y + h, r);
+    ctx.lineTo(x + fillW, y + h);
+    ctx.lineTo(x + fillW, y);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   // Star icon
   let textLeft = x + 18;
@@ -258,8 +273,10 @@ async function renderLevelCard({
   const barX = 36;
   const barY = rowTop + 70 + 28;
 
-  const progress = Math.max(0, Math.min(1, currentXP / nextLevelXP));
-  drawProgressBar(ctx, barX, barY, barW, barH, progress, `${currentXP} / ${nextLevelXP}`, starImg);
+  if (currentXP > 0) {
+    const progress = Math.max(0, Math.min(1, currentXP / nextLevelXP));
+    drawProgressBar(ctx, barX, barY, barW, barH, progress, `${currentXP} / ${nextLevelXP}`, starImg);
+  }
 
   return canvas.toBuffer('image/png');
 }
