@@ -22,6 +22,6 @@ This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https:
    npm start
    ```
 
-The bot responds to `!ping` messages with `Pong!` and exposes slash commands such as `/level`, `/wallet`, `/add-role`, and `/level-button`.
+The bot responds to `!ping` messages with `Pong!` and exposes slash commands such as `/level`, `/wallet`, and `/add-role`.
 
 User level statistics and card design preferences are stored in `user_data.json` so they persist between restarts.

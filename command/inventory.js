@@ -76,6 +76,7 @@ async function sendInventory(user, send, { userStats }, state = { page: 1, types
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(listText)
     .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('Page'))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(pageSelect),
       new ActionRowBuilder().addComponents(typeSelect),

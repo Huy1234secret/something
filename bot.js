@@ -102,7 +102,6 @@ const client = new Client({
     console.log(`Logged in as ${client.user.tag}`);
     addRoleCommand.setup(client, resources);
     levelCommand.setup(client, resources);
-    require('./command/levelButton').setup(client, resources);
     walletCommand.setup(client, resources);
     inventoryCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
