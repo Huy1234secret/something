@@ -131,11 +131,29 @@ function setup(client, resources) {
       });
       return;
     }
+    const changed =
+      colorParts.some((n, i) => n !== settings.color[i]) || bgValue !== settings.background_url;
+
+    if (!changed) {
+      await interaction.reply({
+        components: [new TextDisplayBuilder().setContent('No changes made.')],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      });
+      return;
+    }
 
     settings.color = colorParts;
     settings.background_url = bgValue;
     userCardSettings[interaction.user.id] = settings;
     saveData();
+
+    if (interaction.message) {
+      await sendLevelCard(
+        interaction.user,
+        interaction.message.edit.bind(interaction.message),
+        resources,
+      );
+    }
 
     await interaction.reply({
       components: [new TextDisplayBuilder().setContent('Card updated.')],
