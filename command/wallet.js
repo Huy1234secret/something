@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder, ActionRowBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 
 async function renderWalletCard(user, stats) {
@@ -23,7 +23,8 @@ async function sendWalletCard(user, send, { userStats }) {
   const media = new MediaGalleryBuilder().addItems(
     new MediaGalleryItemBuilder().setURL(`attachment://wallet_${user.id}.png`),
   );
-  await send({ files:[attachment], components:[media] });
+  const mediaRow = new ActionRowBuilder().addComponents(media);
+  await send({ files:[attachment], components:[mediaRow] });
 }
 
 function setup(client, resources) {

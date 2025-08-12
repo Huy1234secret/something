@@ -49,7 +49,13 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   const row = new ActionRowBuilder().addComponents(button);
   const separator = new SeparatorBuilder().setDivider(true);
   const container = new ContainerBuilder().addActionRowComponents(row);
-  await send({ files:[attachment], components:[media, separator, container] });
+  
+  // Wrap Components v2 components in ActionRowBuilder
+  const mediaRow = new ActionRowBuilder().addComponents(media);
+  const separatorRow = new ActionRowBuilder().addComponents(separator);
+  const containerRow = new ActionRowBuilder().addComponents(container);
+  
+  await send({ files:[attachment], components:[mediaRow, separatorRow, containerRow] });
 }
 
 function setup(client, resources) {
@@ -64,8 +70,10 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
+    const textDisplay = new TextDisplayBuilder().setContent('Card editing is not available yet.');
+    const textRow = new ActionRowBuilder().addComponents(textDisplay);
     await interaction.reply({
-      components: [new TextDisplayBuilder().setContent('Card editing is not available yet.')],
+      components: [textRow],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   });

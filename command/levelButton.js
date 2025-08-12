@@ -9,9 +9,11 @@ function setup(client, { userStats }) {
     const stats = userStats[interaction.user.id] || { level:1 };
     const button = new ButtonBuilder().setCustomId('get-level').setLabel('Get Level').setStyle(ButtonStyle.Primary);
     const row = new ActionRowBuilder().addComponents(button);
+    const textDisplay = new TextDisplayBuilder().setContent(`# Your Level\nYou are level **${stats.level}**!`);
+    const textRow = new ActionRowBuilder().addComponents(textDisplay);
     await interaction.reply({
       components: [
-        new TextDisplayBuilder().setContent(`# Your Level\nYou are level **${stats.level}**!`),
+        textRow,
         row,
       ],
       flags: MessageFlags.IsComponentsV2,
@@ -21,8 +23,10 @@ function setup(client, { userStats }) {
   client.on('interactionCreate', async interaction => {
     if (!interaction.isButton() || interaction.customId !== 'get-level') return;
     const stats = userStats[interaction.user.id] || { level:1 };
+    const textDisplay = new TextDisplayBuilder().setContent(`You are level ${stats.level}`);
+    const textRow = new ActionRowBuilder().addComponents(textDisplay);
     await interaction.reply({
-      components: [new TextDisplayBuilder().setContent(`You are level ${stats.level}`)],
+      components: [textRow],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   });

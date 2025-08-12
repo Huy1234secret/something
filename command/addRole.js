@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, TextDisplayBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, TextDisplayBuilder, ActionRowBuilder } = require('discord.js');
 
 function parseDuration(str) {
   const units = { h: 3600, d: 86400, w: 604800, m: 2592000 };
@@ -27,20 +27,26 @@ function setup(client, { scheduleRole }) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     try {
       await user.roles.add(role);
+      const textDisplay = new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`);
+      const textRow = new ActionRowBuilder().addComponents(textDisplay);
       await interaction.editReply({
-        components: [new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`)],
+        components: [textRow],
       });
     } catch (err) {
+      const errorTextDisplay = new TextDisplayBuilder().setContent('Failed to assign the role.');
+      const errorTextRow = new ActionRowBuilder().addComponents(errorTextDisplay);
       await interaction.editReply({
-        components: [new TextDisplayBuilder().setContent('Failed to assign the role.')],
+        components: [errorTextRow],
       });
       return;
     }
     if (time) {
       const seconds = parseDuration(time);
       if (!seconds) {
+        const errorTextDisplay = new TextDisplayBuilder().setContent('Invalid time format.');
+        const errorTextRow = new ActionRowBuilder().addComponents(errorTextDisplay);
         await interaction.followUp({
-          components: [new TextDisplayBuilder().setContent('Invalid time format.')],
+          components: [errorTextRow],
           flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
         });
         return;

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits, Partials, MessageFlags, TextDisplayBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, MessageFlags, TextDisplayBuilder, ActionRowBuilder } = require('discord.js');
 require('dotenv').config();
 
 const DATA_FILE = 'user_data.json';
@@ -53,9 +53,9 @@ async function addXp(user, amount, client) {
   if (stats.level > prev) {
     const channel = client.channels.cache.get(levelUpChannelId);
     if (channel) {
-      const components = [
-        new TextDisplayBuilder().setContent(`**Leveled up**\n${user} leveled from ${prev} to ${stats.level}`),
-      ];
+      const textDisplay = new TextDisplayBuilder().setContent(`**Leveled up**\n${user} leveled from ${prev} to ${stats.level}`);
+      const textRow = new ActionRowBuilder().addComponents(textDisplay);
+      const components = [textRow];
       channel.send({ components, flags: MessageFlags.IsComponentsV2 });
     }
   }
@@ -99,8 +99,10 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return;
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
   if (message.content === '!ping') {
+    const textDisplay = new TextDisplayBuilder().setContent('Pong!');
+    const textRow = new ActionRowBuilder().addComponents(textDisplay);
     message.channel.send({
-      components: [new TextDisplayBuilder().setContent('Pong!')],
+      components: [textRow],
       flags: MessageFlags.IsComponentsV2,
     });
   }
