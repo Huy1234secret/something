@@ -40,19 +40,22 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
   const title =
-    state.type === 'deluxe' ? "## Mr Someone's Deluxe Shop" : "## Mr Someone's Shop";
+    state.type === 'deluxe' ? "## Mr Luxury's Deluxe Shop" : "## Mr Someone's Shop";
+
+  const tagline =
+    state.type === 'deluxe' ? '-# Want to buy something BETTER?' : '-# Welcome!';
+
+  const thumbURL =
+    state.type === 'deluxe'
+      ? 'https://i.ibb.co/jkZ2mwfw/Luxury-idle.gif'
+      : 'https://i.ibb.co/KcX5DGwz/Someone-idle.gif';
 
   const headerSection = new SectionBuilder()
-    .setThumbnailAccessory(
-      new ThumbnailBuilder().setURL('https://i.ibb.co/KcX5DGwz/Someone-idle.gif'),
-    )
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbURL))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(title),
       new TextDisplayBuilder().setContent(
-        "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
-          page +
-          '/' +
-          pages,
+        `${tagline}\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page ${page}/${pages}`,
       ),
     );
 
