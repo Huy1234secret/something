@@ -15,10 +15,12 @@ const {
   AttachmentBuilder,
 } = require('discord.js');
 const { renderShopMedia } = require('../shopMedia');
+const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 
-// Currently only a coin shop with no items
+// Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
   coin: [],
+  deluxe: [],
 };
 
 const shopStates = new Map();
@@ -31,15 +33,21 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
 
-  const buffer = await renderShopMedia(pageItems);
+  const buffer =
+    state.type === 'deluxe'
+      ? await renderDeluxeMedia(pageItems)
+      : await renderShopMedia(pageItems);
   const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
+
+  const title =
+    state.type === 'deluxe' ? "## Mr Someone's Deluxe Shop" : "## Mr Someone's Shop";
 
   const headerSection = new SectionBuilder()
     .setThumbnailAccessory(
       new ThumbnailBuilder().setURL('https://i.ibb.co/KcX5DGwz/Someone-idle.gif'),
     )
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("## Mr Someone's Shop"),
+      new TextDisplayBuilder().setContent(title),
       new TextDisplayBuilder().setContent(
         "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
           page +
@@ -60,7 +68,10 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
-    .addOptions([{ label: 'Coin Shop', value: 'coin', emoji: '<:Coin:1404348210146967612>' }]);
+    .addOptions([
+      { label: 'Coin Shop', value: 'coin', emoji: '<:Coin:1404348210146967612>' },
+      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:DeluxeCoin:1404351654005833799>' },
+    ]);
 
   const buttons = [];
   for (let i = 0; i < perPage; i++) {
