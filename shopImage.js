@@ -27,71 +27,39 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   if (line) ctx.fillText(line, x, y);
 }
 
-async function renderShopImage(items = [], opts = {}) {
-  const {
-    width = 1200,
-    height = 800,
-    cols = 3,
-    rows = 2,
-    title = '',
-    balanceText = '',
-  } = opts;
-
-  const canvas = createCanvas(width, height);
+async function renderShopImage(items = []) {
+  const W = 1200;
+  const H = 800;
+  const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 
   // background
   ctx.fillStyle = '#1e1e1e';
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, W, H);
 
-  // header
-  const headerHeight = 80;
-  ctx.fillStyle = '#ffffff';
-  if (title) {
-    ctx.font = 'bold 36px Sans';
-    ctx.fillText(title, 40, 50);
-  }
-  if (balanceText) {
-    ctx.font = '24px Sans';
-    const bw = ctx.measureText(balanceText).width;
-    ctx.fillText(balanceText, width - bw - 40, 50);
-  }
+  const cols = 3;
+  const rows = 2;
+  const cardW = 300;
+  const cardH = 300;
+  const marginX = (W - cols * cardW) / (cols + 1);
+  const marginY = (H - rows * cardH) / (rows + 1);
 
-  const marginX = 20;
-  const marginY = 20;
-  const cardW = (width - (cols + 1) * marginX) / cols;
-  const cardH = (height - headerHeight - (rows + 1) * marginY) / rows;
-  const imgH = cardH * 0.5;
-
-  const rarityColors = {
-    common: '#9e9e9e',
-    uncommon: '#4caf50',
-    rare: '#2196f3',
-    epic: '#9c27b0',
-    legendary: '#ff9800',
-  };
-
-  for (let i = 0; i < cols * rows; i++) {
+  for (let i = 0; i < 6; i++) {
     const item = items[i];
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = marginX + col * (cardW + marginX);
-    const y = headerHeight + marginY + row * (cardH + marginY);
+    const y = marginY + row * (cardH + marginY);
 
     ctx.fillStyle = '#2e2e2e';
     roundRect(ctx, x, y, cardW, cardH, 20);
     ctx.fill();
 
     if (item) {
-      const color = rarityColors[item.rarity] || '#ffffff';
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
-      roundRect(ctx, x, y, cardW, cardH, 20);
-      ctx.stroke();
-
       if (item.image) {
         try {
           const img = await loadImage(item.image);
+          const imgH = 150;
           ctx.save();
           ctx.beginPath();
           roundRect(ctx, x, y, cardW, imgH, 20);
@@ -103,33 +71,19 @@ async function renderShopImage(items = [], opts = {}) {
         }
       }
 
-      if (item.saleText) {
-        ctx.fillStyle = '#e53935';
-        ctx.font = 'bold 20px Sans';
-        const sw = ctx.measureText(item.saleText).width;
-        ctx.fillText(item.saleText, x + cardW - sw - 20, y + 30);
-      }
-
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 24px Sans';
-      ctx.fillText(item.name || '???', x + 20, y + imgH + 40);
+      ctx.fillText(item.name || '???', x + 20, y + 180);
 
       ctx.font = '20px Sans';
-      ctx.fillText(`Price: ${item.price ?? '???'}`, x + 20, y + imgH + 70);
+      ctx.fillText(`Price: ${item.price ?? '???'}`, x + 20, y + 210);
 
       ctx.font = '16px Sans';
-      wrapText(ctx, item.note || '', x + 20, y + imgH + 100, cardW - 40, 18);
-
-      if (item.stock != null) {
-        ctx.font = '16px Sans';
-        const stockText = `Stock: ${item.stock}`;
-        const tw = ctx.measureText(stockText).width;
-        ctx.fillText(stockText, x + cardW - tw - 20, y + cardH - 20);
-      }
+      wrapText(ctx, item.note || '', x + 20, y + 240, cardW - 40, 18);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 24px Sans';
-      ctx.fillText('Coming soon', x + 20, y + cardH / 2);
+      ctx.fillText('Coming soon', x + 20, y + 150);
     }
   }
 
