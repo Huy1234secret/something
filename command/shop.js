@@ -1,16 +1,13 @@
 const {
   SlashCommandBuilder,
-  MessageFlags,
-  ContainerBuilder,
-  SeparatorBuilder,
-  TextDisplayBuilder,
-  SectionBuilder,
-  ThumbnailBuilder,
+  EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
+  AttachmentBuilder,
 } = require('discord.js');
+const { renderShopImage } = require('../shopImage');
 
 // Currently only a coin shop with no items
 const SHOP_ITEMS = {
@@ -27,32 +24,24 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
 
-  const itemSections = [];
-  for (let i = 0; i < perPage; i++) {
-    const item = pageItems[i];
-    const name = item ? item.name : '???';
-    const price = item ? item.price : '???';
-    const note = item ? item.note || '' : '';
+  const buffer = await renderShopImage(pageItems);
+  const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
-    const section = new SectionBuilder().addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`**${name}**`),
-      new TextDisplayBuilder().setContent(`Price: ${price}`),
-      ...(note ? [new TextDisplayBuilder().setContent(note)] : []),
-    );
-
-    if (item && item.image) {
-      section.setThumbnailAccessory(new ThumbnailBuilder().setURL(item.image));
-    }
-
-    itemSections.push(section);
-  }
+  const embed = new EmbedBuilder()
+    .setTitle("Mr Someone's Shop")
+    .setDescription(
+      "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
+        page +
+        '/' +
+        pages,
+    )
+    .setThumbnail('https://i.ibb.co/KcX5DGwz/Someone-idle.gif')
+    .setImage('attachment://shop.png');
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-page')
     .setPlaceholder('Page')
-    .addOptions(
-      Array.from({ length: pages }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })),
-    );
+    .addOptions(Array.from({ length: pages }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })));
 
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
@@ -62,40 +51,23 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const buttons = [];
   for (let i = 0; i < perPage; i++) {
     const item = pageItems[i];
-    buttons.push(
-      new ButtonBuilder()
-        .setCustomId(`shop-buy-${i}`)
-        .setLabel(item ? item.name : '???')
-        .setEmoji(item ? item.emoji : '❓')
-        .setStyle(ButtonStyle.Secondary),
-    );
+    const btn = new ButtonBuilder()
+      .setCustomId(`shop-buy-${i}`)
+      .setLabel(item ? item.name : '???')
+      .setEmoji(item ? item.emoji : '❓')
+      .setStyle(ButtonStyle.Secondary);
+    if (!item) btn.setDisabled(true);
+    buttons.push(btn);
   }
 
-  const container = new ContainerBuilder()
-    .setAccentColor(0xffffff)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("## Mr Someone's Shop\n-# Welcome!"),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        '<:Comingstock:1405083859254771802> Shop will have new stock in 0s',
-      ),
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`* Page ${page}/${pages}`),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addSectionComponents(...itemSections)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(pageSelect),
-      new ActionRowBuilder().addComponents(typeSelect),
-      new ActionRowBuilder().addComponents(buttons[0], buttons[1], buttons[2]),
-      new ActionRowBuilder().addComponents(buttons[3], buttons[4], buttons[5]),
-    );
+  const components = [
+    new ActionRowBuilder().addComponents(pageSelect),
+    new ActionRowBuilder().addComponents(typeSelect),
+    new ActionRowBuilder().addComponents(...buttons.slice(0, 3)),
+    new ActionRowBuilder().addComponents(...buttons.slice(3)),
+  ];
 
-  const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  const message = await send({ embeds: [embed], files: [attachment], components });
   shopStates.set(message.id, { userId: user.id, page, type: state.type });
   return message;
 }
@@ -110,7 +82,7 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'shop') return;
     if (interaction.options.getSubcommand() !== 'view') return;
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+    await interaction.deferReply();
     await sendShop(interaction.user, interaction.editReply.bind(interaction), resources);
   });
 
@@ -135,34 +107,23 @@ function setup(client, resources) {
       const start = (state.page - 1) * 6;
       const item = items[start + index];
       if (!item) {
-        await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Item not available.')],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
+        await interaction.reply({ content: 'Item not available.', ephemeral: true });
         return;
       }
       const stats = resources.userStats[interaction.user.id] || { coins: 0 };
       if ((stats.coins || 0) < item.price) {
-        await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Not enough coins.')],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
+        await interaction.reply({ content: 'Not enough coins.', ephemeral: true });
         return;
       }
       stats.coins -= item.price;
       resources.userStats[interaction.user.id] = stats;
       resources.saveData();
       await interaction.reply({
-        components: [
-          new TextDisplayBuilder().setContent(
-            `You bought ${item.name} for ${item.price} coins.`,
-          ),
-        ],
-        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        content: `You bought ${item.name} for ${item.price} coins.`,
+        ephemeral: true,
       });
     }
   });
 }
 
 module.exports = { setup, sendShop };
-
