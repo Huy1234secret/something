@@ -1,6 +1,13 @@
 const {
   SlashCommandBuilder,
-  EmbedBuilder,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  SeparatorBuilder,
+  TextDisplayBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
@@ -27,16 +34,24 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const buffer = await renderShopImage(pageItems);
   const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
-  const embed = new EmbedBuilder()
-    .setTitle("Mr Someone's Shop")
-    .setDescription(
-      "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
-        page +
-        '/' +
-        pages,
+  const headerSection = new SectionBuilder()
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL('https://i.ibb.co/KcX5DGwz/Someone-idle.gif'),
     )
-    .setThumbnail('https://i.ibb.co/KcX5DGwz/Someone-idle.gif')
-    .setImage('attachment://shop.png');
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent("## Mr Someone's Shop"),
+    );
+
+  const descriptionText = new TextDisplayBuilder().setContent(
+    "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
+      page +
+      '/' +
+      pages,
+  );
+
+  const mediaGallery = new MediaGalleryBuilder().addItems(
+    new MediaGalleryItemBuilder().setURL('attachment://shop.png'),
+  );
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-page')
@@ -60,14 +75,26 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     buttons.push(btn);
   }
 
-  const components = [
-    new ActionRowBuilder().addComponents(pageSelect),
-    new ActionRowBuilder().addComponents(typeSelect),
-    new ActionRowBuilder().addComponents(...buttons.slice(0, 3)),
-    new ActionRowBuilder().addComponents(...buttons.slice(3)),
-  ];
+  const container = new ContainerBuilder()
+    .setAccentColor(0xffffff)
+    .addSectionComponents(headerSection)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(descriptionText)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addMediaGalleryComponents(mediaGallery)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(pageSelect),
+      new ActionRowBuilder().addComponents(typeSelect),
+      new ActionRowBuilder().addComponents(...buttons.slice(0, 3)),
+      new ActionRowBuilder().addComponents(...buttons.slice(3)),
+    );
 
-  const message = await send({ embeds: [embed], files: [attachment], components });
+  const message = await send({
+    files: [attachment],
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
   shopStates.set(message.id, { userId: user.id, page, type: state.type });
   return message;
 }
@@ -82,7 +109,7 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'shop') return;
     if (interaction.options.getSubcommand() !== 'view') return;
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
     await sendShop(interaction.user, interaction.editReply.bind(interaction), resources);
   });
 
