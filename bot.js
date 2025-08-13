@@ -99,7 +99,7 @@ const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
 
-  client.once('ready', () => {
+  client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     addRoleCommand.setup(client, resources);
     levelCommand.setup(client, resources);
@@ -107,6 +107,17 @@ const client = new Client({
     inventoryCommand.setup(client, resources);
     shopCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
+
+    // Remove deprecated /level-button command if it exists
+    try {
+      const commands = await client.application.commands.fetch();
+      const legacy = commands.find(cmd => cmd.name === 'level-button');
+      if (legacy) {
+        await client.application.commands.delete(legacy.id);
+      }
+    } catch (err) {
+      console.warn('Failed to remove legacy /level-button command', err);
+    }
   });
 
 client.on('messageCreate', async message => {
