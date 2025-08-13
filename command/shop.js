@@ -14,7 +14,7 @@ const {
   ButtonStyle,
   AttachmentBuilder,
 } = require('discord.js');
-const { renderShopImage } = require('../shopImage');
+const { renderShopMedia } = require('../shopMedia');
 
 // Currently only a coin shop with no items
 const SHOP_ITEMS = {
@@ -31,7 +31,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
 
-  const buffer = await renderShopImage(pageItems);
+  const buffer = await renderShopMedia(pageItems);
   const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
   const headerSection = new SectionBuilder()
