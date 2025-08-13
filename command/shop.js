@@ -40,14 +40,13 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent("## Mr Someone's Shop"),
+      new TextDisplayBuilder().setContent(
+        "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
+          page +
+          '/' +
+          pages,
+      ),
     );
-
-  const descriptionText = new TextDisplayBuilder().setContent(
-    "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
-      page +
-      '/' +
-      pages,
-  );
 
   const mediaGallery = new MediaGalleryBuilder().addItems(
     new MediaGalleryItemBuilder().setURL('attachment://shop.png'),
@@ -78,8 +77,6 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(headerSection)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(descriptionText)
     .addSeparatorComponents(new SeparatorBuilder())
     .addMediaGalleryComponents(mediaGallery)
     .addSeparatorComponents(new SeparatorBuilder())
