@@ -6,6 +6,7 @@ const levelCommand = require('./command/level');
 const walletCommand = require('./command/wallet');
 const addRoleCommand = require('./command/addRole');
 const inventoryCommand = require('./command/inventory');
+const shopCommand = require('./command/shop');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -104,6 +105,7 @@ const client = new Client({
     levelCommand.setup(client, resources);
     walletCommand.setup(client, resources);
     inventoryCommand.setup(client, resources);
+    shopCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
   });
 
