@@ -1,6 +1,5 @@
 const {
   SlashCommandBuilder,
-  EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
@@ -9,9 +8,38 @@ const {
 } = require('discord.js');
 const { renderShopImage } = require('../shopImage');
 
-// Currently only a coin shop with no items
+// Example coin shop items
 const SHOP_ITEMS = {
-  coin: [],
+  coin: [
+    {
+      name: 'Crimson Blade',
+      rarity: 'epic',
+      price: 1200,
+      note: 'Cuts through armor. Limited time.',
+      image: 'https://via.placeholder.com/300x150.png?text=Crimson+Blade',
+      saleText: '-20%',
+      stock: 7,
+      emoji: '🗡️',
+    },
+    {
+      name: 'Healing Brew',
+      rarity: 'uncommon',
+      price: 250,
+      note: 'Restore 50 HP instantly.',
+      image: 'https://via.placeholder.com/300x150.png?text=Healing+Brew',
+      stock: 42,
+      emoji: '🧪',
+    },
+    {
+      name: 'Shadow Cloak',
+      rarity: 'legendary',
+      price: 4200,
+      note: 'Become nearly invisible for 10s.',
+      image: 'https://via.placeholder.com/300x150.png?text=Shadow+Cloak',
+      stock: 2,
+      emoji: '🕶️',
+    },
+  ],
 };
 
 const shopStates = new Map();
@@ -24,19 +52,19 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
 
-  const buffer = await renderShopImage(pageItems);
-  const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
+  const stats = resources.userStats[user.id] || { coins: 0 };
+  const title = 'Night Market';
+  const balanceText = `Balance: ${stats.coins}`;
 
-  const embed = new EmbedBuilder()
-    .setTitle("Mr Someone's Shop")
-    .setDescription(
-      "-# Welcome!\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page " +
-        page +
-        '/' +
-        pages,
-    )
-    .setThumbnail('https://i.ibb.co/KcX5DGwz/Someone-idle.gif')
-    .setImage('attachment://shop.png');
+  const buffer = await renderShopImage(pageItems, {
+    width: 1200,
+    height: 800,
+    cols: 3,
+    rows: 2,
+    title,
+    balanceText,
+  });
+  const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-page')
@@ -67,7 +95,10 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     new ActionRowBuilder().addComponents(...buttons.slice(3)),
   ];
 
-  const message = await send({ embeds: [embed], files: [attachment], components });
+  const message1 = title;
+  const message2 = `${balanceText} · Page ${page}/${pages}`;
+
+  const message = await send({ content: `${message1}\n${message2}`, files: [attachment], components });
   shopStates.set(message.id, { userId: user.id, page, type: state.type });
   return message;
 }
