@@ -4,6 +4,8 @@ const {
   ContainerBuilder,
   SeparatorBuilder,
   TextDisplayBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
@@ -25,18 +27,24 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const start = (page - 1) * perPage;
   const pageItems = items.slice(start, start + perPage);
 
-  const itemDisplays = [];
+  const itemSections = [];
   for (let i = 0; i < perPage; i++) {
     const item = pageItems[i];
     const name = item ? item.name : '???';
     const price = item ? item.price : '???';
-    const note = item ? item.note : '';
-    const emoji = item ? item.emoji : '❓';
-    itemDisplays.push(
-      new TextDisplayBuilder().setContent(
-        `**${emoji} ${name}**\n-# Price: ${price}\n> ${note}`,
-      ),
+    const note = item ? item.note || '' : '';
+
+    const section = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`**${name}**`),
+      new TextDisplayBuilder().setContent(`Price: ${price}`),
+      ...(note ? [new TextDisplayBuilder().setContent(note)] : []),
     );
+
+    if (item && item.image) {
+      section.setThumbnailAccessory(new ThumbnailBuilder().setURL(item.image));
+    }
+
+    itemSections.push(section);
   }
 
   const pageSelect = new StringSelectMenuBuilder()
@@ -78,7 +86,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       new TextDisplayBuilder().setContent(`* Page ${page}/${pages}`),
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(...itemDisplays)
+    .addSectionComponents(...itemSections)
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(pageSelect),
