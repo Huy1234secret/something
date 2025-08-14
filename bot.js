@@ -7,6 +7,8 @@ const walletCommand = require('./command/wallet');
 const addRoleCommand = require('./command/addRole');
 const inventoryCommand = require('./command/inventory');
 const shopCommand = require('./command/shop');
+const useItemCommand = require('./command/useItem');
+const robCommand = require('./command/rob');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -106,6 +108,8 @@ const client = new Client({
     walletCommand.setup(client, resources);
     inventoryCommand.setup(client, resources);
     shopCommand.setup(client, resources);
+    useItemCommand.setup(client, resources);
+    robCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
@@ -146,6 +150,31 @@ client.on('messageCreate', async message => {
         message.channel.send.bind(message.channel),
         resources
       );
+    } else if (lowerAfter.startsWith('use item')) {
+      const args = afterPrefix.split(/\s+/).slice(2);
+      const itemId = args[0];
+      const amount = parseInt(args[1], 10) || 1;
+      await useItemCommand.handleUseItem(
+        message.author,
+        itemId,
+        amount,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (lowerAfter.startsWith('rob')) {
+      const target = message.mentions.users.first();
+      if (target) {
+        await robCommand.executeRob(
+          message.author,
+          target,
+          message.channel.send.bind(message.channel),
+          resources,
+        );
+      } else {
+        await message.channel.send({
+          content: '<:warning:1404101025849147432> Please mention a user to rob.',
+        });
+      }
     } else if (lowerAfter.startsWith('add role')) {
       const args = afterPrefix.split(/\s+/).slice(2);
       await addRoleCommand.handleTextCommand(message, args, resources);

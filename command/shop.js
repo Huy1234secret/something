@@ -16,10 +16,11 @@ const {
 } = require('discord.js');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
+const { ITEMS } = require('../items');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
-  coin: [],
+  coin: [ITEMS.padlock],
   deluxe: [],
 };
 
@@ -154,6 +155,11 @@ function setup(client, resources) {
         return;
       }
       stats.coins -= item.price;
+      stats.inventory = stats.inventory || [];
+      const base = ITEMS[item.id] || item;
+      const existing = stats.inventory.find(i => i.id === item.id);
+      if (existing) existing.amount = (existing.amount || 0) + 1;
+      else stats.inventory.push({ ...base, amount: 1 });
       resources.userStats[interaction.user.id] = stats;
       resources.saveData();
       await interaction.reply({
