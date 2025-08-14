@@ -23,12 +23,12 @@ async function sendWallet(user, send, { userStats }) {
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `## ${user.username}'s Wallet\n<:stars:1404723253200552009> Total Value: ${totalValue}\n-# <:reply:1403665761825980456>Inventory Value: ${inventoryValue}`,
+        `## ${user.username}'s Wallet\n<:SBstars:1404723253200552009> Total Value: ${totalValue}\n-# <:SBreply:1403665761825980456>Inventory Value: ${inventoryValue}`,
       ),
     );
 
   const balancesText = new TextDisplayBuilder().setContent(
-    `> <:Coin:1404348210146967612> Coin: ${coins}\n> <:Diamond:1404350385463885886> Diamond: ${diamonds}\n> <:DeluxeCoin:1404351654005833799> Deluxe Coin: ${deluxe}`,
+    `> <:CRCoin:1404348210146967612> Coin: ${coins}\n> <:CRDiamond:1404350385463885886> Diamond: ${diamonds}\n> <:CRDeluxeCoin:1404351654005833799> Deluxe Coin: ${deluxe}`,
   );
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();

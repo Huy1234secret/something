@@ -8,8 +8,8 @@ const {
   SeparatorBuilder,
 } = require('discord.js');
 
-const WARNING = '<:warning:1404101025849147432>';
-const COIN_EMOJI = '<:Coin:1404348210146967612>';
+const WARNING = '<:SBWarning:1404101025849147432>';
+const COIN_EMOJI = '<:CRCoin:1404348210146967612>';
 
 const FAIL_MESSAGES = [
   "{usermention} tried to rob {robbinguser} but got caught by the police.\nYou paid {amount} coin to {robbinguser} as restitution.\n-# police-caught",

@@ -31,7 +31,7 @@ async function sendInventory(user, send, { userStats }, state = { page: 1, types
     listContent = pageItems
       .map(
         item =>
-          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:reply1:1403665779404050562>Type: ${item.type}\n<:reply:1403665761825980456>Rarity: ${item.rarity}`,
+          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${item.type}\n<:SBreply:1403665761825980456>Rarity: ${item.rarity}`,
       )
       .join('\n\n');
   }
@@ -40,7 +40,7 @@ async function sendInventory(user, send, { userStats }, state = { page: 1, types
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `### ${user.username}'s Inventory\n* <:stars:1404723253200552009> Total Inventory Value: ${totalValue}`,
+        `### ${user.username}'s Inventory\n* <:SBstars:1404723253200552009> Total Inventory Value: ${totalValue}`,
       ),
     );
 

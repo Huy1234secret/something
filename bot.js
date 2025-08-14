@@ -241,7 +241,7 @@ client.on('messageCreate', async message => {
         );
       } else {
         await message.channel.send({
-          content: '<:warning:1404101025849147432> Please mention a user to rob.',
+          content: '<:SBWarning:1404101025849147432> Please mention a user to rob.',
         });
       }
     } else if (lowerAfter.startsWith('add role')) {

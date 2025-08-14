@@ -12,7 +12,7 @@ const {
 } = require('discord.js');
 const { ITEMS } = require('../items');
 
-const WARNING = '<:warning:1404101025849147432>';
+const WARNING = '<:SBWarning:1404101025849147432>';
 
 function padlockEmbed(user) {
   return new ContainerBuilder()

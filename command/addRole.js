@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, TextDisplayBuilder } = require('discord.js');
 
-const WARN = '<:warning:1404101025849147432> ';
+const WARN = '<:SBWarning:1404101025849147432> ';
 
 function parseDuration(str) {
   const units = { h: 3600, d: 86400, w: 604800, m: 2592000 };
