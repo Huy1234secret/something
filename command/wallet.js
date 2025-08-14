@@ -10,6 +10,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
+const { formatNumber } = require('../utils');
 
 async function sendWallet(user, send, { userStats }) {
   const stats = userStats[user.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };
@@ -23,12 +24,12 @@ async function sendWallet(user, send, { userStats }) {
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `## ${user.username}'s Wallet\n<:SBstars:1404723253200552009> Total Value: ${totalValue}\n-# <:SBreply:1403665761825980456>Inventory Value: ${inventoryValue}`,
+        `## ${user.username}'s Wallet\n<:SBstars:1404723253200552009> Total Value: ${formatNumber(totalValue)}\n-# <:SBreply:1403665761825980456>Inventory Value: ${formatNumber(inventoryValue)}`,
       ),
     );
 
   const balancesText = new TextDisplayBuilder().setContent(
-    `> <:CRCoin:1404348210146967612> Coin: ${coins}\n> <:CRDiamond:1404350385463885886> Diamond: ${diamonds}\n> <:CRDeluxeCoin:1404351654005833799> Deluxe Coin: ${deluxe}`,
+    `> <:CRCoin:1404348210146967612> Coin: ${formatNumber(coins)}\n> <:CRDiamond:1404350385463885886> Diamond: ${formatNumber(diamonds)}\n> <:CRDeluxeCoin:1404351654005833799> Deluxe Coin: ${formatNumber(deluxe)}`,
   );
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();

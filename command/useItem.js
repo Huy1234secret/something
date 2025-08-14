@@ -95,7 +95,7 @@ async function handleUseItem(user, itemId, amount, send, resources) {
   if (result.error) {
     await send({ content: result.error, ephemeral: true });
   } else {
-    await send({ components: [result.component], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+    await send({ components: [result.component], flags: MessageFlags.IsComponentsV2 });
   }
 }
 
@@ -126,7 +126,7 @@ function setup(client, resources) {
       await interaction.reply({ content: res.error, ephemeral: true });
     } else {
       await interaction.update({ components: [expiredPadlockContainer(interaction.user, true)], flags: MessageFlags.IsComponentsV2 });
-      await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2, ephemeral: true });
+      await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
     }
   });
 }
