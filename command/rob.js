@@ -112,7 +112,8 @@ async function executeRob(robber, target, send, resources) {
     const msg = arr[Math.floor(Math.random() * arr.length)]
       .replace(/\{usermention\}/g, robber.toString())
       .replace(/\{robbinguser\}/g, target.toString())
-      .replace(/\{amount\}/g, amount);
+      .replace(/\{amount\}/g, amount)
+      .replace(/coin/g, COIN_EMOJI);
     await send({
       components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
       flags: MessageFlags.IsComponentsV2,
