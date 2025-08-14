@@ -93,7 +93,7 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = { error: `${WARNING} Cannot use this item.` };
   }
   if (result.error) {
-    await send({ content: result.error, ephemeral: true });
+    await send({ content: result.error, ephemeral: true, flags: MessageFlags.Ephemeral });
   } else {
     await send({ components: [result.component], flags: MessageFlags.IsComponentsV2 });
   }

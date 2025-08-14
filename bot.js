@@ -198,7 +198,10 @@ client.on('messageCreate', async message => {
         ),
       );
     }
-    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await message.channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    });
     await message.delete().catch(() => {});
     return;
   }
@@ -258,6 +261,7 @@ client.on('messageCreate', async message => {
       } else {
         await message.channel.send({
           content: '<:SBWarning:1404101025849147432> Please provide a user ID to rob.',
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else if (lowerAfter.startsWith('add role')) {
@@ -288,7 +292,10 @@ client.on('messageCreate', async message => {
           ),
         );
       }
-      await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      await message.channel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      });
       return;
     }
     message.channel.send({
