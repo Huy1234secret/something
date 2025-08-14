@@ -10,7 +10,7 @@ const {
 const { formatNumber } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
-const COIN_EMOJI = '<:CRCoin:1404348210146967612>';
+const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const COOLDOWN = 5 * 60 * 1000;
 const MIN_COINS = 10000;
 
