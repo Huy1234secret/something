@@ -77,8 +77,8 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
     .addOptions([
-      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1404348210146967612>' },
-      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1404351654005833799>' },
+      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
+      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
     ]);
 
   const buttons = [];
@@ -166,7 +166,7 @@ function setup(client, resources) {
       } else if (interaction.customId.startsWith('shop-confirm-')) {
         const [, , itemId, amountStr] = interaction.customId.split('-');
         const amount = parseInt(amountStr, 10);
-        const coinEmoji = '<:CRCoin:1404348210146967612>';
+        const coinEmoji = '<:CRCoin:1405595571141480570>';
         const item =
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
         if (!item) {
@@ -246,7 +246,7 @@ function setup(client, resources) {
       }
       const stats = resources.userStats[interaction.user.id] || { coins: 0 };
       const total = item.price * amount;
-      const coinEmoji = '<:CRCoin:1404348210146967612>';
+      const coinEmoji = '<:CRCoin:1405595571141480570>';
       if ((stats.coins || 0) < total) {
         const need = total - (stats.coins || 0);
         await interaction.reply({
