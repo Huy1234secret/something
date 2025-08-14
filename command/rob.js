@@ -106,7 +106,11 @@ function buildEmbed(color, title, desc, thumb) {
 
 async function executeRob(robber, target, send, resources) {
   if (robber.id === target.id) {
-    await send({ content: `${WARNING} You cannot rob yourself.`, ephemeral: true });
+    await send({
+      content: `${WARNING} You cannot rob yourself.`,
+      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
   const robberStats = resources.userStats[robber.id] || { coins: 0 };
@@ -117,6 +121,7 @@ async function executeRob(robber, target, send, resources) {
     await send({
       content: `${WARNING} You need at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to rob someone.`,
       ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -124,6 +129,7 @@ async function executeRob(robber, target, send, resources) {
     await send({
       content: `${WARNING} ${target.username} must have at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to be robbed.`,
       ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -133,6 +139,7 @@ async function executeRob(robber, target, send, resources) {
     await send({
       content: `${WARNING} You can rob again <t:${timestamp}:R>.`,
       ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
