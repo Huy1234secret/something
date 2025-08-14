@@ -17,7 +17,7 @@ const {
 const { renderLevelCard } = require('../levelCard');
 const { loadImage } = require('canvas');
 
-const WARN = '<:warning:1404101025849147432> ';
+const WARN = '<:SBWarning:1404101025849147432> ';
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, prestige:0 };
@@ -59,7 +59,7 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   const button = new ButtonBuilder()
     .setCustomId('card-edit')
     .setLabel('Card Edit')
-    .setEmoji('<:Botgear:1403611995814629447>')
+    .setEmoji('<:SBBotgear:1403611995814629447>')
     .setStyle(ButtonStyle.Secondary);
 
   const container = new ContainerBuilder()

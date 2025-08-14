@@ -60,7 +60,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(title),
       new TextDisplayBuilder().setContent(
-        `${tagline}\n<:Comingstock:1405083859254771802> Shop will have new stock in 0s\n* Page ${page}/${pages}`,
+        `${tagline}\n<:SBComingstock:1405083859254771802> Shop will have new stock in 0s\n* Page ${page}/${pages}`,
       ),
     );
 
@@ -77,8 +77,8 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
     .addOptions([
-      { label: 'Coin Shop', value: 'coin', emoji: '<:Coin:1404348210146967612>' },
-      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:DeluxeCoin:1404351654005833799>' },
+      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1404348210146967612>' },
+      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1404351654005833799>' },
     ]);
 
   const buttons = [];
@@ -166,7 +166,7 @@ function setup(client, resources) {
       } else if (interaction.customId.startsWith('shop-confirm-')) {
         const [, , itemId, amountStr] = interaction.customId.split('-');
         const amount = parseInt(amountStr, 10);
-        const coinEmoji = '<:Coin:1404348210146967612>';
+        const coinEmoji = '<:CRCoin:1404348210146967612>';
         const item =
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
         if (!item) {
@@ -246,7 +246,7 @@ function setup(client, resources) {
       }
       const stats = resources.userStats[interaction.user.id] || { coins: 0 };
       const total = item.price * amount;
-      const coinEmoji = '<:Coin:1404348210146967612>';
+      const coinEmoji = '<:CRCoin:1404348210146967612>';
       if ((stats.coins || 0) < total) {
         const need = total - (stats.coins || 0);
         await interaction.reply({
