@@ -181,7 +181,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 
   // --- BOTTOM: price only (no buy button) ---
   const rowY = y + h - 20;
-  const coinSize = 22;
+  const coinSize = 30;
   const coinX = x + pad;
   const coinY = rowY - coinSize - 2;
 
@@ -190,7 +190,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   }
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px Sans';
+  ctx.font = 'bold 26px Sans';
   ctx.fillText(String(item.price ?? '???'), coinX + coinSize + 8, coinY + coinSize - 2);
 }
 

@@ -293,12 +293,12 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   // price + button row
   const rowY = gy + gh - 18;
   const coinX = gx + pad + 16;
-  const coinY = rowY - 28;
-  coinGold(ctx, coinX, coinY, 13);
+  const coinY = rowY - 33;
+  coinGold(ctx, coinX, coinY, 18);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px Sans';
-  ctx.fillText(String(item.price ?? '???'), coinX + 22, coinY + 7);
+  ctx.font = 'bold 24px Sans';
+  ctx.fillText(String(item.price ?? '???'), coinX + 26, coinY + 12);
 
   // button (gold foil)
   const btnW = 132, btnH = 40;
