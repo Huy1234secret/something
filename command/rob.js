@@ -59,13 +59,14 @@ const PADLOCK_FAIL_MESSAGES = [
   "{usermention} attempted a quick snatch, but {robbinguser}'s padlock held firm.\nYou paid {amount} coin to {robbinguser} for the attempt.\n-# held-firm",
 ];
 
-function weightedPercent() {
-  let r = Math.random() * 5050;
-  for (let p = 1; p <= 100; p++) {
-    r -= 101 - p;
+function weightedPercent(min = 1, max = 100) {
+  const n = max - min + 1;
+  let r = Math.random() * (n * (n + 1) / 2);
+  for (let p = min; p <= max; p++) {
+    r -= max + 1 - p;
     if (r <= 0) return p;
   }
-  return 1;
+  return min;
 }
 
 function buildEmbed(color, title, desc, thumb) {
@@ -101,7 +102,7 @@ async function executeRob(robber, target, send, resources) {
 
   if ((robberStats.coins || 0) < MIN_COINS && (targetStats.coins || 0) < MIN_COINS) {
     await send({
-      content: `${WARNING} You or **${target.username}** must have at least ${MIN_COINS} ${COIN_EMOJI} to rob.`,
+      content: `${WARNING} You or ${target.username} must have at least ${MIN_COINS} ${COIN_EMOJI} to rob.`,
       ephemeral: true,
     });
     return;
@@ -119,7 +120,7 @@ async function executeRob(robber, target, send, resources) {
 
   const fail = targetProtected || Math.random() < 0.75;
   if (fail) {
-    const percent = weightedPercent();
+    const percent = weightedPercent(25, 75);
     let amount = Math.floor((robberStats.coins || 0) * percent / 100);
     if (amount < 1) amount = 1;
     if ((robberStats.coins || 0) < amount) amount = robberStats.coins || 0;
@@ -131,19 +132,20 @@ async function executeRob(robber, target, send, resources) {
     resources.saveData();
     const arr = targetProtected ? PADLOCK_FAIL_MESSAGES : FAIL_MESSAGES;
     const msg = arr[Math.floor(Math.random() * arr.length)]
-      .replace(/\{usermention\}/g, `**${robber.username}**`)
-      .replace(/\{robbinguser\}/g, `**${target.username}**`)
+      .replace(/\{usermention\}/g, `<@${robber.id}>`)
+      .replace(/\{robbinguser\}/g, target.username)
       .replace(/\{amount\}/g, amount)
       .replace(/coin/g, COIN_EMOJI);
     await send({
-      components: [buildEmbed(0xff0000, `Failed robbing **${target.username}**`, msg)],
+      content: `<@${robber.id}>`,
+      components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
       flags: MessageFlags.IsComponentsV2,
       ephemeral: true,
     });
     const alert = buildEmbed(
       0xffffff,
       'Robbing Alert!',
-      `Hey **${target.username}**, **${robber.username}** was trying to rob your wallet but failed`,
+      `Hey, <@${robber.id}> was trying to rob your wallet but failed`,
     );
     try {
       await target.send({ components: [alert], flags: MessageFlags.IsComponentsV2 });
@@ -163,11 +165,12 @@ async function executeRob(robber, target, send, resources) {
   resources.saveData();
 
   await send({
+    content: `<@${robber.id}>`,
     components: [
       buildEmbed(
         0x00ff00,
-        `You have robbed **${target.username}**`,
-        `You have successfully robbed **${target.username}**, you earned ${amount} ${COIN_EMOJI}`,
+        `You have robbed ${target.username}`,
+        `You have successfully robbed ${target.username}, you earned ${amount} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],
@@ -177,7 +180,7 @@ async function executeRob(robber, target, send, resources) {
   const alert = buildEmbed(
     0xff0000,
     'You got Robbed!',
-    `Hey **${target.username}**, **${robber.username}** has successfully robbed your wallet and stole ${amount} ${COIN_EMOJI}`,
+    `Hey, <@${robber.id}> has successfully robbed your wallet and stole ${amount} ${COIN_EMOJI}`,
     'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
   );
   try {
