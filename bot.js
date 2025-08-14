@@ -219,8 +219,14 @@ client.on('messageCreate', async message => {
         message.channel.send.bind(message.channel),
         resources
       );
-    } else if (lowerAfter.startsWith('use item')) {
-      const args = afterPrefix.split(/\s+/).slice(2);
+    } else if (lowerAfter === 'shop view') {
+      await shopCommand.sendShop(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (lowerAfter.startsWith('use ')) {
+      const args = afterPrefix.split(/\s+/).slice(1);
       const itemId = args[0];
       const amount = parseInt(args[1], 10) || 1;
       await useItemCommand.handleUseItem(
@@ -231,7 +237,13 @@ client.on('messageCreate', async message => {
         resources,
       );
     } else if (lowerAfter.startsWith('rob')) {
-      const target = message.mentions.users.first();
+      const args = afterPrefix.split(/\s+/).slice(1);
+      let target = message.mentions.users.first();
+      if (!target && args[0]) {
+        try {
+          target = await message.client.users.fetch(args[0]);
+        } catch {}
+      }
       if (target) {
         await robCommand.executeRob(
           message.author,
@@ -241,7 +253,7 @@ client.on('messageCreate', async message => {
         );
       } else {
         await message.channel.send({
-          content: '<:SBWarning:1404101025849147432> Please mention a user to rob.',
+          content: '<:SBWarning:1404101025849147432> Please provide a user ID to rob.',
         });
       }
     } else if (lowerAfter.startsWith('add role')) {
