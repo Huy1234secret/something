@@ -19,6 +19,7 @@ const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
 const levelUpChannelId = 1373578620634665052;
 const voiceSessions = new Map();
+const pendingRequests = new Map();
 
 function loadData() {
   try {
@@ -95,7 +96,7 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
-const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole };
+const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole, pendingRequests };
 
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
@@ -104,6 +105,19 @@ client.setMaxListeners(20);
 
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
+
+    client.on('interactionCreate', async interaction => {
+      if (interaction.isChatInputCommand()) {
+        if (pendingRequests.has(interaction.user.id)) {
+          await interaction.reply({
+            components: [new TextDisplayBuilder().setContent('Finish your previous request before using another command.')],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+      }
+    });
+
     addRoleCommand.setup(client, resources);
     levelCommand.setup(client, resources);
     walletCommand.setup(client, resources);
@@ -130,6 +144,11 @@ client.on('messageCreate', async message => {
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
   addCoins(message.author, Math.floor(Math.random()*100)+1);
   const content = message.content.trim();
+  if (pendingRequests.has(message.author.id) && (content.toLowerCase().startsWith('a.') || message.content === '!ping')) {
+    await message.channel.send({ content: '<:warning:1404101025849147432> Finish your previous request before using commands.' });
+    await message.delete().catch(() => {});
+    return;
+  }
   if (content.toLowerCase().startsWith('a.')) {
     const afterPrefix = content.slice(2).trim();
     const lowerAfter = afterPrefix.toLowerCase();
@@ -184,6 +203,10 @@ client.on('messageCreate', async message => {
     return;
   }
   if (message.content === '!ping') {
+    if (pendingRequests.has(message.author.id)) {
+      await message.channel.send({ content: '<:warning:1404101025849147432> Finish your previous request before using commands.' });
+      return;
+    }
     message.channel.send({
       components: [new TextDisplayBuilder().setContent('Pong!')],
       flags: MessageFlags.IsComponentsV2,
