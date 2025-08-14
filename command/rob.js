@@ -10,6 +10,8 @@ const {
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const COIN_EMOJI = '<:CRCoin:1404348210146967612>';
+const COOLDOWN = 5 * 60 * 1000;
+const MIN_COINS = 10000;
 
 const FAIL_MESSAGES = [
   "{usermention} tried to rob {robbinguser} but got caught by the police.\nYou paid {amount} coin to {robbinguser} as restitution.\n-# police-caught",
@@ -97,6 +99,24 @@ async function executeRob(robber, target, send, resources) {
   const now = Date.now();
   const targetProtected = targetStats.padlock_until && targetStats.padlock_until > now;
 
+  if ((robberStats.coins || 0) < MIN_COINS && (targetStats.coins || 0) < MIN_COINS) {
+    await send({
+      content: `${WARNING} You or **${target.username}** must have at least ${MIN_COINS} ${COIN_EMOJI} to rob.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (robberStats.rob_cooldown_until && robberStats.rob_cooldown_until > now) {
+    const remaining = robberStats.rob_cooldown_until - now;
+    const mins = Math.ceil(remaining / 60000);
+    await send({
+      content: `${WARNING} You can rob again in ${mins} minute(s).`,
+      ephemeral: true,
+    });
+    return;
+  }
+
   const fail = targetProtected || Math.random() < 0.75;
   if (fail) {
     const percent = weightedPercent();
@@ -105,21 +125,26 @@ async function executeRob(robber, target, send, resources) {
     if ((robberStats.coins || 0) < amount) amount = robberStats.coins || 0;
     robberStats.coins = (robberStats.coins || 0) - amount;
     targetStats.coins = (targetStats.coins || 0) + amount;
+    robberStats.rob_cooldown_until = now + COOLDOWN;
     resources.userStats[robber.id] = robberStats;
     resources.userStats[target.id] = targetStats;
     resources.saveData();
     const arr = targetProtected ? PADLOCK_FAIL_MESSAGES : FAIL_MESSAGES;
     const msg = arr[Math.floor(Math.random() * arr.length)]
-      .replace(/\{usermention\}/g, robber.toString())
-      .replace(/\{robbinguser\}/g, target.toString())
+      .replace(/\{usermention\}/g, `**${robber.username}**`)
+      .replace(/\{robbinguser\}/g, `**${target.username}**`)
       .replace(/\{amount\}/g, amount)
       .replace(/coin/g, COIN_EMOJI);
     await send({
-      components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
+      components: [buildEmbed(0xff0000, `Failed robbing **${target.username}**`, msg)],
       flags: MessageFlags.IsComponentsV2,
       ephemeral: true,
     });
-    const alert = buildEmbed(0xffffff, 'Robbing Alert!', `Hey ${target}, ${robber} was trying to rob your wallet but failed`);
+    const alert = buildEmbed(
+      0xffffff,
+      'Robbing Alert!',
+      `Hey **${target.username}**, **${robber.username}** was trying to rob your wallet but failed`,
+    );
     try {
       await target.send({ components: [alert], flags: MessageFlags.IsComponentsV2 });
     } catch {}
@@ -132,6 +157,7 @@ async function executeRob(robber, target, send, resources) {
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
   robberStats.coins = (robberStats.coins || 0) + amount;
+  robberStats.rob_cooldown_until = now + COOLDOWN;
   resources.userStats[robber.id] = robberStats;
   resources.userStats[target.id] = targetStats;
   resources.saveData();
@@ -140,8 +166,8 @@ async function executeRob(robber, target, send, resources) {
     components: [
       buildEmbed(
         0x00ff00,
-        `You have robbed ${target.username}`,
-        `You have successfully robbed ${target}, you earned ${amount} ${COIN_EMOJI}`,
+        `You have robbed **${target.username}**`,
+        `You have successfully robbed **${target.username}**, you earned ${amount} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],
@@ -151,7 +177,7 @@ async function executeRob(robber, target, send, resources) {
   const alert = buildEmbed(
     0xff0000,
     'You got Robbed!',
-    `Hey ${target}, ${robber} has successfully robbed your wallet and stole ${amount} ${COIN_EMOJI}`,
+    `Hey **${target.username}**, **${robber.username}** has successfully robbed your wallet and stole ${amount} ${COIN_EMOJI}`,
     'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
   );
   try {
