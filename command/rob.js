@@ -150,7 +150,6 @@ async function executeRob(robber, target, send, resources) {
       .replace(/\{amount\}/g, amount)
       .replace(/coin/g, COIN_EMOJI);
     await send({
-      content: `<@${robber.id}>`,
       components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
       flags: MessageFlags.IsComponentsV2,
       ephemeral: true,
@@ -178,12 +177,11 @@ async function executeRob(robber, target, send, resources) {
   resources.saveData();
 
   await send({
-    content: `<@${robber.id}>`,
     components: [
       buildEmbed(
         0x00ff00,
         `You have robbed ${target.username}`,
-        `You have successfully robbed ${target.username}, you earned ${amount} ${COIN_EMOJI}`,
+        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${amount} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],
