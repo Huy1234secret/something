@@ -153,8 +153,9 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 
   const pad = 18;
 
-  // --- TOP: name (at the very top) + rarity on the right ---
-  let topY = y + pad + 6;
+  // --- TOP: name (slightly lower) + rarity on the right ---
+  // shift down to create more breathing room at the top
+  let topY = y + pad + 16;
   ctx.fillStyle = '#eaf1ff';
   ctx.font = 'bold 26px Sans';
   const name = item.name || 'Unknown Item';
@@ -166,7 +167,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   chip(ctx, x + w - pad - (ctx.measureText(label).width + 24), topY - 22, label, c1, c2);
 
   // --- MIDDLE: image box (contain-fit, centered; not cut off) ---
-  const imgTop = y + 52;                   // below the top title row
+  const imgTop = topY + 24;                // below the top title row
   const imgBottom = y + h - 72;            // above the price row
   const imgH = Math.max(80, imgBottom - imgTop);
   await drawContain(ctx, item.image, x + 12, imgTop, w - 24, imgH, 14);

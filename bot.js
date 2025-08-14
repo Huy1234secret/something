@@ -1,6 +1,17 @@
 const fs = require('fs');
 const path = require('path');
-const { Client, GatewayIntentBits, Partials, MessageFlags, TextDisplayBuilder } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  MessageFlags,
+  TextDisplayBuilder,
+  ContainerBuilder,
+  SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 require('dotenv').config();
 const levelCommand = require('./command/level');
 const walletCommand = require('./command/wallet');
@@ -109,8 +120,27 @@ client.setMaxListeners(20);
     client.on('interactionCreate', async interaction => {
       if (interaction.isChatInputCommand()) {
         if (pendingRequests.has(interaction.user.id)) {
+          const pending = pendingRequests.get(interaction.user.id);
+          const container = new ContainerBuilder()
+            .setAccentColor(0xff0000)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `${interaction.user}, you still have a request action needed to be done`,
+              ),
+            )
+            .addSeparatorComponents(new SeparatorBuilder());
+          if (pending.message) {
+            container.addActionRowComponents(
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setLabel('View Request')
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(pending.message.url),
+              ),
+            );
+          }
           await interaction.reply({
-            components: [new TextDisplayBuilder().setContent('Finish your previous request before using another command.')],
+            components: [container],
             flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
           });
           return;
@@ -145,7 +175,26 @@ client.on('messageCreate', async message => {
   addCoins(message.author, Math.floor(Math.random()*100)+1);
   const content = message.content.trim();
   if (pendingRequests.has(message.author.id) && (content.toLowerCase().startsWith('a.') || message.content === '!ping')) {
-    await message.channel.send({ content: '<:warning:1404101025849147432> Finish your previous request before using commands.' });
+    const pending = pendingRequests.get(message.author.id);
+    const container = new ContainerBuilder()
+      .setAccentColor(0xff0000)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${message.author}, you still have a request action needed to be done`,
+        ),
+      )
+      .addSeparatorComponents(new SeparatorBuilder());
+    if (pending.message) {
+      container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('View Request')
+            .setStyle(ButtonStyle.Link)
+            .setURL(pending.message.url),
+        ),
+      );
+    }
+    await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
     await message.delete().catch(() => {});
     return;
   }
@@ -204,7 +253,26 @@ client.on('messageCreate', async message => {
   }
   if (message.content === '!ping') {
     if (pendingRequests.has(message.author.id)) {
-      await message.channel.send({ content: '<:warning:1404101025849147432> Finish your previous request before using commands.' });
+      const pending = pendingRequests.get(message.author.id);
+      const container = new ContainerBuilder()
+        .setAccentColor(0xff0000)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `${message.author}, you still have a request action needed to be done`,
+          ),
+        )
+        .addSeparatorComponents(new SeparatorBuilder());
+      if (pending.message) {
+        container.addActionRowComponents(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('View Request')
+              .setStyle(ButtonStyle.Link)
+              .setURL(pending.message.url),
+          ),
+        );
+      }
+      await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
       return;
     }
     message.channel.send({
