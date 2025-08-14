@@ -1,0 +1,68 @@
+const { SlashCommandBuilder } = require('discord.js');
+const { ITEMS } = require('../items');
+const { formatNumber } = require('../utils');
+
+const WARNING = '<:SBWarning:1404101025849147432>';
+
+function setup(client, resources) {
+  const command = new SlashCommandBuilder()
+    .setName('add-item')
+    .setDescription('Add or remove an item from a user')
+    .addUserOption(o =>
+      o.setName('user').setDescription('Target user').setRequired(true),
+    )
+    .addStringOption(o => {
+      o.setName('item').setDescription('Item ID').setRequired(true);
+      Object.values(ITEMS).forEach(i => o.addChoices({ name: i.name, value: i.id }));
+      return o;
+    })
+    .addIntegerOption(o =>
+      o
+        .setName('amount')
+        .setDescription('Amount to add or remove')
+        .setRequired(true),
+    );
+  client.application.commands.create(command);
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-item') return;
+    const target = interaction.options.getUser('user');
+    const itemId = interaction.options.getString('item');
+    const amount = interaction.options.getInteger('amount');
+    if (!Number.isInteger(amount) || amount === 0) {
+      await interaction.reply({ content: `${WARNING} Invalid amount.`, ephemeral: true });
+      return;
+    }
+    const base = ITEMS[itemId];
+    if (!base) {
+      await interaction.reply({ content: `${WARNING} Invalid item.`, ephemeral: true });
+      return;
+    }
+    const stats = resources.userStats[target.id] || { inventory: [] };
+    stats.inventory = stats.inventory || [];
+    const entry = stats.inventory.find(i => i.id === itemId);
+    if (amount < 0) {
+      if (!entry) {
+        await interaction.reply({ content: `${WARNING} User does not have this item.`, ephemeral: true });
+        return;
+      }
+      entry.amount = (entry.amount || 0) + amount;
+      if (entry.amount <= 0) {
+        stats.inventory = stats.inventory.filter(i => i !== entry);
+      }
+    } else {
+      if (entry) entry.amount = (entry.amount || 0) + amount;
+      else stats.inventory.push({ ...base, amount });
+    }
+    resources.userStats[target.id] = stats;
+    resources.saveData();
+    const newEntry = stats.inventory.find(i => i.id === itemId);
+    const newAmount = newEntry ? newEntry.amount : 0;
+    await interaction.reply({
+      content: `Updated ${target.username}'s ${base.name} by ${formatNumber(amount)}. New amount: ${formatNumber(newAmount)}.`,
+      allowedMentions: { parse: [] },
+    });
+  });
+}
+
+module.exports = { setup };

@@ -21,6 +21,7 @@ const shopCommand = require('./command/shop');
 const useItemCommand = require('./command/useItem');
 const robCommand = require('./command/rob');
 const addCurrencyCommand = require('./command/addCurrency');
+const addItemCommand = require('./command/addItem');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -157,6 +158,7 @@ client.setMaxListeners(20);
     useItemCommand.setup(client, resources);
     robCommand.setup(client, resources);
     addCurrencyCommand.setup(client, resources);
+    addItemCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
