@@ -16,6 +16,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  EmbedBuilder,
 } = require('discord.js');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
@@ -195,17 +196,23 @@ function setup(client, resources) {
         else stats.inventory.push({ ...base, amount });
         resources.userStats[interaction.user.id] = stats;
         resources.saveData();
-        await interaction.update({
-          components: [
-            new TextDisplayBuilder().setContent(
-              `You bought ×${amount} ${item.name} for ${total} ${coinEmoji}.`,
-            ),
-          ],
-        });
+        const pending = resources.pendingRequests.get(interaction.user.id);
+        if (pending) clearTimeout(pending.timer);
+        resources.pendingRequests.delete(interaction.user.id);
+        const embed = new EmbedBuilder()
+          .setTitle('Purchase Successfully')
+          .setDescription(
+            `Thanks for purchasing **×${amount} ${item.name} ${item.emoji}**`,
+          )
+          .setThumbnail('https://i.ibb.co/wFRXx0gK/Someone-happy.gif')
+          .setColor(0x00ff00);
+        await interaction.update({ embeds: [embed], components: [] });
       } else if (interaction.customId === 'shop-cancel') {
-        await interaction.update({
-          components: [new TextDisplayBuilder().setContent('Purchase cancelled.')],
-        });
+        const pending = resources.pendingRequests.get(interaction.user.id);
+        if (pending) clearTimeout(pending.timer);
+        resources.pendingRequests.delete(interaction.user.id);
+        await interaction.deferUpdate();
+        await interaction.deleteReply().catch(() => {});
       }
     } else if (interaction.isModalSubmit() && interaction.customId.startsWith('shop-buy-modal-')) {
       const parts = interaction.customId.split('-');
@@ -274,6 +281,18 @@ function setup(client, resources) {
         components: [container],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
+      const timer = setTimeout(async () => {
+        const current = resources.pendingRequests.get(interaction.user.id);
+        if (current && current.timer === timer) {
+          resources.pendingRequests.delete(interaction.user.id);
+          try {
+            await interaction.editReply({
+              components: [new TextDisplayBuilder().setContent('Purchase expired.')],
+            });
+          } catch {}
+        }
+      }, 30000);
+      resources.pendingRequests.set(interaction.user.id, { timer });
     }
   });
 }

@@ -1,5 +1,6 @@
 // shopMedia.js
-// Grid-only neon shop UI (6 cards). No header or tabs.
+// Normal Shop (3x2). No header/tabs. Image is fully visible (contain-fit) and centered.
+// Coin icon uses: https://i.ibb.co/7NWGmKB2/Coin.png
 // npm i canvas
 const { createCanvas, loadImage } = require('canvas');
 
@@ -29,9 +30,7 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
       lines++;
       if (lines >= maxLines - 1) {
         let last = line.trimEnd();
-        while (ctx.measureText(last + '…').width > maxWidth && last.length) {
-          last = last.slice(0, -1);
-        }
+        while (ctx.measureText(last + '…').width > maxWidth && last.length) last = last.slice(0, -1);
         ctx.fillText(last + '…', x, y);
         return y + lineHeight;
       }
@@ -44,51 +43,40 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   return y;
 }
 
-async function drawCover(ctx, imgSrc, x, y, w, h, radius = 14) {
+// draw an image fully visible inside box (contain-fit), centered
+async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
-  if (!imgSrc) {
-    const g = ctx.createLinearGradient(x, y, x + w, y + h);
-    g.addColorStop(0, '#0f172a');
-    g.addColorStop(1, '#111827');
-    ctx.fillStyle = g;
-    ctx.fillRect(x, y, w, h);
-  } else {
+
+  // subtle panel behind images
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, '#0f172a');
+  g.addColorStop(1, '#111827');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+
+  if (imgSrc) {
     try {
       const img = await loadImage(imgSrc);
-      const scale = Math.max(w / img.width, h / img.height);
+      const scale = Math.min(w / img.width, h / img.height); // contain
       const dw = img.width * scale;
       const dh = img.height * scale;
       const dx = x + (w - dw) / 2;
       const dy = y + (h - dh) / 2;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, dx, dy, dw, dh);
     } catch {
-      ctx.fillStyle = '#121826';
-      ctx.fillRect(x, y, w, h);
+      // fallback text
       ctx.fillStyle = '#334155';
-      ctx.font = 'bold 20px Sans';
+      ctx.font = 'bold 18px Sans';
       ctx.textAlign = 'center';
       ctx.fillText('image not found', x + w / 2, y + h / 2 + 8);
       ctx.textAlign = 'left';
     }
   }
   ctx.restore();
-}
-
-function coin(ctx, cx, cy, r) {
-  const g = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.2, cx, cy, r);
-  g.addColorStop(0, '#fff4b8');
-  g.addColorStop(1, '#e0a400');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(90,60,0,0.5)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
-  ctx.stroke();
 }
 
 function chip(ctx, x, y, text, c1, c2) {
@@ -114,28 +102,14 @@ const RARITY = {
   legendary: ['#fde68a', '#f59e0b'],
 };
 
-function drawGlowBorder(ctx, x, y, w, h, color = '#60a5fa') {
-  ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 24;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = color;
-  rrect(ctx, x, y, w, h, 18);
-  ctx.stroke();
-  ctx.restore();
-}
-
-/* ------------------------ background ------------------------ */
 function bg(ctx, W, H) {
   const g = ctx.createLinearGradient(0, 0, W, H);
   g.addColorStop(0, '#0b1020');
   g.addColorStop(1, '#0a0d18');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-
   for (let i = 0; i < 18; i++) {
-    const cx = Math.random() * W;
-    const cy = Math.random() * H;
+    const cx = Math.random() * W, cy = Math.random() * H;
     const r = 80 + Math.random() * 140;
     const light = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
     const hue = 190 + Math.random() * 80;
@@ -146,7 +120,6 @@ function bg(ctx, W, H) {
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
   }
-
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
   v.addColorStop(0, 'rgba(0,0,0,0)');
   v.addColorStop(1, 'rgba(0,0,0,0.55)');
@@ -155,12 +128,8 @@ function bg(ctx, W, H) {
 }
 
 /* ------------------------ card ------------------------ */
-async function card(ctx, x, y, w, h, item = {}) {
-  const theme = RARITY[(item.rarity || 'common').toLowerCase()] || RARITY.common;
-  const glow = theme[1];
-
-  drawGlowBorder(ctx, x, y, w, h, glow);
-
+async function card(ctx, x, y, w, h, item = {}, coinImg) {
+  // base
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 22;
@@ -170,60 +139,66 @@ async function card(ctx, x, y, w, h, item = {}) {
   ctx.fill();
   ctx.restore();
 
+  // border + gloss
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 2;
+  rrect(ctx, x, y, w, h, 18);
+  ctx.stroke();
   const gloss = ctx.createLinearGradient(x, y, x, y + h);
   gloss.addColorStop(0, 'rgba(255,255,255,0.06)');
-  gloss.addColorStop(0.55, 'rgba(255,255,255,0.02)');
-  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0.00)');
   ctx.fillStyle = gloss;
   rrect(ctx, x, y, w, h, 18);
   ctx.fill();
 
-  const imgH = Math.floor(h * 0.5);
-  await drawCover(ctx, item.image, x + 12, y + 12, w - 24, imgH - 12, 14);
-
-  let cy = y + imgH + 14;
   const pad = 18;
+
+  // --- TOP: name (at the very top) + rarity on the right ---
+  let topY = y + pad + 6;
   ctx.fillStyle = '#eaf1ff';
-  ctx.font = 'bold 24px Sans';
-  ctx.fillText(item.name || 'Unknown Item', x + pad, cy);
+  ctx.font = 'bold 26px Sans';
+  const name = item.name || 'Unknown Item';
+  ctx.fillText(name, x + pad, topY);
 
-  const rarityLabel = (item.rarity || 'common').toUpperCase();
-  chip(ctx, x + w - pad - (ctx.measureText(rarityLabel).width + 24), cy - 22, rarityLabel, theme[0], theme[1]);
+  const rarity = (item.rarity || 'common').toLowerCase();
+  const [c1, c2] = RARITY[rarity] || RARITY.common;
+  const label = (item.rarity || 'COMMON').toUpperCase();
+  chip(ctx, x + w - pad - (ctx.measureText(label).width + 24), topY - 22, label, c1, c2);
 
-  ctx.fillStyle = '#c4d1eb';
-  ctx.font = '16px Sans';
-  cy = wrap(ctx, item.note || '', x + pad, cy + 12, w - pad * 2, 20, 3);
+  // --- MIDDLE: image box (contain-fit, centered; not cut off) ---
+  const imgTop = y + 52;                   // below the top title row
+  const imgBottom = y + h - 72;            // above the price row
+  const imgH = Math.max(80, imgBottom - imgTop);
+  await drawContain(ctx, item.image, x + 12, imgTop, w - 24, imgH, 14);
 
+  // optional short note under image (kept brief)
+  if (item.note) {
+    ctx.fillStyle = '#c4d1eb';
+    ctx.font = '16px Sans';
+    wrap(ctx, String(item.note), x + pad, imgTop + imgH + 8, w - pad * 2, 20, 2);
+  }
+
+  // --- BOTTOM: price only (no buy button) ---
   const rowY = y + h - 20;
-  const coinX = x + pad + 14;
-  const coinY = rowY - 26;
-  coin(ctx, coinX, coinY, 12);
+  const coinSize = 22;
+  const coinX = x + pad;
+  const coinY = rowY - coinSize - 2;
+
+  if (coinImg) {
+    ctx.drawImage(coinImg, coinX, coinY, coinSize, coinSize);
+  }
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 20px Sans';
-  ctx.fillText(String(item.price ?? '???'), coinX + 20, coinY + 7);
-
-  const btnW = 120, btnH = 38, btnX = x + w - pad - btnW, btnY = rowY - btnH - 4;
-  const bgBtn = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
-  bgBtn.addColorStop(0, '#66e3ff');
-  bgBtn.addColorStop(1, '#1ea1ff');
-  ctx.fillStyle = bgBtn;
-  rrect(ctx, btnX, btnY, btnW, btnH, 12);
-  ctx.fill();
-
-  ctx.fillStyle = '#031125';
-  ctx.font = 'bold 18px Sans';
-  ctx.textAlign = 'center';
-  ctx.fillText(item.buttonText || 'Buy', btnX + btnW / 2, btnY + 26);
-  ctx.textAlign = 'left';
+  ctx.fillText(String(item.price ?? '???'), coinX + coinSize + 8, coinY + coinSize - 2);
 }
 
 /* ------------------------ main (grid-only) ------------------------ */
 /**
- * Render a 3x2 grid (6 cards). No header, no tabs.
- * @param {Array} items objects: {name, price, note, image, rarity, buttonText}
- * @param {Object} opts {width,height}
- * @returns {Buffer} PNG buffer
+ * Render a 3x2 grid (6 cards). No header, no tabs, no buy button.
+ * - Shows full item image centered inside the card (no cropping).
+ * items: {name, price, note, image, rarity}
+ * opts: {width,height}
  */
 async function renderShopMedia(items = [], opts = {}) {
   const W = Math.max(800, opts.width || 1200);
@@ -233,8 +208,18 @@ async function renderShopMedia(items = [], opts = {}) {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 
+  // background
   bg(ctx, W, H);
 
+  // preload coin image once
+  let coinImg = null;
+  try {
+    coinImg = await loadImage('https://i.ibb.co/7NWGmKB2/Coin.png');
+  } catch {
+    coinImg = null;
+  }
+
+  // grid metrics
   const gapX = 28, gapY = 24, top = 28, side = gapX;
   const innerW = W - side * 2 - gapX * (cols - 1);
   const innerH = H - top * 2 - gapY * (rows - 1);
@@ -250,7 +235,7 @@ async function renderShopMedia(items = [], opts = {}) {
 
     if (it) {
       // eslint-disable-next-line no-await-in-loop
-      await card(ctx, x, y, cardW, cardH, it);
+      await card(ctx, x, y, cardW, cardH, it, coinImg);
     } else {
       ctx.save();
       ctx.setLineDash([10, 10]);
@@ -272,3 +257,4 @@ async function renderShopMedia(items = [], opts = {}) {
 }
 
 module.exports = { renderShopMedia };
+
