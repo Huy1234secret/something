@@ -100,6 +100,7 @@ const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColo
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
+client.setMaxListeners(20);
 
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
