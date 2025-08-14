@@ -67,14 +67,24 @@ function weightedPercent() {
 }
 
 function buildEmbed(color, title, desc, thumb) {
-  const section = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`### ${title}`),
-    new TextDisplayBuilder().setContent(desc),
-  );
-  if (thumb) section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
-  return new ContainerBuilder()
-    .setAccentColor(color)
-    .addSectionComponents(section);
+  const container = new ContainerBuilder().setAccentColor(color);
+
+  if (thumb) {
+    const section = new SectionBuilder()
+      .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### ${title}`),
+        new TextDisplayBuilder().setContent(desc),
+      );
+    container.addSectionComponents(section);
+  } else {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`### ${title}`),
+      new TextDisplayBuilder().setContent(desc),
+    );
+  }
+
+  return container;
 }
 
 async function executeRob(robber, target, send, resources) {
