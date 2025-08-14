@@ -277,7 +277,7 @@ function setup(client, resources) {
         )
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(new ActionRowBuilder().addComponents(buyBtn, cancelBtn));
-      await interaction.reply({
+      const reply = await interaction.reply({
         components: [container],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
@@ -292,7 +292,7 @@ function setup(client, resources) {
           } catch {}
         }
       }, 30000);
-      resources.pendingRequests.set(interaction.user.id, { timer });
+      resources.pendingRequests.set(interaction.user.id, { timer, message: reply });
     }
   });
 }
