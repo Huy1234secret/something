@@ -69,6 +69,19 @@ function weightedPercent(min = 1, max = 100) {
   return min;
 }
 
+function progressivePercent(max = 100) {
+  let percent = 0;
+  for (let p = 1; p <= max; p++) {
+    const chance = Math.pow(0.5, p);
+    if (Math.random() < chance) {
+      percent = p;
+    } else {
+      break;
+    }
+  }
+  return percent;
+}
+
 function buildEmbed(color, title, desc, thumb) {
   const container = new ContainerBuilder().setAccentColor(color);
 
@@ -118,7 +131,7 @@ async function executeRob(robber, target, send, resources) {
     return;
   }
 
-  const fail = targetProtected || Math.random() < 0.75;
+  const fail = targetProtected || Math.random() < 0.6;
   if (fail) {
     const percent = weightedPercent(25, 75);
     let amount = Math.floor((robberStats.coins || 0) * percent / 100);
@@ -153,9 +166,9 @@ async function executeRob(robber, target, send, resources) {
     return;
   }
 
-  const percent = weightedPercent();
+  const percent = progressivePercent();
   let amount = Math.floor((targetStats.coins || 0) * percent / 100);
-  if (amount < 1) amount = 1;
+  if (percent > 0 && amount < 1) amount = 1;
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
   robberStats.coins = (robberStats.coins || 0) + amount;
