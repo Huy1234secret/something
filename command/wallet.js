@@ -29,7 +29,7 @@ async function sendWallet(user, send, { userStats }) {
     );
 
   const balancesText = new TextDisplayBuilder().setContent(
-    `> <:CRCoin:1404348210146967612> Coin: ${formatNumber(coins)}\n> <:CRDiamond:1404350385463885886> Diamond: ${formatNumber(diamonds)}\n> <:CRDeluxeCoin:1404351654005833799> Deluxe Coin: ${formatNumber(deluxe)}`,
+    `> <:CRCoin:1405595571141480570> Coin: ${formatNumber(coins)}\n> <:CRDiamond:1405595593069432912> Diamond: ${formatNumber(diamonds)}\n> <:CRDeluxeCoin:1405595587780280382> Deluxe Coin: ${formatNumber(deluxe)}`,
   );
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
