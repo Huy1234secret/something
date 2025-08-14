@@ -6,6 +6,9 @@ const {
   ThumbnailBuilder,
   SeparatorBuilder,
   TextDisplayBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 
 async function sendWallet(user, send, { userStats }) {
@@ -28,11 +31,20 @@ async function sendWallet(user, send, { userStats }) {
     `> <:Coin:1404348210146967612> Coin: ${coins}\n> <:Diamond:1404350385463885886> Diamond: ${diamonds}\n> <:DeluxeCoin:1404351654005833799> Deluxe Coin: ${deluxe}`,
   );
 
+  const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
+  const padlockButton = new ButtonBuilder()
+    .setLabel('')
+    .setEmoji(padlockActive ? '<:ITPadlock:1405440520678932480>' : '<:SBline:1405444056200253521>')
+    .setStyle(padlockActive ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setDisabled(true);
+
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(headerSection)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(balancesText);
+    .addTextDisplayComponents(balancesText)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addActionRowComponents(new ActionRowBuilder().addComponents(padlockButton));
 
   await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
