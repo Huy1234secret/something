@@ -13,6 +13,9 @@ const {
   ButtonBuilder,
   ButtonStyle,
   AttachmentBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
@@ -138,33 +141,138 @@ function setup(client, resources) {
         return;
       }
       await sendShop(interaction.user, interaction.update.bind(interaction), resources, state);
-    } else if (interaction.isButton() && interaction.customId.startsWith('shop-buy-')) {
-      const state = shopStates.get(interaction.message.id);
-      if (!state || interaction.user.id !== state.userId) return;
-      const index = parseInt(interaction.customId.split('-')[2], 10);
+    } else if (interaction.isButton()) {
+      if (interaction.customId.startsWith('shop-buy-')) {
+        const state = shopStates.get(interaction.message.id);
+        if (!state || interaction.user.id !== state.userId) return;
+        const index = parseInt(interaction.customId.split('-')[2], 10);
+        const items = SHOP_ITEMS[state.type] || [];
+        const start = (state.page - 1) * 6;
+        const item = items[start + index];
+        if (!item) {
+          await interaction.reply({ content: 'Item not available.', ephemeral: true });
+          return;
+        }
+        const modal = new ModalBuilder()
+          .setCustomId(`shop-buy-modal-${interaction.message.id}-${index}`)
+          .setTitle('Buy Item');
+        const input = new TextInputBuilder()
+          .setCustomId('amount')
+          .setLabel('How much you want to buy?')
+          .setStyle(TextInputStyle.Short);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        await interaction.showModal(modal);
+      } else if (interaction.customId.startsWith('shop-confirm-')) {
+        const [, , itemId, amountStr] = interaction.customId.split('-');
+        const amount = parseInt(amountStr, 10);
+        const coinEmoji = '<:Coin:1404348210146967612>';
+        const item =
+          Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
+        if (!item) {
+          await interaction.update({
+            components: [new TextDisplayBuilder().setContent('Item not available.')],
+          });
+          return;
+        }
+        const stats = resources.userStats[interaction.user.id] || { coins: 0 };
+        const total = item.price * amount;
+        if ((stats.coins || 0) < total) {
+          const need = total - (stats.coins || 0);
+          await interaction.update({
+            components: [
+              new TextDisplayBuilder().setContent(
+                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+              ),
+            ],
+          });
+          return;
+        }
+        stats.coins -= total;
+        stats.inventory = stats.inventory || [];
+        const base = ITEMS[item.id] || item;
+        const existing = stats.inventory.find(i => i.id === item.id);
+        if (existing) existing.amount = (existing.amount || 0) + amount;
+        else stats.inventory.push({ ...base, amount });
+        resources.userStats[interaction.user.id] = stats;
+        resources.saveData();
+        await interaction.update({
+          components: [
+            new TextDisplayBuilder().setContent(
+              `You bought ×${amount} ${item.name} for ${total} ${coinEmoji}.`,
+            ),
+          ],
+        });
+      } else if (interaction.customId === 'shop-cancel') {
+        await interaction.update({
+          components: [new TextDisplayBuilder().setContent('Purchase cancelled.')],
+        });
+      }
+    } else if (interaction.isModalSubmit() && interaction.customId.startsWith('shop-buy-modal-')) {
+      const parts = interaction.customId.split('-');
+      const messageId = parts[3];
+      const index = parseInt(parts[4], 10);
+      const state = shopStates.get(messageId);
+      if (!state || interaction.user.id !== state.userId) {
+        await interaction.reply({
+          components: [new TextDisplayBuilder().setContent('Purchase expired.')],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const items = SHOP_ITEMS[state.type] || [];
       const start = (state.page - 1) * 6;
       const item = items[start + index];
       if (!item) {
-        await interaction.reply({ content: 'Item not available.', ephemeral: true });
+        await interaction.reply({
+          components: [new TextDisplayBuilder().setContent('Item not available.')],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const amount = parseInt(interaction.fields.getTextInputValue('amount'), 10);
+      if (isNaN(amount) || amount <= 0) {
+        await interaction.reply({
+          components: [new TextDisplayBuilder().setContent('Invalid amount.')],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
         return;
       }
       const stats = resources.userStats[interaction.user.id] || { coins: 0 };
-      if ((stats.coins || 0) < item.price) {
-        await interaction.reply({ content: 'Not enough coins.', ephemeral: true });
+      const total = item.price * amount;
+      const coinEmoji = '<:Coin:1404348210146967612>';
+      if ((stats.coins || 0) < total) {
+        const need = total - (stats.coins || 0);
+        await interaction.reply({
+          components: [
+            new TextDisplayBuilder().setContent(
+              `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+            ),
+          ],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
         return;
       }
-      stats.coins -= item.price;
-      stats.inventory = stats.inventory || [];
-      const base = ITEMS[item.id] || item;
-      const existing = stats.inventory.find(i => i.id === item.id);
-      if (existing) existing.amount = (existing.amount || 0) + 1;
-      else stats.inventory.push({ ...base, amount: 1 });
-      resources.userStats[interaction.user.id] = stats;
-      resources.saveData();
+      const buyBtn = new ButtonBuilder()
+        .setCustomId(`shop-confirm-${item.id}-${amount}`)
+        .setLabel('Buy')
+        .setStyle(ButtonStyle.Success);
+      const cancelBtn = new ButtonBuilder()
+        .setCustomId('shop-cancel')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger);
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### Purchase Alert'),
+          new TextDisplayBuilder().setContent(
+            `* Hey ${interaction.user} you are purchasing **×${amount} ${item.name} ${item.emoji}** with ${total} ${coinEmoji}`,
+          ),
+        )
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(new ActionRowBuilder().addComponents(buyBtn, cancelBtn));
       await interaction.reply({
-        content: `You bought ${item.name} for ${item.price} coins.`,
-        ephemeral: true,
+        components: [container],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
     }
   });
