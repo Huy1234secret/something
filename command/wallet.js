@@ -33,6 +33,7 @@ async function sendWallet(user, send, { userStats }) {
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
   const padlockButton = new ButtonBuilder()
+    .setCustomId('walletpadlock')
     .setEmoji(padlockActive ? '<:ITPadlock:1405440520678932480>' : '<:SBline:1405444056200253521>')
     .setStyle(padlockActive ? ButtonStyle.Success : ButtonStyle.Secondary)
     .setDisabled(true);
