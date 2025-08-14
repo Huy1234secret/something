@@ -159,7 +159,7 @@ function setup(client, resources) {
 
     await interaction.reply({
       components: [new TextDisplayBuilder().setContent('Card updated.')],
-      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      flags: MessageFlags.IsComponentsV2,
     });
   });
 }

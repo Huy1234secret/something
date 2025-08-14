@@ -26,7 +26,7 @@ function setup(client, { scheduleRole }) {
     const user = interaction.options.getMember('user');
     const role = interaction.options.getRole('role');
     const time = interaction.options.getString('time');
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
     try {
       await user.roles.add(role);
       await interaction.editReply({

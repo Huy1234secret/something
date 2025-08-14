@@ -7,6 +7,7 @@ const {
   ThumbnailBuilder,
   SeparatorBuilder,
 } = require('discord.js');
+const { formatNumber } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const COIN_EMOJI = '<:CRCoin:1404348210146967612>';
@@ -112,20 +113,25 @@ async function executeRob(robber, target, send, resources) {
   const targetStats = resources.userStats[target.id] || { coins: 0 };
   const now = Date.now();
   const targetProtected = targetStats.padlock_until && targetStats.padlock_until > now;
-
-  if ((robberStats.coins || 0) < MIN_COINS && (targetStats.coins || 0) < MIN_COINS) {
+  if ((robberStats.coins || 0) < MIN_COINS) {
     await send({
-      content: `${WARNING} You or ${target.username} must have at least ${MIN_COINS} ${COIN_EMOJI} to rob.`,
+      content: `${WARNING} You need at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to rob someone.`,
+      ephemeral: true,
+    });
+    return;
+  }
+  if ((targetStats.coins || 0) < MIN_COINS) {
+    await send({
+      content: `${WARNING} ${target.username} must have at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to be robbed.`,
       ephemeral: true,
     });
     return;
   }
 
   if (robberStats.rob_cooldown_until && robberStats.rob_cooldown_until > now) {
-    const remaining = robberStats.rob_cooldown_until - now;
-    const mins = Math.ceil(remaining / 60000);
+    const timestamp = Math.round(robberStats.rob_cooldown_until / 1000);
     await send({
-      content: `${WARNING} You can rob again in ${mins} minute(s).`,
+      content: `${WARNING} You can rob again <t:${timestamp}:R>.`,
       ephemeral: true,
     });
     return;
@@ -147,12 +153,11 @@ async function executeRob(robber, target, send, resources) {
     const msg = arr[Math.floor(Math.random() * arr.length)]
       .replace(/\{usermention\}/g, `<@${robber.id}>`)
       .replace(/\{robbinguser\}/g, target.username)
-      .replace(/\{amount\}/g, amount)
+      .replace(/\{amount\}/g, formatNumber(amount))
       .replace(/coin/g, COIN_EMOJI);
     await send({
       components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
       flags: MessageFlags.IsComponentsV2,
-      ephemeral: true,
     });
     const alert = buildEmbed(
       0xffffff,
@@ -165,9 +170,8 @@ async function executeRob(robber, target, send, resources) {
     return;
   }
 
-  const percent = progressivePercent();
+  const percent = Math.max(1, progressivePercent());
   let amount = Math.floor((targetStats.coins || 0) * percent / 100);
-  if (percent > 0 && amount < 1) amount = 1;
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
   robberStats.coins = (robberStats.coins || 0) + amount;
@@ -181,17 +185,16 @@ async function executeRob(robber, target, send, resources) {
       buildEmbed(
         0x00ff00,
         `You have robbed ${target.username}`,
-        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${amount} ${COIN_EMOJI}`,
+        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(amount)} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],
     flags: MessageFlags.IsComponentsV2,
-    ephemeral: true,
   });
   const alert = buildEmbed(
     0xff0000,
     'You got Robbed!',
-    `Hey, <@${robber.id}> has successfully robbed your wallet and stole ${amount} ${COIN_EMOJI}`,
+    `Hey, <@${robber.id}> has successfully robbed your wallet and stole ${formatNumber(amount)} ${COIN_EMOJI}`,
     'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
   );
   try {
