@@ -16,7 +16,6 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder,
 } = require('discord.js');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
@@ -199,14 +198,23 @@ function setup(client, resources) {
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
         resources.pendingRequests.delete(interaction.user.id);
-        const embed = new EmbedBuilder()
-          .setTitle('Purchase Successfully')
-          .setDescription(
-            `Thanks for purchasing **×${amount} ${item.name} ${item.emoji}**`,
-          )
-          .setThumbnail('https://i.ibb.co/wFRXx0gK/Someone-happy.gif')
-          .setColor(0x00ff00);
-        await interaction.update({ embeds: [embed], components: [] });
+        const container = new ContainerBuilder()
+          .setAccentColor(0x00ff00)
+          .addSectionComponents(
+            new SectionBuilder()
+              .setThumbnailAccessory(
+                new ThumbnailBuilder().setURL(
+                  'https://i.ibb.co/wFRXx0gK/Someone-happy.gif',
+                ),
+              )
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent('### Purchase Successfully'),
+                new TextDisplayBuilder().setContent(
+                  `Thanks for purchasing **×${amount} ${item.name} ${item.emoji}**`,
+                ),
+              ),
+          );
+        await interaction.update({ components: [container] });
       } else if (interaction.customId === 'shop-cancel') {
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
