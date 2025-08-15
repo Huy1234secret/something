@@ -10,10 +10,11 @@ This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https:
    npm install
    ```
 
-2. Create a `.env` file with your bot token:
+2. Create a `.env` file with your bot token and the role ID allowed to use admin commands:
 
    ```env
    BOT_TOKEN=your_bot_token_here
+   ADMIN_ROLE_ID=role_id_allowed_to_manage_currency_and_items
    ```
 
 3. Run the bot:
