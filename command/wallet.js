@@ -17,7 +17,11 @@ async function sendWallet(user, send, { userStats }) {
   const coins = stats.coins || 0;
   const diamonds = stats.diamonds || 0;
   const deluxe = stats.deluxe_coins || 0;
-  const inventoryValue = 0;
+  const inventory = stats.inventory || [];
+  const inventoryValue = inventory.reduce(
+    (sum, item) => sum + (item.value || 0) * (item.amount || 0),
+    0,
+  );
   const totalValue = coins + diamonds + deluxe + inventoryValue;
 
   const headerSection = new SectionBuilder()

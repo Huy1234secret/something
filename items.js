@@ -1,6 +1,6 @@
 const ITEMS = {
   padlock: {
-    id: 'padlock',
+    id: 'Padlock',
     name: 'Padlock',
     emoji: '<:ITPadlock:1405440520678932480>',
     rarity: 'Common',

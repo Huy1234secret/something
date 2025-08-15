@@ -118,7 +118,7 @@ function setup(client, resources) {
     if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
       await interaction.reply({
         components: [new TextDisplayBuilder().setContent(`${WARN}Invalid color.`)],
-        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -129,7 +129,7 @@ function setup(client, resources) {
     } catch {
       await interaction.reply({
         components: [new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`)],
-        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -139,7 +139,7 @@ function setup(client, resources) {
     if (!changed) {
       await interaction.reply({
         components: [new TextDisplayBuilder().setContent(`${WARN}No changes made.`)],
-        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }

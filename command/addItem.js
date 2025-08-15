@@ -30,12 +30,12 @@ function setup(client, resources) {
     const itemId = interaction.options.getString('item');
     const amount = interaction.options.getInteger('amount');
     if (!Number.isInteger(amount) || amount === 0) {
-      await interaction.reply({ content: `${WARNING} Invalid amount.`, ephemeral: true });
+      await interaction.reply({ content: `${WARNING} Invalid amount.` });
       return;
     }
     const base = ITEMS[itemId];
     if (!base) {
-      await interaction.reply({ content: `${WARNING} Invalid item.`, ephemeral: true });
+      await interaction.reply({ content: `${WARNING} Invalid item.` });
       return;
     }
     const stats = resources.userStats[target.id] || { inventory: [] };
@@ -43,7 +43,7 @@ function setup(client, resources) {
     const entry = stats.inventory.find(i => i.id === itemId);
     if (amount < 0) {
       if (!entry) {
-        await interaction.reply({ content: `${WARNING} User does not have this item.`, ephemeral: true });
+        await interaction.reply({ content: `${WARNING} User does not have this item.` });
         return;
       }
       entry.amount = (entry.amount || 0) + amount;

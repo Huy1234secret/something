@@ -108,8 +108,6 @@ async function executeRob(robber, target, send, resources) {
   if (robber.id === target.id) {
     await send({
       content: `${WARNING} You cannot rob yourself.`,
-      ephemeral: true,
-      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -120,16 +118,12 @@ async function executeRob(robber, target, send, resources) {
   if ((robberStats.coins || 0) < MIN_COINS) {
     await send({
       content: `${WARNING} You need at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to rob someone.`,
-      ephemeral: true,
-      flags: MessageFlags.Ephemeral,
     });
     return;
   }
   if ((targetStats.coins || 0) < MIN_COINS) {
     await send({
       content: `${WARNING} ${target.username} must have at least ${formatNumber(MIN_COINS)} ${COIN_EMOJI} to be robbed.`,
-      ephemeral: true,
-      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -138,8 +132,6 @@ async function executeRob(robber, target, send, resources) {
     const timestamp = Math.round(robberStats.rob_cooldown_until / 1000);
     await send({
       content: `${WARNING} You can rob again <t:${timestamp}:R>.`,
-      ephemeral: true,
-      flags: MessageFlags.Ephemeral,
     });
     return;
   }

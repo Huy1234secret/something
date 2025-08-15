@@ -141,10 +141,10 @@ client.setMaxListeners(20);
               ),
             );
           }
-          await interaction.reply({
-            components: [container],
-            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-          });
+            await interaction.reply({
+              components: [container],
+              flags: MessageFlags.IsComponentsV2,
+            });
           return;
         }
       }
@@ -198,13 +198,13 @@ client.on('messageCreate', async message => {
         ),
       );
     }
-    await message.channel.send({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-    });
-    await message.delete().catch(() => {});
-    return;
-  }
+      await message.channel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
+      await message.delete().catch(() => {});
+      return;
+    }
   if (content.toLowerCase().startsWith('a.')) {
     const afterPrefix = content.slice(2).trim();
     const lowerAfter = afterPrefix.toLowerCase();
@@ -259,10 +259,9 @@ client.on('messageCreate', async message => {
           resources,
         );
       } else {
-        await message.channel.send({
-          content: '<:SBWarning:1404101025849147432> Please provide a user ID to rob.',
-          flags: MessageFlags.Ephemeral,
-        });
+          await message.channel.send({
+            content: '<:SBWarning:1404101025849147432> Please provide a user ID to rob.',
+          });
       }
     } else if (lowerAfter.startsWith('add role')) {
       const args = afterPrefix.split(/\s+/).slice(2);
@@ -294,7 +293,7 @@ client.on('messageCreate', async message => {
       }
       await message.channel.send({
         components: [container],
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
