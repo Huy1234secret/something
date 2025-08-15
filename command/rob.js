@@ -11,7 +11,7 @@ const { formatNumber } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
-const COOLDOWN = 5 * 60 * 1000;
+const COOLDOWN = 15 * 60 * 1000;
 const MIN_COINS = 10000;
 
 const FAIL_MESSAGES = [
@@ -70,19 +70,6 @@ function weightedPercent(min = 1, max = 100) {
   return min;
 }
 
-function progressivePercent(max = 100) {
-  let percent = 0;
-  for (let p = 1; p <= max; p++) {
-    const chance = Math.pow(0.5, p);
-    if (Math.random() < chance) {
-      percent = p;
-    } else {
-      break;
-    }
-  }
-  return percent;
-}
-
 function buildEmbed(color, title, desc, thumb) {
   const container = new ContainerBuilder().setAccentColor(color);
 
@@ -136,9 +123,9 @@ async function executeRob(robber, target, send, resources) {
     return;
   }
 
-  const fail = targetProtected || Math.random() < 0.6;
+  const fail = targetProtected || Math.random() < 0.65;
   if (fail) {
-    const percent = weightedPercent(25, 75);
+    const percent = weightedPercent(10, 50);
     let amount = Math.floor((robberStats.coins || 0) * percent / 100);
     if (amount < 1) amount = 1;
     if ((robberStats.coins || 0) < amount) amount = robberStats.coins || 0;
@@ -169,7 +156,22 @@ async function executeRob(robber, target, send, resources) {
     return;
   }
 
-  const percent = Math.max(1, progressivePercent());
+  const roll = Math.random() * 100;
+  let percent;
+  let title;
+  if (roll < 60) {
+    percent = 10;
+    title = `You have robbed ${target.username} a little!`;
+  } else if (roll < 95) {
+    percent = 25;
+    title = `You have robbed a quarter of ${target.username}'s wallet!`;
+  } else if (roll < 99.9) {
+    percent = 50;
+    title = `You have robbed a half of ${target.username}'s wallet! How Greed!!!`;
+  } else {
+    percent = 100;
+    title = 'You have robbed LITERALLY EVERYTHING AS YOU CAN! FR!';
+  }
   let amount = Math.floor((targetStats.coins || 0) * percent / 100);
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
@@ -183,7 +185,7 @@ async function executeRob(robber, target, send, resources) {
     components: [
       buildEmbed(
         0x00ff00,
-        `You have robbed ${target.username}`,
+        title,
         `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(amount)} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
