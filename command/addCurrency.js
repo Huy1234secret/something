@@ -37,11 +37,11 @@ function setup(client, resources) {
     const amountStr = interaction.options.getString('amount');
     const amount = parseAmount(amountStr);
     if (isNaN(amount)) {
-      await interaction.reply({ content: `${WARNING} Invalid amount.`, ephemeral: true });
+      await interaction.reply({ content: `${WARNING} Invalid amount.` });
       return;
     }
     if (type === 'deluxe' && !DELUXE_ALLOWED.has(interaction.user.id)) {
-      await interaction.reply({ content: `${WARNING} You cannot modify Deluxe Coin.`, ephemeral: true });
+      await interaction.reply({ content: `${WARNING} You cannot modify Deluxe Coin.` });
       return;
     }
     const stats = resources.userStats[target.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };

@@ -68,7 +68,7 @@ function schedulePadlock(user, expiresAt, resources) {
 function usePadlock(user, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
-  const entry = stats.inventory.find(i => i.id === 'padlock');
+  const entry = stats.inventory.find(i => i.id === 'Padlock');
   if (!entry || entry.amount < 1) {
     return { error: `${WARNING} You need at least 1 Padlock to use.` };
   }
@@ -87,13 +87,13 @@ function usePadlock(user, resources) {
 
 async function handleUseItem(user, itemId, amount, send, resources) {
   let result;
-  if (itemId === 'padlock') {
+  if (itemId === 'Padlock') {
     result = usePadlock(user, resources);
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
   if (result.error) {
-    await send({ content: result.error, ephemeral: true, flags: MessageFlags.Ephemeral });
+    await send({ content: result.error });
   } else {
     await send({ components: [result.component], flags: MessageFlags.IsComponentsV2 });
   }
@@ -123,7 +123,7 @@ function setup(client, resources) {
     if (!interaction.isButton() || interaction.customId !== 'padlock-use-again') return;
     const res = usePadlock(interaction.user, resources);
     if (res.error) {
-      await interaction.reply({ content: res.error, ephemeral: true });
+      await interaction.reply({ content: res.error });
     } else {
       await interaction.update({ components: [expiredPadlockContainer(interaction.user, true)], flags: MessageFlags.IsComponentsV2 });
       await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2 });

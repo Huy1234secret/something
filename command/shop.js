@@ -148,11 +148,11 @@ function setup(client, resources) {
         const index = parseInt(interaction.customId.split('-')[2], 10);
         const items = SHOP_ITEMS[state.type] || [];
         const start = (state.page - 1) * 6;
-        const item = items[start + index];
-        if (!item) {
-          await interaction.reply({ content: 'Item not available.', ephemeral: true });
-          return;
-        }
+          const item = items[start + index];
+          if (!item) {
+            await interaction.reply({ content: 'Item not available.' });
+            return;
+          }
         const modal = new ModalBuilder()
           .setCustomId(`shop-buy-modal-${interaction.message.id}-${index}`)
           .setTitle('Buy Item');
@@ -227,46 +227,46 @@ function setup(client, resources) {
       const messageId = parts[3];
       const index = parseInt(parts[4], 10);
       const state = shopStates.get(messageId);
-      if (!state || interaction.user.id !== state.userId) {
-        await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Purchase expired.')],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!state || interaction.user.id !== state.userId) {
+          await interaction.reply({
+            components: [new TextDisplayBuilder().setContent('Purchase expired.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const items = SHOP_ITEMS[state.type] || [];
       const start = (state.page - 1) * 6;
       const item = items[start + index];
-      if (!item) {
-        await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Item not available.')],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!item) {
+          await interaction.reply({
+            components: [new TextDisplayBuilder().setContent('Item not available.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const amount = parseInt(interaction.fields.getTextInputValue('amount'), 10);
-      if (isNaN(amount) || amount <= 0) {
-        await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Invalid amount.')],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (isNaN(amount) || amount <= 0) {
+          await interaction.reply({
+            components: [new TextDisplayBuilder().setContent('Invalid amount.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const stats = resources.userStats[interaction.user.id] || { coins: 0 };
       const total = item.price * amount;
       const coinEmoji = '<:CRCoin:1405595571141480570>';
-      if ((stats.coins || 0) < total) {
-        const need = total - (stats.coins || 0);
-        await interaction.reply({
-          components: [
-            new TextDisplayBuilder().setContent(
-              `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
-            ),
-          ],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if ((stats.coins || 0) < total) {
+          const need = total - (stats.coins || 0);
+          await interaction.reply({
+            components: [
+              new TextDisplayBuilder().setContent(
+                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+              ),
+            ],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const buyBtn = new ButtonBuilder()
         .setCustomId(`shop-confirm-${item.id}-${amount}`)
         .setLabel('Buy')
@@ -285,10 +285,10 @@ function setup(client, resources) {
         )
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(new ActionRowBuilder().addComponents(buyBtn, cancelBtn));
-      const reply = await interaction.reply({
-        components: [container],
-        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-      });
+        const reply = await interaction.reply({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
       const timer = setTimeout(async () => {
         const current = resources.pendingRequests.get(interaction.user.id);
         if (current && current.timer === timer) {

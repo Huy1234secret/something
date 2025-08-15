@@ -43,7 +43,7 @@ function setup(client, { scheduleRole }) {
       if (!seconds) {
         await interaction.followUp({
           components: [new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`)],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -61,7 +61,7 @@ async function handleTextCommand(message, args, { scheduleRole }) {
           `${WARN}Usage: a. add role [userID] [roleID] [time]`,
         ),
       ],
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      flags: MessageFlags.IsComponentsV2,
     });
     return;
   }
@@ -73,7 +73,7 @@ async function handleTextCommand(message, args, { scheduleRole }) {
   if (!member || !role) {
     await message.channel.send({
       components: [new TextDisplayBuilder().setContent(`${WARN}Invalid user or role ID.`)],
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      flags: MessageFlags.IsComponentsV2,
     });
     return;
   }
@@ -87,7 +87,7 @@ async function handleTextCommand(message, args, { scheduleRole }) {
   } catch {
     await message.channel.send({
       components: [new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`)],
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      flags: MessageFlags.IsComponentsV2,
     });
     return;
   }
@@ -97,7 +97,7 @@ async function handleTextCommand(message, args, { scheduleRole }) {
     if (!seconds) {
       await message.channel.send({
         components: [new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`)],
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
