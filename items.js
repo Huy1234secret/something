@@ -26,7 +26,7 @@ const ITEMS = {
   Landmine: {
     id: 'Landmine',
     name: 'Landmine',
-    emoji: '<:ITLandmine:1406198903828774972>',
+    emoji: '<:ITLandmine:1406231503393787905>',
     rarity: 'Rare',
     value: 1500,
     useable: true,
