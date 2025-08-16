@@ -15,7 +15,13 @@ const { normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 
-function padlockEmbed(user) {
+function padlockEmbed(user, amountLeft, expiresAt) {
+  const btn = new ButtonBuilder()
+    .setCustomId('padlock-left')
+    .setLabel(`You have ×${amountLeft} Padlock left!`)
+    .setEmoji(ITEMS.Padlock.emoji)
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(true);
   return new ContainerBuilder()
     .setAccentColor(0x00ff00)
     .addSectionComponents(
@@ -24,17 +30,20 @@ function padlockEmbed(user) {
           new ThumbnailBuilder().setURL(ITEMS.Padlock.image),
         )
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### WALLET LOCKET'),
+          new TextDisplayBuilder().setContent('## WALLET LOCKED'),
           new TextDisplayBuilder().setContent(
-            `Hey ${user}, you have used **×1 Padlock ${ITEMS.Padlock.emoji}**, your wallet will be temporary protected from being robbed!`,
+            `Hey ${user}, you have used ×1 Padlock ${ITEMS.Padlock.emoji}, your wallet will be temporary protected from being robbed!`,
+          ),
+          new TextDisplayBuilder().setContent(
+            `-# Padlock will expire in <t:${Math.floor(expiresAt / 1000)}:R>`,
           ),
         ),
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('Padlock last 24h'));
+    .addActionRowComponents(new ActionRowBuilder().addComponents(btn));
 }
 
-function landmineEmbed(user, amountLeft) {
+function landmineEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
     .setCustomId('landmine-left')
     .setLabel(`You have ×${amountLeft} Landmine left!`)
@@ -47,8 +56,12 @@ function landmineEmbed(user, amountLeft) {
       new SectionBuilder()
         .setThumbnailAccessory(new ThumbnailBuilder().setURL(ITEMS.Landmine.image))
         .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('## WALLET PROTECTED'),
           new TextDisplayBuilder().setContent(
-            `You have placed down a **Landmine ${ITEMS.Landmine.emoji}**, anyone who tries to rob your wallet has 50% chance to die.`,
+            `Hey ${user}, you have placed down ×1 Landmine ${ITEMS.Landmine.emoji}, anyone who tries to rob your wallet has 50% chance to die.`,
+          ),
+          new TextDisplayBuilder().setContent(
+            `-# Landmine will expire in <t:${Math.floor(expiresAt / 1000)}:R>`,
           ),
         ),
     )
@@ -130,6 +143,7 @@ function usePadlock(user, resources) {
     return { error: `${WARNING} Padlock is already active.` };
   }
   entry.amount -= 1;
+  const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
   const expires = Date.now() + 24 * 60 * 60 * 1000;
@@ -137,7 +151,7 @@ function usePadlock(user, resources) {
   resources.userStats[user.id] = stats;
   resources.saveData();
   schedulePadlock(user, expires, resources);
-  return { component: padlockEmbed(user) };
+  return { component: padlockEmbed(user, remaining, expires) };
 }
 
 function useLandmine(user, resources) {
@@ -160,7 +174,7 @@ function useLandmine(user, resources) {
   resources.userStats[user.id] = stats;
   resources.saveData();
   scheduleLandmine(user, expires, resources);
-  return { component: landmineEmbed(user, remaining) };
+  return { component: landmineEmbed(user, remaining, expires) };
 }
 
 async function handleUseItem(user, itemId, amount, send, resources) {
