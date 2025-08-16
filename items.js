@@ -11,6 +11,30 @@ const ITEMS = {
     image: 'https://i.ibb.co/zVykckz3/Padlock.png',
     price: 35000,
   },
+  TotemOfUndying: {
+    id: 'TotemOfUndying',
+    name: 'Totem Of Undying',
+    emoji: '<a:ITTotemOfUndying:1406196491650859019>',
+    rarity: 'Rare',
+    value: 2000,
+    useable: false,
+    type: 'Artifact',
+    note: '',
+    image: 'https://i.ibb.co/NdmDRzcs/Totem-Of-Undying.gif',
+    price: 300000,
+  },
+  Landmine: {
+    id: 'Landmine',
+    name: 'Landmine',
+    emoji: '<:ITLandmine:1406198903828774972>',
+    rarity: 'Rare',
+    value: 1500,
+    useable: true,
+    type: 'Trap',
+    note: '',
+    image: 'https://i.ibb.co/YBhRW2Hc/Landmine.png',
+    price: 200000,
+  },
 };
 
 module.exports = { ITEMS };
