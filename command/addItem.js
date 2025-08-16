@@ -3,7 +3,6 @@ const { ITEMS } = require('../items');
 const { formatNumber, normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
-const ADMIN_USERS = require('../adminUsers');
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
 
 function setup(client, resources) {
@@ -28,7 +27,7 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-item') return;
-    if (!ADMIN_USERS.has(interaction.user.id) && !interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+    if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
       await interaction.reply({ content: `${WARNING} You do not have permission to use this command.` });
       return;
     }
