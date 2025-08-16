@@ -23,7 +23,7 @@ const { ITEMS } = require('../items');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
-  coin: [ITEMS.Padlock],
+  coin: [ITEMS.Padlock, ITEMS.Landmine, ITEMS.TotemOfUndying],
   deluxe: [],
 };
 
@@ -140,7 +140,13 @@ function setup(client, resources) {
       } else {
         return;
       }
-      await sendShop(interaction.user, interaction.update.bind(interaction), resources, state);
+      await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
+      await sendShop(
+        interaction.user,
+        interaction.editReply.bind(interaction),
+        resources,
+        state,
+      );
     } else if (interaction.isButton()) {
       if (interaction.customId.startsWith('shop-buy-')) {
         const state = shopStates.get(interaction.message.id);

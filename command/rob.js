@@ -8,6 +8,8 @@ const {
   SeparatorBuilder,
 } = require('discord.js');
 const { formatNumber } = require('../utils');
+const { ITEMS } = require('../items');
+const { handleDeath } = require('../death');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
@@ -121,6 +123,26 @@ async function executeRob(robber, target, send, resources) {
       content: `${WARNING} You can rob again <t:${timestamp}:R>.`,
     });
     return;
+  }
+
+  const landmineActive =
+    targetStats.landmine_until && targetStats.landmine_until > now;
+  if (landmineActive) {
+    targetStats.landmine_until = 0;
+    resources.userStats[target.id] = targetStats;
+    resources.saveData();
+    if (Math.random() < 0.5) {
+      const container = new ContainerBuilder()
+        .setAccentColor(0x000000)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `<@${robber.id}>, you accidently stepped on a **Landmine ${ITEMS.Landmine.emoji}** and it exploded, you died!`,
+          ),
+        );
+      await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      await handleDeath(robber, 'robbing', resources);
+      return;
+    }
   }
 
   const fail = targetProtected || Math.random() < 0.65;

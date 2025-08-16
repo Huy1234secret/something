@@ -11,6 +11,7 @@ const {
   ButtonStyle,
 } = require('discord.js');
 const { formatNumber } = require('../utils');
+const { ITEMS } = require('../items');
 
 async function sendWallet(user, send, { userStats }) {
   const stats = userStats[user.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };
@@ -39,8 +40,20 @@ async function sendWallet(user, send, { userStats }) {
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
   const padlockButton = new ButtonBuilder()
     .setCustomId('walletpadlock')
-    .setEmoji(padlockActive ? '<:ITPadlock:1405440520678932480>' : '<:SBline:1405444056200253521>')
+    .setEmoji(
+      padlockActive ? ITEMS.Padlock.emoji : '<:SBline:1405444056200253521>',
+    )
     .setStyle(padlockActive ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setDisabled(true);
+
+  const landmineActive =
+    stats.landmine_until && stats.landmine_until > Date.now();
+  const landmineButton = new ButtonBuilder()
+    .setCustomId('walletlandmine')
+    .setEmoji(
+      landmineActive ? ITEMS.Landmine.emoji : '<:SBline:1405444056200253521>',
+    )
+    .setStyle(landmineActive ? ButtonStyle.Danger : ButtonStyle.Secondary)
     .setDisabled(true);
 
   const container = new ContainerBuilder()
@@ -49,7 +62,9 @@ async function sendWallet(user, send, { userStats }) {
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(balancesText)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(new ActionRowBuilder().addComponents(padlockButton));
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(padlockButton, landmineButton),
+    );
 
   await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
