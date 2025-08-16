@@ -79,28 +79,35 @@ async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   ctx.restore();
 }
 
-function chip(ctx, x, y, text, c1, c2) {
-  const padX = 12, h = 26;
-  const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
-  const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, c1);
-  g.addColorStop(1, c2);
-  ctx.fillStyle = g;
-  rrect(ctx, x, y, w, h, 12);
-  ctx.fill();
-  ctx.fillStyle = '#0b0d12';
-  ctx.font = 'bold 14px Sans';
-  ctx.fillText(text, x + padX, y + 18);
-  return w;
-}
-
-const RARITY = {
-  common: ['#a8b1c7', '#7b8498'],
-  uncommon: ['#6ee7b7', '#10b981'],
-  rare: ['#93c5fd', '#3b82f6'],
-  epic: ['#c4b5fd', '#8b5cf6'],
-  legendary: ['#fde68a', '#f59e0b'],
+const RARITY_COLORS = {
+  common: '#ffffff',
+  rare: '#5294ff',
+  epic: '#ff7aff',
+  legendary: '#ffff00',
+  mythical: '#ff0000',
+  godly: '#9500ff',
 };
+
+function rarityOutline(ctx, x, y, w, h, rarity, radius = 18, width = 6) {
+  ctx.save();
+  ctx.lineWidth = width;
+  if (rarity === 'prismatic') {
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#ff0000');
+    g.addColorStop(0.17, '#ff7f00');
+    g.addColorStop(0.34, '#ffff00');
+    g.addColorStop(0.51, '#00ff00');
+    g.addColorStop(0.68, '#0000ff');
+    g.addColorStop(0.85, '#4b0082');
+    g.addColorStop(1, '#8b00ff');
+    ctx.strokeStyle = g;
+  } else {
+    ctx.strokeStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
+  }
+  rrect(ctx, x, y, w, h, radius);
+  ctx.stroke();
+  ctx.restore();
+}
 
 function bg(ctx, W, H) {
   const g = ctx.createLinearGradient(0, 0, W, H);
@@ -129,6 +136,8 @@ function bg(ctx, W, H) {
 
 /* ------------------------ card ------------------------ */
 async function card(ctx, x, y, w, h, item = {}, coinImg) {
+  const rarity = (item.rarity || 'common').toLowerCase();
+
   // base
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -139,11 +148,10 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   ctx.fill();
   ctx.restore();
 
-  // border + gloss
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 2;
-  rrect(ctx, x, y, w, h, 18);
-  ctx.stroke();
+  // colored outline
+  rarityOutline(ctx, x, y, w, h, rarity);
+
+  // gloss
   const gloss = ctx.createLinearGradient(x, y, x, y + h);
   gloss.addColorStop(0, 'rgba(255,255,255,0.06)');
   gloss.addColorStop(1, 'rgba(255,255,255,0.00)');
@@ -153,18 +161,13 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 
   const pad = 18;
 
-  // --- TOP: name (slightly lower) + rarity on the right ---
+  // --- TOP: name only ---
   // shift down to create more breathing room at the top
   let topY = y + pad + 16;
   ctx.fillStyle = '#eaf1ff';
   ctx.font = 'bold 26px Sans';
   const name = item.name || 'Unknown Item';
   ctx.fillText(name, x + pad, topY);
-
-  const rarity = (item.rarity || 'common').toLowerCase();
-  const [c1, c2] = RARITY[rarity] || RARITY.common;
-  const label = (item.rarity || 'COMMON').toUpperCase();
-  chip(ctx, x + w - pad - (ctx.measureText(label).width + 24), topY - 22, label, c1, c2);
 
   // --- MIDDLE: image box (contain-fit, centered; not cut off) ---
   const imgTop = topY + 24;                // below the top title row

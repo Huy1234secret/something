@@ -146,28 +146,35 @@ function crown(ctx, x, y, w = 26, h = 18) {
   ctx.restore();
 }
 
-function chip(ctx, x, y, text, c1, c2) {
-  const padX = 12, h = 26;
-  const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
-  const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, c1);
-  g.addColorStop(1, c2);
-  ctx.fillStyle = g;
-  rrect(ctx, x, y, w, h, 12);
-  ctx.fill();
-  ctx.fillStyle = '#0b0d12';
-  ctx.font = 'bold 14px Sans';
-  ctx.fillText(text, x + padX, y + 18);
-  return w;
-}
-
-const RARITY = {
-  common: ['#cbd5e1', '#94a3b8'],
-  uncommon: ['#a7f3d0', '#34d399'],
-  rare: ['#bfdbfe', '#60a5fa'],
-  epic: ['#ddd6fe', '#8b5cf6'],
-  legendary: ['#ffe08a', '#f59e0b'],
+const RARITY_COLORS = {
+  common: '#ffffff',
+  rare: '#5294ff',
+  epic: '#ff7aff',
+  legendary: '#ffff00',
+  mythical: '#ff0000',
+  godly: '#9500ff',
 };
+
+function rarityOutline(ctx, x, y, w, h, rarity, radius = 16, width = 3) {
+  ctx.save();
+  ctx.lineWidth = width;
+  if (rarity === 'prismatic') {
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#ff0000');
+    g.addColorStop(0.17, '#ff7f00');
+    g.addColorStop(0.34, '#ffff00');
+    g.addColorStop(0.51, '#00ff00');
+    g.addColorStop(0.68, '#0000ff');
+    g.addColorStop(0.85, '#4b0082');
+    g.addColorStop(1, '#8b00ff');
+    ctx.strokeStyle = g;
+  } else {
+    ctx.strokeStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
+  }
+  rrect(ctx, x, y, w, h, radius);
+  ctx.stroke();
+  ctx.restore();
+}
 
 /* ------------------------ background ------------------------ */
 function deluxeBackground(ctx, W, H) {
@@ -218,6 +225,8 @@ function deluxeBackground(ctx, W, H) {
 
 /* ------------------------ card ------------------------ */
 async function deluxeCard(ctx, x, y, w, h, item = {}) {
+  const rarity = (item.rarity || 'common').toLowerCase();
+
   // base shadow
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.6)';
@@ -241,8 +250,8 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   rrect(ctx, gx, gy, gw, gh, 16);
   ctx.fill();
 
-  // gold frame
-  goldStroke(ctx, gx, gy, gw, gh, 16, 3);
+  // rarity outline
+  rarityOutline(ctx, gx, gy, gw, gh, rarity);
 
   // cover
   const coverH = Math.floor(gh * 0.52);
@@ -270,12 +279,6 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   ctx.fillStyle = '#f1f5ff';
   ctx.font = 'bold 24px Sans';
   ctx.fillText(item.name || 'Deluxe Item', gx + pad, cy);
-
-  // rarity chip (right)
-  const rarity = (item.rarity || 'legendary').toLowerCase();
-  const [c1, c2] = RARITY[rarity] || RARITY.legendary;
-  const label = (item.rarity || 'LEGENDARY').toUpperCase();
-  chip(ctx, gx + gw - pad - (ctx.measureText(label).width + 24), cy - 22, label, c1, c2);
 
   // note
   ctx.fillStyle = '#c7d2f0';
