@@ -8,6 +8,7 @@ const {
   MessageFlags,
 } = require('discord.js');
 const { ITEMS } = require('./items');
+const { normalizeInventory } = require('./utils');
 
 const RARITY_ORDER = [
   ['Common', 0.5],
@@ -22,6 +23,7 @@ const RARITY_ORDER = [
 async function handleDeath(user, action, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
 
   // Totem check
   const totem = stats.inventory.find(i => i.id === 'TotemOfUndying');
@@ -30,6 +32,7 @@ async function handleDeath(user, action, resources) {
     if (totem.amount <= 0) {
       stats.inventory = stats.inventory.filter(i => i !== totem);
     }
+    normalizeInventory(stats);
     resources.userStats[user.id] = stats;
     resources.saveData();
     const btn = new ButtonBuilder()
@@ -72,6 +75,7 @@ async function handleDeath(user, action, resources) {
     }
   }
 
+  normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
 

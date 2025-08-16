@@ -20,6 +20,7 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');
+const { normalizeInventory } = require('../utils');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
@@ -181,6 +182,7 @@ function setup(client, resources) {
           return;
         }
         const stats = resources.userStats[interaction.user.id] || { coins: 0 };
+        normalizeInventory(stats);
         const total = item.price * amount;
         if ((stats.coins || 0) < total) {
           const need = total - (stats.coins || 0);
@@ -199,6 +201,7 @@ function setup(client, resources) {
         const existing = stats.inventory.find(i => i.id === item.id);
         if (existing) existing.amount = (existing.amount || 0) + amount;
         else stats.inventory.push({ ...base, amount });
+        normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
         resources.saveData();
         const pending = resources.pendingRequests.get(interaction.user.id);
