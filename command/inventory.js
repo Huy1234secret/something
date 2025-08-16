@@ -9,12 +9,16 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
 } = require('discord.js');
+const { normalizeInventory } = require('../utils');
 
 const ITEM_TYPES = ['Consumable', 'Material', 'Misc', 'Tool', 'Accessory', 'Upgrade', 'Weapon', 'Chest', 'All'];
 const inventoryStates = new Map();
 
-async function sendInventory(user, send, { userStats }, state = { page: 1, types: ['All'] }) {
+async function sendInventory(user, send, { userStats, saveData }, state = { page: 1, types: ['All'] }) {
   const stats = userStats[user.id] || { inventory: [] };
+  normalizeInventory(stats);
+  userStats[user.id] = stats;
+  if (saveData) saveData();
   const items = stats.inventory || [];
   const totalValue = items.reduce((sum, item) => sum + (item.value || 0) * (item.amount || 0), 0);
   const types = state.types.includes('All') ? ['All'] : state.types;

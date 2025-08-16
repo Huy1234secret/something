@@ -11,6 +11,7 @@ const {
   ButtonStyle,
 } = require('discord.js');
 const { ITEMS } = require('../items');
+const { normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 
@@ -77,7 +78,7 @@ function schedulePadlock(user, expiresAt, resources) {
   const delay = expiresAt - Date.now();
   setTimeout(async () => {
     const stats = resources.userStats[user.id];
-    if (stats) {
+    if (stats && stats.padlock_until === expiresAt) {
       stats.padlock_until = 0;
       resources.saveData();
     }
@@ -101,6 +102,7 @@ function scheduleLandmine(user, expiresAt, resources) {
 function usePadlock(user, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
   const entry = stats.inventory.find(i => i.id === 'Padlock');
   if (!entry || entry.amount < 1) {
     return { error: `${WARNING} You need at least 1 Padlock to use.` };
@@ -110,6 +112,7 @@ function usePadlock(user, resources) {
   }
   entry.amount -= 1;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
   const expires = Date.now() + 24 * 60 * 60 * 1000;
   stats.padlock_until = expires;
   resources.userStats[user.id] = stats;
@@ -121,6 +124,7 @@ function usePadlock(user, resources) {
 function useLandmine(user, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
   const entry = stats.inventory.find(i => i.id === 'Landmine');
   if (!entry || entry.amount < 1) {
     return { error: `${WARNING} You need at least 1 Landmine to use.` };
@@ -131,6 +135,7 @@ function useLandmine(user, resources) {
   entry.amount -= 1;
   const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
   const expires = Date.now() + 24 * 60 * 60 * 1000;
   stats.landmine_until = expires;
   resources.userStats[user.id] = stats;

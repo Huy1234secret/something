@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { ITEMS } = require('../items');
-const { formatNumber } = require('../utils');
+const { formatNumber, normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
@@ -45,6 +45,7 @@ function setup(client, resources) {
     }
     const stats = resources.userStats[target.id] || { inventory: [] };
     stats.inventory = stats.inventory || [];
+    normalizeInventory(stats);
     const entry = stats.inventory.find(i => i.id === itemId);
     if (amount < 0) {
       if (!entry) {
@@ -59,6 +60,7 @@ function setup(client, resources) {
       if (entry) entry.amount = (entry.amount || 0) + amount;
       else stats.inventory.push({ ...base, amount });
     }
+    normalizeInventory(stats);
     resources.userStats[target.id] = stats;
     resources.saveData();
     const newEntry = stats.inventory.find(i => i.id === itemId);

@@ -10,11 +10,14 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
-const { formatNumber } = require('../utils');
+const { formatNumber, normalizeInventory } = require('../utils');
 const { ITEMS } = require('../items');
 
-async function sendWallet(user, send, { userStats }) {
+async function sendWallet(user, send, { userStats, saveData }) {
   const stats = userStats[user.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };
+  normalizeInventory(stats);
+  userStats[user.id] = stats;
+  if (saveData) saveData();
   const coins = stats.coins || 0;
   const diamonds = stats.diamonds || 0;
   const deluxe = stats.deluxe_coins || 0;

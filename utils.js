@@ -51,4 +51,20 @@ function parseAmount(str) {
   return Math.floor(value);
 }
 
-module.exports = { formatNumber, parseAmount };
+function normalizeInventory(stats) {
+  if (!stats || !Array.isArray(stats.inventory)) {
+    stats.inventory = [];
+    return;
+  }
+  const map = {};
+  for (const item of stats.inventory) {
+    if (!item || !item.id) continue;
+    const id = item.id;
+    const amount = item.amount || 0;
+    if (!map[id]) map[id] = { ...item, amount };
+    else map[id].amount += amount;
+  }
+  stats.inventory = Object.values(map).filter(i => (i.amount || 0) > 0);
+}
+
+module.exports = { formatNumber, parseAmount, normalizeInventory };
