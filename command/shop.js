@@ -23,7 +23,7 @@ const { ITEMS } = require('../items');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
-  coin: [ITEMS.padlock],
+  coin: [ITEMS.Padlock],
   deluxe: [],
 };
 
