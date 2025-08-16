@@ -99,6 +99,25 @@ function scheduleLandmine(user, expiresAt, resources) {
   }, Math.max(delay, 0));
 }
 
+async function restoreActiveItemTimers(client, resources) {
+  const now = Date.now();
+  for (const [userId, stats] of Object.entries(resources.userStats)) {
+    let user;
+    if (stats.padlock_until && stats.padlock_until > now) {
+      try {
+        user = user || await client.users.fetch(userId);
+        schedulePadlock(user, stats.padlock_until, resources);
+      } catch {}
+    }
+    if (stats.landmine_until && stats.landmine_until > now) {
+      try {
+        user = user || await client.users.fetch(userId);
+        scheduleLandmine(user, stats.landmine_until, resources);
+      } catch {}
+    }
+  }
+}
+
 function usePadlock(user, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
@@ -192,4 +211,4 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup, handleUseItem };
+module.exports = { setup, handleUseItem, restoreActiveItemTimers };

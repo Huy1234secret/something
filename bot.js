@@ -119,6 +119,8 @@ client.setMaxListeners(20);
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
+    await useItemCommand.restoreActiveItemTimers(client, resources);
+
     client.on('interactionCreate', async interaction => {
       if (interaction.isChatInputCommand()) {
         if (pendingRequests.has(interaction.user.id)) {
