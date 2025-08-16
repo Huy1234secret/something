@@ -33,7 +33,10 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-currency') return;
-    if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+    if (
+      !interaction.member.roles.cache.has(ADMIN_ROLE_ID) &&
+      interaction.guild.ownerId !== interaction.user.id
+    ) {
       await interaction.reply({ content: `${WARNING} You do not have permission to use this command.` });
       return;
     }
@@ -45,7 +48,11 @@ function setup(client, resources) {
       await interaction.reply({ content: `${WARNING} Invalid amount.` });
       return;
     }
-    if (type === 'deluxe' && !DELUXE_ALLOWED.has(interaction.user.id)) {
+    if (
+      type === 'deluxe' &&
+      !DELUXE_ALLOWED.has(interaction.user.id) &&
+      interaction.guild.ownerId !== interaction.user.id
+    ) {
       await interaction.reply({ content: `${WARNING} You cannot modify Deluxe Coin.` });
       return;
     }
