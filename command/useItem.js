@@ -20,12 +20,12 @@ function padlockEmbed(user) {
     .addSectionComponents(
       new SectionBuilder()
         .setThumbnailAccessory(
-          new ThumbnailBuilder().setURL(ITEMS.padlock.image),
+          new ThumbnailBuilder().setURL(ITEMS.Padlock.image),
         )
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent('### WALLET LOCKET'),
           new TextDisplayBuilder().setContent(
-            `Hey ${user}, you have used **×1 Padlock ${ITEMS.padlock.emoji}**, your wallet will be temporary protected from being robbed!`,
+            `Hey ${user}, you have used **×1 Padlock ${ITEMS.Padlock.emoji}**, your wallet will be temporary protected from being robbed!`,
           ),
         ),
     )
@@ -38,13 +38,13 @@ function expiredPadlockContainer(user, disable = false) {
     .setCustomId('padlock-use-again')
     .setStyle(ButtonStyle.Success)
     .setLabel('Use ×1 Padlock')
-    .setEmoji(ITEMS.padlock.emoji);
+    .setEmoji(ITEMS.Padlock.emoji);
   if (disable) btn.setDisabled(true);
   return new ContainerBuilder()
     .setAccentColor(0xff0000)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `### Padlock broke\n* ${user}, your **Padlock ${ITEMS.padlock.emoji}** is broken after 24h. Your wallet is no longer protected.`,
+        `### Padlock broke\n* ${user}, your **Padlock ${ITEMS.Padlock.emoji}** is broken after 24h. Your wallet is no longer protected.`,
       ),
     )
     .addSeparatorComponents(new SeparatorBuilder())
