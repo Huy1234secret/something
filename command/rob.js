@@ -147,7 +147,7 @@ async function executeRob(robber, target, send, resources) {
 
   const fail = targetProtected || Math.random() < 0.65;
   if (fail) {
-    const percent = weightedPercent(10, 50);
+    const percent = weightedPercent(5, 15);
     let amount = Math.floor((robberStats.coins || 0) * percent / 100);
     if (amount < 1) amount = 1;
     if ((robberStats.coins || 0) < amount) amount = robberStats.coins || 0;
