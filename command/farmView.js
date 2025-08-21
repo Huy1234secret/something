@@ -313,6 +313,7 @@ function setup(client, resources) {
       const farmMsgId = interaction.customId.split(':')[1];
       const state = farmStates.get(farmMsgId);
       if (!state || interaction.user.id !== state.userId) return;
+      await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       const seedId = interaction.values[0];
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const seed = (stats.inventory || []).find(i => i.id === seedId);
@@ -324,7 +325,7 @@ function setup(client, resources) {
         const container = new ContainerBuilder()
           .setAccentColor(0xffffff)
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(msg));
-        await interaction.update({
+        await interaction.editReply({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
         });
@@ -356,7 +357,7 @@ function setup(client, resources) {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-      await interaction.update({
+      await interaction.editReply({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
@@ -399,6 +400,7 @@ function setup(client, resources) {
       const farmMsgId = interaction.customId.split(':')[1];
       const state = farmStates.get(farmMsgId);
       if (!state || interaction.user.id !== state.userId) return;
+      await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       const plots = interaction.values.map(v => parseInt(v, 10));
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const farm = stats.farm;
@@ -433,7 +435,7 @@ function setup(client, resources) {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-      await interaction.update({
+      await interaction.editReply({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
@@ -481,6 +483,7 @@ function setup(client, resources) {
       const farmMsgId = interaction.customId.split(':')[1];
       const state = farmStates.get(farmMsgId);
       if (!state || interaction.user.id !== state.userId) return;
+      await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       const plots = interaction.values.map(v => parseInt(v, 10));
       const stats = resources.userStats[state.userId] || { farm: {} };
       const farm = stats.farm;
@@ -500,7 +503,7 @@ function setup(client, resources) {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent('Watered!'));
-      await interaction.update({
+      await interaction.editReply({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
