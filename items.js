@@ -38,7 +38,7 @@ const ITEMS = {
   WheatSeed: {
     id: 'WheatSeed',
     name: 'Wheat seed',
-    emoji: '<:ITWheatseed:1408073573750542356>',
+    emoji: '<:ITWheatseed:1408137674132553768>',
     rarity: 'Common',
     value: 350,
     useable: false,
