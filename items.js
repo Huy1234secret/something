@@ -57,7 +57,7 @@ const ITEMS = {
     type: 'Tool',
     note: '',
     image: 'https://i.ibb.co/JwX0nz9c/Harvest-scythe.png',
-    price: 150000,
+    price: 120000,
   },
   Wheat: {
     id: 'Wheat',
@@ -81,7 +81,7 @@ const ITEMS = {
     type: 'Tool',
     note: '',
     image: 'https://i.ibb.co/Tqqq3fM7/Watering-Can.png',
-    price: 150000,
+    price: 70000,
   },
 };
 
