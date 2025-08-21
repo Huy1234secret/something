@@ -56,7 +56,7 @@ const ITEMS = {
     useable: false,
     type: 'Tool',
     note: '',
-    image: 'https://i.ibb.co/1fnGd4Yw/Wheat-4.png',
+    image: 'https://i.ibb.co/bMCxx8vY/Harvest-scythe.png',
     price: 150000,
   },
   Wheat: {
