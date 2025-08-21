@@ -74,7 +74,7 @@ const ITEMS = {
   WateringCan: {
     id: 'WateringCan',
     name: 'Watering Can',
-    emoji: '<:ITWateringcan:1408087051391467642>',
+    emoji: '<:ITWateringcan:1408087589151445212>',
     rarity: 'Common',
     value: 350,
     useable: false,
