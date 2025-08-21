@@ -279,15 +279,16 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              // Support both standard and custom emojis for seed selections
-              // by parsing the custom emoji format used in items.js.
+              // Support both standard and custom emojis for seed selections by
+              // parsing the custom emoji format used in items.js. This mirrors
+              // the approach used in shop.js for item selections.
               if (s.emoji) {
-                const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
+                const match = /<(a?):([^:]+):(\d+)>/.exec(s.emoji);
                 if (match) {
                   option.setEmoji({
                     id: match[3],
                     name: match[2],
-                    animated: Boolean(match[1]),
+                    animated: match[1] === 'a',
                   });
                 } else {
                   option.setEmoji(s.emoji);
