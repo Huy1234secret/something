@@ -12,6 +12,7 @@ const {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
+  parseEmoji,
 } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { ITEMS } = require('../items');
@@ -258,17 +259,21 @@ function setup(client, resources) {
         });
         return;
       }
-      const select = new StringSelectMenuBuilder()
-        .setCustomId(`farm-plant-select:${interaction.message.id}`)
-        .setPlaceholder('Seed')
-        .addOptions(
-          seeds.map(s =>
-            new StringSelectMenuOptionBuilder()
-              .setLabel(`${s.name} - ${s.amount}`)
-              .setValue(s.id)
-              .setEmoji(s.emoji),
-          ),
-        );
+        const select = new StringSelectMenuBuilder()
+          .setCustomId(`farm-plant-select:${interaction.message.id}`)
+          .setPlaceholder('Seed')
+          .addOptions(
+            seeds.map(s => {
+              const option = new StringSelectMenuOptionBuilder()
+                .setLabel(`${s.name} - ${s.amount}`)
+                .setValue(s.id);
+              const parsed = parseEmoji(s.emoji);
+              if (parsed) {
+                option.setEmoji(parsed.id ? { id: parsed.id, animated: parsed.animated } : parsed.name);
+              }
+              return option;
+            }),
+          );
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(
