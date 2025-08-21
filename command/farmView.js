@@ -13,8 +13,8 @@ const {
 const { createCanvas, loadImage } = require('canvas');
 
 const CANVAS_SIZE = 500;
-const FARM_BG = 'https://i.ibb.co/9mmF6p1v/Flower-Garden.png';
-const SELECT_IMG = 'https://i.ibb.co/Vckrr6jc/Select-pattern.png';
+const FARM_BG = 'https://i.ibb.co/WYn7L49/Flower-Garden.png';
+const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 
 const PLOT_POSITIONS = {
   1: { x: 100, y: 100 },
