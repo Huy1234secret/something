@@ -156,10 +156,33 @@ function buildFarmContainer(user, selected = [], farm = {}) {
     .setEmoji('<:ITWateringcan:1408146760475611208>')
     .setStyle(ButtonStyle.Primary);
 
+  const progressLines = [];
+  for (const [id, plot] of Object.entries(farm)) {
+    if (!plot.seedId) continue;
+    const status = getPlotStatus(plot);
+    const plant = ITEMS.Wheat;
+    if (status.grown && !status.dead)
+      progressLines.push(
+        `* **#${id} - ${plant.emoji} ${plant.name} is ready to harvest!**`,
+      );
+    else if (status.dead)
+      progressLines.push(`* #${id} - ${plant.emoji} ${plant.name} has died`);
+    else {
+      const readyAt = Math.round((plot.plantedAt + WHEAT_GROW_TIME) / 1000);
+      progressLines.push(
+        `* #${id} - ${plant.emoji} ${plant.name} will be ready <t:${readyAt}:R>`,
+      );
+    }
+  }
+
+  const progressText =
+    `## ${user.username}'s Farm\n### Progress:` +
+    (progressLines.length ? `\n${progressLines.join('\n')}` : '');
+
   return new ContainerBuilder()
     .setAccentColor(0x2b2d31)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${user.username}'s Farm\n### Progress:`),
+      new TextDisplayBuilder().setContent(progressText),
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addMediaGalleryComponents(
