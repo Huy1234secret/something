@@ -236,7 +236,16 @@ function setup(client, resources) {
         .setCustomId(`farm-plant-select:${interaction.message.id}`)
         .setPlaceholder('Seed')
         .addOptions(
-          seeds.map(s => ({ label: `${s.emoji} ${s.name} - ${s.amount}`, value: s.id })),
+          seeds.map(s => {
+            const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
+            return {
+              label: `${s.name} - ${s.amount}`,
+              value: s.id,
+              emoji: match
+                ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
+                : undefined,
+            };
+          }),
         );
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
