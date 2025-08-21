@@ -12,6 +12,7 @@ const {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
+  parseEmoji,
 } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { ITEMS } = require('../items');
@@ -283,16 +284,9 @@ function setup(client, resources) {
               // parsing the custom emoji format used in items.js. This mirrors
               // the approach used in shop.js for item selections.
               if (s.emoji) {
-                const match = /<(a?):([^:]+):(\d+)>/.exec(s.emoji);
-                if (match) {
-                  option.setEmoji({
-                    id: match[3],
-                    name: match[2],
-                    animated: match[1] === 'a',
-                  });
-                } else {
-                  option.setEmoji(s.emoji);
-                }
+                const parsed = parseEmoji(s.emoji);
+                if (parsed?.id) option.setEmoji(parsed);
+                else option.setEmoji(s.emoji);
               }
               return option;
             }),
