@@ -124,7 +124,11 @@ function buildFarmContainer(user, selected = [], farm = {}) {
     .setMinValues(0)
     .setMaxValues(9)
     .addOptions(
-      Array.from({ length: 9 }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` }))
+      Array.from({ length: 9 }, (_, i) => ({
+        label: `${i + 1}`,
+        value: `${i + 1}`,
+        default: selected.includes(i + 1),
+      }))
     );
 
   const harvestable = Object.values(farm).some(plot => {
