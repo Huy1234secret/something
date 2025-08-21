@@ -12,7 +12,6 @@ const {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
-  parseEmoji,
 } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { ITEMS } = require('../items');
@@ -267,9 +266,8 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              const parsed = parseEmoji(s.emoji);
-              if (parsed) {
-                option.setEmoji(parsed.id ? { id: parsed.id, animated: parsed.animated } : parsed.name);
+              if (s.emoji) {
+                option.setEmoji(s.emoji);
               }
               return option;
             }),
