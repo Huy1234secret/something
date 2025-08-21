@@ -17,7 +17,7 @@ const { ITEMS } = require('../items');
 const { normalizeInventory } = require('../utils');
 
 const CANVAS_SIZE = 500;
-const FARM_BG = 'https://i.ibb.co/WYn7L49/Flower-Garden.png';
+const FARM_BG = 'https://i.ibb.co/NnG9tLD4/Flower-Garden.png';
 const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 
 const WARNING = '<:SBWarning:1404101025849147432>';
