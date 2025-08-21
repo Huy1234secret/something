@@ -2,10 +2,13 @@ const {
   SlashCommandBuilder,
   MessageFlags,
   ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   AttachmentBuilder,
-  EmbedBuilder,
 } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 
@@ -42,16 +45,7 @@ async function renderFarm(selected = []) {
 
 const farmStates = new Map();
 
-async function sendFarmView(user, sendEmbed, sendSelect) {
-  const buffer = await renderFarm();
-  const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
-  const embed = new EmbedBuilder()
-    .setColor(0xffffff)
-    .setTitle(`${user.username}'s Farm`)
-    .setDescription('### Progress:')
-    .setImage('attachment://farm.png');
-  const farmMsg = await sendEmbed({ embeds: [embed], files: [attachment] });
-
+function buildFarmContainer(user) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('farm-select')
     .setPlaceholder('Plot')
@@ -61,15 +55,32 @@ async function sendFarmView(user, sendEmbed, sendSelect) {
       Array.from({ length: 9 }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` }))
     );
 
-  const container = new ContainerBuilder()
+  return new ContainerBuilder()
     .setAccentColor(0x2b2d31)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`## ${user.username}'s Farm\n### Progress:`),
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder().setURL('attachment://farm.png'),
+      ),
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(select));
+}
 
-  const selectMsg = await sendSelect({
+async function sendFarmView(user, send) {
+  const buffer = await renderFarm();
+  const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
+  const container = buildFarmContainer(user);
+
+  const farmMsg = await send({
+    files: [attachment],
     components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
-  farmStates.set(selectMsg.id, { userId: user.id, farmMsg });
+  farmStates.set(farmMsg.id, { userId: user.id, farmMsg });
 }
 
 function setup(client) {
@@ -81,11 +92,7 @@ function setup(client) {
   client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand() && interaction.commandName === 'farm-view') {
       await interaction.deferReply();
-      await sendFarmView(
-        interaction.user,
-        interaction.editReply.bind(interaction),
-        interaction.followUp.bind(interaction),
-      );
+      await sendFarmView(interaction.user, interaction.editReply.bind(interaction));
     } else if (interaction.isStringSelectMenu() && interaction.customId === 'farm-select') {
       const state = farmStates.get(interaction.message.id);
       if (!state || interaction.user.id !== state.userId) return;
@@ -93,12 +100,8 @@ function setup(client) {
       const selected = interaction.values.map(v => parseInt(v, 10));
       const buffer = await renderFarm(selected);
       const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
-      const embed = new EmbedBuilder()
-        .setColor(0xffffff)
-        .setTitle(`${interaction.user.username}'s Farm`)
-        .setDescription('### Progress:')
-        .setImage('attachment://farm.png');
-      await state.farmMsg.edit({ embeds: [embed], files: [attachment] });
+      const container = buildFarmContainer(interaction.user);
+      await state.farmMsg.edit({ files: [attachment], components: [container] });
     }
   });
 }
