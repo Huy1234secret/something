@@ -10,6 +10,7 @@ const {
   MediaGalleryItemBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   ButtonBuilder,
   ButtonStyle,
   AttachmentBuilder,
@@ -62,7 +63,14 @@ async function sendMarket(user, send, resources) {
       }),
     );
   } else {
-    select.setPlaceholder('Nothing to sell').setDisabled(true);
+    select
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Nothing to sell')
+          .setValue('none'),
+      )
+      .setPlaceholder('Nothing to sell')
+      .setDisabled(true);
   }
   const container = new ContainerBuilder()
     .setAccentColor(0x006400)
