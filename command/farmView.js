@@ -50,6 +50,7 @@ const WHEAT_GROW_TIME = 4 * 60 * 60 * 1000; // 4h
 const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 6; // 48m per stage
 const WHEAT_DRY_DEATH_TIME = 2 * 60 * 60 * 1000; // 2h without water
 const WHEAT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
 
 const PLOT_POSITIONS = {
   1: { x: 100, y: 100 },
@@ -63,11 +64,22 @@ const PLOT_POSITIONS = {
   9: { x: 300, y: 300 },
 };
 
+function isPlotWatered(plot) {
+  if (!plot || !plot.watered) return false;
+  if (plot.wateredExpires && plot.wateredExpires < Date.now()) {
+    plot.watered = false;
+    delete plot.wateredExpires;
+    return false;
+  }
+  return true;
+}
+
 function getPlotStatus(plot) {
   if (!plot || !plot.seedId) return { grown: false, dead: false };
   const elapsed = Date.now() - (plot.plantedAt || 0);
   const grown = elapsed >= WHEAT_GROW_TIME;
-  const deadEarly = !plot.watered && elapsed >= WHEAT_DRY_DEATH_TIME && !grown;
+  const watered = isPlotWatered(plot);
+  const deadEarly = !watered && elapsed >= WHEAT_DRY_DEATH_TIME && !grown;
   const deadLate = grown && elapsed >= WHEAT_GROW_TIME + WHEAT_EXPIRE_TIME;
   return { grown, dead: deadEarly || deadLate };
 }
@@ -91,7 +103,7 @@ async function renderFarm(farm, selected = []) {
 
   const wateredImg = await loadImage(WATERED_PLOT);
   Object.entries(farm).forEach(([id, plot]) => {
-    if (plot.watered) {
+    if (isPlotWatered(plot)) {
       const pos = PLOT_POSITIONS[id];
       if (pos) ctx.drawImage(wateredImg, pos.x, pos.y);
     }
@@ -202,7 +214,6 @@ async function sendFarmView(user, send, resources) {
   stats.farm = stats.farm || {};
   for (let i = 1; i <= 9; i++) if (!stats.farm[i]) stats.farm[i] = {};
   resources.userStats[user.id] = stats;
-  resources.saveData();
 
   const buffer = await renderFarm(stats.farm, []);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
@@ -214,13 +225,15 @@ async function sendFarmView(user, send, resources) {
     flags: MessageFlags.IsComponentsV2,
   });
   farmStates.set(farmMsg.id, { userId: user.id, farmMsg, selected: [] });
+  resources.saveData();
 }
 
-async function updateFarmMessage(state, user, stats) {
+async function updateFarmMessage(state, user, stats, resources) {
   const buffer = await renderFarm(stats.farm, state.selected || []);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
   const container = buildFarmContainer(user, state.selected || [], stats.farm);
   await state.farmMsg.edit({ files: [attachment], components: [container] });
+  if (resources) resources.saveData();
 }
 
 function setup(client, resources) {
@@ -241,7 +254,7 @@ function setup(client, resources) {
       await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       state.selected = interaction.values.map(v => parseInt(v, 10));
       const stats = resources.userStats[state.userId] || { farm: {} };
-      await updateFarmMessage(state, interaction.user, stats);
+      await updateFarmMessage(state, interaction.user, stats, resources);
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-plant') {
@@ -303,25 +316,31 @@ function setup(client, resources) {
         const container = new ContainerBuilder()
           .setAccentColor(0xffffff)
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(msg));
-        await interaction.update({ components: [container] });
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
         return;
       }
       const farm = stats.farm;
       const occupied = state.selected.filter(id => farm[id].seedId);
       const plantable = state.selected.filter(id => !farm[id].seedId);
       plantable.forEach(id => {
+        const plot = farm[id] || {};
+        const wasWatered = isPlotWatered(plot);
         farm[id] = {
           seedId,
           plantedAt: Date.now(),
-          watered: farm[id].watered || false,
+          watered: wasWatered,
         };
+        if (wasWatered) delete farm[id].wateredExpires;
       });
       seed.amount -= plantable.length;
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
-      await updateFarmMessage(state, interaction.user, stats);
+      await updateFarmMessage(state, interaction.user, stats, resources);
       let content = 'Planted!';
       if (occupied.length) {
         content = `${WARNING} The plot ${occupied.join(', ')} already has a plant on it. The seed won't be planted on that plot.\n${content}`;
@@ -329,7 +348,10 @@ function setup(client, resources) {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-      await interaction.update({ components: [container] });
+      await interaction.update({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-harvest') {
@@ -394,7 +416,7 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
-      await updateFarmMessage(state, interaction.user, stats);
+      await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
       if (harvested > 0)
         content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
@@ -403,7 +425,10 @@ function setup(client, resources) {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-      await interaction.update({ components: [container] });
+      await interaction.update({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-water') {
@@ -419,7 +444,7 @@ function setup(client, resources) {
         return;
       }
       const unwatered = Object.entries(stats.farm)
-        .filter(([id, plot]) => !plot.watered)
+        .filter(([id, plot]) => !isPlotWatered(plot))
         .map(([id]) => id);
       if (unwatered.length === 0) {
         await interaction.reply({
@@ -452,16 +477,25 @@ function setup(client, resources) {
       const stats = resources.userStats[state.userId] || { farm: {} };
       const farm = stats.farm;
       plots.forEach(id => {
-        farm[id] = farm[id] || {};
-        farm[id].watered = true;
+        const plot = farm[id] || {};
+        plot.watered = true;
+        if (plot.seedId) {
+          delete plot.wateredExpires;
+        } else {
+          plot.wateredExpires = Date.now() + WATER_DURATION;
+        }
+        farm[id] = plot;
       });
       resources.userStats[state.userId] = stats;
       resources.saveData();
-      await updateFarmMessage(state, interaction.user, stats);
+      await updateFarmMessage(state, interaction.user, stats, resources);
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent('Watered!'));
-      await interaction.update({ components: [container] });
+      await interaction.update({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
   });
