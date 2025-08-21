@@ -234,7 +234,7 @@ client.on('messageCreate', async message => {
       await farmViewCommand.sendFarmView(
         message.author,
         message.channel.send.bind(message.channel),
-        message.channel.send.bind(message.channel),
+        resources,
       );
     } else if (lowerAfter === 'shop view') {
       await shopCommand.sendShop(
