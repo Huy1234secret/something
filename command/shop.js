@@ -72,6 +72,19 @@ async function sendMarket(user, send, resources) {
       .setPlaceholder('Nothing to sell')
       .setDisabled(true);
   }
+  const typeSelect = new StringSelectMenuBuilder()
+    .setCustomId('shop-type')
+    .setPlaceholder('Shop type')
+    .addOptions([
+      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
+      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
+      {
+        label: 'Market',
+        value: 'market',
+        emoji: '<:SBMarket:1408156436789461165>',
+        default: true,
+      },
+    ]);
   const container = new ContainerBuilder()
     .setAccentColor(0x006400)
     .addTextDisplayComponents(
@@ -79,7 +92,9 @@ async function sendMarket(user, send, resources) {
       new TextDisplayBuilder().setContent('* Here you can sell your sellable items!'),
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(new ActionRowBuilder().addComponents(select));
+    .addActionRowComponents(new ActionRowBuilder().addComponents(select))
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addActionRowComponents(new ActionRowBuilder().addComponents(typeSelect));
   const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   shopStates.set(message.id, { userId: user.id, type: 'market' });
   return message;
