@@ -12,7 +12,6 @@ const {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
-  parseEmoji,
 } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { ITEMS } = require('../items');
@@ -280,13 +279,13 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              // Support both standard and custom emojis for seed selections by
-              // parsing the custom emoji format used in items.js. This mirrors
-              // the approach used in shop.js for item selections.
               if (s.emoji) {
-                const parsed = parseEmoji(s.emoji);
-                if (parsed?.id) option.setEmoji(parsed);
-                else option.setEmoji(s.emoji);
+                const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
+                option.setEmoji(
+                  match
+                    ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
+                    : s.emoji,
+                );
               }
               return option;
             }),
