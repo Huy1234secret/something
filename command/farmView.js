@@ -279,7 +279,9 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              if (s.emoji) {
+              if (s.id === 'WheatSeed') {
+                option.setEmoji({ id: '1408147889657483305', name: 'ITWheatseed' });
+              } else if (s.emoji) {
                 const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
                 option.setEmoji(
                   match
