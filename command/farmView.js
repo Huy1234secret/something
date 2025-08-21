@@ -279,11 +279,19 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              // Only use emoji if it's a standard Unicode emoji.
-              // Custom guild emojis may not be accessible and cause
-              // Discord to reject the component as invalid.
-              if (s.emoji && !/^<a?:\w+:\d+>$/.test(s.emoji)) {
-                option.setEmoji(s.emoji);
+              // Support both standard and custom emojis for seed selections
+              // by parsing the custom emoji format used in items.js.
+              if (s.emoji) {
+                const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
+                if (match) {
+                  option.setEmoji({
+                    id: match[3],
+                    name: match[2],
+                    animated: Boolean(match[1]),
+                  });
+                } else {
+                  option.setEmoji(s.emoji);
+                }
               }
               return option;
             }),
