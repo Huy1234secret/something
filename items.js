@@ -45,7 +45,7 @@ const ITEMS = {
     type: 'Material',
     note: '',
     image: 'https://i.ibb.co/8LBQZB4H/Wheat-1.png',
-    price: 0,
+    price: 10000,
   },
   HarvestScythe: {
     id: 'HarvestScythe',
@@ -57,7 +57,7 @@ const ITEMS = {
     type: 'Tool',
     note: '',
     image: 'https://i.ibb.co/1fnGd4Yw/Wheat-4.png',
-    price: 0,
+    price: 150000,
   },
   Wheat: {
     id: 'Wheat',
@@ -81,7 +81,7 @@ const ITEMS = {
     type: 'Tool',
     note: '',
     image: 'https://i.ibb.co/tTc1PRsK/Wheat-6.png',
-    price: 0,
+    price: 150000,
   },
 };
 

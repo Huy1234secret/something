@@ -23,15 +23,15 @@ const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 const WARNING = '<:SBWarning:1404101025849147432>';
 
 const SEED_POSITIONS = {
-  1: { x: 150, y: 180 },
-  2: { x: 250, y: 180 },
-  3: { x: 350, y: 180 },
-  4: { x: 150, y: 280 },
-  5: { x: 250, y: 280 },
-  6: { x: 350, y: 280 },
-  7: { x: 150, y: 380 },
-  8: { x: 250, y: 380 },
-  9: { x: 350, y: 380 },
+  1: { x: 150, y: 210 },
+  2: { x: 250, y: 210 },
+  3: { x: 350, y: 210 },
+  4: { x: 150, y: 310 },
+  5: { x: 250, y: 310 },
+  6: { x: 350, y: 310 },
+  7: { x: 150, y: 410 },
+  8: { x: 250, y: 410 },
+  9: { x: 350, y: 410 },
 };
 
 const WHEAT_IMAGES = [
@@ -229,7 +229,10 @@ function setup(client, resources) {
         i => /seed/i.test(i.name) && i.type === 'Material',
       );
       if (seeds.length === 0) {
-        await interaction.reply({ content: `${WARNING} You have no seeds.`, ephemeral: true });
+        await interaction.reply({
+          content: `${WARNING} You have no seeds.`,
+          flags: MessageFlags.Ephemeral,
+        });
         return;
       }
       const select = new StringSelectMenuBuilder()
@@ -256,8 +259,7 @@ function setup(client, resources) {
         .addActionRowComponents(new ActionRowBuilder().addComponents(select));
       await interaction.reply({
         components: [container],
-        ephemeral: true,
-        flags: MessageFlags.IsComponentsV2,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -275,7 +277,6 @@ function setup(client, resources) {
             seed ? seed.emoji : ''
           } to plant, you only have ${seed ? seed.amount : 0}`,
           components: [],
-          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -293,12 +294,13 @@ function setup(client, resources) {
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
+      state.selected = [];
       await updateFarmMessage(state, interaction.user, stats);
       let content = 'Planted!';
       if (occupied.length) {
         content = `${WARNING} The plot ${occupied.join(', ')} already has a plant on it. The seed won't be planted on that plot.\n${content}`;
       }
-      await interaction.update({ content, components: [], flags: MessageFlags.IsComponentsV2 });
+      await interaction.update({ content, components: [] });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-harvest') {
@@ -312,7 +314,10 @@ function setup(client, resources) {
         })
         .map(([id]) => id);
       if (harvestable.length === 0) {
-        await interaction.reply({ content: `${WARNING} Nothing to harvest.`, ephemeral: true });
+        await interaction.reply({
+          content: `${WARNING} Nothing to harvest.`,
+          flags: MessageFlags.Ephemeral,
+        });
         return;
       }
       const select = new StringSelectMenuBuilder()
@@ -327,8 +332,7 @@ function setup(client, resources) {
         .addActionRowComponents(new ActionRowBuilder().addComponents(select));
       await interaction.reply({
         components: [container],
-        ephemeral: true,
-        flags: MessageFlags.IsComponentsV2,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -360,13 +364,14 @@ function setup(client, resources) {
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
+      state.selected = [];
       await updateFarmMessage(state, interaction.user, stats);
       let content = '';
       if (harvested > 0)
         content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
       if (deadNote) content += `\n-# Your wheat died...`;
       if (!content) content = 'Nothing harvested.';
-      await interaction.update({ content, components: [], flags: MessageFlags.IsComponentsV2 });
+      await interaction.update({ content, components: [] });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-water') {
@@ -375,14 +380,20 @@ function setup(client, resources) {
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const canItem = (stats.inventory || []).find(i => i.id === 'WateringCan');
       if (!canItem) {
-        await interaction.reply({ content: `${WARNING} You need a Watering Can to water.`, ephemeral: true });
+        await interaction.reply({
+          content: `${WARNING} You need a Watering Can to water.`,
+          flags: MessageFlags.Ephemeral,
+        });
         return;
       }
       const unwatered = Object.entries(stats.farm)
         .filter(([id, plot]) => !plot.watered)
         .map(([id]) => id);
       if (unwatered.length === 0) {
-        await interaction.reply({ content: `${WARNING} All plots already watered.`, ephemeral: true });
+        await interaction.reply({
+          content: `${WARNING} All plots already watered.`,
+          flags: MessageFlags.Ephemeral,
+        });
         return;
       }
       const select = new StringSelectMenuBuilder()
@@ -397,8 +408,7 @@ function setup(client, resources) {
         .addActionRowComponents(new ActionRowBuilder().addComponents(select));
       await interaction.reply({
         components: [container],
-        ephemeral: true,
-        flags: MessageFlags.IsComponentsV2,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -419,7 +429,6 @@ function setup(client, resources) {
       await interaction.update({
         content: 'Watered!',
         components: [],
-        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
