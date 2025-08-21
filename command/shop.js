@@ -129,7 +129,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .addOptions([
       { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
       { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
-      { label: 'Market', value: 'market', emoji: '🛒' },
+      { label: 'Market', value: 'market', emoji: '<:SBMarket:1408156436789461165>' },
     ]);
 
   const buttons = [];
