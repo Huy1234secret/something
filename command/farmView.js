@@ -19,6 +19,7 @@ const { normalizeInventory } = require('../utils');
 const CANVAS_SIZE = 500;
 const FARM_BG = 'https://i.ibb.co/NnG9tLD4/Flower-Garden.png';
 const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
+const WATERED_PLOT = 'https://i.ibb.co/tpyMJL5G/Watered-plot.png';
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 
@@ -87,13 +88,11 @@ async function renderFarm(farm, selected = []) {
   const bg = await loadImage(FARM_BG);
   ctx.drawImage(bg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
+  const wateredImg = await loadImage(WATERED_PLOT);
   Object.entries(farm).forEach(([id, plot]) => {
     if (plot.watered) {
       const pos = PLOT_POSITIONS[id];
-      if (pos) {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(pos.x, pos.y, 100, 100);
-      }
+      if (pos) ctx.drawImage(wateredImg, pos.x, pos.y);
     }
   });
 
