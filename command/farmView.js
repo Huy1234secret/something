@@ -146,14 +146,14 @@ function buildFarmContainer(user, selected = [], farm = {}) {
   const harvestBtn = new ButtonBuilder()
     .setCustomId('farm-harvest')
     .setLabel('Harvest')
-    .setEmoji('<:ITHarvestscythe:1408085478107775016>')
+    .setEmoji('<:ITHarvestscythe:1408146746600722513>')
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(!harvestable);
 
   const waterBtn = new ButtonBuilder()
     .setCustomId('farm-water')
     .setLabel('Watering')
-    .setEmoji('<:ITWateringcan:1408087589151445212>')
+    .setEmoji('<:ITWateringcan:1408146760475611208>')
     .setStyle(ButtonStyle.Primary);
 
   return new ContainerBuilder()
