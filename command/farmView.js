@@ -120,7 +120,7 @@ const farmStates = new Map();
 function buildFarmContainer(user, selected = [], farm = {}) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('farm-select')
-    .setPlaceholder('Plot')
+    .setPlaceholder('Plot Selection')
     .setMinValues(0)
     .setMaxValues(9)
     .addOptions(
