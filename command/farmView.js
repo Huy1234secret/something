@@ -266,7 +266,10 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              if (s.emoji) {
+              // Only use emoji if it's a standard Unicode emoji.
+              // Custom guild emojis may not be accessible and cause
+              // Discord to reject the component as invalid.
+              if (s.emoji && !/^<a?:\w+:\d+>$/.test(s.emoji)) {
                 option.setEmoji(s.emoji);
               }
               return option;
