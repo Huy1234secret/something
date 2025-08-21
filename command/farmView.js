@@ -272,12 +272,13 @@ function setup(client, resources) {
       const seed = (stats.inventory || []).find(i => i.id === seedId);
       const required = state.selected.length;
       if (!seed || seed.amount < required) {
-        await interaction.update({
-          content: `${WARNING} You need ${required} ${seed ? seed.name : 'seed'} ${
-            seed ? seed.emoji : ''
-          } to plant, you only have ${seed ? seed.amount : 0}`,
-          components: [],
-        });
+        const msg = `${WARNING} You need ${required} ${seed ? seed.name : 'seed'} ${
+          seed ? seed.emoji : ''
+        } to plant, you only have ${seed ? seed.amount : 0}`;
+        const container = new ContainerBuilder()
+          .setAccentColor(0xffffff)
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(msg));
+        await interaction.update({ components: [container] });
         return;
       }
       const farm = stats.farm;
@@ -300,7 +301,10 @@ function setup(client, resources) {
       if (occupied.length) {
         content = `${WARNING} The plot ${occupied.join(', ')} already has a plant on it. The seed won't be planted on that plot.\n${content}`;
       }
-      await interaction.update({ content, components: [] });
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+      await interaction.update({ components: [container] });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-harvest') {
@@ -371,7 +375,10 @@ function setup(client, resources) {
         content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
       if (deadNote) content += `\n-# Your wheat died...`;
       if (!content) content = 'Nothing harvested.';
-      await interaction.update({ content, components: [] });
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+      await interaction.update({ components: [container] });
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-water') {
@@ -426,10 +433,10 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       await updateFarmMessage(state, interaction.user, stats);
-      await interaction.update({
-        content: 'Watered!',
-        components: [],
-      });
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent('Watered!'));
+      await interaction.update({ components: [container] });
       return;
     }
   });
