@@ -47,7 +47,7 @@ const WHEAT_IMAGES = [
 const WHEAT_DEAD = 'https://i.ibb.co/rSZ27dp/Wheat-died.png';
 
 const WHEAT_GROW_TIME = 4 * 60 * 60 * 1000; // 4h
-const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 6; // 48m per stage
+const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 5; // 48m per stage
 const WHEAT_DRY_DEATH_TIME = 2 * 60 * 60 * 1000; // 2h without water
 const WHEAT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
 const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
