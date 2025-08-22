@@ -231,9 +231,9 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
  * opts: {width,height}
  */
 async function renderShopMedia(items = [], opts = {}) {
-  // Use a more standard 16:9 aspect ratio for defaults
+  // Match deluxe shop media dimensions (4:3 aspect ratio)
   const W = opts.width || 960;
-  const H = opts.height || 540;
+  const H = opts.height || 720;
   const cols = 3, rows = 2;
 
   const canvas = createCanvas(W, H);
@@ -252,7 +252,7 @@ async function renderShopMedia(items = [], opts = {}) {
 
   // --- Proportional Grid Metrics ---
   const sidePadding = W * 0.03;
-  const topPadding = H * 0.05;
+  const topPadding = H * 0.04;
   const gap = W * 0.025;
   const innerW = W - sidePadding * 2 - gap * (cols - 1);
   const innerH = H - topPadding * 2 - gap * (rows - 1);
