@@ -43,6 +43,17 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   return y;
 }
 
+// shrink text to fit a maximum width on a single line
+function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
+  let size = startSize;
+  while (size > 12) {
+    ctx.font = `bold ${size}px ${font}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size--;
+  }
+  return size;
+}
+
 // draw an image fully visible inside box (contain-fit), centered
 async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   ctx.save();
@@ -165,8 +176,8 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   // shift down to create more breathing room at the top
   let topY = y + pad + 16;
   ctx.fillStyle = '#eaf1ff';
-  ctx.font = 'bold 26px Sans';
   const name = item.name || 'Unknown Item';
+  shrinkToFit(ctx, name, w - pad * 2, 26);
   ctx.fillText(name, x + pad, topY);
 
   // --- MIDDLE: image box (contain-fit, centered; not cut off) ---
@@ -193,8 +204,10 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   }
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 32px Sans';
-  ctx.fillText(String(item.price ?? '???'), coinX + coinSize + 8, coinY + coinSize - 2);
+  const priceText = String(item.price ?? '???');
+  const priceMax = w - pad - (coinX + coinSize + 8);
+  shrinkToFit(ctx, priceText, priceMax, 32);
+  ctx.fillText(priceText, coinX + coinSize + 8, coinY + coinSize - 2);
 }
 
 /* ------------------------ main (grid-only) ------------------------ */

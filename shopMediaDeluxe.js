@@ -42,6 +42,17 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   return y;
 }
 
+// shrink text so it fits within a single line
+function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
+  let size = startSize;
+  while (size > 12) {
+    ctx.font = `bold ${size}px ${font}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size--;
+  }
+  return size;
+}
+
 async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
@@ -277,8 +288,9 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   const pad = 20;
   let cy = gy + coverH + 14;
   ctx.fillStyle = '#f1f5ff';
-  ctx.font = 'bold 24px Sans';
-  ctx.fillText(item.name || 'Deluxe Item', gx + pad, cy);
+  const title = item.name || 'Deluxe Item';
+  shrinkToFit(ctx, title, gw - pad * 2, 24);
+  ctx.fillText(title, gx + pad, cy);
 
   // note
   ctx.fillStyle = '#c7d2f0';
@@ -298,17 +310,18 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
     const coinX = gx + pad + 16;
     const coinR = 20;
     const coinY = rowY - coinR - 15;
+    const btnW = 132, btnH = 40;
+    const btnX = gx + gw - pad - btnW;
+    const btnY = rowY - btnH - 6;
     coinGold(ctx, coinX, coinY, coinR);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px Sans';
-    ctx.fillText(String(item.price ?? '???'), coinX + coinR + 8, coinY + coinR - 6);
+    const priceText = String(item.price ?? '???');
+    const priceMax = btnX - (coinX + coinR + 8) - 8;
+    shrinkToFit(ctx, priceText, priceMax, 28);
+    ctx.fillText(priceText, coinX + coinR + 8, coinY + coinR - 6);
 
   // button (gold foil)
-  const btnW = 132, btnH = 40;
-  const btnX = gx + gw - pad - btnW;
-  const btnY = rowY - btnH - 6;
-
   const foil = goldGradient(ctx, btnX, btnY, btnW, btnH);
   ctx.fillStyle = foil;
   rrect(ctx, btnX, btnY, btnW, btnH, 12);
