@@ -74,6 +74,10 @@ function isPlotWatered(plot) {
   return true;
 }
 
+function cleanupExpiredWater(farm) {
+  Object.values(farm || {}).forEach(plot => isPlotWatered(plot));
+}
+
 function getPlotStatus(plot) {
   if (!plot || !plot.seedId) return { grown: false, dead: false };
   const elapsed = Date.now() - (plot.plantedAt || 0);
@@ -213,6 +217,7 @@ async function sendFarmView(user, send, resources) {
   const stats = resources.userStats[user.id] || { inventory: [], farm: {} };
   stats.farm = stats.farm || {};
   for (let i = 1; i <= 9; i++) if (!stats.farm[i]) stats.farm[i] = {};
+  cleanupExpiredWater(stats.farm);
   resources.userStats[user.id] = stats;
 
   const buffer = await renderFarm(stats.farm, []);
@@ -229,6 +234,7 @@ async function sendFarmView(user, send, resources) {
 }
 
 async function updateFarmMessage(state, user, stats, resources) {
+  cleanupExpiredWater(stats.farm);
   const buffer = await renderFarm(stats.farm, state.selected || []);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
   const container = buildFarmContainer(user, state.selected || [], stats.farm);
