@@ -1,10 +1,11 @@
 // shopMedia.js
+// Improved by Gemini: Converted static layout to a responsive, proportional design.
 // Normal Shop (3x2). No header/tabs. Image is fully visible (contain-fit) and centered.
 // Coin icon uses a Discord emoji URL to ensure it loads correctly
 // npm i canvas
 const { createCanvas, loadImage } = require('canvas');
 
-/* ------------------------ helpers ------------------------ */
+/* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 16) {
   const rad = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -43,10 +44,9 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   return y;
 }
 
-// shrink text to fit a maximum width on a single line
 function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   let size = startSize;
-  while (size > 12) {
+  while (size > 8) { // Reduced min size for more flexibility
     ctx.font = `bold ${size}px ${font}`;
     if (ctx.measureText(text).width <= maxWidth) break;
     size--;
@@ -54,13 +54,11 @@ function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   return size;
 }
 
-// draw an image fully visible inside box (contain-fit), centered
 async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  // subtle panel behind images
   const g = ctx.createLinearGradient(x, y, x, y + h);
   g.addColorStop(0, '#0f172a');
   g.addColorStop(1, '#111827');
@@ -70,7 +68,7 @@ async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   if (imgSrc) {
     try {
       const img = await loadImage(imgSrc);
-      const scale = Math.min(w / img.width, h / img.height); // contain
+      const scale = Math.min(w / img.width, h / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
       const dx = x + (w - dw) / 2;
@@ -79,12 +77,13 @@ async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, dx, dy, dw, dh);
     } catch {
-      // fallback text
       ctx.fillStyle = '#334155';
       ctx.font = 'bold 18px Sans';
       ctx.textAlign = 'center';
-      ctx.fillText('image not found', x + w / 2, y + h / 2 + 8);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Image not found', x + w / 2, y + h / 2);
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
     }
   }
   ctx.restore();
@@ -145,7 +144,8 @@ function bg(ctx, W, H) {
   ctx.fillRect(0, 0, W, H);
 }
 
-/* ------------------------ card ------------------------ */
+
+/* ------------------------ card (IMPROVED) ------------------------ */
 async function card(ctx, x, y, w, h, item = {}, coinImg) {
   const rarity = (item.rarity || 'common').toLowerCase();
 
@@ -170,47 +170,60 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   rrect(ctx, x, y, w, h, 18);
   ctx.fill();
 
-  const pad = 18;
+  // --- Proportional Layout Metrics ---
+  const pad = w * 0.08;
+  const titleSectionH = h * 0.23;
+  const priceSectionH = h * 0.18;
+  const noteSectionH = item.note ? h * 0.15 : 0;
 
-  // --- TOP: name only ---
-  // shift down to create more breathing room at the top
-  let topY = y + pad + 16;
+  // --- TOP: Name ---
   ctx.fillStyle = '#eaf1ff';
   const name = item.name || 'Unknown Item';
-  shrinkToFit(ctx, name, w - pad * 2, 26);
-  ctx.fillText(name, x + pad, topY);
+  const nameY = y + titleSectionH * 0.65;
+  const startNameSize = Math.floor(h * 0.085);
+  shrinkToFit(ctx, name, w - pad * 2, startNameSize);
+  ctx.fillText(name, x + pad, nameY);
 
-  // --- MIDDLE: image box (contain-fit, centered; not cut off) ---
-  const imgTop = topY + 24;                // below the top title row
-  const imgBottom = y + h - 72;            // above the price row
-  const imgH = Math.max(80, imgBottom - imgTop);
-  await drawContain(ctx, item.image, x + 12, imgTop, w - 24, imgH, 14);
-
-  // optional short note under image (kept brief)
-  if (item.note) {
-    ctx.fillStyle = '#c4d1eb';
-    ctx.font = '16px Sans';
-    wrap(ctx, String(item.note), x + pad, imgTop + imgH + 8, w - pad * 2, 20, 2);
-  }
-
-  // --- BOTTOM: price only (no buy button) ---
-  const rowY = y + h - 20;
-  const coinSize = 32;
+  // --- BOTTOM: Price ---
+  ctx.save(); // Isolate text alignment settings
+  const priceY = y + h - priceSectionH;
+  const coinSize = priceSectionH * 0.8;
   const coinX = x + pad;
-  const coinY = rowY - coinSize - 2;
+  const coinY = priceY + (priceSectionH - coinSize) / 2;
 
   if (coinImg) {
     ctx.drawImage(coinImg, coinX, coinY, coinSize, coinSize);
   }
 
   ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
   const priceText = String(item.price ?? '???');
-  const priceMax = w - pad - (coinX + coinSize + 8);
-  shrinkToFit(ctx, priceText, priceMax, 32);
-  ctx.fillText(priceText, coinX + coinSize + 8, coinY + coinSize - 2);
+  const priceMaxW = w - pad * 2 - coinSize - (w * 0.03);
+  const startPriceSize = Math.floor(h * 0.1);
+  shrinkToFit(ctx, priceText, priceMaxW, startPriceSize);
+  ctx.fillText(priceText, coinX + coinSize + (w * 0.03), coinY + coinSize / 2);
+  ctx.restore(); // Restore text alignment
+
+  // --- MIDDLE: Image and Note ---
+  const imgBoxX = x + w * 0.04;
+  const imgBoxW = w * 0.92;
+  const imgBoxY = y + titleSectionH;
+  const imgBoxH = h - titleSectionH - priceSectionH - noteSectionH;
+
+  await drawContain(ctx, item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
+
+  if (item.note) {
+    ctx.fillStyle = '#c4d1eb';
+    const noteFontSize = Math.max(12, Math.floor(h * 0.045));
+    const lineHeight = noteFontSize * 1.25;
+    ctx.font = `${noteFontSize}px Sans`;
+    const noteY = imgBoxY + imgBoxH + lineHeight * 0.8;
+    wrap(ctx, String(item.note), x + pad, noteY, w - pad * 2, lineHeight, 2);
+  }
 }
 
-/* ------------------------ main (grid-only) ------------------------ */
+
+/* ------------------------ main (IMPROVED) ------------------------ */
 /**
  * Render a 3x2 grid (6 cards). No header, no tabs, no buy button.
  * - Shows full item image centered inside the card (no cropping).
@@ -218,8 +231,9 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
  * opts: {width,height}
  */
 async function renderShopMedia(items = [], opts = {}) {
-  const W = Math.max(600, opts.width || 600);
-  const H = Math.max(400, opts.height || 400);
+  // Use a more standard 16:9 aspect ratio for defaults
+  const W = opts.width || 960;
+  const H = opts.height || 540;
   const cols = 3, rows = 2;
 
   const canvas = createCanvas(W, H);
@@ -236,10 +250,12 @@ async function renderShopMedia(items = [], opts = {}) {
     coinImg = null;
   }
 
-  // grid metrics
-  const gapX = 28, gapY = 24, top = 28, side = gapX;
-  const innerW = W - side * 2 - gapX * (cols - 1);
-  const innerH = H - top * 2 - gapY * (rows - 1);
+  // --- Proportional Grid Metrics ---
+  const sidePadding = W * 0.03;
+  const topPadding = H * 0.05;
+  const gap = W * 0.025;
+  const innerW = W - sidePadding * 2 - gap * (cols - 1);
+  const innerH = H - topPadding * 2 - gap * (rows - 1);
   const cardW = Math.floor(innerW / cols);
   const cardH = Math.floor(innerH / rows);
 
@@ -247,8 +263,8 @@ async function renderShopMedia(items = [], opts = {}) {
     const it = items[i];
     const c = i % cols;
     const r = Math.floor(i / cols);
-    const x = side + c * (cardW + gapX);
-    const y = top + r * (cardH + gapY);
+    const x = sidePadding + c * (cardW + gap);
+    const y = topPadding + r * (cardH + gap);
 
     if (it) {
       // eslint-disable-next-line no-await-in-loop
@@ -263,10 +279,12 @@ async function renderShopMedia(items = [], opts = {}) {
       ctx.restore();
 
       ctx.fillStyle = 'rgba(255,255,255,0.62)';
-      ctx.font = 'bold 20px Sans';
+      ctx.font = `bold ${Math.max(16, cardW * 0.08)}px Sans`;
       ctx.textAlign = 'center';
-      ctx.fillText('More items soon', x + cardW / 2, y + cardH / 2 + 8);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('More items soon', x + cardW / 2, y + cardH / 2);
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
     }
   }
 
