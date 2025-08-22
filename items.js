@@ -10,6 +10,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/zVykckz3/Padlock.png',
     price: 35000,
+    sellPrice: null,
   },
   TotemOfUndying: {
     id: 'TotemOfUndying',
@@ -22,6 +23,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/NdmDRzcs/Totem-Of-Undying.gif',
     price: 300000,
+    sellPrice: null,
   },
   Landmine: {
     id: 'Landmine',
@@ -34,6 +36,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/YBhRW2Hc/Landmine.png',
     price: 200000,
+    sellPrice: null,
   },
   WheatSeed: {
     id: 'WheatSeed',
@@ -46,6 +49,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/HTFCk0TN/Wheat-seed-package.png',
     price: 10000,
+    sellPrice: null,
   },
   HarvestScythe: {
     id: 'HarvestScythe',
@@ -58,6 +62,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/JwX0nz9c/Harvest-scythe.png',
     price: 120000,
+    sellPrice: null,
   },
   Wheat: {
     id: 'Wheat',
@@ -70,6 +75,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/60mfbHqp/Wheat.png',
     price: 0,
+    sellPrice: [50000, 100000],
   },
   WateringCan: {
     id: 'WateringCan',
@@ -82,6 +88,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/Tqqq3fM7/Watering-Can.png',
     price: 70000,
+    sellPrice: null,
   },
 };
 

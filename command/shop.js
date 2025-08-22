@@ -36,16 +36,14 @@ const SHOP_ITEMS = {
   deluxe: [],
 };
 
-const SELL_PRICES = {
-  Wheat: [50000, 100000],
-};
-
 const shopStates = new Map();
 
 async function sendMarket(user, send, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
-  const sellable = (stats.inventory || []).filter(i => SELL_PRICES[i.id]);
+  const sellable = (stats.inventory || []).filter(
+    i => (ITEMS[i.id] || {}).sellPrice,
+  );
   const select = new StringSelectMenuBuilder()
     .setCustomId('market-sell-select')
     .setPlaceholder('Item to sell');
@@ -479,7 +477,8 @@ function setup(client, resources) {
         });
         return;
       }
-      const [min, max] = SELL_PRICES[itemId];
+      const item = ITEMS[itemId];
+      const [min, max] = item.sellPrice;
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
       const total = price * amount;
       const coinEmoji = '<:CRCoin:1405595571141480570>';
