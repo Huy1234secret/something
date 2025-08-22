@@ -3,7 +3,8 @@
 // Normal Shop (3x2). No header/tabs. Image is fully visible (contain-fit) and centered.
 // Coin icon uses a Discord emoji URL to ensure it loads correctly
 // npm i canvas
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas } = require('canvas');
+const { loadCachedImage } = require('./imageCache');
 
 /* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 16) {
@@ -67,7 +68,7 @@ async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
 
   if (imgSrc) {
     try {
-      const img = await loadImage(imgSrc);
+      const img = await loadCachedImage(imgSrc);
       const scale = Math.min(w / img.width, h / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
@@ -245,7 +246,7 @@ async function renderShopMedia(items = [], opts = {}) {
   // preload coin image once
   let coinImg = null;
   try {
-    coinImg = await loadImage('https://cdn.discordapp.com/emojis/1405595571141480570.png?size=48&quality=lossless');
+    coinImg = await loadCachedImage('https://cdn.discordapp.com/emojis/1405595571141480570.png?size=48&quality=lossless');
   } catch {
     coinImg = null;
   }

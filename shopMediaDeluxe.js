@@ -2,7 +2,8 @@
 // Improved by Gemini: Converted static layout to a responsive, proportional design.
 // "Deluxe Shop" – premium 3x2 grid with gold accents only (no header/tabs)
 // npm i canvas
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas } = require('canvas');
+const { loadCachedImage } = require('./imageCache');
 
 /* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 18) {
@@ -66,7 +67,7 @@ async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
     ctx.fillRect(x, y, w, h);
   } else {
     try {
-      const img = await loadImage(imgSrc);
+      const img = await loadCachedImage(imgSrc);
       const s = Math.max(w / img.width, h / img.height);
       const dw = img.width * s;
       const dh = img.height * s;
