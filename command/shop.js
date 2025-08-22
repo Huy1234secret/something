@@ -349,13 +349,14 @@ function setup(client, resources) {
         normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
         resources.saveData();
-        await interaction.update({
-          components: [
+        const container = new ContainerBuilder()
+          .setAccentColor(0x00ff00)
+          .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `Sold **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji}.`,
+              `Sold ×${amount} ${entry.name} ${entry.emoji} for ${total} ${coinEmoji}.`,
             ),
-          ],
-        });
+          );
+        await interaction.update({ components: [container] });
         try {
           const message = await interaction.channel.messages.fetch(messageId);
           await sendMarket(interaction.user, message.edit.bind(message), resources);
