@@ -478,7 +478,10 @@ function setup(client, resources) {
         return;
       }
       const item = ITEMS[itemId];
-      const [min, max] = item.sellPrice;
+      const sellPrice = item.sellPrice;
+      const [min, max] = Array.isArray(sellPrice)
+        ? sellPrice
+        : [sellPrice, sellPrice];
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
       const total = price * amount;
       const coinEmoji = '<:CRCoin:1405595571141480570>';
