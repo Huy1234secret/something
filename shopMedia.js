@@ -205,8 +205,8 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
  * opts: {width,height}
  */
 async function renderShopMedia(items = [], opts = {}) {
-  const W = Math.max(800, opts.width || 960);
-  const H = Math.max(600, opts.height || 640);
+  const W = Math.max(600, opts.width || 600);
+  const H = Math.max(400, opts.height || 400);
   const cols = 3, rows = 2;
 
   const canvas = createCanvas(W, H);
