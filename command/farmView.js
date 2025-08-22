@@ -407,6 +407,7 @@ function setup(client, resources) {
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const farm = stats.farm;
       let harvested = 0;
+      let returnedSeeds = 0;
       let deadNote = false;
       plots.forEach(id => {
         const plot = farm[id];
@@ -416,11 +417,21 @@ function setup(client, resources) {
         else if (status.grown) {
           const amount = Math.floor(Math.random() * 11) + 5;
           harvested += amount;
-          const base = ITEMS.Wheat;
           const inv = stats.inventory;
-          let entry = inv.find(i => i.id === base.id);
+          let entry = inv.find(i => i.id === ITEMS.Wheat.id);
           if (entry) entry.amount = (entry.amount || 0) + amount;
-          else inv.push({ ...base, amount });
+          else inv.push({ ...ITEMS.Wheat, amount });
+
+          const roll = Math.random();
+          let seeds = 0;
+          if (roll < 0.05) seeds = 2;
+          else if (roll < 0.8) seeds = 1;
+          if (seeds > 0) {
+            returnedSeeds += seeds;
+            let seedEntry = inv.find(i => i.id === ITEMS.WheatSeed.id);
+            if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
+            else inv.push({ ...ITEMS.WheatSeed, amount: seeds });
+          }
         }
         farm[id] = {};
       });
@@ -432,6 +443,10 @@ function setup(client, resources) {
       let content = '';
       if (harvested > 0)
         content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
+      if (returnedSeeds > 0)
+        content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
+          returnedSeeds > 1 ? 's' : ''
+        }.`;
       if (deadNote) content += `\n-# Your wheat died...`;
       if (!content) content = 'Nothing harvested.';
       const container = new ContainerBuilder()
