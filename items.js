@@ -75,7 +75,7 @@ const ITEMS = {
     note: '',
     image: 'https://i.ibb.co/60mfbHqp/Wheat.png',
     price: 0,
-    sellPrice: [1000, 5000],
+    sellPrice: 2500,
   },
   WateringCan: {
     id: 'WateringCan',
