@@ -1,9 +1,10 @@
 // shopMediaDeluxe.js
+// Improved by Gemini: Converted static layout to a responsive, proportional design.
 // "Deluxe Shop" – premium 3x2 grid with gold accents only (no header/tabs)
 // npm i canvas
 const { createCanvas, loadImage } = require('canvas');
 
-/* ------------------------ helpers ------------------------ */
+/* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 18) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -42,10 +43,9 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   return y;
 }
 
-// shrink text so it fits within a single line
 function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   let size = startSize;
-  while (size > 12) {
+  while (size > 8) { // Reduced min size for more flexibility
     ctx.font = `bold ${size}px ${font}`;
     if (ctx.measureText(text).width <= maxWidth) break;
     size--;
@@ -59,7 +59,6 @@ async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
   ctx.clip();
 
   if (!imgSrc) {
-    // velvet placeholder
     const g = ctx.createLinearGradient(x, y, x + w, y + h);
     g.addColorStop(0, '#0c0f18');
     g.addColorStop(1, '#11131c');
@@ -80,12 +79,13 @@ async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
       ctx.fillStyle = '#3a4259';
       ctx.font = 'bold 18px Sans';
       ctx.textAlign = 'center';
-      ctx.fillText('image not found', x + w / 2, y + h / 2 + 6);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Image not found', x + w / 2, y + h / 2);
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
     }
   }
 
-  // soft spotlight
   const sp = ctx.createRadialGradient(x + w * 0.5, y + h * 0.45, 10, x + w * 0.5, y + h * 0.45, Math.max(w, h) * 0.7);
   sp.addColorStop(0, 'rgba(255,255,255,0.10)');
   sp.addColorStop(1, 'rgba(255,255,255,0)');
@@ -125,16 +125,14 @@ function coinGold(ctx, cx, cy, r) {
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // inner ring
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, r * 0.1);
   ctx.strokeStyle = 'rgba(120,80,0,0.6)';
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
   ctx.stroke();
 
-  // shine
   ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = Math.max(0.8, r * 0.06);
   ctx.beginPath();
   ctx.arc(cx - r * 0.25, cy - r * 0.25, r * 0.35, -Math.PI * 0.2, Math.PI * 0.3);
   ctx.stroke();
@@ -189,14 +187,12 @@ function rarityOutline(ctx, x, y, w, h, rarity, radius = 16, width = 3) {
 
 /* ------------------------ background ------------------------ */
 function deluxeBackground(ctx, W, H) {
-  // deep velvet base
   const g = ctx.createLinearGradient(0, 0, W, H);
   g.addColorStop(0, '#090b12');
   g.addColorStop(1, '#0b0e16');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  // subtle marble veins (golden)
   ctx.save();
   ctx.globalAlpha = 0.18;
   ctx.strokeStyle = '#7a5d1a';
@@ -213,14 +209,12 @@ function deluxeBackground(ctx, W, H) {
   }
   ctx.restore();
 
-  // vignette
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
   v.addColorStop(0, 'rgba(0,0,0,0)');
   v.addColorStop(1, 'rgba(0,0,0,0.6)');
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, W, H);
 
-  // star dust
   ctx.save();
   ctx.globalAlpha = 0.25;
   for (let i = 0; i < 150; i++) {
@@ -234,123 +228,151 @@ function deluxeBackground(ctx, W, H) {
   ctx.restore();
 }
 
-/* ------------------------ card ------------------------ */
+/* ------------------------ card (IMPROVED) ------------------------ */
 async function deluxeCard(ctx, x, y, w, h, item = {}) {
   const rarity = (item.rarity || 'common').toLowerCase();
+  const cardRadius = h * 0.05;
 
-  // base shadow
+  // Base shadow
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 10;
+  ctx.shadowBlur = h * 0.07;
+  ctx.shadowOffsetY = h * 0.025;
   ctx.fillStyle = '#121726';
-  rrect(ctx, x, y, w, h, 20);
+  rrect(ctx, x, y, w, h, cardRadius);
   ctx.fill();
   ctx.restore();
 
-  // inner panel
-  const innerPad = 8;
+  // Inner panel
+  const innerPad = h * 0.02;
   const gx = x + innerPad;
   const gy = y + innerPad;
   const gw = w - innerPad * 2;
   const gh = h - innerPad * 2;
+  const innerRadius = cardRadius * 0.8;
   const panelGrad = ctx.createLinearGradient(gx, gy, gx, gy + gh);
   panelGrad.addColorStop(0, '#0e1322');
   panelGrad.addColorStop(1, '#151a2a');
   ctx.fillStyle = panelGrad;
-  rrect(ctx, gx, gy, gw, gh, 16);
+  rrect(ctx, gx, gy, gw, gh, innerRadius);
   ctx.fill();
 
-  // rarity outline
-  rarityOutline(ctx, gx, gy, gw, gh, rarity);
+  // Rarity outline
+  rarityOutline(ctx, gx, gy, gw, gh, rarity, innerRadius, Math.max(2, h * 0.0075));
 
-  // cover
-  const coverH = Math.floor(gh * 0.52);
-  await drawCover(ctx, item.image, gx + 12, gy + 12, gw - 24, coverH - 12, 14);
+  // --- Proportional Layout ---
+  const coverH = gh * 0.52;
+  const contentPad = gw * 0.06;
+  const priceSectionH = gh * 0.2;
 
-  // crown EXCLUSIVE
+  // Cover Image
+  const coverPad = gw * 0.03;
+  await drawCover(ctx, item.image, gx + coverPad, gy + coverPad, gw - coverPad * 2, coverH - coverPad, innerRadius * 0.8);
+
+  // EXCLUSIVE banner
   if (item.exclusive) {
     ctx.save();
-    const bx = gx + gw - 150, by = gy + 14, bw = 136, bh = 32;
+    const bh = gh * 0.08;
+    const bw = gw * 0.35;
+    const bx = gx + gw - bw - (gw * 0.04);
+    const by = gy + (gw * 0.04);
+    const bannerRadius = bh * 0.25;
     ctx.fillStyle = goldGradient(ctx, bx, by, bw, bh);
-    rrect(ctx, bx, by, bw, bh, 8);
+    rrect(ctx, bx, by, bw, bh, bannerRadius);
     ctx.fill();
-    crown(ctx, bx + 8, by + 7, 22, 14);
+
+    const crownH = bh * 0.8;
+    const crownW = crownH * 1.2;
+    crown(ctx, bx + bh * 0.2, by + (bh - crownH) / 2, crownW, crownH);
     ctx.fillStyle = '#0a0d15';
-    ctx.font = 'bold 16px Sans';
+    const fontSize = bh * 0.5;
+    ctx.font = `bold ${fontSize}px Sans`;
     ctx.textAlign = 'center';
-    ctx.fillText('EXCLUSIVE', bx + bw / 2 + 6, by + 22);
-    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('EXCLUSIVE', bx + bw / 2 + crownW * 0.2, by + bh / 2);
     ctx.restore();
   }
 
-  // content
-  const pad = 20;
-  let cy = gy + coverH + 14;
+  // Content Area
+  let cy = gy + coverH + gh * 0.04;
+
+  // Title
   ctx.fillStyle = '#f1f5ff';
   const title = item.name || 'Deluxe Item';
-  shrinkToFit(ctx, title, gw - pad * 2, 24);
-  ctx.fillText(title, gx + pad, cy);
+  const titleSize = Math.floor(gh * 0.065);
+  shrinkToFit(ctx, title, gw - contentPad * 2, titleSize);
+  ctx.fillText(title, gx + contentPad, cy);
+  cy += titleSize * 1.2;
 
-  // note
+  // Note
   ctx.fillStyle = '#c7d2f0';
-  ctx.font = '16px Sans';
-  cy = wrap(ctx, item.note || '', gx + pad, cy + 12, gw - pad * 2, 20, 3);
+  const noteSize = Math.floor(gh * 0.045);
+  const lineHeight = noteSize * 1.25;
+  ctx.font = `${noteSize}px Sans`;
+  cy = wrap(ctx, item.note || '', gx + contentPad, cy, gw - contentPad * 2, lineHeight, 3);
 
-  // divider
+  // Divider
+  const dividerY = gy + gh - priceSectionH - (gh * 0.02);
   ctx.strokeStyle = 'rgba(255,255,255,0.08)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(gx + 14, gy + gh - 66);
-  ctx.lineTo(gx + gw - 14, gy + gh - 66);
+  ctx.moveTo(gx + contentPad * 0.5, dividerY);
+  ctx.lineTo(gx + gw - contentPad * 0.5, dividerY);
   ctx.stroke();
 
-  // price + button row
-    const rowY = gy + gh - 18;
-    const coinX = gx + pad + 16;
-    const coinR = 20;
-    const coinY = rowY - coinR - 15;
-    const btnW = 132, btnH = 40;
-    const btnX = gx + gw - pad - btnW;
-    const btnY = rowY - btnH - 6;
-    coinGold(ctx, coinX, coinY, coinR);
+  // Price + Button Row
+  const rowY = gy + gh - priceSectionH / 2;
+  const coinR = priceSectionH * 0.35;
+  const coinX = gx + contentPad + coinR;
+  coinGold(ctx, coinX, rowY, coinR);
 
-    ctx.fillStyle = '#ffffff';
-    const priceText = String(item.price ?? '???');
-    const priceMax = btnX - (coinX + coinR + 8) - 8;
-    shrinkToFit(ctx, priceText, priceMax, 28);
-    ctx.fillText(priceText, coinX + coinR + 8, coinY + coinR - 6);
+  // Button
+  const btnH = priceSectionH * 0.65;
+  const btnW = gw * 0.38;
+  const btnX = gx + gw - contentPad - btnW;
+  const btnY = rowY - btnH / 2;
+  const btnRadius = btnH * 0.3;
 
-  // button (gold foil)
   const foil = goldGradient(ctx, btnX, btnY, btnW, btnH);
   ctx.fillStyle = foil;
-  rrect(ctx, btnX, btnY, btnW, btnH, 12);
+  rrect(ctx, btnX, btnY, btnW, btnH, btnRadius);
   ctx.fill();
 
-  // bevel
   const bevel = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
   bevel.addColorStop(0, 'rgba(255,255,255,0.35)');
   bevel.addColorStop(0.5, 'rgba(255,255,255,0.05)');
   bevel.addColorStop(1, 'rgba(0,0,0,0.25)');
   ctx.fillStyle = bevel;
-  rrect(ctx, btnX, btnY, btnW, btnH, 12);
+  rrect(ctx, btnX, btnY, btnW, btnH, btnRadius);
   ctx.fill();
 
   ctx.fillStyle = '#0b0f18';
-  ctx.font = 'bold 18px Sans';
+  const btnFontSize = btnH * 0.45;
+  ctx.font = `bold ${btnFontSize}px Sans`;
   ctx.textAlign = 'center';
-  ctx.fillText(item.buttonText || 'Purchase', btnX + btnW / 2, btnY + 26);
-  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(item.buttonText || 'Purchase', btnX + btnW / 2, btnY + btnH / 2);
 
-  // stock
+  // Price Text
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  const priceText = String(item.price ?? '???');
+  const priceMaxW = btnX - (coinX + coinR) - (gw * 0.05);
+  const priceSize = Math.floor(priceSectionH * 0.45);
+  shrinkToFit(ctx, priceText, priceMaxW, priceSize);
+  ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
+
+  // Stock
   if (Number.isFinite(item.stock) && Number.isFinite(item.maxStock)) {
     ctx.fillStyle = '#9aa6c4';
-    ctx.font = '12px Sans';
-    ctx.fillText(`Stock: ${item.stock}/${item.maxStock}`, gx + pad, btnY - 8);
+    const stockSize = Math.max(10, gh * 0.03);
+    ctx.font = `${stockSize}px Sans`;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`Stock: ${item.stock}/${item.maxStock}`, gx + contentPad, btnY - stockSize * 0.5);
   }
 }
 
-/* ------------------------ main ------------------------ */
+/* ------------------------ main (IMPROVED) ------------------------ */
 /**
  * Render "Deluxe Shop" 3x2 grid (6 cards). No header/tabs.
  * items: {name, price, note, image, rarity, exclusive, buttonText, stock, maxStock}
@@ -358,8 +380,9 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
  * @returns Buffer (PNG)
  */
 async function renderDeluxeMedia(items = [], opts = {}) {
-  const W = Math.max(600, opts.width || 600);
-  const H = Math.max(400, opts.height || 400);
+  // A slightly taller aspect ratio for a more premium feel
+  const W = opts.width || 960;
+  const H = opts.height || 720;
   const cols = 3, rows = 2;
 
   const canvas = createCanvas(W, H);
@@ -367,10 +390,12 @@ async function renderDeluxeMedia(items = [], opts = {}) {
 
   deluxeBackground(ctx, W, H);
 
-  // grid metrics
-  const top = 28, side = 28, gapX = 28, gapY = 24;
-  const innerW = W - side * 2 - gapX * (cols - 1);
-  const innerH = H - top * 2 - gapY * (rows - 1);
+  // --- Proportional Grid Metrics ---
+  const sidePadding = W * 0.03;
+  const topPadding = H * 0.04;
+  const gap = W * 0.025;
+  const innerW = W - sidePadding * 2 - gap * (cols - 1);
+  const innerH = H - topPadding * 2 - gap * (rows - 1);
   const cardW = Math.floor(innerW / cols);
   const cardH = Math.floor(innerH / rows);
 
@@ -378,15 +403,16 @@ async function renderDeluxeMedia(items = [], opts = {}) {
     const it = items[i];
     const c = i % cols;
     const r = Math.floor(i / cols);
-    const x = side + c * (cardW + gapX);
-    const y = top + r * (cardH + gapY);
+    const x = sidePadding + c * (cardW + gap);
+    const y = topPadding + r * (cardH + gap);
 
     if (it) {
       // eslint-disable-next-line no-await-in-loop
       await deluxeCard(ctx, x, y, cardW, cardH, it);
     } else {
-      // premium empty slot
-      rrect(ctx, x, y, cardW, cardH, 20);
+      // Premium empty slot
+      const emptyRadius = cardH * 0.05;
+      rrect(ctx, x, y, cardW, cardH, emptyRadius);
       ctx.save();
       ctx.clip();
       const subtle = ctx.createLinearGradient(x, y, x, y + cardH);
@@ -396,13 +422,14 @@ async function renderDeluxeMedia(items = [], opts = {}) {
       ctx.fillRect(x, y, cardW, cardH);
       ctx.restore();
 
-      goldStroke(ctx, x + 6, y + 6, cardW - 12, cardH - 12, 16, 2);
+      const strokePad = cardH * 0.015;
+      goldStroke(ctx, x + strokePad, y + strokePad, cardW - strokePad * 2, cardH - strokePad * 2, emptyRadius * 0.8, 2);
 
       ctx.fillStyle = 'rgba(255,255,255,0.68)';
-      ctx.font = 'bold 20px Sans';
+      ctx.font = `bold ${Math.max(16, cardW * 0.08)}px Sans`;
       ctx.textAlign = 'center';
-      ctx.fillText('Reserved for Deluxe', x + cardW / 2, y + cardH / 2 + 8);
-      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Reserved for Deluxe', x + cardW / 2, y + cardH / 2);
     }
   }
 
@@ -410,4 +437,3 @@ async function renderDeluxeMedia(items = [], opts = {}) {
 }
 
 module.exports = { renderDeluxeMedia };
-
