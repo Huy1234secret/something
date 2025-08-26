@@ -23,6 +23,7 @@ const robCommand = require('./command/rob');
 const addCurrencyCommand = require('./command/addCurrency');
 const addItemCommand = require('./command/addItem');
 const farmViewCommand = require('./command/farmView');
+const { ITEMS } = require('./items');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -35,6 +36,30 @@ const levelUpChannelId = 1373578620634665052;
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 
+function fixEmojiIds(statsMap) {
+  const itemsById = Object.fromEntries(
+    Object.values(ITEMS).map(i => [i.id, i])
+  );
+  const itemsByName = Object.fromEntries(
+    Object.values(ITEMS).map(i => [i.name.toLowerCase(), i])
+  );
+  let fixed = 0;
+  for (const stats of Object.values(statsMap)) {
+    if (!Array.isArray(stats.inventory)) continue;
+    stats.inventory = stats.inventory.map(item => {
+      let base = itemsById[item.id] ||
+        (item.name && itemsByName[item.name.toLowerCase()]);
+      if (!base) return item;
+      if (item.emoji !== base.emoji) {
+        fixed++;
+        return { ...item, emoji: base.emoji };
+      }
+      return item;
+    });
+  }
+  return fixed;
+}
+
 function loadData() {
   try {
     const data = JSON.parse(fs.readFileSync(DATA_FILE));
@@ -45,6 +70,11 @@ function loadData() {
     userStats = {};
     userCardSettings = {};
     timedRoles = [];
+  }
+  const fixed = fixEmojiIds(userStats);
+  if (fixed > 0) {
+    saveData();
+    console.log(`Fixed ${fixed} emoji entries.`);
   }
 }
 
