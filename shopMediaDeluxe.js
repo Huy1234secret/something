@@ -5,6 +5,9 @@
 const { createCanvas } = require('canvas');
 const { loadCachedImage } = require('./imageCache');
 
+// Image used for pricing coin
+const COIN_IMG_URL = 'https://i.ibb.co/PXDPtHZ/Deluxe-Coin.png';
+
 /* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 18) {
   const rr = Math.min(r, w / 2, h / 2);
@@ -68,7 +71,8 @@ async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
   } else {
     try {
       const img = await loadCachedImage(imgSrc);
-      const s = Math.max(w / img.width, h / img.height);
+      // Scale image to fully fit within the provided area
+      const s = Math.min(w / img.width, h / img.height);
       const dw = img.width * s;
       const dh = img.height * s;
       const dx = x + (w - dw) / 2;
@@ -115,28 +119,6 @@ function goldStroke(ctx, x, y, w, h, r = 18, width = 3) {
   rrect(ctx, x, y, w, h, r);
   ctx.stroke();
   ctx.restore();
-}
-
-function coinGold(ctx, cx, cy, r) {
-  const g = ctx.createRadialGradient(cx - r * 0.5, cy - r * 0.6, r * 0.2, cx, cy, r);
-  g.addColorStop(0, '#fff5b0');
-  g.addColorStop(1, '#c99700');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.lineWidth = Math.max(1, r * 0.1);
-  ctx.strokeStyle = 'rgba(120,80,0,0.6)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = Math.max(0.8, r * 0.06);
-  ctx.beginPath();
-  ctx.arc(cx - r * 0.25, cy - r * 0.25, r * 0.35, -Math.PI * 0.2, Math.PI * 0.3);
-  ctx.stroke();
 }
 
 function crown(ctx, x, y, w = 26, h = 18) {
@@ -321,44 +303,25 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   ctx.lineTo(gx + gw - contentPad * 0.5, dividerY);
   ctx.stroke();
 
-  // Price + Button Row
+  // Price Row
   const rowY = gy + gh - priceSectionH / 2;
   const coinR = priceSectionH * 0.35;
   const coinX = gx + contentPad + coinR;
-  coinGold(ctx, coinX, rowY, coinR);
-
-  // Button
-  const btnH = priceSectionH * 0.65;
-  const btnW = gw * 0.38;
-  const btnX = gx + gw - contentPad - btnW;
-  const btnY = rowY - btnH / 2;
-  const btnRadius = btnH * 0.3;
-
-  const foil = goldGradient(ctx, btnX, btnY, btnW, btnH);
-  ctx.fillStyle = foil;
-  rrect(ctx, btnX, btnY, btnW, btnH, btnRadius);
-  ctx.fill();
-
-  const bevel = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
-  bevel.addColorStop(0, 'rgba(255,255,255,0.35)');
-  bevel.addColorStop(0.5, 'rgba(255,255,255,0.05)');
-  bevel.addColorStop(1, 'rgba(0,0,0,0.25)');
-  ctx.fillStyle = bevel;
-  rrect(ctx, btnX, btnY, btnW, btnH, btnRadius);
-  ctx.fill();
-
-  ctx.fillStyle = '#0b0f18';
-  const btnFontSize = btnH * 0.45;
-  ctx.font = `bold ${btnFontSize}px Sans`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(item.buttonText || 'Purchase', btnX + btnW / 2, btnY + btnH / 2);
+  try {
+    const coinImg = await loadCachedImage(COIN_IMG_URL);
+    ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinR * 2, coinR * 2);
+  } catch {
+    ctx.fillStyle = '#c99700';
+    ctx.beginPath();
+    ctx.arc(coinX, rowY, coinR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Price Text
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
   const priceText = String(item.price ?? '???');
-  const priceMaxW = btnX - (coinX + coinR) - (gw * 0.05);
+  const priceMaxW = gw - (coinX + coinR) - contentPad;
   const priceSize = Math.floor(priceSectionH * 0.45);
   shrinkToFit(ctx, priceText, priceMaxW, priceSize);
   ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
@@ -369,7 +332,8 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
     const stockSize = Math.max(10, gh * 0.03);
     ctx.font = `${stockSize}px Sans`;
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`Stock: ${item.stock}/${item.maxStock}`, gx + contentPad, btnY - stockSize * 0.5);
+    const stockY = rowY - coinR - stockSize * 0.5;
+    ctx.fillText(`Stock: ${item.stock}/${item.maxStock}`, gx + contentPad, stockY);
   }
 }
 
