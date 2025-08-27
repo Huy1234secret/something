@@ -166,6 +166,18 @@ const client = new Client({
 });
 client.setMaxListeners(20);
 
+// Wrap interactionCreate listeners so banned interactions don't trigger other handlers
+const originalOn = client.on.bind(client);
+client.on = function(event, listener) {
+  if (event === 'interactionCreate') {
+    return originalOn(event, async interaction => {
+      if (interaction.banned) return;
+      return listener(interaction);
+    });
+  }
+  return originalOn(event, listener);
+};
+
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
@@ -176,17 +188,20 @@ client.setMaxListeners(20);
         const banUntil = commandBans[interaction.user.id];
         if (banUntil) {
           if (banUntil > Date.now()) {
-            const container = new ContainerBuilder()
-              .setAccentColor(0xff0000)
-              .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
-                  `${interaction.user} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
-                ),
-              );
-            await interaction.reply({
-              components: [container],
-              flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-            });
+            interaction.banned = true;
+            if (interaction.isRepliable()) {
+              const container = new ContainerBuilder()
+                .setAccentColor(0xff0000)
+                .addTextDisplayComponents(
+                  new TextDisplayBuilder().setContent(
+                    `${interaction.user} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
+                  ),
+                );
+              await interaction.reply({
+                components: [container],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+              });
+            }
             return;
           }
           delete commandBans[interaction.user.id];
