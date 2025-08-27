@@ -14,6 +14,7 @@ const { ITEMS } = require('../items');
 const { normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
+const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
 
 function padlockEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
@@ -183,6 +184,12 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = usePadlock(user, resources);
   } else if (itemId === 'Landmine') {
     result = useLandmine(user, resources);
+  } else if (itemId === 'DiamondBag') {
+    result = useDiamondItem(user, 'DiamondBag', amount, 10000, resources);
+  } else if (itemId === 'DiamondCrate') {
+    result = useDiamondItem(user, 'DiamondCrate', amount, 135000, resources);
+  } else if (itemId === 'DiamondChest') {
+    result = useDiamondItem(user, 'DiamondChest', amount, 980000, resources);
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
@@ -191,6 +198,32 @@ async function handleUseItem(user, itemId, amount, send, resources) {
   } else {
     await send({ components: [result.component], flags: MessageFlags.IsComponentsV2 });
   }
+}
+
+function useDiamondItem(user, itemId, amount, perDiamond, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [], diamonds: 0 };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === itemId);
+  const item = ITEMS[itemId];
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  stats.diamonds = (stats.diamonds || 0) + perDiamond * amount;
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const total = perDiamond * amount;
+  const container = new ContainerBuilder()
+    .setAccentColor(0x00ffff)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ${total} Diamonds ${DIAMOND_EMOJI}`,
+      ),
+    );
+  return { component: container };
 }
 
 function setup(client, resources) {

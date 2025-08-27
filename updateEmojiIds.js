@@ -32,11 +32,22 @@ for (const stats of Object.values(userStats)) {
     }
     if (!base) return item;
 
+    const updated = { ...item };
+    let changed = false;
     if (item.emoji !== base.emoji) {
-      fixed++;
-      return { ...item, emoji: base.emoji };
+      updated.emoji = base.emoji;
+      changed = true;
     }
-    return item;
+    if (item.image !== base.image) {
+      updated.image = base.image;
+      changed = true;
+    }
+    if (item.name !== base.name) {
+      updated.name = base.name;
+      changed = true;
+    }
+    if (changed) fixed++;
+    return updated;
   });
 }
 

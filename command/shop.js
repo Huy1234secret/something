@@ -33,7 +33,7 @@ const SHOP_ITEMS = {
     ITEMS.WateringCan,
     ITEMS.HarvestScythe,
   ],
-  deluxe: [],
+  deluxe: [ITEMS.DiamondBag, ITEMS.DiamondCrate, ITEMS.DiamondChest],
 };
 
 const shopStates = new Map();
@@ -265,7 +265,13 @@ function setup(client, resources) {
       } else if (interaction.customId.startsWith('shop-confirm-')) {
         const [, , itemId, amountStr] = interaction.customId.split('-');
         const amount = parseInt(amountStr, 10);
-        const coinEmoji = '<:CRCoin:1405595571141480570>';
+        const state = shopStates.get(interaction.message.id);
+        if (!state || interaction.user.id !== state.userId) return;
+        const coinEmoji =
+          state.type === 'deluxe'
+            ? '<:CRDeluxeCoin:1405595587780280382>'
+            : '<:CRCoin:1405595571141480570>';
+        const currency = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
         const item =
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
         if (!item) {
@@ -274,11 +280,12 @@ function setup(client, resources) {
           });
           return;
         }
-        const stats = resources.userStats[interaction.user.id] || { coins: 0 };
+        const stats =
+          resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
         normalizeInventory(stats);
         const total = item.price * amount;
-        if ((stats.coins || 0) < total) {
-          const need = total - (stats.coins || 0);
+        if ((stats[currency] || 0) < total) {
+          const need = total - (stats[currency] || 0);
           await interaction.update({
             components: [
               new TextDisplayBuilder().setContent(
@@ -288,7 +295,7 @@ function setup(client, resources) {
           });
           return;
         }
-        stats.coins -= total;
+        stats[currency] = (stats[currency] || 0) - total;
         stats.inventory = stats.inventory || [];
         const base = ITEMS[item.id] || item;
         const existing = stats.inventory.find(i => i.id === item.id);
@@ -393,21 +400,26 @@ function setup(client, resources) {
           });
           return;
         }
-      const stats = resources.userStats[interaction.user.id] || { coins: 0 };
+      const stats =
+        resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
       const total = item.price * amount;
-      const coinEmoji = '<:CRCoin:1405595571141480570>';
-        if ((stats.coins || 0) < total) {
-          const need = total - (stats.coins || 0);
-          await interaction.reply({
-            components: [
-              new TextDisplayBuilder().setContent(
-                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+      const currencyField = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
+      const coinEmoji =
+        state.type === 'deluxe'
+          ? '<:CRDeluxeCoin:1405595587780280382>'
+          : '<:CRCoin:1405595571141480570>';
+      if ((stats[currencyField] || 0) < total) {
+        const need = total - (stats[currencyField] || 0);
+        await interaction.reply({
+          components: [
+            new TextDisplayBuilder().setContent(
+              `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const buyBtn = new ButtonBuilder()
         .setCustomId(`shop-confirm-${item.id}-${amount}`)
         .setLabel('Buy')
