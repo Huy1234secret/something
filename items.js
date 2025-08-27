@@ -93,7 +93,7 @@ const ITEMS = {
   DiamondBag: {
     id: 'DiamondBag',
     name: 'Diamond Bag',
-    emoji: ':ITDiamondbag:',
+    emoji: '<:ITDiamondbag:1409940957700292669>',
     rarity: 'Prismatic',
     value: 0,
     useable: true,
@@ -106,7 +106,7 @@ const ITEMS = {
   DiamondCrate: {
     id: 'DiamondCrate',
     name: 'Diamond Crate',
-    emoji: ':ITDiamondcrate:',
+    emoji: '<:ITDiamondcrate:1409940970287661096>',
     rarity: 'Prismatic',
     value: 0,
     useable: true,
@@ -119,7 +119,7 @@ const ITEMS = {
   DiamondChest: {
     id: 'DiamondChest',
     name: 'Diamond Chest',
-    emoji: ':ITDiamondcrate:',
+    emoji: '<:ITDiamondcrate:1409940982853537832>',
     rarity: 'Prismatic',
     value: 0,
     useable: true,
