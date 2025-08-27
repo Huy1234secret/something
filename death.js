@@ -25,28 +25,28 @@ async function handleDeath(user, action, resources) {
   stats.inventory = stats.inventory || [];
   normalizeInventory(stats);
 
-  // Totem check
-  const totem = stats.inventory.find(i => i.id === 'TotemOfUndying');
-  if (totem && totem.amount > 0) {
-    totem.amount -= 1;
-    if (totem.amount <= 0) {
-      stats.inventory = stats.inventory.filter(i => i !== totem);
+  // Seraphic Heart check
+  const heart = stats.inventory.find(i => i.id === 'SeraphicHeart');
+  if (heart && heart.amount > 0) {
+    heart.amount -= 1;
+    if (heart.amount <= 0) {
+      stats.inventory = stats.inventory.filter(i => i !== heart);
     }
     normalizeInventory(stats);
     resources.userStats[user.id] = stats;
     resources.saveData();
     const btn = new ButtonBuilder()
-      .setCustomId('totem-left')
-      .setEmoji(ITEMS.TotemOfUndying.emoji)
-      .setLabel(`You have ${totem.amount} ${ITEMS.TotemOfUndying.name} left!`)
+      .setCustomId('heart-left')
+      .setEmoji(ITEMS.SeraphicHeart.emoji)
+      .setLabel(`You have ${heart.amount} ${ITEMS.SeraphicHeart.name} left!`)
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true);
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`## Your ${ITEMS.TotemOfUndying.name} protected you!`),
+        new TextDisplayBuilder().setContent(`## Your ${ITEMS.SeraphicHeart.name} protected you!`),
         new TextDisplayBuilder().setContent(
-          `You died while ${action}, but you have ${ITEMS.TotemOfUndying.name} in your inventory which prevented you from dying.`,
+          `You died while ${action}, but you have ${ITEMS.SeraphicHeart.name} in your inventory which prevented you from dying.`,
         ),
       )
       .addSeparatorComponents(new SeparatorBuilder())

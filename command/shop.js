@@ -28,7 +28,7 @@ const SHOP_ITEMS = {
   coin: [
     ITEMS.Padlock,
     ITEMS.Landmine,
-    ITEMS.TotemOfUndying,
+    ITEMS.SeraphicHeart,
     ITEMS.WheatSeed,
     ITEMS.WateringCan,
     ITEMS.HarvestScythe,
