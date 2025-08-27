@@ -36,7 +36,7 @@ const levelUpChannelId = 1373578620634665052;
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 
-function fixEmojiIds(statsMap) {
+function fixItemEntries(statsMap) {
   const itemsById = Object.fromEntries(
     Object.values(ITEMS).map(i => [i.id, i])
   );
@@ -50,11 +50,26 @@ function fixEmojiIds(statsMap) {
       let base = itemsById[item.id] ||
         (item.name && itemsByName[item.name.toLowerCase()]);
       if (!base) return item;
-      if (item.emoji !== base.emoji) {
-        fixed++;
-        return { ...item, emoji: base.emoji };
+      let changed = false;
+      const updated = { ...item };
+      if (item.id !== base.id) {
+        updated.id = base.id;
+        changed = true;
       }
-      return item;
+      if (item.emoji !== base.emoji) {
+        updated.emoji = base.emoji;
+        changed = true;
+      }
+      if (item.name !== base.name) {
+        updated.name = base.name;
+        changed = true;
+      }
+      if (item.image !== base.image) {
+        updated.image = base.image;
+        changed = true;
+      }
+      if (changed) fixed++;
+      return changed ? updated : item;
     });
   }
   return fixed;
@@ -71,10 +86,10 @@ function loadData() {
     userCardSettings = {};
     timedRoles = [];
   }
-  const fixed = fixEmojiIds(userStats);
+  const fixed = fixItemEntries(userStats);
   if (fixed > 0) {
     saveData();
-    console.log(`Fixed ${fixed} emoji entries.`);
+    console.log(`Fixed ${fixed} inventory entries.`);
   }
 }
 
