@@ -250,8 +250,18 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand() && interaction.commandName === 'farm-view') {
-      await interaction.deferReply();
-      await sendFarmView(interaction.user, interaction.editReply.bind(interaction), resources);
+      try {
+        if (!interaction.deferred && !interaction.replied) {
+          await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+        }
+        await sendFarmView(
+          interaction.user,
+          interaction.editReply.bind(interaction),
+          resources,
+        );
+      } catch (err) {
+        if (err.code !== 10062) throw err;
+      }
       return;
     }
     if (interaction.isStringSelectMenu() && interaction.customId === 'farm-select') {

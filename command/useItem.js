@@ -192,6 +192,11 @@ function useLandmine(user, resources) {
 }
 
 function useBanHammer(user, targetId, resources) {
+  if (targetId === user.id) {
+    return {
+      error: `${WARNING} You cannot use the ${ITEMS.BanHammer.name} on yourself.`,
+    };
+  }
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
   normalizeInventory(stats);
