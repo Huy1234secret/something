@@ -129,6 +129,19 @@ const ITEMS = {
     price: 4900,
     sellPrice: null,
   },
+  BanHammer: {
+    id: 'BanHammer',
+    name: 'Ban Hammer',
+    emoji: '<:ITBanhammer:1410315855233028258>',
+    rarity: 'Secret',
+    value: 0,
+    useable: true,
+    type: 'Weapon',
+    note: 'Admin only item',
+    image: '',
+    price: 0,
+    sellPrice: null,
+  },
 };
 
 module.exports = { ITEMS };
