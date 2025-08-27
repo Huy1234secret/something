@@ -307,10 +307,11 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 
   // Price Row
   const rowY = gy + gh - priceSectionH / 2;
-  const coinR = priceSectionH * 0.35;
+  const coinSize = 25;
+  const coinR = coinSize / 2;
     const coinX = gx + contentPad + coinR;
     if (coinImg) {
-      ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinR * 2, coinR * 2);
+      ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinSize, coinSize);
     } else {
       ctx.fillStyle = '#c99700';
       ctx.beginPath();
@@ -381,18 +382,8 @@ async function renderDeluxeMedia(items = [], opts = {}) {
     }
   }));
 
-  // Determine a uniform price font size so all prices match
-  const priceSectionH = cardH * 0.2;
-  const contentPad = cardW * 0.06;
-  const coinR = priceSectionH * 0.35;
-  const priceMaxW = cardW - contentPad * 2 - coinR * 2;
-  const basePriceSize = Math.floor(priceSectionH * 0.45);
-  let priceFontSize = basePriceSize;
-  for (const it of items) {
-    if (!it) continue;
-    const size = shrinkToFit(ctx, String(it.price ?? '???'), priceMaxW, basePriceSize);
-    if (size < priceFontSize) priceFontSize = size;
-  }
+  // Use a fixed price font size so all cards match
+  const priceFontSize = 25;
 
   for (let i = 0; i < cols * rows; i++) {
     const it = items[i];
