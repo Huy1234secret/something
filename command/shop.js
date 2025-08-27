@@ -276,7 +276,11 @@ function setup(client, resources) {
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
         if (!item) {
           await interaction.update({
-            components: [new TextDisplayBuilder().setContent('Item not available.')],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent('Item not available.'),
+              ),
+            ],
           });
           return;
         }
@@ -288,8 +292,10 @@ function setup(client, resources) {
           const need = total - (stats[currency] || 0);
           await interaction.update({
             components: [
-              new TextDisplayBuilder().setContent(
-                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent(
+                  `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+                ),
               ),
             ],
           });
@@ -343,7 +349,11 @@ function setup(client, resources) {
         const entry = (stats.inventory || []).find(i => i.id === itemId);
         if (!entry || entry.amount < amount) {
           await interaction.update({
-            components: [new TextDisplayBuilder().setContent('Sale failed.')],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent('Sale failed.'),
+              ),
+            ],
           });
           return;
         }
@@ -377,7 +387,11 @@ function setup(client, resources) {
       const state = shopStates.get(messageId);
         if (!state || interaction.user.id !== state.userId) {
           await interaction.reply({
-            components: [new TextDisplayBuilder().setContent('Purchase expired.')],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent('Purchase expired.'),
+              ),
+            ],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -387,7 +401,11 @@ function setup(client, resources) {
       const item = items[start + index];
         if (!item) {
           await interaction.reply({
-            components: [new TextDisplayBuilder().setContent('Item not available.')],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent('Item not available.'),
+              ),
+            ],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -395,7 +413,11 @@ function setup(client, resources) {
       const amount = parseInt(interaction.fields.getTextInputValue('amount'), 10);
         if (isNaN(amount) || amount <= 0) {
           await interaction.reply({
-            components: [new TextDisplayBuilder().setContent('Invalid amount.')],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent('Invalid amount.'),
+              ),
+            ],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -448,7 +470,11 @@ function setup(client, resources) {
           resources.pendingRequests.delete(interaction.user.id);
           try {
             await interaction.editReply({
-              components: [new TextDisplayBuilder().setContent('Purchase expired.')],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new TextDisplayBuilder().setContent('Purchase expired.'),
+                ),
+              ],
             });
           } catch {}
         }
@@ -463,7 +489,11 @@ function setup(client, resources) {
       const state = shopStates.get(messageId);
       if (!state || interaction.user.id !== state.userId) {
         await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Sell expired.')],
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Sell expired.'),
+            ),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -473,7 +503,11 @@ function setup(client, resources) {
       const entry = (stats.inventory || []).find(i => i.id === itemId);
       if (!entry) {
         await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Item not available.')],
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Item not available.'),
+            ),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -484,7 +518,11 @@ function setup(client, resources) {
       else amount = parseInt(raw, 10);
       if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
         await interaction.reply({
-          components: [new TextDisplayBuilder().setContent('Invalid amount.')],
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Invalid amount.'),
+            ),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;

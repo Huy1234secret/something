@@ -1,4 +1,10 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, TextDisplayBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+  TextDisplayBuilder,
+  ActionRowBuilder,
+} = require('discord.js');
 
 const WARN = '<:SBWarning:1404101025849147432> ';
 
@@ -30,11 +36,19 @@ function setup(client, { scheduleRole }) {
     try {
       await user.roles.add(role);
       await interaction.editReply({
-        components: [new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`),
+          ),
+        ],
       });
     } catch (err) {
       await interaction.editReply({
-        components: [new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`),
+          ),
+        ],
       });
       return;
     }
@@ -42,7 +56,11 @@ function setup(client, { scheduleRole }) {
       const seconds = parseDuration(time);
       if (!seconds) {
         await interaction.followUp({
-          components: [new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`)],
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`),
+            ),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -57,8 +75,10 @@ async function handleTextCommand(message, args, { scheduleRole }) {
   if (args.length < 2) {
     await message.channel.send({
       components: [
-        new TextDisplayBuilder().setContent(
-          `${WARN}Usage: a. add role [userID] [roleID] [time]`,
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent(
+            `${WARN}Usage: a. add role [userID] [roleID] [time]`,
+          ),
         ),
       ],
       flags: MessageFlags.IsComponentsV2,
@@ -72,7 +92,11 @@ async function handleTextCommand(message, args, { scheduleRole }) {
   const role = guild.roles.cache.get(roleId);
   if (!member || !role) {
     await message.channel.send({
-      components: [new TextDisplayBuilder().setContent(`${WARN}Invalid user or role ID.`)],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent(`${WARN}Invalid user or role ID.`),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2,
     });
     return;
@@ -81,12 +105,20 @@ async function handleTextCommand(message, args, { scheduleRole }) {
   try {
     await member.roles.add(role);
     await message.channel.send({
-      components: [new TextDisplayBuilder().setContent(`Added ${role} to <@${userId}>.`)],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent(`Added ${role} to <@${userId}>.`),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2,
     });
   } catch {
     await message.channel.send({
-      components: [new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`)],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2,
     });
     return;
@@ -96,7 +128,11 @@ async function handleTextCommand(message, args, { scheduleRole }) {
     const seconds = parseDuration(time);
     if (!seconds) {
       await message.channel.send({
-        components: [new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`),
+          ),
+        ],
         flags: MessageFlags.IsComponentsV2,
       });
       return;
