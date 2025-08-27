@@ -258,17 +258,31 @@ function useDiamondItem(user, itemId, amount, perDiamond, resources) {
 }
 
 function setup(client, resources) {
-  const usable = Object.values(ITEMS).filter(i => i.useable);
   const command = new SlashCommandBuilder()
     .setName('use-item')
     .setDescription('Use an item')
-    .addStringOption(opt => {
-      opt.setName('item').setDescription('Item ID').setRequired(true);
-      usable.forEach(i => opt.addChoices({ name: i.name, value: i.id }));
-      return opt;
-    })
+    .addStringOption(opt =>
+      opt
+        .setName('item')
+        .setDescription('Item ID')
+        .setRequired(true)
+        .setAutocomplete(true),
+    )
     .addIntegerOption(opt => opt.setName('amount').setDescription('Amount').setMinValue(1));
   client.application.commands.create(command);
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isAutocomplete() || interaction.commandName !== 'use-item') return;
+    const stats = resources.userStats[interaction.user.id] || { inventory: [] };
+    stats.inventory = stats.inventory || [];
+    normalizeInventory(stats);
+    const focused = interaction.options.getFocused().toLowerCase();
+    const choices = stats.inventory
+      .map(entry => ITEMS[entry.id])
+      .filter(item => item && item.useable && item.name.toLowerCase().includes(focused))
+      .map(item => ({ name: item.name, value: item.id }));
+    await interaction.respond(choices.slice(0, 25));
+  });
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
