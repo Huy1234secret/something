@@ -57,12 +57,12 @@ function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   return size;
 }
 
-async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
+async function drawCover(ctx, imgSrcOrImg, x, y, w, h, radius = 16) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  if (!imgSrc) {
+  if (!imgSrcOrImg) {
     const g = ctx.createLinearGradient(x, y, x + w, y + h);
     g.addColorStop(0, '#0c0f18');
     g.addColorStop(1, '#11131c');
@@ -70,7 +70,9 @@ async function drawCover(ctx, imgSrc, x, y, w, h, radius = 16) {
     ctx.fillRect(x, y, w, h);
   } else {
     try {
-      const img = await loadCachedImage(imgSrc);
+      const img = typeof imgSrcOrImg === 'string'
+        ? await loadCachedImage(imgSrcOrImg)
+        : imgSrcOrImg;
       // Scale image to fully fit within the provided area
       const s = Math.min(w / img.width, h / img.height);
       const dw = img.width * s;
@@ -212,7 +214,7 @@ function deluxeBackground(ctx, W, H) {
 }
 
 /* ------------------------ card (IMPROVED) ------------------------ */
-async function deluxeCard(ctx, x, y, w, h, item = {}) {
+async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
   const rarity = (item.rarity || 'common').toLowerCase();
   const cardRadius = h * 0.05;
 
@@ -249,8 +251,8 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   const priceSectionH = gh * 0.2;
 
   // Cover Image
-  const coverPad = gw * 0.03;
-  await drawCover(ctx, item.image, gx + coverPad, gy + coverPad, gw - coverPad * 2, coverH - coverPad, innerRadius * 0.8);
+    const coverPad = gw * 0.03;
+    await drawCover(ctx, item._img || item.image, gx + coverPad, gy + coverPad, gw - coverPad * 2, coverH - coverPad, innerRadius * 0.8);
 
   // EXCLUSIVE banner
   if (item.exclusive) {
@@ -306,25 +308,22 @@ async function deluxeCard(ctx, x, y, w, h, item = {}) {
   // Price Row
   const rowY = gy + gh - priceSectionH / 2;
   const coinR = priceSectionH * 0.35;
-  const coinX = gx + contentPad + coinR;
-  try {
-    const coinImg = await loadCachedImage(COIN_IMG_URL);
-    ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinR * 2, coinR * 2);
-  } catch {
-    ctx.fillStyle = '#c99700';
-    ctx.beginPath();
-    ctx.arc(coinX, rowY, coinR, 0, Math.PI * 2);
-    ctx.fill();
-  }
+    const coinX = gx + contentPad + coinR;
+    if (coinImg) {
+      ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinR * 2, coinR * 2);
+    } else {
+      ctx.fillStyle = '#c99700';
+      ctx.beginPath();
+      ctx.arc(coinX, rowY, coinR, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-  // Price Text
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'left';
-  const priceText = String(item.price ?? '???');
-  const priceMaxW = gw - (coinX + coinR) - contentPad;
-  const priceSize = Math.floor(priceSectionH * 0.45);
-  shrinkToFit(ctx, priceText, priceMaxW, priceSize);
-  ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
+    // Price Text
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.font = `bold ${priceFontSize}px Sans`;
+    const priceText = String(item.price ?? '???');
+    ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
 
   // Stock
   if (Number.isFinite(item.stock) && Number.isFinite(item.maxStock)) {
@@ -364,6 +363,37 @@ async function renderDeluxeMedia(items = [], opts = {}) {
   const cardW = Math.floor(innerW / cols);
   const cardH = Math.floor(innerH / rows);
 
+  // Preload images to speed up rendering
+  let coinImg = null;
+  try {
+    coinImg = await loadCachedImage(COIN_IMG_URL);
+  } catch {
+    coinImg = null;
+  }
+
+  await Promise.all(items.map(async (it) => {
+    if (it && it.image) {
+      try {
+        it._img = await loadCachedImage(it.image);
+      } catch {
+        it._img = null;
+      }
+    }
+  }));
+
+  // Determine a uniform price font size so all prices match
+  const priceSectionH = cardH * 0.2;
+  const contentPad = cardW * 0.06;
+  const coinR = priceSectionH * 0.35;
+  const priceMaxW = cardW - contentPad * 2 - coinR * 2;
+  const basePriceSize = Math.floor(priceSectionH * 0.45);
+  let priceFontSize = basePriceSize;
+  for (const it of items) {
+    if (!it) continue;
+    const size = shrinkToFit(ctx, String(it.price ?? '???'), priceMaxW, basePriceSize);
+    if (size < priceFontSize) priceFontSize = size;
+  }
+
   for (let i = 0; i < cols * rows; i++) {
     const it = items[i];
     const c = i % cols;
@@ -373,7 +403,7 @@ async function renderDeluxeMedia(items = [], opts = {}) {
 
     if (it) {
       // eslint-disable-next-line no-await-in-loop
-      await deluxeCard(ctx, x, y, cardW, cardH, it);
+      await deluxeCard(ctx, x, y, cardW, cardH, it, coinImg, priceFontSize);
     } else {
       // Premium empty slot
       const emptyRadius = cardH * 0.05;
