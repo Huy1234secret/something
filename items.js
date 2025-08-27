@@ -15,7 +15,7 @@ const ITEMS = {
   TotemOfUndying: {
     id: 'TotemOfUndying',
     name: 'Seraphic Heart',
-    emoji: '<a:ITSeraphicheart:1410243519372853401>',
+    emoji: '<ITSeraphicheart:1410243519372853401>',
     rarity: 'Rare',
     value: 2000,
     useable: false,
