@@ -195,14 +195,19 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'shop') return;
-    if (interaction.options.getSubcommand() !== 'view') return;
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-    await sendShop(interaction.user, interaction.editReply.bind(interaction), resources);
+    try {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'shop') return;
+      if (interaction.options.getSubcommand() !== 'view') return;
+      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+      await sendShop(interaction.user, interaction.editReply.bind(interaction), resources);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
   });
 
   client.on('interactionCreate', async interaction => {
-    if (interaction.isStringSelectMenu()) {
+    try {
+      if (interaction.isStringSelectMenu()) {
       const state = shopStates.get(interaction.message.id);
       if (!state || interaction.user.id !== state.userId) return;
       if (interaction.customId === 'shop-page') {
@@ -560,6 +565,9 @@ function setup(client, resources) {
         const message = await interaction.channel.messages.fetch(messageId);
         await sendMarket(interaction.user, message.edit.bind(message), resources);
       } catch {}
+      }
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
   });
 }

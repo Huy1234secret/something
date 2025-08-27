@@ -81,102 +81,114 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'level') return;
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-    await sendLevelCard(interaction.user, interaction.editReply.bind(interaction), resources);
-  });
-
-  client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
-    const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
-
-    const modal = new ModalBuilder().setCustomId('card-edit-modal').setTitle('Edit Card');
-    const colorInput = new TextInputBuilder()
-      .setCustomId('color')
-      .setLabel('Card color (R,G,B)')
-      .setStyle(TextInputStyle.Short)
-      .setValue(settings.color.join(','));
-    const bgInput = new TextInputBuilder()
-      .setCustomId('background')
-      .setLabel('Card background URL')
-      .setStyle(TextInputStyle.Short)
-      .setValue(settings.background_url);
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(colorInput),
-      new ActionRowBuilder().addComponents(bgInput)
-    );
-    await interaction.showModal(modal);
-  });
-
-  client.on('interactionCreate', async interaction => {
-    if (!interaction.isModalSubmit() || interaction.customId !== 'card-edit-modal') return;
-    const colorValue = interaction.fields.getTextInputValue('color');
-    const bgValue = interaction.fields.getTextInputValue('background');
-    const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
-
-    const colorParts = colorValue.split(',').map(v => parseInt(v.trim(), 10));
-    if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
-      await interaction.reply({
-        components: [
-          new ActionRowBuilder().addComponents(
-            new TextDisplayBuilder().setContent(`${WARN}Invalid color.`),
-          ),
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      return;
-    }
-
     try {
-      new URL(bgValue);
-      await loadImage(bgValue);
-    } catch {
-      await interaction.reply({
-        components: [
-          new ActionRowBuilder().addComponents(
-            new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`),
-          ),
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      return;
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'level') return;
+      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+      await sendLevelCard(interaction.user, interaction.editReply.bind(interaction), resources);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
-    const changed =
-      colorParts.some((n, i) => n !== settings.color[i]) || bgValue !== settings.background_url;
+  });
 
-    if (!changed) {
-      await interaction.reply({
-        components: [
-          new ActionRowBuilder().addComponents(
-            new TextDisplayBuilder().setContent(`${WARN}No changes made.`),
-          ),
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      return;
-    }
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isButton() || interaction.customId !== 'card-edit') return;
+      const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
 
-    settings.color = colorParts;
-    settings.background_url = bgValue;
-    userCardSettings[interaction.user.id] = settings;
-    saveData();
-
-    if (interaction.message) {
-      await sendLevelCard(
-        interaction.user,
-        interaction.message.edit.bind(interaction.message),
-        resources,
+      const modal = new ModalBuilder().setCustomId('card-edit-modal').setTitle('Edit Card');
+      const colorInput = new TextInputBuilder()
+        .setCustomId('color')
+        .setLabel('Card color (R,G,B)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(settings.color.join(','));
+      const bgInput = new TextInputBuilder()
+        .setCustomId('background')
+        .setLabel('Card background URL')
+        .setStyle(TextInputStyle.Short)
+        .setValue(settings.background_url);
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(colorInput),
+        new ActionRowBuilder().addComponents(bgInput)
       );
+      await interaction.showModal(modal);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
+  });
 
-    await interaction.reply({
-      components: [
-        new ActionRowBuilder().addComponents(
-          new TextDisplayBuilder().setContent('Card updated.'),
-        ),
-      ],
-      flags: MessageFlags.IsComponentsV2,
-    });
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isModalSubmit() || interaction.customId !== 'card-edit-modal') return;
+      const colorValue = interaction.fields.getTextInputValue('color');
+      const bgValue = interaction.fields.getTextInputValue('background');
+      const settings = userCardSettings[interaction.user.id] || { color: defaultColor, background_url: defaultBackground };
+
+      const colorParts = colorValue.split(',').map(v => parseInt(v.trim(), 10));
+      if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent(`${WARN}Invalid color.`),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      try {
+        new URL(bgValue);
+        await loadImage(bgValue);
+      } catch {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const changed =
+        colorParts.some((n, i) => n !== settings.color[i]) || bgValue !== settings.background_url;
+
+      if (!changed) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent(`${WARN}No changes made.`),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      settings.color = colorParts;
+      settings.background_url = bgValue;
+      userCardSettings[interaction.user.id] = settings;
+      saveData();
+
+      if (interaction.message) {
+        await sendLevelCard(
+          interaction.user,
+          interaction.message.edit.bind(interaction.message),
+          resources,
+        );
+      }
+
+      await interaction.reply({
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent('Card updated.'),
+          ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
   });
 }
 

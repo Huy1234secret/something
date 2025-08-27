@@ -76,9 +76,13 @@ function setup(client, resources) {
   const command = new SlashCommandBuilder().setName('wallet').setDescription('Show your wallet');
   client.application.commands.create(command);
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'wallet') return;
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-    await sendWallet(interaction.user, interaction.editReply.bind(interaction), resources);
+    try {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'wallet') return;
+      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+      await sendWallet(interaction.user, interaction.editReply.bind(interaction), resources);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
   });
 }
 

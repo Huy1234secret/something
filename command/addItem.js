@@ -26,52 +26,56 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-item') return;
-    if (
-      !interaction.member.roles.cache.has(ADMIN_ROLE_ID) &&
-      interaction.guild.ownerId !== interaction.user.id
-    ) {
-      await interaction.reply({ content: `${WARNING} You do not have permission to use this command.` });
-      return;
-    }
-    const target = interaction.options.getUser('user');
-    const itemId = interaction.options.getString('item');
-    const amount = interaction.options.getInteger('amount');
-    if (!Number.isInteger(amount) || amount === 0) {
-      await interaction.reply({ content: `${WARNING} Invalid amount.` });
-      return;
-    }
-    const base = ITEMS[itemId];
-    if (!base) {
-      await interaction.reply({ content: `${WARNING} Invalid item.` });
-      return;
-    }
-    const stats = resources.userStats[target.id] || { inventory: [] };
-    stats.inventory = stats.inventory || [];
-    normalizeInventory(stats);
-    const entry = stats.inventory.find(i => i.id === itemId);
-    if (amount < 0) {
-      if (!entry) {
-        await interaction.reply({ content: `${WARNING} User does not have this item.` });
+    try {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-item') return;
+      if (
+        !interaction.member.roles.cache.has(ADMIN_ROLE_ID) &&
+        interaction.guild.ownerId !== interaction.user.id
+      ) {
+        await interaction.reply({ content: `${WARNING} You do not have permission to use this command.` });
         return;
       }
-      entry.amount = (entry.amount || 0) + amount;
-      if (entry.amount <= 0) {
-        stats.inventory = stats.inventory.filter(i => i !== entry);
+      const target = interaction.options.getUser('user');
+      const itemId = interaction.options.getString('item');
+      const amount = interaction.options.getInteger('amount');
+      if (!Number.isInteger(amount) || amount === 0) {
+        await interaction.reply({ content: `${WARNING} Invalid amount.` });
+        return;
       }
-    } else {
-      if (entry) entry.amount = (entry.amount || 0) + amount;
-      else stats.inventory.push({ ...base, amount });
+      const base = ITEMS[itemId];
+      if (!base) {
+        await interaction.reply({ content: `${WARNING} Invalid item.` });
+        return;
+      }
+      const stats = resources.userStats[target.id] || { inventory: [] };
+      stats.inventory = stats.inventory || [];
+      normalizeInventory(stats);
+      const entry = stats.inventory.find(i => i.id === itemId);
+      if (amount < 0) {
+        if (!entry) {
+          await interaction.reply({ content: `${WARNING} User does not have this item.` });
+          return;
+        }
+        entry.amount = (entry.amount || 0) + amount;
+        if (entry.amount <= 0) {
+          stats.inventory = stats.inventory.filter(i => i !== entry);
+        }
+      } else {
+        if (entry) entry.amount = (entry.amount || 0) + amount;
+        else stats.inventory.push({ ...base, amount });
+      }
+      normalizeInventory(stats);
+      resources.userStats[target.id] = stats;
+      resources.saveData();
+      const newEntry = stats.inventory.find(i => i.id === itemId);
+      const newAmount = newEntry ? newEntry.amount : 0;
+      await interaction.reply({
+        content: `Updated ${target.username}'s ${base.name} by ${formatNumber(amount)}. New amount: ${formatNumber(newAmount)}.`,
+        allowedMentions: { parse: [] },
+      });
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
-    normalizeInventory(stats);
-    resources.userStats[target.id] = stats;
-    resources.saveData();
-    const newEntry = stats.inventory.find(i => i.id === itemId);
-    const newAmount = newEntry ? newEntry.amount : 0;
-    await interaction.reply({
-      content: `Updated ${target.username}'s ${base.name} by ${formatNumber(amount)}. New amount: ${formatNumber(newAmount)}.`,
-      allowedMentions: { parse: [] },
-    });
   });
 }
 

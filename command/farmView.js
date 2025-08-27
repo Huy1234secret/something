@@ -249,8 +249,8 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (interaction.isChatInputCommand() && interaction.commandName === 'farm-view') {
-      try {
+    try {
+      if (interaction.isChatInputCommand() && interaction.commandName === 'farm-view') {
         if (!interaction.deferred && !interaction.replied) {
           await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
         }
@@ -259,12 +259,9 @@ function setup(client, resources) {
           interaction.editReply.bind(interaction),
           resources,
         );
-      } catch (err) {
-        if (err.code !== 10062) throw err;
+        return;
       }
-      return;
-    }
-    if (interaction.isStringSelectMenu() && interaction.customId === 'farm-select') {
+      if (interaction.isStringSelectMenu() && interaction.customId === 'farm-select') {
       const state = farmStates.get(interaction.message.id);
       if (!state || interaction.user.id !== state.userId) return;
       await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
@@ -537,6 +534,9 @@ function setup(client, resources) {
         flags: MessageFlags.IsComponentsV2,
       });
       return;
+    }
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
   });
 }
