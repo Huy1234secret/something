@@ -353,7 +353,11 @@ client.on('messageCreate', async message => {
       return;
     }
     message.channel.send({
-      components: [new TextDisplayBuilder().setContent('Pong!')],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent('Pong!'),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2,
     });
   }

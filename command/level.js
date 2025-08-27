@@ -117,7 +117,11 @@ function setup(client, resources) {
     const colorParts = colorValue.split(',').map(v => parseInt(v.trim(), 10));
     if (colorParts.length !== 3 || colorParts.some(n => isNaN(n) || n < 0 || n > 255)) {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent(`${WARN}Invalid color.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`${WARN}Invalid color.`),
+          ),
+        ],
         flags: MessageFlags.IsComponentsV2,
       });
       return;
@@ -128,7 +132,11 @@ function setup(client, resources) {
       await loadImage(bgValue);
     } catch {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`${WARN}Invalid background URL.`),
+          ),
+        ],
         flags: MessageFlags.IsComponentsV2,
       });
       return;
@@ -138,7 +146,11 @@ function setup(client, resources) {
 
     if (!changed) {
       await interaction.reply({
-        components: [new TextDisplayBuilder().setContent(`${WARN}No changes made.`)],
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent(`${WARN}No changes made.`),
+          ),
+        ],
         flags: MessageFlags.IsComponentsV2,
       });
       return;
@@ -158,7 +170,11 @@ function setup(client, resources) {
     }
 
     await interaction.reply({
-      components: [new TextDisplayBuilder().setContent('Card updated.')],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new TextDisplayBuilder().setContent('Card updated.'),
+        ),
+      ],
       flags: MessageFlags.IsComponentsV2,
     });
   });
