@@ -12,6 +12,16 @@ const {
 const { normalizeInventory } = require('../utils');
 
 const ITEM_TYPES = ['Consumable', 'Material', 'Misc', 'Tool', 'Accessory', 'Upgrade', 'Weapon', 'Chest', 'All'];
+const RARITY_EMOJIS = {
+  Common: '<:SBRCommon:1409932856762826862>',
+  Rare: '<:SBRRare:1409932954037387324>',
+  Epic: '<:SBREpic:1409933003269996674>',
+  Legendary: '<a:SBRLegendary:1409933036568449105>',
+  Mythical: '<a:SBRMythical:1409933097176268902>',
+  Godly: '<a:SBRGodly:1409933130793750548>',
+  Prismatic: '<a:SBRPrismatic:1409933176276521010>',
+  Secret: '<a:SBRSecret:1409933447220297791>',
+};
 const inventoryStates = new Map();
 
 async function sendInventory(user, send, { userStats, saveData }, state = { page: 1, types: ['All'] }) {
@@ -35,7 +45,7 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
     listContent = pageItems
       .map(
         item =>
-          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${item.type}\n<:SBreply:1403665761825980456>Rarity: ${item.rarity}`,
+          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${item.type}\n<:SBreply:1403665761825980456>Rarity: ${RARITY_EMOJIS[item.rarity] || ''} ${item.rarity}`,
       )
       .join('\n\n');
   }

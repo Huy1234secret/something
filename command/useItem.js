@@ -9,6 +9,9 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const { ITEMS } = require('../items');
 const { normalizeInventory } = require('../utils');
@@ -68,6 +71,16 @@ function landmineEmbed(user, amountLeft, expiresAt) {
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(btn));
+}
+
+function banHammerEmbed(user, targetId) {
+  return new ContainerBuilder()
+    .setAccentColor(0xff0000)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${user.username} has used **${ITEMS.BanHammer.name} ${ITEMS.BanHammer.emoji}** onto <@${targetId}>\n-# they are now not be able to use any command within 24h`,
+      ),
+    );
 }
 
 function expiredPadlockContainer(user, disable = false) {
@@ -178,6 +191,24 @@ function useLandmine(user, resources) {
   return { component: landmineEmbed(user, remaining, expires) };
 }
 
+function useBanHammer(user, targetId, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'BanHammer');
+  if (!entry || entry.amount < 1) {
+    return { error: `${WARNING} You need at least 1 Ban Hammer to use.` };
+  }
+  entry.amount -= 1;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  const expires = Date.now() + 24 * 60 * 60 * 1000;
+  resources.commandBans[targetId] = expires;
+  resources.saveData();
+  return { component: banHammerEmbed(user, targetId) };
+}
+
 async function handleUseItem(user, itemId, amount, send, resources) {
   let result;
   if (itemId === 'Padlock') {
@@ -243,6 +274,18 @@ function setup(client, resources) {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
     const itemId = interaction.options.getString('item');
     const amount = interaction.options.getInteger('amount') || 1;
+    if (itemId === 'BanHammer') {
+      const modal = new ModalBuilder()
+        .setCustomId(`banhammer-modal-${interaction.user.id}`)
+        .setTitle('Ban Hammer');
+      const input = new TextInputBuilder()
+        .setCustomId('user')
+        .setLabel('User ID')
+        .setStyle(TextInputStyle.Short);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      await interaction.showModal(modal);
+      return;
+    }
     await handleUseItem(interaction.user, itemId, amount, interaction.reply.bind(interaction), resources);
   });
 
@@ -254,6 +297,26 @@ function setup(client, resources) {
     } else {
       await interaction.update({ components: [expiredPadlockContainer(interaction.user, true)], flags: MessageFlags.IsComponentsV2 });
       await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
+    }
+  });
+
+  client.on('interactionCreate', async interaction => {
+    if (!interaction.isModalSubmit() || !interaction.customId.startsWith('banhammer-modal-')) return;
+    const userId = interaction.customId.split('-')[2];
+    if (interaction.user.id !== userId) return;
+    const targetId = interaction.fields.getTextInputValue('user');
+    let target;
+    try {
+      target = await interaction.client.users.fetch(targetId);
+    } catch {
+      await interaction.reply({ content: `${WARNING} Invalid user ID.`, flags: MessageFlags.Ephemeral });
+      return;
+    }
+    const res = useBanHammer(interaction.user, target.id, resources);
+    if (res.error) {
+      await interaction.reply({ content: res.error, flags: MessageFlags.Ephemeral });
+    } else {
+      await interaction.reply({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
     }
   });
 }

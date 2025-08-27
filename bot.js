@@ -29,6 +29,7 @@ const DATA_FILE = 'user_data.json';
 let userStats = {};
 let userCardSettings = {};
 let timedRoles = [];
+let commandBans = {};
 const defaultColor = [0,255,255];
 const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
@@ -81,10 +82,12 @@ function loadData() {
     userStats = data.user_stats || {};
     userCardSettings = data.user_card_settings || {};
     timedRoles = data.timed_roles || [];
+    commandBans = data.command_bans || {};
   } catch (err) {
     userStats = {};
     userCardSettings = {};
     timedRoles = [];
+    commandBans = {};
   }
   const fixed = fixItemEntries(userStats);
   if (fixed > 0) {
@@ -97,7 +100,8 @@ function saveData() {
   const data = {
     user_stats: userStats,
     user_card_settings: userCardSettings,
-    timed_roles: timedRoles
+    timed_roles: timedRoles,
+    command_bans: commandBans,
   };
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
 }
@@ -155,7 +159,7 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
-const resources = { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole, pendingRequests };
+const resources = { userStats, userCardSettings, commandBans, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole, pendingRequests };
 
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
@@ -168,6 +172,25 @@ client.setMaxListeners(20);
     await useItemCommand.restoreActiveItemTimers(client, resources);
 
     client.on('interactionCreate', async interaction => {
+      const banUntil = commandBans[interaction.user.id];
+      if (banUntil) {
+        if (banUntil > Date.now()) {
+          const container = new ContainerBuilder()
+            .setAccentColor(0xff0000)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `${interaction.user} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
+              ),
+            );
+          await interaction.reply({
+            components: [container],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+        delete commandBans[interaction.user.id];
+        saveData();
+      }
       if (interaction.isChatInputCommand()) {
         if (pendingRequests.has(interaction.user.id)) {
           const pending = pendingRequests.get(interaction.user.id);
@@ -189,10 +212,10 @@ client.setMaxListeners(20);
               ),
             );
           }
-            await interaction.reply({
-              components: [container],
-              flags: MessageFlags.IsComponentsV2,
-            });
+          await interaction.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+          });
           return;
         }
       }
@@ -224,6 +247,22 @@ client.setMaxListeners(20);
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
+  const banUntil = commandBans[message.author.id];
+  if (banUntil) {
+    if (banUntil > Date.now()) {
+      const container = new ContainerBuilder()
+        .setAccentColor(0xff0000)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `${message.author} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
+          ),
+        );
+      await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      return;
+    }
+    delete commandBans[message.author.id];
+    saveData();
+  }
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
   addCoins(message.author, Math.floor(Math.random()*100)+1);
   const content = message.content.trim();
