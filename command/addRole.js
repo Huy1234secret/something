@@ -28,53 +28,57 @@ function setup(client, { scheduleRole }) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-role') return;
-    const user = interaction.options.getMember('user');
-    const role = interaction.options.getRole('role');
-    const time = interaction.options.getString('time');
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
     try {
-      await user.roles.add(role);
-      await interaction.editReply({
-        components: [
-          new ContainerBuilder()
-            .setAccentColor(0xffffff)
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`),
-            ),
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-    } catch (err) {
-      await interaction.editReply({
-        components: [
-          new ContainerBuilder()
-            .setAccentColor(0xffffff)
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`),
-            ),
-        ],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      return;
-    }
-    if (time) {
-      const seconds = parseDuration(time);
-      if (!seconds) {
-        await interaction.followUp({
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'add-role') return;
+      const user = interaction.options.getMember('user');
+      const role = interaction.options.getRole('role');
+      const time = interaction.options.getString('time');
+      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+      try {
+        await user.roles.add(role);
+        await interaction.editReply({
           components: [
             new ContainerBuilder()
               .setAccentColor(0xffffff)
               .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`),
+                new TextDisplayBuilder().setContent(`Added ${role} to ${user}.`),
+              ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } catch (err) {
+        await interaction.editReply({
+          components: [
+            new ContainerBuilder()
+              .setAccentColor(0xffffff)
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(`${WARN}Failed to assign the role.`),
               ),
           ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
-      const expiresAt = Date.now() / 1000 + seconds;
-      scheduleRole(user.id, interaction.guild.id, role.id, expiresAt, true);
+      if (time) {
+        const seconds = parseDuration(time);
+        if (!seconds) {
+          await interaction.followUp({
+            components: [
+              new ContainerBuilder()
+                .setAccentColor(0xffffff)
+                .addTextDisplayComponents(
+                  new TextDisplayBuilder().setContent(`${WARN}Invalid time format.`),
+                ),
+            ],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+        const expiresAt = Date.now() / 1000 + seconds;
+        scheduleRole(user.id, interaction.guild.id, role.id, expiresAt, true);
+      }
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
   });
 }

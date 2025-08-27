@@ -172,52 +172,56 @@ client.setMaxListeners(20);
     await useItemCommand.restoreActiveItemTimers(client, resources);
 
     client.on('interactionCreate', async interaction => {
-      const banUntil = commandBans[interaction.user.id];
-      if (banUntil) {
-        if (banUntil > Date.now()) {
-          const container = new ContainerBuilder()
-            .setAccentColor(0xff0000)
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(
-                `${interaction.user} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
-              ),
-            );
-          await interaction.reply({
-            components: [container],
-            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
-        delete commandBans[interaction.user.id];
-        saveData();
-      }
-      if (interaction.isChatInputCommand()) {
-        if (pendingRequests.has(interaction.user.id)) {
-          const pending = pendingRequests.get(interaction.user.id);
-          const container = new ContainerBuilder()
-            .setAccentColor(0xff0000)
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(
-                `${interaction.user}, you still have a request action needed to be done`,
-              ),
-            )
-            .addSeparatorComponents(new SeparatorBuilder());
-          if (pending.message) {
-            container.addActionRowComponents(
-              new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                  .setLabel('View Request')
-                  .setStyle(ButtonStyle.Link)
-                  .setURL(pending.message.url),
-              ),
-            );
+      try {
+        const banUntil = commandBans[interaction.user.id];
+        if (banUntil) {
+          if (banUntil > Date.now()) {
+            const container = new ContainerBuilder()
+              .setAccentColor(0xff0000)
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                  `${interaction.user} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
+                ),
+              );
+            await interaction.reply({
+              components: [container],
+              flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            });
+            return;
           }
-          await interaction.reply({
-            components: [container],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
+          delete commandBans[interaction.user.id];
+          saveData();
         }
+        if (interaction.isChatInputCommand()) {
+          if (pendingRequests.has(interaction.user.id)) {
+            const pending = pendingRequests.get(interaction.user.id);
+            const container = new ContainerBuilder()
+              .setAccentColor(0xff0000)
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(
+                  `${interaction.user}, you still have a request action needed to be done`,
+                ),
+              )
+              .addSeparatorComponents(new SeparatorBuilder());
+            if (pending.message) {
+              container.addActionRowComponents(
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setLabel('View Request')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(pending.message.url),
+                ),
+              );
+            }
+            await interaction.reply({
+              components: [container],
+              flags: MessageFlags.IsComponentsV2,
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        if (error.code !== 10062) console.error(error);
       }
     });
 

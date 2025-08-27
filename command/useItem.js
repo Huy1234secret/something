@@ -277,65 +277,81 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isAutocomplete() || interaction.commandName !== 'use-item') return;
-    const stats = resources.userStats[interaction.user.id] || { inventory: [] };
-    stats.inventory = stats.inventory || [];
-    normalizeInventory(stats);
-    const focused = interaction.options.getFocused().toLowerCase();
-    const choices = stats.inventory
-      .map(entry => ITEMS[entry.id])
-      .filter(item => item && item.useable && item.name.toLowerCase().includes(focused))
-      .map(item => ({ name: item.name, value: item.id }));
-    await interaction.respond(choices.slice(0, 25));
-  });
-
-  client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
-    const itemId = interaction.options.getString('item');
-    const amount = interaction.options.getInteger('amount') || 1;
-    if (itemId === 'BanHammer') {
-      const modal = new ModalBuilder()
-        .setCustomId(`banhammer-modal-${interaction.user.id}`)
-        .setTitle('Ban Hammer');
-      const input = new TextInputBuilder()
-        .setCustomId('user')
-        .setLabel('User ID')
-        .setStyle(TextInputStyle.Short);
-      modal.addComponents(new ActionRowBuilder().addComponents(input));
-      await interaction.showModal(modal);
-      return;
-    }
-    await handleUseItem(interaction.user, itemId, amount, interaction.reply.bind(interaction), resources);
-  });
-
-  client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton() || interaction.customId !== 'padlock-use-again') return;
-    const res = usePadlock(interaction.user, resources);
-    if (res.error) {
-      await interaction.reply({ content: res.error });
-    } else {
-      await interaction.update({ components: [expiredPadlockContainer(interaction.user, true)], flags: MessageFlags.IsComponentsV2 });
-      await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
-    }
-  });
-
-  client.on('interactionCreate', async interaction => {
-    if (!interaction.isModalSubmit() || !interaction.customId.startsWith('banhammer-modal-')) return;
-    const userId = interaction.customId.split('-')[2];
-    if (interaction.user.id !== userId) return;
-    const targetId = interaction.fields.getTextInputValue('user');
-    let target;
     try {
-      target = await interaction.client.users.fetch(targetId);
-    } catch {
-      await interaction.reply({ content: `${WARNING} Invalid user ID.`, flags: MessageFlags.Ephemeral });
-      return;
+      if (!interaction.isAutocomplete() || interaction.commandName !== 'use-item') return;
+      const stats = resources.userStats[interaction.user.id] || { inventory: [] };
+      stats.inventory = stats.inventory || [];
+      normalizeInventory(stats);
+      const focused = interaction.options.getFocused().toLowerCase();
+      const choices = stats.inventory
+        .map(entry => ITEMS[entry.id])
+        .filter(item => item && item.useable && item.name.toLowerCase().includes(focused))
+        .map(item => ({ name: item.name, value: item.id }));
+      await interaction.respond(choices.slice(0, 25));
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
-    const res = useBanHammer(interaction.user, target.id, resources);
-    if (res.error) {
-      await interaction.reply({ content: res.error, flags: MessageFlags.Ephemeral });
-    } else {
-      await interaction.reply({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
+  });
+
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
+      const itemId = interaction.options.getString('item');
+      const amount = interaction.options.getInteger('amount') || 1;
+      if (itemId === 'BanHammer') {
+        const modal = new ModalBuilder()
+          .setCustomId(`banhammer-modal-${interaction.user.id}`)
+          .setTitle('Ban Hammer');
+        const input = new TextInputBuilder()
+          .setCustomId('user')
+          .setLabel('User ID')
+          .setStyle(TextInputStyle.Short);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        await interaction.showModal(modal);
+        return;
+      }
+      await handleUseItem(interaction.user, itemId, amount, interaction.reply.bind(interaction), resources);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
+  });
+
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isButton() || interaction.customId !== 'padlock-use-again') return;
+      const res = usePadlock(interaction.user, resources);
+      if (res.error) {
+        await interaction.reply({ content: res.error });
+      } else {
+        await interaction.update({ components: [expiredPadlockContainer(interaction.user, true)], flags: MessageFlags.IsComponentsV2 });
+        await interaction.followUp({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
+      }
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
+  });
+
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isModalSubmit() || !interaction.customId.startsWith('banhammer-modal-')) return;
+      const userId = interaction.customId.split('-')[2];
+      if (interaction.user.id !== userId) return;
+      const targetId = interaction.fields.getTextInputValue('user');
+      let target;
+      try {
+        target = await interaction.client.users.fetch(targetId);
+      } catch {
+        await interaction.reply({ content: `${WARNING} Invalid user ID.`, flags: MessageFlags.Ephemeral });
+        return;
+      }
+      const res = useBanHammer(interaction.user, target.id, resources);
+      if (res.error) {
+        await interaction.reply({ content: res.error, flags: MessageFlags.Ephemeral });
+      } else {
+        await interaction.reply({ components: [res.component], flags: MessageFlags.IsComponentsV2 });
+      }
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
   });
 }

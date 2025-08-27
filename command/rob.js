@@ -233,9 +233,13 @@ function setup(client, resources) {
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== 'rob') return;
-    const target = interaction.options.getUser('user');
-    await executeRob(interaction.user, target, interaction.reply.bind(interaction), resources);
+    try {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'rob') return;
+      const target = interaction.options.getUser('user');
+      await executeRob(interaction.user, target, interaction.reply.bind(interaction), resources);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
   });
 }
 
