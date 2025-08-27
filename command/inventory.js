@@ -105,23 +105,40 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand() || interaction.commandName !== 'inventory') return;
-    await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-    await sendInventory(interaction.user, interaction.editReply.bind(interaction), resources);
+    try {
+      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+      await sendInventory(
+        interaction.user,
+        interaction.editReply.bind(interaction),
+        resources,
+      );
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
   });
 
   client.on('interactionCreate', async interaction => {
     if (!interaction.isStringSelectMenu()) return;
     const state = inventoryStates.get(interaction.message.id);
     if (!state || interaction.user.id !== state.userId) return;
-    if (interaction.customId === 'inventory-page') {
-      state.page = parseInt(interaction.values[0], 10);
-    } else if (interaction.customId === 'inventory-type') {
-      state.types = interaction.values.includes('All') ? ['All'] : interaction.values;
-      state.page = 1;
-    } else {
-      return;
+    try {
+      if (interaction.customId === 'inventory-page') {
+        state.page = parseInt(interaction.values[0], 10);
+      } else if (interaction.customId === 'inventory-type') {
+        state.types = interaction.values.includes('All') ? ['All'] : interaction.values;
+        state.page = 1;
+      } else {
+        return;
+      }
+      await sendInventory(
+        interaction.user,
+        interaction.update.bind(interaction),
+        resources,
+        state,
+      );
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
     }
-    await sendInventory(interaction.user, interaction.update.bind(interaction), resources, state);
   });
 }
 
