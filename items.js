@@ -12,8 +12,8 @@ const ITEMS = {
     price: 35000,
     sellPrice: null,
   },
-  TotemOfUndying: {
-    id: 'TotemOfUndying',
+  SeraphicHeart: {
+    id: 'SeraphicHeart',
     name: 'Seraphic Heart',
     emoji: '<ITSeraphicheart:1410243519372853401>',
     rarity: 'Rare',
@@ -64,8 +64,8 @@ const ITEMS = {
     price: 120000,
     sellPrice: null,
   },
-  Wheat: {
-    id: 'Wheat',
+  Sheaf: {
+    id: 'Sheaf',
     name: 'Sheaf',
     emoji: '<:ITSheaf:1410243260689027172>',
     rarity: 'Rare',
@@ -98,7 +98,7 @@ const ITEMS = {
     value: 0,
     useable: true,
     type: 'Chest',
-    note: '1 <:CRDeluxeCoin:1405595587780280382> = 100 <:CRDiamond:1405595593069432912>',
+    note: 'Give 10k Diamonds',
     image: 'https://i.ibb.co/fYXHjr13/Bag-of-Diamond.png',
     price: 100,
     sellPrice: null,
@@ -111,7 +111,7 @@ const ITEMS = {
     value: 0,
     useable: true,
     type: 'Chest',
-    note: '1 <:CRDeluxeCoin:1405595587780280382> = 150 <:CRDiamond:1405595593069432912>',
+    note: 'Give 135k Diamonds',
     image: 'https://i.ibb.co/5xLZZ25K/Crate-of-Diamond.png',
     price: 900,
     sellPrice: null,
@@ -124,7 +124,7 @@ const ITEMS = {
     value: 0,
     useable: true,
     type: 'Chest',
-    note: '1 <:CRDeluxeCoin:1405595587780280382> = 200 <:CRDiamond:1405595593069432912>',
+    note: 'Give 980k Diamonds',
     image: 'https://i.ibb.co/4nJR1ZnC/Chest-of-Diamond.png',
     price: 4900,
     sellPrice: null,
