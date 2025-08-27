@@ -155,21 +155,21 @@ function buildFarmContainer(user, selected = [], farm = {}) {
   const plantBtn = new ButtonBuilder()
     .setCustomId('farm-plant')
     .setLabel('Plant')
-    .setEmoji('<:SBPlant:1408077812719419585>')
+    .setEmoji('<:SBPlant:1410244118222999685>')
     .setStyle(ButtonStyle.Success)
     .setDisabled(selected.length === 0);
 
   const harvestBtn = new ButtonBuilder()
     .setCustomId('farm-harvest')
     .setLabel('Harvest')
-    .setEmoji('<:ITHarvestscythe:1408146746600722513>')
+    .setEmoji(ITEMS.HarvestScythe.emoji)
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(!harvestable);
 
   const waterBtn = new ButtonBuilder()
     .setCustomId('farm-water')
     .setLabel('Watering')
-    .setEmoji('<:ITWateringcan:1408146760475611208>')
+    .setEmoji(ITEMS.WateringCan.emoji)
     .setStyle(ButtonStyle.Primary);
 
   const progressLines = [];
@@ -286,7 +286,9 @@ function setup(client, resources) {
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
               if (s.id === 'WheatSeed') {
-                option.setEmoji({ id: '1408147889657483305', name: 'ITWheatseed' });
+                const match = /<(a?):(\w+):(\d+)>/.exec(ITEMS.WheatSeed.emoji);
+                if (match)
+                  option.setEmoji({ id: match[3], name: match[2], animated: Boolean(match[1]) });
               } else if (s.emoji) {
                 const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
                 option.setEmoji(
@@ -415,7 +417,7 @@ function setup(client, resources) {
         if (!plot.seedId) return;
         if (status.dead) deadNote = true;
         else if (status.grown) {
-          const amount = Math.floor(Math.random() * 11) + 5;
+          const amount = Math.floor(Math.random() * 4) + 2;
           harvested += amount;
           const inv = stats.inventory;
           let entry = inv.find(i => i.id === ITEMS.Wheat.id);

@@ -38,15 +38,15 @@ async function handleDeath(user, action, resources) {
     const btn = new ButtonBuilder()
       .setCustomId('totem-left')
       .setEmoji(ITEMS.TotemOfUndying.emoji)
-      .setLabel(`You have ${totem.amount} Totem Of Undying left!`)
+      .setLabel(`You have ${totem.amount} ${ITEMS.TotemOfUndying.name} left!`)
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true);
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('## Your Totem Of Undying protected you!'),
+        new TextDisplayBuilder().setContent(`## Your ${ITEMS.TotemOfUndying.name} protected you!`),
         new TextDisplayBuilder().setContent(
-          `You died while ${action}, but you have Totem Of Undying in your inventory which prevented you from dying.`,
+          `You died while ${action}, but you have ${ITEMS.TotemOfUndying.name} in your inventory which prevented you from dying.`,
         ),
       )
       .addSeparatorComponents(new SeparatorBuilder())
