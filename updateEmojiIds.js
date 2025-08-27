@@ -34,6 +34,10 @@ for (const stats of Object.values(userStats)) {
 
     const updated = { ...item };
     let changed = false;
+    if (item.id !== base.id) {
+      updated.id = base.id;
+      changed = true;
+    }
     if (item.emoji !== base.emoji) {
       updated.emoji = base.emoji;
       changed = true;
@@ -53,7 +57,7 @@ for (const stats of Object.values(userStats)) {
 
 if (fixed > 0) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log(`Fixed ${fixed} emoji entries.`);
+  console.log(`Fixed ${fixed} item entries.`);
 } else {
-  console.log('No emoji entries needed fixing.');
+  console.log('No inventory entries needed fixing.');
 }
