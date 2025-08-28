@@ -266,26 +266,37 @@ client.on = function(event, listener) {
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
-  const banUntil = commandBans[message.author.id];
-  if (banUntil) {
-    if (banUntil > Date.now()) {
-      const container = new ContainerBuilder()
-        .setAccentColor(0xff0000)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `${message.author} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
-          ),
-        );
-      await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-      return;
+  const content = message.content.trim();
+  const lowerContent = content.toLowerCase();
+  const isPrefixCommand = lowerContent.startsWith('a.');
+  const isPingCommand = message.content === '!ping';
+  const isCommand = isPrefixCommand || isPingCommand;
+
+  if (isCommand) {
+    const banUntil = commandBans[message.author.id];
+    if (banUntil) {
+      if (banUntil > Date.now()) {
+        const container = new ContainerBuilder()
+          .setAccentColor(0xff0000)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `${message.author} you are currently being banned, you will be unbanned <t:${Math.floor(banUntil / 1000)}:R>!`,
+            ),
+          );
+        await message.channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        return;
+      }
+      delete commandBans[message.author.id];
+      saveData();
     }
-    delete commandBans[message.author.id];
-    saveData();
   }
+
   await addXp(message.author, Math.floor(Math.random()*10)+1, client);
   addCoins(message.author, Math.floor(Math.random()*100)+1);
-  const content = message.content.trim();
-  if (pendingRequests.has(message.author.id) && (content.toLowerCase().startsWith('a.') || message.content === '!ping')) {
+
+  if (!isCommand) return;
+
+  if (pendingRequests.has(message.author.id)) {
     const pending = pendingRequests.get(message.author.id);
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
@@ -305,14 +316,15 @@ client.on('messageCreate', async message => {
         ),
       );
     }
-      await message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      await message.delete().catch(() => {});
-      return;
-    }
-  if (content.toLowerCase().startsWith('a.')) {
+    await message.channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    await message.delete().catch(() => {});
+    return;
+  }
+
+  if (isPrefixCommand) {
     const afterPrefix = content.slice(2).trim();
     const lowerAfter = afterPrefix.toLowerCase();
     if (lowerAfter === 'level') {
@@ -383,33 +395,7 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
     return;
   }
-  if (message.content === '!ping') {
-    if (pendingRequests.has(message.author.id)) {
-      const pending = pendingRequests.get(message.author.id);
-      const container = new ContainerBuilder()
-        .setAccentColor(0xff0000)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `${message.author}, you still have a request action needed to be done`,
-          ),
-        )
-        .addSeparatorComponents(new SeparatorBuilder());
-      if (pending.message) {
-        container.addActionRowComponents(
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('View Request')
-              .setStyle(ButtonStyle.Link)
-              .setURL(pending.message.url),
-          ),
-        );
-      }
-      await message.channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      return;
-    }
+  if (isPingCommand) {
     message.channel.send({
       components: [
         new ActionRowBuilder().addComponents(
