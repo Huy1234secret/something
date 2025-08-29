@@ -375,6 +375,7 @@ function setup(client, resources) {
                 new TextDisplayBuilder().setContent('Item not available.'),
               ),
             ],
+            flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
@@ -392,6 +393,7 @@ function setup(client, resources) {
                 ),
               ),
             ],
+            flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
@@ -423,7 +425,7 @@ function setup(client, resources) {
                 ),
               ),
           );
-        await interaction.update({ components: [container] });
+        await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
       } else if (interaction.customId === 'shop-cancel') {
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
@@ -448,6 +450,7 @@ function setup(client, resources) {
                 new TextDisplayBuilder().setContent('Sale failed.'),
               ),
             ],
+            flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
@@ -465,7 +468,7 @@ function setup(client, resources) {
               `Sold ×${amount} ${entry.name} ${entry.emoji} for ${total} ${coinEmoji}.`,
             ),
           );
-        await interaction.update({ components: [container] });
+        await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
         try {
           const message = await interaction.channel.messages.fetch(messageId);
           await sendMarket(interaction.user, message.edit.bind(message), resources);
