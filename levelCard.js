@@ -69,22 +69,14 @@ function drawProgressBar(ctx, x, y, w, h, progress, label, starImg, color) {
     grad.addColorStop(1, col);
     ctx.fillStyle = grad;
 
-    if (progress >= 1) {
-      // full progress retains rounded corners
-      roundRect(ctx, x, y, fillW, h, h / 2);
-      ctx.fill();
-    } else {
-      // left side rounded, right side square
-      const rads = h / 2;
-      ctx.beginPath();
-      ctx.moveTo(x + rads, y);
-      ctx.arcTo(x, y, x, y + h, rads);
-      ctx.arcTo(x, y + h, x + rads, y + h, rads);
-      ctx.lineTo(x + fillW, y + h);
-      ctx.lineTo(x + fillW, y);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // draw full rounded bar, clipped to progress width for smooth edges
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, fillW, h);
+    ctx.clip();
+    roundRect(ctx, x, y, w, h, h / 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   // Star icon
