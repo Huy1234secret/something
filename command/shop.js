@@ -40,6 +40,38 @@ const SHOP_ITEMS = {
 
 const shopStates = new Map();
 
+function levenshtein(a, b) {
+  const matrix = Array.from({ length: a.length + 1 }, () => []);
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 1; j <= b.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) matrix[i][j] = matrix[i - 1][j - 1];
+      else
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1,
+        );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+function findClosestItemId(query) {
+  let closest = null;
+  let min = Infinity;
+  const lower = query.toLowerCase();
+  for (const id of Object.keys(ITEMS)) {
+    const dist = levenshtein(lower, id.toLowerCase());
+    if (dist < min) {
+      min = dist;
+      closest = id;
+    }
+  }
+  return closest;
+}
+
 async function sendMarket(user, send, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
@@ -49,19 +81,26 @@ async function sendMarket(user, send, resources) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('market-sell-select')
     .setPlaceholder('Item to sell');
+  let showOther = false;
   if (sellable.length) {
-    select.addOptions(
-      sellable.map(item => {
-        const match = /<(a?):(\w+):(\d+)>/.exec(item.emoji);
-        return {
-          label: `${item.name} - ${item.amount}`,
-          value: item.id,
-          emoji: match
-            ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
-            : undefined,
-        };
-      }),
-    );
+    let options = sellable.map(item => {
+      const match = /<(a?):(\w+):(\d+)>/.exec(item.emoji);
+      return {
+        label: `${item.name} - ${item.amount}`,
+        value: item.id,
+        emoji: match
+          ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
+          : undefined,
+      };
+    });
+    if (options.length >= 24) {
+      options = options.slice(0, 24);
+      options.push(
+        new StringSelectMenuOptionBuilder().setLabel('Other').setValue('other'),
+      );
+      showOther = true;
+    }
+    select.addOptions(options);
   } else {
     select
       .addOptions(
@@ -92,7 +131,17 @@ async function sendMarket(user, send, resources) {
       new TextDisplayBuilder().setContent('* Here you can sell your sellable items!'),
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(new ActionRowBuilder().addComponents(select))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(select));
+  if (showOther) {
+    const otherBtn = new ButtonBuilder()
+      .setCustomId('market-sell-other')
+      .setLabel('Other')
+      .setStyle(ButtonStyle.Secondary);
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(otherBtn),
+    );
+  }
+  container
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(typeSelect));
   const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -232,24 +281,62 @@ function setup(client, resources) {
           state,
         );
       } else if (interaction.customId === 'market-sell-select') {
-        const itemId = interaction.values[0];
-        const stats = resources.userStats[state.userId] || { inventory: [] };
-        const item = (stats.inventory || []).find(i => i.id === itemId) || ITEMS[itemId];
-        const modal = new ModalBuilder()
-          .setCustomId(`market-sell-modal-${interaction.message.id}-${itemId}`)
-          .setTitle('Sell Item');
-        const input = new TextInputBuilder()
-          .setCustomId('amount')
-          .setLabel('How many?')
-          .setPlaceholder(`You currently have ${item ? item.amount || 0 : 0}`)
-          .setStyle(TextInputStyle.Short);
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        await interaction.showModal(modal);
+        const choice = interaction.values[0];
+        if (choice === 'other') {
+          const modal = new ModalBuilder()
+            .setCustomId(`market-sell-other-modal-${interaction.message.id}`)
+            .setTitle('Sell Item');
+          const itemInput = new TextInputBuilder()
+            .setCustomId('item')
+            .setLabel('Item ID')
+            .setStyle(TextInputStyle.Short);
+          const amountInput = new TextInputBuilder()
+            .setCustomId('amount')
+            .setLabel('Amount')
+            .setStyle(TextInputStyle.Short);
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(itemInput),
+            new ActionRowBuilder().addComponents(amountInput),
+          );
+          await interaction.showModal(modal);
+        } else {
+          const stats = resources.userStats[state.userId] || { inventory: [] };
+          const item = (stats.inventory || []).find(i => i.id === choice) || ITEMS[choice];
+          const modal = new ModalBuilder()
+            .setCustomId(`market-sell-modal-${interaction.message.id}-${choice}`)
+            .setTitle('Sell Item');
+          const input = new TextInputBuilder()
+            .setCustomId('amount')
+            .setLabel('How many?')
+            .setPlaceholder(`You currently have ${item ? item.amount || 0 : 0}`)
+            .setStyle(TextInputStyle.Short);
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          await interaction.showModal(modal);
+        }
       } else {
         return;
       }
     } else if (interaction.isButton()) {
-      if (interaction.customId.startsWith('shop-buy-')) {
+      if (interaction.customId === 'market-sell-other') {
+        const state = shopStates.get(interaction.message.id);
+        if (!state || interaction.user.id !== state.userId) return;
+        const modal = new ModalBuilder()
+          .setCustomId(`market-sell-other-modal-${interaction.message.id}`)
+          .setTitle('Sell Item');
+        const itemInput = new TextInputBuilder()
+          .setCustomId('item')
+          .setLabel('Item ID')
+          .setStyle(TextInputStyle.Short);
+        const amountInput = new TextInputBuilder()
+          .setCustomId('amount')
+          .setLabel('Amount')
+          .setStyle(TextInputStyle.Short);
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(itemInput),
+          new ActionRowBuilder().addComponents(amountInput),
+        );
+        await interaction.showModal(modal);
+      } else if (interaction.customId.startsWith('shop-buy-')) {
         const state = shopStates.get(interaction.message.id);
         if (!state || interaction.user.id !== state.userId) return;
         const index = parseInt(interaction.customId.split('-')[2], 10);
@@ -487,6 +574,86 @@ function setup(client, resources) {
         }
       }, 30000);
       resources.pendingRequests.set(interaction.user.id, { timer, message: reply });
+    } else if (
+      interaction.isModalSubmit() && interaction.customId.startsWith('market-sell-other-modal-')
+    ) {
+      const messageId = interaction.customId.split('-').slice(-1)[0];
+      const state = shopStates.get(messageId);
+      if (!state || interaction.user.id !== state.userId) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Sell expired.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const stats = resources.userStats[state.userId] || { inventory: [] };
+      normalizeInventory(stats);
+      const rawId = interaction.fields.getTextInputValue('item');
+      const itemId = findClosestItemId(rawId);
+      const entry = (stats.inventory || []).find(i => i.id === itemId);
+      if (!entry || !(ITEMS[itemId] || {}).sellPrice) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Item not available.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const raw = interaction.fields.getTextInputValue('amount');
+      let amount;
+      if (/^all$/i.test(raw)) amount = entry.amount;
+      else amount = parseInt(raw, 10);
+      if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Invalid amount.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const item = ITEMS[itemId];
+      const sellPrice = item.sellPrice;
+      const [min, max] = Array.isArray(sellPrice)
+        ? sellPrice
+        : [sellPrice, sellPrice];
+      const price = Math.floor(Math.random() * (max - min + 1)) + min;
+      const total = price * amount;
+      const coinEmoji = '<:CRCoin:1405595571141480570>';
+      const sellBtn = new ButtonBuilder()
+        .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
+        .setLabel('Sell')
+        .setStyle(ButtonStyle.Danger);
+      const cancelBtn = new ButtonBuilder()
+        .setCustomId('market-cancel')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary);
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `You are selling **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji}\n-# are you sure?`,
+          ),
+        )
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(new ActionRowBuilder().addComponents(sellBtn, cancelBtn));
+      await interaction.reply({
+        components: [container],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      });
+      try {
+        const message = await interaction.channel.messages.fetch(messageId);
+        await sendMarket(interaction.user, message.edit.bind(message), resources);
+      } catch {}
     } else if (
       interaction.isModalSubmit() && interaction.customId.startsWith('market-sell-modal-')
     ) {
