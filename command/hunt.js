@@ -116,16 +116,20 @@ function buildMainContainer(user, stats, text, color, thumb) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
-  const section = new SectionBuilder();
-  if (thumb) section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
-  section.addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+  const section = new SectionBuilder()
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(thumb ?? user.displayAvatarURL()),
+    )
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(select))
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(new ActionRowBuilder().addComponents(huntBtn, statBtn, equipBtn));
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(huntBtn, statBtn, equipBtn),
+    );
 }
 
 function buildStatContainer(user, stats) {
@@ -228,6 +232,9 @@ function buildEquipmentContainer(user, stats) {
   const equippedGun = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
   const equippedBullet = ITEMS[stats.hunt_bullet] || { name: 'None', emoji: '' };
   const section = new SectionBuilder()
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(user.displayAvatarURL()),
+    )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
       new TextDisplayBuilder().setContent(
