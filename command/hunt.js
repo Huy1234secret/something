@@ -148,7 +148,7 @@ function buildStatContainer(user, stats) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
-  const section1 = new SectionBuilder()
+  const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`## ${user} Hunting Stats.`),
@@ -157,14 +157,14 @@ function buildStatContainer(user, stats) {
       ),
       new TextDisplayBuilder().setContent(`* Hunted ${stats.hunt_total || 0} times`),
     );
-  const section2 = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`* Succeed ${stats.hunt_success || 0} times`),
-    new TextDisplayBuilder().setContent(`* Failed ${stats.hunt_fail || 0} times`),
-    new TextDisplayBuilder().setContent(`* Died ${stats.hunt_die || 0} times`),
-  );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(section1, section2)
+    .addSectionComponents(section)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`* Succeed ${stats.hunt_success || 0} times`),
+      new TextDisplayBuilder().setContent(`* Failed ${stats.hunt_fail || 0} times`),
+      new TextDisplayBuilder().setContent(`* Died ${stats.hunt_die || 0} times`),
+    )
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('### Hunting Mastery Perks:'))
     .addSeparatorComponents(new SeparatorBuilder())
@@ -299,7 +299,11 @@ async function sendHunt(user, send, resources) {
     0xffffff,
     areaObj && areaObj.image,
   );
-  const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  const message = await send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+    fetchReply: true,
+  });
   huntStates.set(message.id, { userId: user.id });
   return message;
 }
