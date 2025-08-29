@@ -25,6 +25,7 @@ const addItemCommand = require('./command/addItem');
 const farmViewCommand = require('./command/farmView');
 const huntCommand = require('./command/hunt');
 const { ITEMS } = require('./items');
+const { setSafeTimeout } = require('./utils');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -157,14 +158,14 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
     saveData();
   }
   const delay = expiresAt * 1000 - Date.now();
-  setTimeout(async () => {
+  setSafeTimeout(async () => {
     try {
       const guild = client.guilds.cache.get(guildId);
       if (!guild) return;
       const member = await guild.members.fetch(userId);
       await member.roles.remove(roleId);
     } catch (err) {}
-  }, Math.max(delay, 0));
+  }, delay);
 }
 
 loadData();

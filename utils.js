@@ -67,4 +67,11 @@ function normalizeInventory(stats) {
   stats.inventory = Object.values(map).filter(i => (i.amount || 0) > 0);
 }
 
-module.exports = { formatNumber, parseAmount, normalizeInventory };
+const MAX_TIMEOUT = 2 ** 31 - 1;
+
+function setSafeTimeout(fn, delay) {
+  if (delay <= MAX_TIMEOUT) return setTimeout(fn, Math.max(0, delay));
+  return setTimeout(() => setSafeTimeout(fn, delay - MAX_TIMEOUT), MAX_TIMEOUT);
+}
+
+module.exports = { formatNumber, parseAmount, normalizeInventory, setSafeTimeout };
