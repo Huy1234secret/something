@@ -55,7 +55,7 @@ function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   return size;
 }
 
-async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
+async function drawContain(ctx, imgSrcOrImg, x, y, w, h, radius = 14) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
@@ -66,16 +66,19 @@ async function drawContain(ctx, imgSrc, x, y, w, h, radius = 14) {
   ctx.fillStyle = g;
   ctx.fillRect(x, y, w, h);
 
-  if (imgSrc) {
+  if (imgSrcOrImg) {
     try {
-      const img = await loadCachedImage(imgSrc);
+      const img =
+        typeof imgSrcOrImg === 'string'
+          ? await loadCachedImage(imgSrcOrImg)
+          : imgSrcOrImg;
       const scale = Math.min(w / img.width, h / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
       const dx = x + (w - dw) / 2;
       const dy = y + (h - dh) / 2;
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      ctx.imageSmoothingQuality = 'medium';
       ctx.drawImage(img, dx, dy, dw, dh);
     } catch {
       ctx.fillStyle = '#334155';
@@ -211,7 +214,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   const imgBoxY = y + titleSectionH;
   const imgBoxH = h - titleSectionH - priceSectionH - noteSectionH;
 
-  await drawContain(ctx, item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
+  await drawContain(ctx, item._img || item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
 
   if (item.note) {
     ctx.fillStyle = '#c4d1eb';
@@ -250,6 +253,19 @@ async function renderShopMedia(items = [], opts = {}) {
   } catch {
     coinImg = null;
   }
+
+  // preload all item images concurrently
+  await Promise.all(
+    items.map(async (it) => {
+      if (it && it.image) {
+        try {
+          it._img = await loadCachedImage(it.image);
+        } catch {
+          it._img = null;
+        }
+      }
+    })
+  );
 
   // --- Proportional Grid Metrics ---
   const sidePadding = W * 0.03;
