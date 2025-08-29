@@ -89,7 +89,7 @@ function articleFor(word) {
   return /^[aeiou]/i.test(word) ? 'an' : 'a';
 }
 
-function buildMainContainer(user, stats, text, color, thumb, disabled = false) {
+function buildMainContainer(user, stats, text, color, thumb, disableHunt = false) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('hunt-area')
     .setPlaceholder('Area');
@@ -101,30 +101,22 @@ function buildMainContainer(user, stats, text, color, thumb, disabled = false) {
     if (stats.hunt_area === area.name) opt.setDefault(true);
     select.addOptions(opt);
   }
-  if (disabled) select.setDisabled(true);
   const huntBtn = new ButtonBuilder()
     .setCustomId('hunt-action')
     .setLabel('hunt')
     .setStyle(ButtonStyle.Danger)
     .setEmoji(ITEMS.HuntingRifleT1.emoji);
-  if (
-    disabled ||
-    !stats.hunt_area ||
-    (stats.hunt_cd_until || 0) > Date.now()
-  )
-    huntBtn.setDisabled(true);
+  if (disableHunt) huntBtn.setDisabled(true);
   const statBtn = new ButtonBuilder()
     .setCustomId('hunt-stat')
     .setLabel('Hunt Stat')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingstat:1410892320538230834>');
-  if (disabled) statBtn.setDisabled(true);
   const equipBtn = new ButtonBuilder()
     .setCustomId('hunt-equipment')
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
-  if (disabled) equipBtn.setDisabled(true);
   const section = new SectionBuilder();
   if (thumb) {
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
@@ -439,7 +431,13 @@ function setup(client, resources) {
           return;
         }
         const areaObj = getArea(stats.hunt_area);
-        if (!areaObj) return;
+        if (!areaObj) {
+          await interaction.reply({
+            content: 'Select an area before hunting.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
         normalizeInventory(stats);
         const inv = stats.inventory || [];
         const bulletId = stats.hunt_bullet || 'Bullet';
