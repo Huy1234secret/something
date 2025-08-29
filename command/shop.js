@@ -557,10 +557,12 @@ function setup(client, resources) {
         )
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(new ActionRowBuilder().addComponents(buyBtn, cancelBtn));
-        const reply = await interaction.reply({
+        await interaction.reply({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
         });
+        const reply = await interaction.fetchReply();
+        shopStates.set(reply.id, { userId: interaction.user.id, type: state.type });
       const timer = setTimeout(async () => {
         const current = resources.pendingRequests.get(interaction.user.id);
         if (current && current.timer === timer) {
