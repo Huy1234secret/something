@@ -14,7 +14,7 @@ const {
   TextInputStyle,
 } = require('discord.js');
 const { ITEMS } = require('../items');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, setSafeTimeout } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
@@ -113,7 +113,7 @@ function expiredPadlockContainer(user, disable = false) {
 
 function schedulePadlock(user, expiresAt, resources) {
   const delay = expiresAt - Date.now();
-  setTimeout(async () => {
+  setSafeTimeout(async () => {
     const stats = resources.userStats[user.id];
     if (stats && stats.padlock_until === expiresAt) {
       stats.padlock_until = 0;
@@ -122,18 +122,18 @@ function schedulePadlock(user, expiresAt, resources) {
     try {
       await user.send({ components: [expiredPadlockContainer(user)], flags: MessageFlags.IsComponentsV2 });
     } catch {}
-  }, Math.max(delay, 0));
+  }, delay);
 }
 
 function scheduleLandmine(user, expiresAt, resources) {
   const delay = expiresAt - Date.now();
-  setTimeout(() => {
+  setSafeTimeout(() => {
     const stats = resources.userStats[user.id];
     if (stats && stats.landmine_until === expiresAt) {
       stats.landmine_until = 0;
       resources.saveData();
     }
-  }, Math.max(delay, 0));
+  }, delay);
 }
 
 async function restoreActiveItemTimers(client, resources) {
