@@ -226,6 +226,8 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = useDiamondItem(user, 'DiamondCrate', amount, 135000, resources);
   } else if (itemId === 'DiamondChest') {
     result = useDiamondItem(user, 'DiamondChest', amount, 980000, resources);
+  } else if (itemId === 'BulletBox') {
+    result = useBulletBox(user, amount, resources);
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
@@ -257,6 +259,42 @@ function useDiamondItem(user, itemId, amount, perDiamond, resources) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ${total} Diamonds ${DIAMOND_EMOJI}`,
+      ),
+    );
+  return { component: container };
+}
+
+function useBulletBox(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'BulletBox');
+  const item = ITEMS.BulletBox;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  const bullet = stats.inventory.find(i => i.id === 'Bullet');
+  const bulletItem = ITEMS.Bullet;
+  const gained = 6 * amount;
+  if (bullet) bullet.amount += gained;
+  else
+    stats.inventory.push({
+      id: 'Bullet',
+      name: bulletItem.name,
+      emoji: bulletItem.emoji,
+      image: bulletItem.image,
+      amount: gained,
+    });
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const container = new ContainerBuilder()
+    .setAccentColor(0x00ffff)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ×${gained} ${bulletItem.name} ${bulletItem.emoji}`,
       ),
     );
   return { component: container };

@@ -23,6 +23,7 @@ const robCommand = require('./command/rob');
 const addCurrencyCommand = require('./command/addCurrency');
 const addItemCommand = require('./command/addItem');
 const farmViewCommand = require('./command/farmView');
+const huntCommand = require('./command/hunt');
 const { ITEMS } = require('./items');
 
 const DATA_FILE = 'user_data.json';
@@ -250,6 +251,7 @@ client.on = function(event, listener) {
     addCurrencyCommand.setup(client, resources);
     addItemCommand.setup(client, resources);
     farmViewCommand.setup(client, resources);
+    huntCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
@@ -347,6 +349,12 @@ client.on('messageCreate', async message => {
       );
     } else if (lowerAfter === 'farm view') {
       await farmViewCommand.sendFarmView(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (lowerAfter === 'hunt') {
+      await huntCommand.sendHunt(
         message.author,
         message.channel.send.bind(message.channel),
         resources,

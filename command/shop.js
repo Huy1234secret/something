@@ -32,6 +32,8 @@ const SHOP_ITEMS = {
     ITEMS.WheatSeed,
     ITEMS.WateringCan,
     ITEMS.HarvestScythe,
+    ITEMS.BulletBox,
+    ITEMS.HuntingRifleT1,
   ],
   deluxe: [ITEMS.DiamondBag, ITEMS.DiamondCrate, ITEMS.DiamondChest],
 };
