@@ -116,11 +116,11 @@ function buildMainContainer(user, stats, text, color, thumb) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
-  const section = new SectionBuilder()
-    .setThumbnailAccessory(
-      new ThumbnailBuilder().setURL(thumb ?? user.displayAvatarURL()),
-    )
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+  const section = new SectionBuilder();
+  if (thumb) {
+    section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
+  }
+  section.addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
@@ -148,7 +148,7 @@ function buildStatContainer(user, stats) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
-  const section = new SectionBuilder()
+  const section1 = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`## ${user} Hunting Stats.`),
@@ -156,13 +156,15 @@ function buildStatContainer(user, stats) {
         `### <:SBHuntingstat:1410892320538230834> Mastery Level: ${stats.hunt_level || 0}`,
       ),
       new TextDisplayBuilder().setContent(`* Hunted ${stats.hunt_total || 0} times`),
-      new TextDisplayBuilder().setContent(`* Succeed ${stats.hunt_success || 0} times`),
-      new TextDisplayBuilder().setContent(`* Failed ${stats.hunt_fail || 0} times`),
-      new TextDisplayBuilder().setContent(`* Died ${stats.hunt_die || 0} times`),
     );
+  const section2 = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`* Succeed ${stats.hunt_success || 0} times`),
+    new TextDisplayBuilder().setContent(`* Failed ${stats.hunt_fail || 0} times`),
+    new TextDisplayBuilder().setContent(`* Died ${stats.hunt_die || 0} times`),
+  );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(section)
+    .addSectionComponents(section1, section2)
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('### Hunting Mastery Perks:'))
     .addSeparatorComponents(new SeparatorBuilder())
@@ -204,7 +206,14 @@ function buildEquipmentContainer(user, stats) {
       gunSelect.addOptions(opt);
     }
   } else {
-    gunSelect.setDisabled(true).setPlaceholder('No guns');
+    gunSelect
+      .setDisabled(true)
+      .setPlaceholder('No guns')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('No guns')
+          .setValue('none'),
+      );
   }
 
   const bullets = (stats.inventory || []).filter(i => {
@@ -226,7 +235,14 @@ function buildEquipmentContainer(user, stats) {
       bulletSelect.addOptions(opt);
     }
   } else {
-    bulletSelect.setDisabled(true).setPlaceholder('No bullets');
+    bulletSelect
+      .setDisabled(true)
+      .setPlaceholder('No bullets')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('No bullets')
+          .setValue('none'),
+      );
   }
 
   const equippedGun = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
