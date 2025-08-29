@@ -185,7 +185,7 @@ function buildEquipmentContainer(user, stats) {
   const guns = (stats.inventory || []).filter(
     i => (ITEMS[i.id] || {}).type === 'Gun',
   );
-  const select = new StringSelectMenuBuilder()
+  const gunSelect = new StringSelectMenuBuilder()
     .setCustomId('hunt-equip-select')
     .setPlaceholder('Gun');
   if (guns.length) {
@@ -194,26 +194,55 @@ function buildEquipmentContainer(user, stats) {
       const opt = new StringSelectMenuOptionBuilder()
         .setLabel(it.name)
         .setValue(it.id)
-        .setEmoji(it.emoji);
+        .setEmoji(it.emoji)
+        .setDescription(`You have ${g.amount} ${it.name}`);
       if (stats.hunt_gun === it.id) opt.setDefault(true);
-      select.addOptions(opt);
+      gunSelect.addOptions(opt);
     }
   } else {
-    select.setDisabled(true).setPlaceholder('No guns');
+    gunSelect.setDisabled(true).setPlaceholder('No guns');
   }
-  const equipped = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
+
+  const bullets = (stats.inventory || []).filter(i => {
+    const it = ITEMS[i.id] || {};
+    return it.type === 'Bullet' || it.id === 'Bullet';
+  });
+  const bulletSelect = new StringSelectMenuBuilder()
+    .setCustomId('hunt-bullet-select')
+    .setPlaceholder('Bullet');
+  if (bullets.length) {
+    for (const b of bullets) {
+      const it = ITEMS[b.id];
+      const opt = new StringSelectMenuOptionBuilder()
+        .setLabel(it.name)
+        .setValue(it.id)
+        .setEmoji(it.emoji)
+        .setDescription(`You have ${b.amount} ${it.name}`);
+      if (stats.hunt_bullet === it.id) opt.setDefault(true);
+      bulletSelect.addOptions(opt);
+    }
+  } else {
+    bulletSelect.setDisabled(true).setPlaceholder('No bullets');
+  }
+
+  const equippedGun = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
+  const equippedBullet = ITEMS[stats.hunt_bullet] || { name: 'None', emoji: '' };
   const section = new SectionBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
       new TextDisplayBuilder().setContent(
-        `* Gun equiped: ${equipped.name} ${equipped.emoji}`,
+        `* Gun equiped: ${equippedGun.name} ${equippedGun.emoji}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `* Bullet using: ${equippedBullet.name} ${equippedBullet.emoji}`,
       ),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(new ActionRowBuilder().addComponents(select))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(gunSelect))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect))
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
 }
@@ -257,7 +286,8 @@ async function handleHunt(interaction, resources, stats) {
   if (!areaObj) return;
   normalizeInventory(stats);
   const inv = stats.inventory || [];
-  const bullet = inv.find(i => i.id === 'Bullet');
+  const bulletId = stats.hunt_bullet || 'Bullet';
+  const bullet = inv.find(i => i.id === bulletId);
   if (!bullet || bullet.amount <= 0) {
     await interaction.reply({
       content: '<:SBWarning:1404101025849147432> You need bullets to hunt.',
@@ -400,6 +430,22 @@ function setup(client, resources) {
         const gun = interaction.values[0];
         const stats = resources.userStats[state.userId] || {};
         stats.hunt_gun = gun;
+        resources.userStats[state.userId] = stats;
+        resources.saveData();
+        const container = buildEquipmentContainer(interaction.user, stats);
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } else if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === 'hunt-bullet-select'
+      ) {
+        const state = huntStates.get(interaction.message.id);
+        if (!state || state.userId !== interaction.user.id) return;
+        const bullet = interaction.values[0];
+        const stats = resources.userStats[state.userId] || {};
+        stats.hunt_bullet = bullet;
         resources.userStats[state.userId] = stats;
         resources.saveData();
         const container = buildEquipmentContainer(interaction.user, stats);
