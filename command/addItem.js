@@ -14,7 +14,9 @@ function setup(client, resources) {
     )
     .addStringOption(o => {
       o.setName('item').setDescription('Item ID').setRequired(true);
-      Object.values(ITEMS).forEach(i => o.addChoices({ name: i.name, value: i.id }));
+      Object.values(ITEMS)
+        .slice(0, 25)
+        .forEach(i => o.addChoices({ name: i.name, value: i.id }));
       return o;
     })
     .addIntegerOption(o =>
