@@ -4,20 +4,14 @@ This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https:
 
 ## Setup
 
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Create a `.env` file with your bot token and the role ID allowed to use admin commands:
+1. Create a `.env` file with your bot token and the role ID allowed to use admin commands:
 
    ```env
    BOT_TOKEN=your_bot_token_here
    ADMIN_ROLE_ID=role_id_allowed_to_manage_currency_and_items
    ```
 
-3. Run the bot:
+2. Run the bot (it will install Node.js 22 and any dependencies automatically):
 
    ```bash
    npm start

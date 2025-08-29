@@ -5,7 +5,7 @@
   "main": "bot.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node bot.js",
+    "start": "bash start.sh",
     "test": "find . -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "engines": {
