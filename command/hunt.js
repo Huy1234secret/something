@@ -75,6 +75,7 @@ const RARITY_COLORS = {
   Legendary: 0xffff00,
   Mythical: 0xff4500,
   Godly: 0x800080,
+  Prismatic: 0x00ff00,
   Secret: 0x000000,
 };
 
@@ -88,7 +89,7 @@ function articleFor(word) {
   return /^[aeiou]/i.test(word) ? 'an' : 'a';
 }
 
-function buildMainContainer(user, stats, text, color, thumb) {
+function buildMainContainer(user, stats, text, color, thumb, disabled = false) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('hunt-area')
     .setPlaceholder('Area');
@@ -100,22 +101,30 @@ function buildMainContainer(user, stats, text, color, thumb) {
     if (stats.hunt_area === area.name) opt.setDefault(true);
     select.addOptions(opt);
   }
+  if (disabled) select.setDisabled(true);
   const huntBtn = new ButtonBuilder()
     .setCustomId('hunt-action')
     .setLabel('hunt')
     .setStyle(ButtonStyle.Danger)
     .setEmoji(ITEMS.HuntingRifleT1.emoji);
-  if (!stats.hunt_area || (stats.hunt_cd_until || 0) > Date.now()) huntBtn.setDisabled(true);
+  if (
+    disabled ||
+    !stats.hunt_area ||
+    (stats.hunt_cd_until || 0) > Date.now()
+  )
+    huntBtn.setDisabled(true);
   const statBtn = new ButtonBuilder()
     .setCustomId('hunt-stat')
     .setLabel('Hunt Stat')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingstat:1410892320538230834>');
+  if (disabled) statBtn.setDisabled(true);
   const equipBtn = new ButtonBuilder()
     .setCustomId('hunt-equipment')
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  if (disabled) equipBtn.setDisabled(true);
   const section = new SectionBuilder();
   if (thumb) {
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
@@ -308,7 +317,7 @@ async function sendHunt(user, send, resources) {
   return message;
 }
 
-async function handleHunt(interaction, resources, stats) {
+async function handleHunt(message, user, resources, stats) {
   const areaObj = getArea(stats.hunt_area);
   if (!areaObj) return;
   normalizeInventory(stats);
@@ -316,10 +325,14 @@ async function handleHunt(interaction, resources, stats) {
   const bulletId = stats.hunt_bullet || 'Bullet';
   const bullet = inv.find(i => i.id === bulletId);
   if (!bullet || bullet.amount <= 0) {
-    await interaction.reply({
-      content: '<:SBWarning:1404101025849147432> You need bullets to hunt.',
-      flags: MessageFlags.Ephemeral,
-    });
+    const container = buildMainContainer(
+      user,
+      stats,
+      '<:SBWarning:1404101025849147432> You need bullets to hunt.',
+      0xff0000,
+      areaObj.image,
+    );
+    await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
     return;
   }
   bullet.amount -= 1;
@@ -349,27 +362,29 @@ async function handleHunt(interaction, resources, stats) {
     normalizeInventory(stats);
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
-    text = `${interaction.user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${animal.rarity} ${
-      RARITY_EMOJIS[animal.rarity] || ''
-    }\n-# You can hunt again <t:${Math.floor(cooldown / 1000)}:R>`;
+    text = `${user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${
+      animal.rarity
+    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
+      cooldown / 1000,
+    )}:R>`;
   } else {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
     color = 0xff0000;
-    text = `${interaction.user}, ${fail}\n-# You can hunt again <t:${Math.floor(
+    text = `${user}, ${fail}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
   }
-  resources.userStats[interaction.user.id] = stats;
+  resources.userStats[user.id] = stats;
   resources.saveData();
   const container = buildMainContainer(
-    interaction.user,
+    user,
     stats,
     text,
     color,
     areaObj.image,
   );
-  await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
 }
 
 function setup(client, resources) {
@@ -423,7 +438,35 @@ function setup(client, resources) {
           });
           return;
         }
-        await handleHunt(interaction, resources, stats);
+        const areaObj = getArea(stats.hunt_area);
+        if (!areaObj) return;
+        normalizeInventory(stats);
+        const inv = stats.inventory || [];
+        const bulletId = stats.hunt_bullet || 'Bullet';
+        const bullet = inv.find(i => i.id === bulletId);
+        if (!bullet || bullet.amount <= 0) {
+          await interaction.reply({
+            content:
+              '<:SBWarning:1404101025849147432> You need bullets to hunt.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        const loadingContainer = buildMainContainer(
+          interaction.user,
+          stats,
+          'You are going for a hunt... <a:SBLoadinghunting:1410900357479010365>',
+          0x000000,
+          areaObj.image,
+          true,
+        );
+        await interaction.update({
+          components: [loadingContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        setTimeout(() => {
+          handleHunt(interaction.message, interaction.user, resources, stats);
+        }, 3000);
       } else if (
         interaction.isButton() &&
         interaction.customId === 'hunt-stat'
