@@ -18,6 +18,7 @@ const { renderLevelCard } = require('../levelCard');
 const { loadImage } = require('canvas');
 
 const WARN = '<:SBWarning:1404101025849147432> ';
+const MAX_LEVEL = 9999;
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
   const stats = userStats[user.id] || {};
@@ -25,6 +26,10 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
   stats.total_xp = Number.isFinite(stats.total_xp) ? stats.total_xp : 0;
   stats.prestige = Number.isFinite(stats.prestige) ? stats.prestige : 0;
+  while (stats.level < MAX_LEVEL && stats.xp >= xpNeeded(stats.level)) {
+    stats.xp -= xpNeeded(stats.level);
+    stats.level += 1;
+  }
   const settings = userCardSettings[user.id] || { color: defaultColor, background_url: defaultBackground };
   userStats[user.id] = stats;
   userCardSettings[user.id] = settings;
