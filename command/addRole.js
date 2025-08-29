@@ -9,10 +9,19 @@ const {
 const WARN = '<:SBWarning:1404101025849147432> ';
 
 function parseDuration(str) {
-  const units = { h: 3600, d: 86400, w: 604800, m: 2592000 };
-  const amount = parseInt(str.slice(0, -1), 10);
-  const unit = str.slice(-1).toLowerCase();
-  if (isNaN(amount) || !units[unit]) return null;
+  const match = /^([0-9]+)(s|m|h|d|w|mth|y)$/i.exec(str);
+  if (!match) return null;
+  const amount = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  const units = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+    w: 604800,
+    mth: 2592000,
+    y: 31536000,
+  };
   return amount * units[unit];
 }
 
@@ -22,7 +31,9 @@ function setup(client, { scheduleRole }) {
     .setDescription('Give a role to a user, optionally for a limited time')
     .addUserOption(o => o.setName('user').setDescription('User').setRequired(true))
     .addRoleOption(o => o.setName('role').setDescription('Role').setRequired(true))
-    .addStringOption(o => o.setName('time').setDescription('Duration like 1h or 7w').setRequired(false))
+    .addStringOption(o =>
+      o.setName('time').setDescription('Duration like 10s, 5m, or 7w').setRequired(false)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
 
   client.application.commands.create(command);
