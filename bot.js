@@ -108,11 +108,20 @@ function saveData() {
 }
 
 function xpNeeded(level) {
-  return Math.floor(100 * Math.pow(level, 1.5));
+  const lvl = Number(level);
+  const n = Number.isFinite(lvl) && lvl > 0 ? lvl : 1;
+  return Math.floor(100 * Math.pow(n, 1.5));
 }
 
 async function addXp(user, amount, client) {
-  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
+  const stats = userStats[user.id] || {};
+  stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
+  stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
+  stats.total_xp = Number.isFinite(stats.total_xp) ? stats.total_xp : 0;
+  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
+  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
+  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
+
   stats.xp += amount;
   stats.total_xp += amount;
   let prev = stats.level;

@@ -20,7 +20,11 @@ const { loadImage } = require('canvas');
 const WARN = '<:SBWarning:1404101025849147432> ';
 
 async function sendLevelCard(user, send, { userStats, userCardSettings, saveData, xpNeeded, defaultColor, defaultBackground }) {
-  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, prestige:0 };
+  const stats = userStats[user.id] || {};
+  stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
+  stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
+  stats.total_xp = Number.isFinite(stats.total_xp) ? stats.total_xp : 0;
+  stats.prestige = Number.isFinite(stats.prestige) ? stats.prestige : 0;
   const settings = userCardSettings[user.id] || { color: defaultColor, background_url: defaultBackground };
   userStats[user.id] = stats;
   userCardSettings[user.id] = settings;
