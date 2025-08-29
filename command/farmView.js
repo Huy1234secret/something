@@ -13,7 +13,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas } = require('canvas');
+const { loadCachedImage } = require('../imageCache');
 const { ITEMS } = require('../items');
 const { normalizeInventory } = require('../utils');
 
@@ -45,6 +46,13 @@ const WHEAT_IMAGES = [
   'https://i.ibb.co/tTc1PRsK/Wheat-6.png',
 ];
 const WHEAT_DEAD = 'https://i.ibb.co/rSZ27dp/Wheat-died.png';
+
+// Preload commonly used images so they are fetched only once
+const FARM_BG_IMG = loadCachedImage(FARM_BG);
+const SELECT_OVERLAY_IMG = loadCachedImage(SELECT_IMG);
+const WATERED_PLOT_IMG = loadCachedImage(WATERED_PLOT);
+const WHEAT_IMG_PROMISES = WHEAT_IMAGES.map((url) => loadCachedImage(url));
+const WHEAT_DEAD_IMG = loadCachedImage(WHEAT_DEAD);
 
 const WHEAT_GROW_TIME = 4 * 60 * 60 * 1000; // 4h
 const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 5; // 48m per stage
@@ -91,10 +99,10 @@ function getPlotStatus(plot) {
 async function getPlantImage(plot) {
   if (plot.seedId === 'WheatSeed') {
     const status = getPlotStatus(plot);
-    if (status.dead) return loadImage(WHEAT_DEAD);
+    if (status.dead) return await WHEAT_DEAD_IMG;
     const elapsed = Date.now() - plot.plantedAt;
     const stage = Math.min(Math.floor(elapsed / WHEAT_STAGE_TIME), 5);
-    return loadImage(WHEAT_IMAGES[stage]);
+    return await WHEAT_IMG_PROMISES[stage];
   }
   return null;
 }
@@ -102,10 +110,13 @@ async function getPlantImage(plot) {
 async function renderFarm(farm, selected = []) {
   const canvas = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = canvas.getContext('2d');
-  const bg = await loadImage(FARM_BG);
+  const [bg, wateredImg, overlay] = await Promise.all([
+    FARM_BG_IMG,
+    WATERED_PLOT_IMG,
+    SELECT_OVERLAY_IMG,
+  ]);
   ctx.drawImage(bg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-  const wateredImg = await loadImage(WATERED_PLOT);
   Object.entries(farm).forEach(([id, plot]) => {
     if (isPlotWatered(plot)) {
       const pos = PLOT_POSITIONS[id];
@@ -122,7 +133,6 @@ async function renderFarm(farm, selected = []) {
   }
 
   if (selected.length) {
-    const overlay = await loadImage(SELECT_IMG);
     selected.forEach(id => {
       const pos = PLOT_POSITIONS[id];
       if (pos) ctx.drawImage(overlay, pos.x, pos.y);
