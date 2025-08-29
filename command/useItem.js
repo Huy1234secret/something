@@ -18,6 +18,16 @@ const { normalizeInventory } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
+const RARITY_COLORS = {
+  Common: 0xffffff,
+  Rare: 0x00ffff,
+  Epic: 0xff00ff,
+  Legendary: 0xffff00,
+  Mythical: 0xff4500,
+  Godly: 0x800080,
+  Prismatic: 0x00ff00,
+  Secret: 0x000000,
+};
 
 function padlockEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
@@ -27,7 +37,7 @@ function padlockEmbed(user, amountLeft, expiresAt) {
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
   return new ContainerBuilder()
-    .setAccentColor(0x00ff00)
+    .setAccentColor(RARITY_COLORS[ITEMS.Padlock.rarity])
     .addSectionComponents(
       new SectionBuilder()
         .setThumbnailAccessory(
@@ -55,7 +65,7 @@ function landmineEmbed(user, amountLeft, expiresAt) {
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
   return new ContainerBuilder()
-    .setAccentColor(0x00ff00)
+    .setAccentColor(RARITY_COLORS[ITEMS.Landmine.rarity])
     .addSectionComponents(
       new SectionBuilder()
         .setThumbnailAccessory(new ThumbnailBuilder().setURL(ITEMS.Landmine.image))
@@ -75,7 +85,7 @@ function landmineEmbed(user, amountLeft, expiresAt) {
 
 function banHammerEmbed(user, targetId) {
   return new ContainerBuilder()
-    .setAccentColor(0xff0000)
+    .setAccentColor(RARITY_COLORS[ITEMS.BanHammer.rarity])
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${user.username} has used **${ITEMS.BanHammer.name} ${ITEMS.BanHammer.emoji}** onto <@${targetId}>\n-# they are now not be able to use any command within 24h`,
@@ -255,7 +265,7 @@ function useDiamondItem(user, itemId, amount, perDiamond, resources) {
   resources.saveData();
   const total = perDiamond * amount;
   const container = new ContainerBuilder()
-    .setAccentColor(0x00ffff)
+    .setAccentColor(RARITY_COLORS[item.rarity])
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ${total} Diamonds ${DIAMOND_EMOJI}`,
@@ -291,7 +301,7 @@ function useBulletBox(user, amount, resources) {
   resources.userStats[user.id] = stats;
   resources.saveData();
   const container = new ContainerBuilder()
-    .setAccentColor(0x00ffff)
+    .setAccentColor(RARITY_COLORS[item.rarity])
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ×${gained} ${bulletItem.name} ${bulletItem.emoji}`,

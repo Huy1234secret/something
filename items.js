@@ -177,7 +177,7 @@ const ITEMS = {
     rarity: 'Common',
     value: 50,
     useable: false,
-    type: 'Material',
+    type: 'Consumable',
     note: '',
     image: '',
     price: 0,
