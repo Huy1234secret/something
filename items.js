@@ -1,3 +1,5 @@
+const { ANIMAL_ITEMS } = require('./animals');
+
 const ITEMS = {
   Padlock: {
     id: 'Padlock',
@@ -142,6 +144,46 @@ const ITEMS = {
     price: 0,
     sellPrice: null,
   },
+  HuntingRifleT1: {
+    id: 'HuntingRifleT1',
+    name: 'Hunting Rifle Tier 1',
+    emoji: '<:ITRifle1:1410892503007105024>',
+    rarity: 'Common',
+    value: 200,
+    useable: false,
+    type: 'Gun',
+    note: '',
+    image: 'https://i.ibb.co/3mbdZLv3/rifle.png',
+    price: 50000,
+    sellPrice: null,
+  },
+  BulletBox: {
+    id: 'BulletBox',
+    name: 'Bullet box',
+    emoji: '<:ITBulletbox:1410481932629971014>',
+    rarity: 'Common',
+    value: 300,
+    useable: true,
+    type: 'Consumable',
+    note: 'A bullet box gives 6 bullets.',
+    image: 'https://i.ibb.co/TM3NStHG/Bullet-Box.png',
+    price: 30000,
+    sellPrice: null,
+  },
+  Bullet: {
+    id: 'Bullet',
+    name: 'Bullet',
+    emoji: '<:ITBullet:1410481944252252221>',
+    rarity: 'Common',
+    value: 50,
+    useable: false,
+    type: 'Material',
+    note: '',
+    image: '',
+    price: 0,
+    sellPrice: null,
+  },
+  ...ANIMAL_ITEMS,
 };
 
 module.exports = { ITEMS };
