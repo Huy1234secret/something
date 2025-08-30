@@ -345,14 +345,7 @@ async function handleHunt(message, user, resources, stats) {
     const item = ITEMS[animal.id];
     const existing = (stats.inventory || []).find(i => i.id === item.id);
     if (existing) existing.amount += 1;
-    else
-      (stats.inventory = stats.inventory || []).push({
-        id: item.id,
-        name: item.name,
-        emoji: item.emoji,
-        image: item.image,
-        amount: 1,
-      });
+    else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
     normalizeInventory(stats);
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
