@@ -289,14 +289,7 @@ function useBulletBox(user, amount, resources) {
   const bulletItem = ITEMS.Bullet;
   const gained = 6 * amount;
   if (bullet) bullet.amount += gained;
-  else
-    stats.inventory.push({
-      id: 'Bullet',
-      name: bulletItem.name,
-      emoji: bulletItem.emoji,
-      image: bulletItem.image,
-      amount: gained,
-    });
+  else stats.inventory.push({ ...bulletItem, amount: gained });
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();

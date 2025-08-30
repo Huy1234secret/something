@@ -36,6 +36,8 @@ const PARSE_MAP = {
   No: 1e30,
 };
 
+const { ITEMS } = require('./items');
+
 function parseAmount(str) {
   const match = String(str).trim().match(/^(-?\d+(?:\.\d+)?)([a-zA-Z]{1,2})?$/);
   if (!match) return NaN;
@@ -59,9 +61,11 @@ function normalizeInventory(stats) {
   const map = {};
   for (const item of stats.inventory) {
     if (!item || !item.id) continue;
-    const id = item.id;
-    const amount = item.amount || 0;
-    if (!map[id]) map[id] = { ...item, amount };
+    const base = ITEMS[item.id] || {};
+    const merged = { ...base, ...item };
+    const id = merged.id;
+    const amount = merged.amount || 0;
+    if (!map[id]) map[id] = { ...merged, amount };
     else map[id].amount += amount;
   }
   stats.inventory = Object.values(map).filter(i => (i.amount || 0) > 0);
