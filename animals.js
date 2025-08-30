@@ -8,7 +8,8 @@ function loadAnimals() {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || !row[0]) continue;
-    const id = row[17] || String(row[0]).replace(/\s+/g, '');
+    const id = row[17];
+    if (!id) continue;
     animals.push({
       id,
       name: row[0],
@@ -39,7 +40,7 @@ const ANIMAL_ITEMS = Object.fromEntries(
       rarity: a.rarity,
       value: a.value,
       useable: false,
-      type: 'Animal',
+      type: 'Misc',
       note: '',
       image: '',
       price: 0,
