@@ -50,6 +50,18 @@ for (const stats of Object.values(userStats)) {
       updated.name = base.name;
       changed = true;
     }
+    if (item.rarity !== base.rarity) {
+      updated.rarity = base.rarity;
+      changed = true;
+    }
+    if (item.type !== base.type) {
+      updated.type = base.type;
+      changed = true;
+    }
+    if (item.value !== base.value) {
+      updated.value = base.value;
+      changed = true;
+    }
     if (changed) fixed++;
     return updated;
   });
