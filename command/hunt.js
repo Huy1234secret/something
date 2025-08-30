@@ -286,7 +286,7 @@ function pickAnimal(areaKey, tier) {
   return candidates[candidates.length - 1].animal;
 }
 
-async function sendHunt(user, send, resources) {
+async function sendHunt(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   resources.userStats[user.id] = stats;
   const areaObj = getArea(stats.hunt_area);
@@ -300,11 +300,13 @@ async function sendHunt(user, send, resources) {
     0xffffff,
     areaObj && areaObj.image,
   );
-  const message = await send({
+  let message = await send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
-    fetchReply: true,
   });
+  if (fetchReply) {
+    message = await fetchReply();
+  }
   huntStates.set(message.id, { userId: user.id });
   return message;
 }
@@ -392,6 +394,7 @@ function setup(client, resources) {
           interaction.user,
           interaction.reply.bind(interaction),
           resources,
+          interaction.fetchReply.bind(interaction),
         );
       } else if (
         interaction.isStringSelectMenu() &&
