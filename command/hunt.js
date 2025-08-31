@@ -15,6 +15,7 @@ const {
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { normalizeInventory } = require('../utils');
+const { handleDeath } = require('../death');
 
 const AREAS = [
   {
@@ -55,6 +56,34 @@ const FAIL_MESSAGES = [
   'You stepped in a pile of worms, freaked out, and lost focus.',
   'You stopped to look at glowing mushrooms and forgot about hunting.',
   'You aimed carefully, but a rabbit darted across and spoiled the shot.',
+];
+
+const HUNT_DEATH_MESSAGES = [
+  `💀 {user} wandered into the forest and never came back…`,
+  `🐻 A furious bear mauled {user} to pieces!`,
+  `🕷️ {user} was bitten by a venomous spider and collapsed instantly.`,
+  `🏹 An enemy hunter mistook {user} for prey…`,
+  `🐍 A giant snake swallowed {user} whole!`,
+  `🌲 A falling tree crushed {user} during the hunt.`,
+  `⚡ Lightning struck {user} down in the middle of the forest.`,
+  `🐗 A raging boar gored {user} to death.`,
+  `❄️ {user} froze to death while chasing prey in the snow.`,
+  `🔥 {user} set up campfire… and burned alive.`,
+  `🦅 A giant eagle carried {user} away into the skies—never to be seen again.`,
+  `🐺 A pack of wolves surrounded and devoured {user}.`,
+  `🕳️ {user} fell into a hidden pit trap and broke their neck.`,
+  `🍄 {user} ate the wrong mushroom and died instantly.`,
+  `🦂 A deadly scorpion sting ended {user}’s hunt forever.`,
+  `🌊 {user} slipped into a raging river and drowned.`,
+  `🐊 A crocodile dragged {user} underwater… game over.`,
+  `🪤 {user} tripped their own trap and got impaled.`,
+  `🦌 A mighty deer rammed {user} so hard they didn’t get back up.`,
+  `🌪️ A sudden storm ripped through the forest and killed {user}.`,
+  `🩸 {user} bled out after a hunting accident.`,
+  `🧟 Rumor has it zombies dragged {user} into the woods…`,
+  `🕯️ {user} mysteriously vanished—only their gear was found.`,
+  `🐉 A mythical beast roasted {user} with dragonfire!`,
+  `👻 Hunters whispered that {user}’s spirit still haunts the forest after their death…`,
 ];
 
 const RARITY_EMOJIS = {
@@ -331,13 +360,13 @@ async function handleHunt(message, user, resources, stats) {
   }
   bullet.amount -= 1;
   if (bullet.amount <= 0) stats.inventory = inv.filter(i => i !== bullet);
-  const success = Math.random() < 0.5;
+  const roll = Math.random();
   const cooldown = Date.now() + 30000;
   stats.hunt_cd_until = cooldown;
   stats.hunt_total = (stats.hunt_total || 0) + 1;
   let text;
   let color;
-  if (success) {
+  if (roll < 0.45) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
     const tier = tierMap[stats.hunt_gun] || 1;
@@ -354,13 +383,19 @@ async function handleHunt(message, user, resources, stats) {
     } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
-  } else {
+  } else if (roll < 0.9) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
     color = 0xff0000;
     text = `${user}, ${fail}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
+  } else {
+    stats.hunt_die = (stats.hunt_die || 0) + 1;
+    const death =
+      HUNT_DEATH_MESSAGES[Math.floor(Math.random() * HUNT_DEATH_MESSAGES.length)];
+    color = 0x000000;
+    text = death.replace('{user}', user);
   }
   resources.userStats[user.id] = stats;
   resources.saveData();
@@ -372,6 +407,9 @@ async function handleHunt(message, user, resources, stats) {
     areaObj.image,
   );
   await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  if (roll >= 0.9) {
+    await handleDeath(user, 'hunting', resources);
+  }
 }
 
 function setup(client, resources) {
