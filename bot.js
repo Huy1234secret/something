@@ -27,6 +27,7 @@ const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
 const { ITEMS } = require('./items');
 const { setSafeTimeout } = require('./utils');
+const { setupErrorHandling } = require('./errorHandler');
 
 const DATA_FILE = 'user_data.json';
 let userStats = {};
@@ -177,6 +178,7 @@ const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
 client.setMaxListeners(20);
+setupErrorHandling(client, '1383481711651721307');
 
 // Wrap interactionCreate listeners so banned interactions don't trigger other handlers
 const originalOn = client.on.bind(client);
