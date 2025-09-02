@@ -24,6 +24,7 @@ const addCurrencyCommand = require('./command/addCurrency');
 const addItemCommand = require('./command/addItem');
 const farmViewCommand = require('./command/farmView');
 const huntCommand = require('./command/hunt');
+const digCommand = require('./command/dig');
 const { ITEMS } = require('./items');
 const { setSafeTimeout } = require('./utils');
 
@@ -262,6 +263,7 @@ client.on = function(event, listener) {
     addItemCommand.setup(client, resources);
     farmViewCommand.setup(client, resources);
     huntCommand.setup(client, resources);
+    digCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists

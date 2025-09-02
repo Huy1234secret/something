@@ -11,7 +11,19 @@ const {
 } = require('discord.js');
 const { normalizeInventory } = require('../utils');
 
-const ITEM_TYPES = ['Consumable', 'Material', 'Misc', 'Tool', 'Accessory', 'Upgrade', 'Weapon', 'Chest', 'All'];
+const ITEM_TYPES = [
+  'Consumable',
+  'Equipment',
+  'Tool',
+  'Container',
+  'Sellable',
+  'Material',
+  'Collectible',
+  'Cosmetic',
+  'Quest',
+  'ADMIN',
+  'All',
+];
 const RARITY_EMOJIS = {
   Common: '<:SBRCommon:1409932856762826862>',
   Rare: '<:SBRRare:1409932954037387324>',
@@ -32,7 +44,9 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
   const items = stats.inventory || [];
   const totalValue = items.reduce((sum, item) => sum + (item.value || 0) * (item.amount || 0), 0);
   const types = state.types.includes('All') ? ['All'] : state.types;
-  const filtered = types.includes('All') ? items : items.filter(i => types.includes(i.type));
+  const filtered = types.includes('All')
+    ? items
+    : items.filter(i => i.types && i.types.some(t => types.includes(t)));
   const pages = Math.max(1, Math.ceil(filtered.length / 10));
   const page = Math.min(Math.max(state.page, 1), pages);
   const start = (page - 1) * 10;
@@ -45,7 +59,11 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
     listContent = pageItems
       .map(
         item =>
-          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${item.type}\n<:SBreply:1403665761825980456>Rarity: ${RARITY_EMOJIS[item.rarity] || ''} ${item.rarity}`,
+          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${
+            (item.types || []).join(', ')
+          }\n<:SBreply:1403665761825980456>Rarity: ${
+            RARITY_EMOJIS[item.rarity] || ''
+          } ${item.rarity}`,
       )
       .join('\n\n');
   }

@@ -285,7 +285,7 @@ function setup(client, resources) {
       if (!state || interaction.user.id !== state.userId) return;
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const seeds = (stats.inventory || []).filter(
-        i => /seed/i.test(i.name) && i.type === 'Material',
+        i => /seed/i.test(i.name) && i.types && i.types.includes('Material'),
       );
       if (seeds.length === 0) {
         await interaction.reply({

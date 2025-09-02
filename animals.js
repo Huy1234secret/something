@@ -40,7 +40,7 @@ const ANIMAL_ITEMS = Object.fromEntries(
       rarity: a.rarity,
       value: a.value,
       useable: false,
-      type: 'Misc',
+      types: ['Sellable'],
       note: '',
       image: '',
       price: 0,

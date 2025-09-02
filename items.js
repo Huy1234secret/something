@@ -1,4 +1,38 @@
 const { ANIMAL_ITEMS } = require('./animals');
+const XLSX = require('xlsx');
+
+function loadDigItems() {
+  const workbook = XLSX.readFile('Dig item data.xlsx');
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || !row[0]) continue;
+    const id = String(row[0]).replace(/\s+/g, '');
+    const types = [row[5], row[6], row[7]]
+      .filter(Boolean)
+      .map(t => String(t).trim())
+      .map(t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+    items.push({
+      id,
+      name: row[0],
+      emoji: row[8],
+      rarity: row[1],
+      value: Number(row[3]) || 0,
+      useable: false,
+      types,
+      note: '',
+      image: '',
+      price: '',
+      sellPrice: Number(row[4]) || null,
+      chance: Number(row[2]) || 0,
+    });
+  }
+  return items;
+}
+
+const DIG_ITEMS = loadDigItems();
 
 const ITEMS = {
   Padlock: {
@@ -8,7 +42,7 @@ const ITEMS = {
     rarity: 'Common',
     value: 100,
     useable: true,
-    type: 'Consumable',
+    types: ['Consumable', 'Tool'],
     note: '',
     image: 'https://i.ibb.co/bjm9Mbr5/Padlock.png',
     price: 35000,
@@ -21,7 +55,7 @@ const ITEMS = {
     rarity: 'Rare',
     value: 500,
     useable: false,
-    type: 'Consumable',
+    types: ['Consumable', 'Collectible'],
     note: '',
     image: 'https://i.ibb.co/45pFNnY/Seraphic-Heart.png',
     price: 300000,
@@ -34,7 +68,7 @@ const ITEMS = {
     rarity: 'Rare',
     value: 350,
     useable: true,
-    type: 'Consumable',
+    types: ['Consumable', 'Tool'],
     note: '',
     image: 'https://i.ibb.co/239w692Y/Landmine.png',
     price: 200000,
@@ -47,7 +81,7 @@ const ITEMS = {
     rarity: 'Common',
     value: 50,
     useable: false,
-    type: 'Material',
+    types: ['Consumable', 'Material'],
     note: '',
     image: 'https://i.ibb.co/hRpZsFyX/Wheat-seed-package.png',
     price: 10000,
@@ -60,7 +94,7 @@ const ITEMS = {
     rarity: 'Rare',
     value: 500,
     useable: false,
-    type: 'Tool',
+    types: ['Equipment', 'Tool'],
     note: '',
     image: 'https://i.ibb.co/vCjYnjPS/Harvest-scythe.png',
     price: 120000,
@@ -73,7 +107,7 @@ const ITEMS = {
     rarity: 'Rare',
     value: 250,
     useable: false,
-    type: 'Material',
+    types: ['Material', 'Sellable'],
     note: '',
     image: 'https://i.ibb.co/60mfbHqp/Wheat.png',
     price: 0,
@@ -86,7 +120,7 @@ const ITEMS = {
     rarity: 'Common',
     value: 150,
     useable: false,
-    type: 'Tool',
+    types: ['Tool', 'Equipment'],
     note: '',
     image: 'https://i.ibb.co/vv65JBH8/Watering-Can.png',
     price: 70000,
@@ -99,7 +133,7 @@ const ITEMS = {
     rarity: 'Prismatic',
     value: 7500,
     useable: true,
-    type: 'Chest',
+    types: ['Container', 'Consumable', 'Collectible'],
     note: 'Give 10k Diamonds',
     image: 'https://i.ibb.co/fYXHjr13/Bag-of-Diamond.png',
     price: 100,
@@ -112,7 +146,7 @@ const ITEMS = {
     rarity: 'Prismatic',
     value: 8000,
     useable: true,
-    type: 'Chest',
+    types: ['Container', 'Consumable', 'Collectible'],
     note: 'Give 135k Diamonds',
     image: 'https://i.ibb.co/5xLZZ25K/Crate-of-Diamond.png',
     price: 900,
@@ -125,7 +159,7 @@ const ITEMS = {
     rarity: 'Prismatic',
     value: 9000,
     useable: true,
-    type: 'Chest',
+    types: ['Container', 'Consumable', 'Collectible'],
     note: 'Give 980k Diamonds',
     image: 'https://i.ibb.co/4nJR1ZnC/Chest-of-Diamond.png',
     price: 4900,
@@ -138,7 +172,7 @@ const ITEMS = {
     rarity: 'Secret',
     value: 0,
     useable: true,
-    type: 'Weapon',
+    types: ['Tool', 'Collectible', 'Cosmetic', 'ADMIN'],
     note: 'Admin only item',
     image: '',
     price: 0,
@@ -151,7 +185,7 @@ const ITEMS = {
     rarity: 'Common',
     value: 200,
     useable: false,
-    type: 'Weapon',
+    types: ['Equipment', 'Tool'],
     note: '',
     image: 'https://i.ibb.co/3mbdZLv3/rifle.png',
     price: 50000,
@@ -164,10 +198,23 @@ const ITEMS = {
     rarity: 'Common',
     value: 100,
     useable: true,
-    type: 'Consumable',
+    types: ['Container', 'Material', 'Consumable'],
     note: 'A bullet box gives 6 bullets.',
     image: 'https://i.ibb.co/TM3NStHG/Bullet-Box.png',
     price: 30000,
+    sellPrice: null,
+  },
+  Shovel: {
+    id: 'Shovel',
+    name: 'Shovel',
+    emoji: '<:ITShovel:1412067842303594567>',
+    rarity: 'Common',
+    value: 225,
+    useable: true,
+    types: ['Tool', 'Equipment'],
+    note: '',
+    image: 'https://i.ibb.co/PGDZzsG3/Shovel.png',
+    price: 50000,
     sellPrice: null,
   },
   Bullet: {
@@ -177,13 +224,14 @@ const ITEMS = {
     rarity: 'Common',
     value: 20,
     useable: false,
-    type: 'Consumable',
+    types: ['Consumable', 'Material'],
     note: '',
     image: '',
     price: 0,
     sellPrice: null,
   },
+  ...Object.fromEntries(DIG_ITEMS.map(it => [it.id, it])),
   ...ANIMAL_ITEMS,
 };
 
-module.exports = { ITEMS };
+module.exports = { ITEMS, DIG_ITEMS };

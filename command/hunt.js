@@ -118,7 +118,14 @@ function articleFor(word) {
   return /^[aeiou]/i.test(word) ? 'an' : 'a';
 }
 
-function buildMainContainer(user, stats, text, color, thumb, disableHunt = false) {
+function buildMainContainer(
+  user,
+  stats,
+  text,
+  color,
+  thumb,
+  disableButtons = false,
+) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('hunt-area')
     .setPlaceholder('Area');
@@ -135,7 +142,6 @@ function buildMainContainer(user, stats, text, color, thumb, disableHunt = false
     .setLabel('hunt')
     .setStyle(ButtonStyle.Danger)
     .setEmoji(ITEMS.HuntingRifleT1.emoji);
-  if (disableHunt) huntBtn.setDisabled(true);
   const statBtn = new ButtonBuilder()
     .setCustomId('hunt-stat')
     .setLabel('Hunt Stat')
@@ -146,6 +152,11 @@ function buildMainContainer(user, stats, text, color, thumb, disableHunt = false
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  if (disableButtons) {
+    huntBtn.setDisabled(true);
+    statBtn.setDisabled(true);
+    equipBtn.setDisabled(true);
+  }
   const section = new SectionBuilder();
   if (thumb) {
     section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
@@ -218,8 +229,8 @@ function buildEquipmentContainer(user, stats) {
     .setDisabled(true)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
 
-  const guns = (stats.inventory || []).filter(
-    i => (ITEMS[i.id] || {}).type === 'Gun',
+  const guns = (stats.inventory || []).filter(i =>
+    i.id.startsWith('HuntingRifle'),
   );
   const gunSelect = new StringSelectMenuBuilder()
     .setCustomId('hunt-equip-select')
@@ -246,10 +257,7 @@ function buildEquipmentContainer(user, stats) {
       );
   }
 
-  const bullets = (stats.inventory || []).filter(i => {
-    const it = ITEMS[i.id] || {};
-    return it.type === 'Bullet' || it.id === 'Bullet';
-  });
+  const bullets = (stats.inventory || []).filter(i => i.id === 'Bullet');
   const bulletSelect = new StringSelectMenuBuilder()
     .setCustomId('hunt-bullet-select')
     .setPlaceholder('Bullet');
