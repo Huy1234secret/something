@@ -249,10 +249,13 @@ client.on = function(event, listener) {
             return;
           }
         }
-      } catch (error) {
-        if (error.code !== 10062) console.error(error);
-      }
-    });
+        } catch (error) {
+          if (error.code !== 10062) {
+            console.error(error);
+            client.emit('error', error);
+          }
+        }
+      });
 
     addRoleCommand.setup(client, resources);
     levelCommand.setup(client, resources);
@@ -281,6 +284,7 @@ client.on = function(event, listener) {
   });
 
 client.on('messageCreate', async message => {
+  try {
   if (message.author.bot) return;
   const content = message.content.trim();
   const lowerContent = content.toLowerCase();
@@ -423,15 +427,18 @@ client.on('messageCreate', async message => {
     await message.delete().catch(() => {});
     return;
   }
-  if (isPingCommand) {
-    message.channel.send({
-      components: [
-        new ActionRowBuilder().addComponents(
-          new TextDisplayBuilder().setContent('Pong!'),
-        ),
-      ],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    if (isPingCommand) {
+      message.channel.send({
+        components: [
+          new ActionRowBuilder().addComponents(
+            new TextDisplayBuilder().setContent('Pong!'),
+          ),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
+  } catch (error) {
+    client.emit('error', error);
   }
 });
 
