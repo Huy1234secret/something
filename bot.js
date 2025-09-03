@@ -373,6 +373,12 @@ client.on('messageCreate', async message => {
         message.channel.send.bind(message.channel),
         resources,
       );
+    } else if (lowerAfter === 'dig') {
+      await digCommand.sendDig(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
     } else if (lowerAfter === 'shop view') {
       await shopCommand.sendShop(
         message.author,
