@@ -116,13 +116,15 @@ function buildStatContainer(user, stats) {
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`## ${user} Digging Stats.`),
-      new TextDisplayBuilder().setContent(`* Dug ${stats.dig_total || 0} times`),
-      new TextDisplayBuilder().setContent(`* Succeed ${stats.dig_success || 0} times`),
-      new TextDisplayBuilder().setContent(`* Failed ${stats.dig_fail || 0} times`),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`* Dug ${stats.dig_total || 0} times`),
+      new TextDisplayBuilder().setContent(`* Succeed ${stats.dig_success || 0} times`),
+      new TextDisplayBuilder().setContent(`* Failed ${stats.dig_fail || 0} times`),
+    )
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
