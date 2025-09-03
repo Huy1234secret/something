@@ -164,6 +164,26 @@ function buildEquipmentContainer(user, stats) {
     );
 }
 
+async function sendDig(user, send, resources, fetchReply) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  const container = buildMainContainer(
+    user,
+    `${user}, ready for digging?`,
+    0xffffff,
+  );
+  let message = await send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+  if (fetchReply) {
+    message = await fetchReply();
+  }
+  digStates.set(message.id, { userId: user.id });
+  return message;
+}
+
 async function handleDig(message, user, resources, stats) {
   const success = Math.random() < 0.5;
   stats.dig_total = (stats.dig_total || 0) + 1;
@@ -208,17 +228,15 @@ function setup(client, resources) {
 
   client.on('interactionCreate', async interaction => {
     try {
-      if (!interaction.isChatInputCommand() || interaction.commandName !== 'dig') return;
+      if (!interaction.isChatInputCommand() || interaction.commandName !== 'dig')
+        return;
       await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-      const stats = resources.userStats[interaction.user.id] || { inventory: [] };
-      normalizeInventory(stats);
-      const container = buildMainContainer(
+      await sendDig(
         interaction.user,
-        `${interaction.user}, ready for digging?`,
-        0xffffff,
+        interaction.editReply.bind(interaction),
+        resources,
+        interaction.fetchReply.bind(interaction),
       );
-      const message = await interaction.editReply({ components: [container] });
-      digStates.set(message.id, { userId: interaction.user.id });
     } catch (error) {
       if (error.code !== 10062) console.error(error);
     }
@@ -275,5 +293,5 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, sendDig };
 
