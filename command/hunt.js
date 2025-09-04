@@ -113,6 +113,16 @@ const RARITY_COLORS = {
   Secret: 0x000000,
 };
 
+const HUNT_XP_MULTIPLIER = {
+  Common: 1,
+  Rare: 1.1,
+  Epic: 1.4,
+  Legendary: 2,
+  Mythical: 3.5,
+  Godly: 6,
+  Secret: 10,
+};
+
 const huntStates = new Map();
 
 function getArea(name) {
@@ -390,6 +400,7 @@ async function handleHunt(interaction, resources, stats) {
   stats.hunt_total = (stats.hunt_total || 0) + 1;
   let text;
   let color;
+  let xp;
   if (roll < 0.45) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
@@ -413,16 +424,18 @@ async function handleHunt(interaction, resources, stats) {
     normalizeInventory(stats);
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
+    xp = Math.floor(100 * (HUNT_XP_MULTIPLIER[animal.rarity] || 1));
     text = `${user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${
       animal.rarity
-    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
+    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
   } else if (roll < 0.9) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
     color = 0xff0000;
-    text = `${user}, ${fail}\n-# You can hunt again <t:${Math.floor(
+    xp = 25;
+    text = `${user}, ${fail}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
   } else {
@@ -430,8 +443,10 @@ async function handleHunt(interaction, resources, stats) {
     const death =
       HUNT_DEATH_MESSAGES[Math.floor(Math.random() * HUNT_DEATH_MESSAGES.length)];
     color = 0x000000;
-    text = death.replace('{user}', user);
+    xp = -1000;
+    text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP**`;
   }
+  await resources.addXp(user, xp, resources.client);
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();

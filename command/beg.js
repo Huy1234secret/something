@@ -148,10 +148,14 @@ async function sendBeg(user, send, resources) {
   if (Math.random() < 0.5) {
     const successMsg = pick(SUCCESS_MESSAGES);
     let currencyLine;
+    let xp;
+    let itemGiven = false;
+    let diamondGiven = false;
     if (Math.random() < 0.001) {
       let amount = Math.floor(Math.random() * 10) + 1;
       if (Math.random() < 1 / 1000) amount = 100;
       stats.diamonds = (stats.diamonds || 0) + amount;
+      diamondGiven = true;
       currencyLine = `-# They are so generous, they gifted you **${formatNumber(amount)} Diamonds ${DIAMOND_EMOJI}!!**`;
     } else {
       const amount = Math.floor(Math.random() * 9001) + 1000;
@@ -162,6 +166,7 @@ async function sendBeg(user, send, resources) {
     if (Math.random() < 0.05) {
       const item = getRandomItem();
       if (item) {
+        itemGiven = true;
         stats.inventory = stats.inventory || [];
         const entry = stats.inventory.find(i => i.id === item.id);
         if (entry) entry.amount += 1;
@@ -171,16 +176,21 @@ async function sendBeg(user, send, resources) {
         }!**`;
       }
     }
+    if (diamondGiven) xp = itemGiven ? 15000 : 2500;
+    else xp = itemGiven ? 1000 : 100;
+    await resources.addXp(user, xp, resources.client);
     resources.saveData();
-    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}`;
+    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}\n-# You gained **${xp} XP**`;
     const container = new ContainerBuilder()
       .setAccentColor(0x00ff00)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
     await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   } else {
     const failMsg = pick(FAIL_MESSAGES);
+    const xp = 25;
+    await resources.addXp(user, xp, resources.client);
     resources.saveData();
-    const text = `## ${name}\n${failMsg}`;
+    const text = `## ${name}\n${failMsg}\n-# You gained **${xp} XP**`;
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
