@@ -157,11 +157,11 @@ function buildMainContainer(
     statBtn.setDisabled(true);
     equipBtn.setDisabled(true);
   }
-  const section = new SectionBuilder();
-  if (thumb) {
-    section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
-  }
-  section.addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+  const section = new SectionBuilder()
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(thumb || user.displayAvatarURL()),
+    )
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
