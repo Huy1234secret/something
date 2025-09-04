@@ -215,16 +215,11 @@ function buildStatContainer(user, stats) {
         }`,
       ),
       new TextDisplayBuilder().setContent(
-        `Hunt amount: ${stats.hunt_total || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# Success: ${stats.hunt_success || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# failed: ${stats.hunt_fail || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# died: ${stats.hunt_die || 0}`,
+        `Hunt amount: ${stats.hunt_total || 0}\n-# Success: ${
+          stats.hunt_success || 0
+        }\n-# failed: ${stats.hunt_fail || 0}\n-# died: ${
+          stats.hunt_die || 0
+        }`,
       ),
       new TextDisplayBuilder().setContent(
         `Item discovered: ${discovered} / ${totalAnimals}`,
