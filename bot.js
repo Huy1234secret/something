@@ -177,7 +177,7 @@ const resources = { userStats, userCardSettings, commandBans, saveData, xpNeeded
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
-client.setMaxListeners(20);
+client.setMaxListeners(50);
 setupErrorHandling(client, '1383481711651721307');
 
 // Wrap interactionCreate listeners so banned interactions don't trigger other handlers
