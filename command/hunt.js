@@ -14,7 +14,7 @@ const {
 } = require('discord.js');
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
 const { handleDeath } = require('../death');
 
 const AREAS = [
@@ -189,26 +189,35 @@ function buildStatContainer(user, stats) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  const discovered = (stats.hunt_discover || []).length;
+  const totalAnimals = ANIMALS.length;
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${user} Hunting Stats.`),
       new TextDisplayBuilder().setContent(
-        `### <:SBHuntingstat:1410892320538230834> Mastery Level: ${stats.hunt_level || 0}`,
+        `## <:SBHuntingstat:1410892320538230834> Mastery Level: ${
+          stats.hunt_level || 0
+        }`,
       ),
-      new TextDisplayBuilder().setContent(`* Hunted ${stats.hunt_total || 0} times`),
+      new TextDisplayBuilder().setContent(
+        `Hunt amount: ${stats.hunt_total || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# Success: ${stats.hunt_success || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# failed: ${stats.hunt_fail || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# died: ${stats.hunt_die || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `Item discovered: ${discovered} / ${totalAnimals}`,
+      ),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`* Succeed ${stats.hunt_success || 0} times`),
-      new TextDisplayBuilder().setContent(`* Failed ${stats.hunt_fail || 0} times`),
-      new TextDisplayBuilder().setContent(`* Died ${stats.hunt_die || 0} times`),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('### Hunting Mastery Perks:'))
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
 }
 
@@ -380,15 +389,21 @@ async function handleHunt(message, user, resources, stats) {
     const tier = tierMap[stats.hunt_gun] || 1;
     const animal = pickAnimal(areaObj.key, tier);
     const item = ITEMS[animal.id];
-    const existing = (stats.inventory || []).find(i => i.id === item.id);
-    if (existing) existing.amount += 1;
-    else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
+    const full = getInventoryCount(stats) >= MAX_ITEMS;
+    if (!stats.hunt_discover) stats.hunt_discover = [];
+    if (!stats.hunt_discover.includes(item.id))
+      stats.hunt_discover.push(item.id);
+    if (!full) {
+      const existing = (stats.inventory || []).find(i => i.id === item.id);
+      if (existing) existing.amount += 1;
+      else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
+    }
     normalizeInventory(stats);
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
     text = `${user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${
       animal.rarity
-    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
+    } ${RARITY_EMOJIS[animal.rarity] || ''}${full ? '\n-# Your backpack is full!' : ''}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
   } else if (roll < 0.9) {
@@ -405,6 +420,7 @@ async function handleHunt(message, user, resources, stats) {
     color = 0x000000;
     text = death.replace('{user}', user);
   }
+  normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
   const container = buildMainContainer(
