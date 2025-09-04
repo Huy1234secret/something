@@ -25,6 +25,7 @@ const addItemCommand = require('./command/addItem');
 const farmViewCommand = require('./command/farmView');
 const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
+const begCommand = require('./command/beg');
 const { ITEMS } = require('./items');
 const { setSafeTimeout } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -269,6 +270,7 @@ client.on = function(event, listener) {
     farmViewCommand.setup(client, resources);
     huntCommand.setup(client, resources);
     digCommand.setup(client, resources);
+    begCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
@@ -379,6 +381,12 @@ client.on('messageCreate', async message => {
       );
     } else if (lowerAfter === 'dig') {
       await digCommand.sendDig(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (lowerAfter === 'beg') {
+      await begCommand.sendBeg(
         message.author,
         message.channel.send.bind(message.channel),
         resources,
