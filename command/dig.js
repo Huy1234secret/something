@@ -9,9 +9,11 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
 } = require('discord.js');
 const { ITEMS, DIG_ITEMS } = require('../items');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
@@ -112,20 +114,33 @@ function buildStatContainer(user, stats) {
     .setLabel('Equipment')
     .setStyle(ButtonStyle.Secondary)
     .setEmoji(DIG_STAT_EMOJI);
+  const discovered = (stats.dig_discover || []).length;
+  const totalItems = DIG_ITEMS.length;
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${user} Digging Stats.`),
+      new TextDisplayBuilder().setContent(
+        `## ${DIG_STAT_EMOJI} Mastery Level: ${stats.dig_level || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `Dig amount: ${stats.dig_total || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# Success: ${stats.dig_success || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# failed: ${stats.dig_fail || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# died: ${stats.dig_die || 0}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `Item discovered: ${discovered} / ${totalItems}`,
+      ),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`* Dug ${stats.dig_total || 0} times`),
-      new TextDisplayBuilder().setContent(`* Succeed ${stats.dig_success || 0} times`),
-      new TextDisplayBuilder().setContent(`* Failed ${stats.dig_fail || 0} times`),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
     );
@@ -147,17 +162,48 @@ function buildEquipmentContainer(user, stats) {
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true)
     .setEmoji(DIG_STAT_EMOJI);
-  const shovelEntry = (stats.inventory || []).find(i => i.id === 'Shovel');
-  const count = shovelEntry ? shovelEntry.amount : 0;
-  const text = count
-    ? `### You have ×${count} ${ITEMS.Shovel.name} ${ITEMS.Shovel.emoji}`
-    : `### You have no ${ITEMS.Shovel.name}.`;
+
+  const tools = (stats.inventory || []).filter(i => {
+    const it = ITEMS[i.id];
+    return it && it.types && it.types.includes('Tool');
+  });
+  const toolSelect = new StringSelectMenuBuilder()
+    .setCustomId('dig-tool-select')
+    .setPlaceholder('Tool');
+  if (tools.length) {
+    for (const t of tools) {
+      const it = ITEMS[t.id];
+      const opt = new StringSelectMenuOptionBuilder()
+        .setLabel(it.name)
+        .setValue(it.id)
+        .setEmoji(it.emoji)
+        .setDescription(`You have ${t.amount} ${it.name}`);
+      if (stats.dig_tool === it.id) opt.setDefault(true);
+      toolSelect.addOptions(opt);
+    }
+  } else {
+    toolSelect
+      .setDisabled(true)
+      .setPlaceholder('No tools')
+      .addOptions(
+        new StringSelectMenuOptionBuilder().setLabel('No tools').setValue('none'),
+      );
+  }
+
+  const equippedTool = ITEMS[stats.dig_tool] || { name: 'None', emoji: '' };
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(THUMB_URL))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
+      new TextDisplayBuilder().setContent(
+        `* Tool equipped: ${equippedTool.name} ${equippedTool.emoji}`,
+      ),
+    );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addActionRowComponents(new ActionRowBuilder().addComponents(toolSelect))
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
@@ -186,6 +232,8 @@ async function sendDig(user, send, resources, fetchReply) {
 
 async function handleDig(message, user, resources, stats) {
   const success = Math.random() < 0.5;
+  const cooldown = Date.now() + 30000;
+  stats.dig_cd_until = cooldown;
   stats.dig_total = (stats.dig_total || 0) + 1;
   let text;
   let color;
@@ -197,20 +245,30 @@ async function handleDig(message, user, resources, stats) {
     if (Math.random() < 0.15) {
       const item = getRandomDigItem();
       if (item) {
-        stats.inventory = stats.inventory || [];
-        const entry = stats.inventory.find(i => i.id === item.id);
-        if (entry) entry.amount += 1;
-        else stats.inventory.push({ ...item, amount: 1 });
+        if (!stats.dig_discover) stats.dig_discover = [];
+        if (!stats.dig_discover.includes(item.id))
+          stats.dig_discover.push(item.id);
+        const full = getInventoryCount(stats) >= MAX_ITEMS;
+        if (!full) {
+          stats.inventory = stats.inventory || [];
+          const entry = stats.inventory.find(i => i.id === item.id);
+          if (entry) entry.amount += 1;
+          else stats.inventory.push({ ...item, amount: 1 });
+        }
         extra = `\n-# You also found **${item.name} ${item.emoji}** while digging! ${
           RARITY_EMOJIS[item.rarity] || ''
-        }`;
+        }${full ? '\n-# Your backpack is full!' : ''}`;
       }
     }
-    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}`;
+    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You can dig again <t:${Math.floor(
+      cooldown / 1000,
+    )}:R>`;
     color = 0x00ff00;
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
-    text = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
+    text = `${
+      FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)]
+    }\n-# You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     color = 0xff0000;
   }
   normalizeInventory(stats);
@@ -248,6 +306,27 @@ function setup(client, resources) {
     try {
       if (interaction.isButton() && interaction.customId === 'dig-action') {
         const stats = resources.userStats[state.userId] || { inventory: [] };
+        if ((stats.dig_cd_until || 0) > Date.now()) {
+          await interaction.reply({
+            content: `You can dig again <t:${Math.floor(
+              stats.dig_cd_until / 1000,
+            )}:R>`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        normalizeInventory(stats);
+        const inv = stats.inventory || [];
+        const toolId = stats.dig_tool || 'Shovel';
+        const tool = inv.find(i => i.id === toolId);
+        if (!tool || tool.amount <= 0) {
+          await interaction.reply({
+            content:
+              '<:SBWarning:1404101025849147432> You need a tool to dig.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
         const loading = buildMainContainer(
           interaction.user,
           'You are going for a dig... <a:Digani:1412451477309620316>',
@@ -270,6 +349,19 @@ function setup(client, resources) {
         });
       } else if (interaction.isButton() && interaction.customId === 'dig-equipment') {
         const stats = resources.userStats[state.userId] || {};
+        const container = buildEquipmentContainer(interaction.user, stats);
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } else if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === 'dig-tool-select'
+      ) {
+        const stats = resources.userStats[state.userId] || {};
+        stats.dig_tool = interaction.values[0];
+        resources.userStats[state.userId] = stats;
+        resources.saveData();
         const container = buildEquipmentContainer(interaction.user, stats);
         await interaction.update({
           components: [container],

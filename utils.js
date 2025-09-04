@@ -78,4 +78,17 @@ function setSafeTimeout(fn, delay) {
   return setTimeout(() => setSafeTimeout(fn, delay - MAX_TIMEOUT), MAX_TIMEOUT);
 }
 
-module.exports = { formatNumber, parseAmount, normalizeInventory, setSafeTimeout };
+const MAX_ITEMS = 500;
+
+function getInventoryCount(stats) {
+  return (stats.inventory || []).reduce((sum, i) => sum + (i.amount || 0), 0);
+}
+
+module.exports = {
+  formatNumber,
+  parseAmount,
+  normalizeInventory,
+  setSafeTimeout,
+  getInventoryCount,
+  MAX_ITEMS,
+};
