@@ -461,18 +461,14 @@ function setup(client, resources) {
       state.selected = [];
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
-      if (full) {
-        content = '<:SBWarning:1404101025849147432> Your backpack is full!';
-      } else {
-        if (harvested > 0)
-          content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
-        if (returnedSeeds > 0)
-          content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
-            returnedSeeds > 1 ? 's' : ''
-          }.`;
-        if (deadNote) content += `\n-# Your wheat died...`;
-        if (!content) content = 'Nothing harvested.';
-      }
+      if (harvested > 0)
+        content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
+      if (returnedSeeds > 0)
+        content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
+          returnedSeeds > 1 ? 's' : ''
+        }.`;
+      if (deadNote) content += `\n-# Your wheat died...`;
+      if (!content) content = 'Nothing harvested.';
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
@@ -483,7 +479,7 @@ function setup(client, resources) {
       if (full) {
         await interaction
           .followUp({
-            content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+            content: `${interaction.user}, your inventory is full. Any items you earned will not be added to your inventory!`,
             flags: MessageFlags.Ephemeral,
           })
           .catch(() => {});

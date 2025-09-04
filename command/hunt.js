@@ -404,13 +404,13 @@ async function handleHunt(interaction, resources, stats) {
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
     text = `${user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${
       animal.rarity
-    } ${RARITY_EMOJIS[animal.rarity] || ''}${full ? '\n-# Your backpack is full!' : ''}\n-# You can hunt again <t:${Math.floor(
+    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
     if (full) {
       interaction
         .followUp({
-          content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+          content: `${user}, your inventory is full. Any items you earned will not be added to your inventory!`,
           flags: MessageFlags.Ephemeral,
         })
         .catch(() => {});
