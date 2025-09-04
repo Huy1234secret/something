@@ -78,7 +78,7 @@ function setSafeTimeout(fn, delay) {
   return setTimeout(() => setSafeTimeout(fn, delay - MAX_TIMEOUT), MAX_TIMEOUT);
 }
 
-const MAX_ITEMS = 500;
+const MAX_ITEMS = 200;
 
 function getInventoryCount(stats) {
   return (stats.inventory || []).reduce((sum, i) => sum + (i.amount || 0), 0);
