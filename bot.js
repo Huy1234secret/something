@@ -38,7 +38,7 @@ let commandBans = {};
 const defaultColor = [0,255,255];
 const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
-const levelUpChannelId = 1373578620634665052;
+const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 
@@ -173,11 +173,12 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
-const resources = { userStats, userCardSettings, commandBans, saveData, xpNeeded, defaultColor, defaultBackground, scheduleRole, pendingRequests };
+const resources = { userStats, userCardSettings, commandBans, saveData, xpNeeded, addXp, defaultColor, defaultBackground, scheduleRole, pendingRequests };
 
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
 });
+resources.client = client;
 client.setMaxListeners(50);
 setupErrorHandling(client, '1383481711651721307');
 

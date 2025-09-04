@@ -57,6 +57,16 @@ const RARITY_EMOJIS = {
   Secret: '<a:SBRSecret:1409933447220297791>',
 };
 
+const DIG_XP_MULTIPLIER = {
+  Common: 2,
+  Rare: 2.2,
+  Epic: 2.8,
+  Legendary: 4,
+  Mythical: 7,
+  Godly: 12,
+  Secret: 20,
+};
+
 const digStates = new Map();
 
 function getRandomDigItem() {
@@ -246,14 +256,17 @@ async function handleDig(interaction, resources, stats) {
   stats.dig_total = (stats.dig_total || 0) + 1;
   let text;
   let color;
+  let xp;
   if (success) {
     const amount = Math.floor(Math.random() * 4001) + 1000;
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
     let extra = '';
+    let foundItem = null;
     if (Math.random() < 0.15) {
       const item = getRandomDigItem();
       if (item) {
+        foundItem = item;
         if (!stats.dig_discover) stats.dig_discover = [];
         if (!stats.dig_discover.includes(item.id))
           stats.dig_discover.push(item.id);
@@ -274,17 +287,20 @@ async function handleDig(interaction, resources, stats) {
         }`;
       }
     }
-    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You can dig again <t:${Math.floor(
+    xp = foundItem ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1)) : 100;
+    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
     color = 0x00ff00;
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
+    xp = 25;
     text = `${
       FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)]
-    }\n-# You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
+    }\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     color = 0xff0000;
   }
+  await resources.addXp(user, xp, resources.client);
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
