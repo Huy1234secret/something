@@ -232,7 +232,8 @@ async function sendDig(user, send, resources, fetchReply) {
   return message;
 }
 
-async function handleDig(message, user, resources, stats) {
+async function handleDig(interaction, resources, stats) {
+  const { message, user } = interaction;
   const success = Math.random() < 0.5;
   const cooldown = Date.now() + 30000;
   stats.dig_cd_until = cooldown;
@@ -260,6 +261,14 @@ async function handleDig(message, user, resources, stats) {
         extra = `\n-# You also found **${item.name} ${item.emoji}** while digging! ${
           RARITY_EMOJIS[item.rarity] || ''
         }${full ? '\n-# Your backpack is full!' : ''}`;
+        if (full) {
+          interaction
+            .followUp({
+              content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+              flags: MessageFlags.Ephemeral,
+            })
+            .catch(() => {});
+        }
       }
     }
     text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You can dig again <t:${Math.floor(
@@ -356,7 +365,7 @@ function setup(client, resources) {
           flags: MessageFlags.IsComponentsV2,
         });
         setTimeout(() => {
-          handleDig(interaction.message, interaction.user, resources, stats);
+          handleDig(interaction, resources, stats);
         }, 3000);
       } else if (interaction.isButton() && interaction.customId === 'dig-stat') {
         const stats = resources.userStats[state.userId] || {};

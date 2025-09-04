@@ -9,7 +9,7 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
 } = require('discord.js');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
 
 const ITEM_TYPES = [
   'Consumable',
@@ -43,6 +43,7 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
   if (saveData) saveData();
   const items = stats.inventory || [];
   const totalValue = items.reduce((sum, item) => sum + (item.value || 0) * (item.amount || 0), 0);
+  const count = getInventoryCount(stats);
   const types = state.types.includes('All') ? ['All'] : state.types;
   const filtered = types.includes('All')
     ? items
@@ -72,7 +73,7 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `### ${user.username}'s Inventory\n* <:SBstars:1404723253200552009> Total Inventory Value: ${totalValue}`,
+        `### ${user.username}'s Inventory\n* <:SBstars:1404723253200552009> Total Inventory Value: ${totalValue}\n* Capacity: ${count} / ${MAX_ITEMS}`,
       ),
     );
 

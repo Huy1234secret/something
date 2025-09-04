@@ -357,7 +357,8 @@ async function sendHunt(user, send, resources, fetchReply) {
   return message;
 }
 
-async function handleHunt(message, user, resources, stats) {
+async function handleHunt(interaction, resources, stats) {
+  const { message, user } = interaction;
   const areaObj = getArea(stats.hunt_area);
   if (!areaObj) return;
   normalizeInventory(stats);
@@ -406,6 +407,14 @@ async function handleHunt(message, user, resources, stats) {
     } ${RARITY_EMOJIS[animal.rarity] || ''}${full ? '\n-# Your backpack is full!' : ''}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
+    if (full) {
+      interaction
+        .followUp({
+          content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+          flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
   } else if (roll < 0.9) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
@@ -521,7 +530,7 @@ function setup(client, resources) {
           flags: MessageFlags.IsComponentsV2,
         });
         setTimeout(() => {
-          handleHunt(interaction.message, interaction.user, resources, stats);
+          handleHunt(interaction, resources, stats);
         }, 3000);
       } else if (
         interaction.isButton() &&

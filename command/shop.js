@@ -21,7 +21,7 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
@@ -396,6 +396,25 @@ function setup(client, resources) {
             ],
             flags: MessageFlags.IsComponentsV2,
           });
+          return;
+        }
+        if (getInventoryCount(stats) + amount > MAX_ITEMS) {
+          await interaction.update({
+            components: [
+              new ActionRowBuilder().addComponents(
+                new TextDisplayBuilder().setContent(
+                  '<:SBWarning:1404101025849147432> Your backpack is full!',
+                ),
+              ),
+            ],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          await interaction
+            .followUp({
+              content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+              flags: MessageFlags.Ephemeral,
+            })
+            .catch(() => {});
           return;
         }
         stats[currency] = (stats[currency] || 0) - total;
