@@ -123,16 +123,11 @@ function buildStatContainer(user, stats) {
         `## ${DIG_STAT_EMOJI} Mastery Level: ${stats.dig_level || 0}`,
       ),
       new TextDisplayBuilder().setContent(
-        `Dig amount: ${stats.dig_total || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# Success: ${stats.dig_success || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# failed: ${stats.dig_fail || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# died: ${stats.dig_die || 0}`,
+        `Dig amount: ${stats.dig_total || 0}\n-# Success: ${
+          stats.dig_success || 0
+        }\n-# failed: ${stats.dig_fail || 0}\n-# died: ${
+          stats.dig_die || 0
+        }`,
       ),
       new TextDisplayBuilder().setContent(
         `Item discovered: ${discovered} / ${totalItems}`,
@@ -165,11 +160,16 @@ function buildEquipmentContainer(user, stats) {
 
   const tools = (stats.inventory || []).filter(i => {
     const it = ITEMS[i.id];
-    return it && it.types && it.types.includes('Tool');
+    return (
+      it &&
+      it.types &&
+      it.types.includes('Tool') &&
+      it.id.includes('Shovel')
+    );
   });
   const toolSelect = new StringSelectMenuBuilder()
     .setCustomId('dig-tool-select')
-    .setPlaceholder('Tool');
+    .setPlaceholder('Shovel');
   if (tools.length) {
     for (const t of tools) {
       const it = ITEMS[t.id];
@@ -184,9 +184,11 @@ function buildEquipmentContainer(user, stats) {
   } else {
     toolSelect
       .setDisabled(true)
-      .setPlaceholder('No tools')
+      .setPlaceholder('No shovels')
       .addOptions(
-        new StringSelectMenuOptionBuilder().setLabel('No tools').setValue('none'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('No shovels')
+          .setValue('none'),
       );
   }
 
@@ -317,8 +319,24 @@ function setup(client, resources) {
         }
         normalizeInventory(stats);
         const inv = stats.inventory || [];
+        if (!stats.dig_tool) {
+          const shovels = inv.filter(i => {
+            const it = ITEMS[i.id];
+            return (
+              it &&
+              it.types &&
+              it.types.includes('Tool') &&
+              it.id.includes('Shovel')
+            );
+          });
+          if (shovels.length === 1) {
+            stats.dig_tool = shovels[0].id;
+            resources.userStats[state.userId] = stats;
+            resources.saveData();
+          }
+        }
         const toolId = stats.dig_tool || 'Shovel';
-        const tool = inv.find(i => i.id === toolId);
+        const tool = inv.find(i => i.id === toolId && toolId.includes('Shovel'));
         if (!tool || tool.amount <= 0) {
           await interaction.reply({
             content:
