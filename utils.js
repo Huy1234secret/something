@@ -37,6 +37,7 @@ const PARSE_MAP = {
 };
 
 const { ITEMS } = require('./items');
+const { MessageFlags } = require('discord.js');
 
 function parseAmount(str) {
   const match = String(str).trim().match(/^(-?\d+(?:\.\d+)?)([a-zA-Z]{1,2})?$/);
@@ -84,6 +85,19 @@ function getInventoryCount(stats) {
   return (stats.inventory || []).reduce((sum, i) => sum + (i.amount || 0), 0);
 }
 
+function alertInventoryFull(interaction, user, stats, pending = 0) {
+  if (getInventoryCount(stats) + pending >= MAX_ITEMS) {
+    interaction
+      .followUp({
+        content: `${user}, your inventory is full. Any items you earned will not be added to your inventory!`,
+        flags: MessageFlags.Ephemeral,
+      })
+      .catch(() => {});
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   formatNumber,
   parseAmount,
@@ -91,4 +105,5 @@ module.exports = {
   setSafeTimeout,
   getInventoryCount,
   MAX_ITEMS,
+  alertInventoryFull,
 };

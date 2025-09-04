@@ -13,7 +13,12 @@ const {
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
 const { ITEMS, DIG_ITEMS } = require('../items');
-const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
+const {
+  normalizeInventory,
+  getInventoryCount,
+  MAX_ITEMS,
+  alertInventoryFull,
+} = require('../utils');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
@@ -234,6 +239,7 @@ async function sendDig(user, send, resources, fetchReply) {
 
 async function handleDig(interaction, resources, stats) {
   const { message, user } = interaction;
+  const initialFull = alertInventoryFull(interaction, user, stats);
   const success = Math.random() < 0.5;
   const cooldown = Date.now() + 30000;
   stats.dig_cd_until = cooldown;
@@ -251,24 +257,21 @@ async function handleDig(interaction, resources, stats) {
         if (!stats.dig_discover) stats.dig_discover = [];
         if (!stats.dig_discover.includes(item.id))
           stats.dig_discover.push(item.id);
-        const full = getInventoryCount(stats) >= MAX_ITEMS;
-        if (!full) {
-          stats.inventory = stats.inventory || [];
-          const entry = stats.inventory.find(i => i.id === item.id);
-          if (entry) entry.amount += 1;
-          else stats.inventory.push({ ...item, amount: 1 });
+        if (!initialFull) {
+          const willExceed = getInventoryCount(stats) + 1 > MAX_ITEMS;
+          if (!willExceed) {
+            stats.inventory = stats.inventory || [];
+            const entry = stats.inventory.find(i => i.id === item.id);
+            if (entry) entry.amount += 1;
+            else stats.inventory.push({ ...item, amount: 1 });
+            alertInventoryFull(interaction, user, stats);
+          } else {
+            alertInventoryFull(interaction, user, stats, 1);
+          }
         }
         extra = `\n-# You also found **${item.name} ${item.emoji}** while digging! ${
           RARITY_EMOJIS[item.rarity] || ''
         }`;
-        if (full) {
-          interaction
-            .followUp({
-              content: `${user}, your inventory is full. Any items you earned will not be added to your inventory!`,
-              flags: MessageFlags.Ephemeral,
-            })
-            .catch(() => {});
-        }
       }
     }
     text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You can dig again <t:${Math.floor(

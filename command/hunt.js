@@ -14,7 +14,12 @@ const {
 } = require('discord.js');
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
-const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
+const {
+  normalizeInventory,
+  getInventoryCount,
+  MAX_ITEMS,
+  alertInventoryFull,
+} = require('../utils');
 const { handleDeath } = require('../death');
 
 const AREAS = [
@@ -362,6 +367,7 @@ async function handleHunt(interaction, resources, stats) {
   const areaObj = getArea(stats.hunt_area);
   if (!areaObj) return;
   normalizeInventory(stats);
+  const initialFull = alertInventoryFull(interaction, user, stats);
   const inv = stats.inventory || [];
   const bulletId = stats.hunt_bullet || 'Bullet';
   const bullet = inv.find(i => i.id === bulletId);
@@ -390,14 +396,19 @@ async function handleHunt(interaction, resources, stats) {
     const tier = tierMap[stats.hunt_gun] || 1;
     const animal = pickAnimal(areaObj.key, tier);
     const item = ITEMS[animal.id];
-    const full = getInventoryCount(stats) >= MAX_ITEMS;
     if (!stats.hunt_discover) stats.hunt_discover = [];
     if (!stats.hunt_discover.includes(item.id))
       stats.hunt_discover.push(item.id);
-    if (!full) {
-      const existing = (stats.inventory || []).find(i => i.id === item.id);
-      if (existing) existing.amount += 1;
-      else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
+    if (!initialFull) {
+      const willExceed = getInventoryCount(stats) + 1 > MAX_ITEMS;
+      if (!willExceed) {
+        const existing = (stats.inventory || []).find(i => i.id === item.id);
+        if (existing) existing.amount += 1;
+        else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
+        alertInventoryFull(interaction, user, stats);
+      } else {
+        alertInventoryFull(interaction, user, stats, 1);
+      }
     }
     normalizeInventory(stats);
     const art = articleFor(animal.name);
@@ -407,14 +418,6 @@ async function handleHunt(interaction, resources, stats) {
     } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
-    if (full) {
-      interaction
-        .followUp({
-          content: `${user}, your inventory is full. Any items you earned will not be added to your inventory!`,
-          flags: MessageFlags.Ephemeral,
-        })
-        .catch(() => {});
-    }
   } else if (roll < 0.9) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];

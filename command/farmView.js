@@ -16,7 +16,12 @@ const {
 const { createCanvas } = require('canvas');
 const { loadCachedImage } = require('../imageCache');
 const { ITEMS } = require('../items');
-const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
+const {
+  normalizeInventory,
+  getInventoryCount,
+  MAX_ITEMS,
+  alertInventoryFull,
+} = require('../utils');
 
 const CANVAS_SIZE = 500;
 const FARM_BG = 'https://i.ibb.co/NnG9tLD4/Flower-Garden.png';
@@ -428,7 +433,8 @@ function setup(client, resources) {
       let harvested = 0;
       let returnedSeeds = 0;
       let deadNote = false;
-      const full = getInventoryCount(stats) >= MAX_ITEMS;
+      const initialFull = alertInventoryFull(interaction, interaction.user, stats);
+      let full = getInventoryCount(stats) >= MAX_ITEMS;
       plots.forEach(id => {
         const plot = farm[id];
         const status = getPlotStatus(plot);
@@ -452,6 +458,7 @@ function setup(client, resources) {
             if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
             else inv.push({ ...ITEMS.WheatSeed, amount: seeds });
           }
+          full = getInventoryCount(stats) >= MAX_ITEMS;
         }
         farm[id] = {};
       });
@@ -476,14 +483,7 @@ function setup(client, resources) {
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
-      if (full) {
-        await interaction
-          .followUp({
-            content: `${interaction.user}, your inventory is full. Any items you earned will not be added to your inventory!`,
-            flags: MessageFlags.Ephemeral,
-          })
-          .catch(() => {});
-      }
+      if (!initialFull) alertInventoryFull(interaction, interaction.user, stats);
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-water') {

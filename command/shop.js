@@ -21,7 +21,12 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');
-const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
+const {
+  normalizeInventory,
+  getInventoryCount,
+  MAX_ITEMS,
+  alertInventoryFull,
+} = require('../utils');
 
 // Currently coin and deluxe shops with no items
 const SHOP_ITEMS = {
@@ -402,12 +407,7 @@ function setup(client, resources) {
           await interaction
             .deferUpdate({ flags: MessageFlags.IsComponentsV2 })
             .catch(() => {});
-          await interaction
-            .followUp({
-              content: `${interaction.user}, your inventory is full. Any items you earned will not be added to your inventory!`,
-              flags: MessageFlags.Ephemeral,
-            })
-            .catch(() => {});
+          alertInventoryFull(interaction, interaction.user, stats, amount);
           return;
         }
         stats[currency] = (stats[currency] || 0) - total;
