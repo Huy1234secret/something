@@ -16,7 +16,7 @@ const {
 const { createCanvas } = require('canvas');
 const { loadCachedImage } = require('../imageCache');
 const { ITEMS } = require('../items');
-const { normalizeInventory } = require('../utils');
+const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
 
 const CANVAS_SIZE = 500;
 const FARM_BG = 'https://i.ibb.co/NnG9tLD4/Flower-Garden.png';
@@ -428,12 +428,13 @@ function setup(client, resources) {
       let harvested = 0;
       let returnedSeeds = 0;
       let deadNote = false;
+      const full = getInventoryCount(stats) >= MAX_ITEMS;
       plots.forEach(id => {
         const plot = farm[id];
         const status = getPlotStatus(plot);
         if (!plot.seedId) return;
         if (status.dead) deadNote = true;
-        else if (status.grown) {
+        else if (status.grown && !full) {
           const amount = Math.floor(Math.random() * 4) + 2;
           harvested += amount;
           const inv = stats.inventory;
@@ -460,14 +461,18 @@ function setup(client, resources) {
       state.selected = [];
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
-      if (harvested > 0)
-        content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
-      if (returnedSeeds > 0)
-        content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
-          returnedSeeds > 1 ? 's' : ''
-        }.`;
-      if (deadNote) content += `\n-# Your wheat died...`;
-      if (!content) content = 'Nothing harvested.';
+      if (full) {
+        content = '<:SBWarning:1404101025849147432> Your backpack is full!';
+      } else {
+        if (harvested > 0)
+          content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
+        if (returnedSeeds > 0)
+          content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
+            returnedSeeds > 1 ? 's' : ''
+          }.`;
+        if (deadNote) content += `\n-# Your wheat died...`;
+        if (!content) content = 'Nothing harvested.';
+      }
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
@@ -475,6 +480,14 @@ function setup(client, resources) {
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
+      if (full) {
+        await interaction
+          .followUp({
+            content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+            flags: MessageFlags.Ephemeral,
+          })
+          .catch(() => {});
+      }
       return;
     }
     if (interaction.isButton() && interaction.customId === 'farm-water') {
