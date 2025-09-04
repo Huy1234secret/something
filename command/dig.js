@@ -260,11 +260,11 @@ async function handleDig(interaction, resources, stats) {
         }
         extra = `\n-# You also found **${item.name} ${item.emoji}** while digging! ${
           RARITY_EMOJIS[item.rarity] || ''
-        }${full ? '\n-# Your backpack is full!' : ''}`;
+        }`;
         if (full) {
           interaction
             .followUp({
-              content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+              content: `${user}, your inventory is full. Any items you earned will not be added to your inventory!`,
               flags: MessageFlags.Ephemeral,
             })
             .catch(() => {});

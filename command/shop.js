@@ -399,19 +399,12 @@ function setup(client, resources) {
           return;
         }
         if (getInventoryCount(stats) + amount > MAX_ITEMS) {
-          await interaction.update({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent(
-                  '<:SBWarning:1404101025849147432> Your backpack is full!',
-                ),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
+          await interaction
+            .deferUpdate({ flags: MessageFlags.IsComponentsV2 })
+            .catch(() => {});
           await interaction
             .followUp({
-              content: '<:SBWarning:1404101025849147432> Your backpack is full!',
+              content: `${interaction.user}, your inventory is full. Any items you earned will not be added to your inventory!`,
               flags: MessageFlags.Ephemeral,
             })
             .catch(() => {});
