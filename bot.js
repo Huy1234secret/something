@@ -304,11 +304,6 @@ client.on = function(event, listener) {
             )
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(message1));
           const section2 = new SectionBuilder()
-            .setThumbnailAccessory(
-              new ThumbnailBuilder().setURL(
-                'https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png',
-              ),
-            )
             .addTextDisplayComponents(
               new TextDisplayBuilder().setContent(message2),
             );
