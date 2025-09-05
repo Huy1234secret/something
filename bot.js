@@ -11,6 +11,9 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ThumbnailBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
 } = require('discord.js');
 require('dotenv').config();
 const levelCommand = require('./command/level');
@@ -269,14 +272,51 @@ client.on = function(event, listener) {
     addCurrencyCommand.setup(client, resources);
     addItemCommand.setup(client, resources);
     farmViewCommand.setup(client, resources);
-    huntCommand.setup(client, resources);
-    digCommand.setup(client, resources);
-    begCommand.setup(client, resources);
-    timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
+      huntCommand.setup(client, resources);
+      digCommand.setup(client, resources);
+      begCommand.setup(client, resources);
+      timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
-    // Remove deprecated /level-button command if it exists
-    try {
-      const commands = await client.application.commands.fetch();
+      const cshChannelId = '1413532331972497509';
+      const cshTimestamp = Math.floor(Date.UTC(2025, 10, 1) / 1000);
+      try {
+        const channel = await client.channels.fetch(cshChannelId);
+        if (channel) {
+          const content = [
+            '## Holly Jolly Hunt 2025',
+            '* Something’s afoot at the North Pole… 🐾❄️ On December 1st 2025 📅, report to Ć̵̘R̴̞͌E̶̞͉͛A̷̘̅̌T̸̺̔O̶̤͌̕R̴̨̯̓͑ for a trail of riddles 🧩, secret codes 🔐, and festive red herrings🎄. Crack the case🕵️‍♂️, outsmart rival teams 🧠, and uncover Santa’s missing cargo 🛷 before the clock strikes tinsel.**.',
+            '-# This is bot scavenger hunt, so all puzzle will be inside bot features and it will not be held outside.',
+            'You will participate in a team, max 2 per team. If not enough you will be disqualified!',
+            `-# Team registration start <t:${cshTimestamp}:R>`
+          ].join('\n');
+          const container = new ContainerBuilder()
+            .setAccentColor(0x00ffff)
+            .addThumbnailComponents(
+              new ThumbnailBuilder().setURL('https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png'),
+            )
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+            .addActionRowComponents(
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('CSH')
+                  .setPlaceholder('Team registration time not yet')
+                  .setDisabled(true)
+                  .addOptions(
+                    new StringSelectMenuOptionBuilder()
+                      .setLabel('placeholder')
+                      .setValue('placeholder'),
+                  ),
+              ),
+            );
+          await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        }
+      } catch (error) {
+        console.error('Failed to send CSH countdown message', error);
+      }
+
+      // Remove deprecated /level-button command if it exists
+      try {
+        const commands = await client.application.commands.fetch();
       const legacy = commands.find(cmd => cmd.name === 'level-button');
       if (legacy) {
         await client.application.commands.delete(legacy.id);
