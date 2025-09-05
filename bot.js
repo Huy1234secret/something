@@ -7,6 +7,7 @@ const {
   MessageFlags,
   TextDisplayBuilder,
   ContainerBuilder,
+  SectionBuilder,
   SeparatorBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -289,12 +290,17 @@ client.on = function(event, listener) {
             'You will participate in a team, max 2 per team. If not enough you will be disqualified!',
             `-# Team registration start <t:${cshTimestamp}:R>`
           ].join('\n');
+          const section = new SectionBuilder()
+            .setThumbnailAccessory(
+              new ThumbnailBuilder().setURL(
+                'https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png',
+              ),
+            )
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+
           const container = new ContainerBuilder()
             .setAccentColor(0x00ffff)
-            .addThumbnailComponents(
-              new ThumbnailBuilder().setURL('https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png'),
-            )
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+            .addSectionComponents(section)
             .addActionRowComponents(
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
