@@ -287,25 +287,31 @@ client.on = function(event, listener) {
       try {
         const channel = await client.channels.fetch(cshChannelId);
         if (channel) {
-          const content = [
+          const message1 = [
             '## Holly Jolly Hunt 2025',
             '* Something’s afoot at the North Pole… 🐾❄️ On December 1st 2025 📅, report to Ć̵̘R̴̞͌E̶̞͉͛A̷̘̅̌T̸̺̔O̶̤͌̕R̴̨̯̓͑ for a trail of riddles 🧩, secret codes 🔐, and festive red herrings🎄. Crack the case🕵️‍♂️, outsmart rival teams 🧠, and uncover Santa’s missing cargo 🛷 before the clock strikes tinsel.**.',
+          ].join('\n');
+          const message2 = [
             '-# This is bot scavenger hunt, so all puzzle will be inside bot features and it will not be held outside.',
             'You will participate in a team, max 2 per team. If not enough you will be disqualified!',
-            `-# Team registration start <t:${cshTimestamp}:R>`
+            `-# Team registration start <t:${cshTimestamp}:R>`,
           ].join('\n');
-          const section = new SectionBuilder()
+          const section1 = new SectionBuilder()
             .setThumbnailAccessory(
               new ThumbnailBuilder().setURL(
                 'https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png',
               ),
             )
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(message1));
+          const section2 = new SectionBuilder().addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(message2),
+          );
 
           const container = new ContainerBuilder()
             .setAccentColor(0x00ffff)
-            .addSectionComponents(section)
+            .addSectionComponents(section1)
             .addSeparatorComponents(new SeparatorBuilder())
+            .addSectionComponents(section2)
             .addActionRowComponents(
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
