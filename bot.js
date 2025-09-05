@@ -39,6 +39,7 @@ let userStats = {};
 let userCardSettings = {};
 let timedRoles = [];
 let commandBans = {};
+let cshMessageId = null;
 const defaultColor = [0,255,255];
 const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
@@ -92,11 +93,13 @@ function loadData() {
     userCardSettings = data.user_card_settings || {};
     timedRoles = data.timed_roles || [];
     commandBans = data.command_bans || {};
+    cshMessageId = data.csh_message_id || null;
   } catch (err) {
     userStats = {};
     userCardSettings = {};
     timedRoles = [];
     commandBans = {};
+    cshMessageId = null;
   }
   const fixed = fixItemEntries(userStats);
   if (fixed > 0) {
@@ -111,6 +114,7 @@ function saveData() {
     user_card_settings: userCardSettings,
     timed_roles: timedRoles,
     command_bans: commandBans,
+    csh_message_id: cshMessageId,
   };
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
 }
@@ -315,7 +319,11 @@ client.on = function(event, listener) {
                   ),
               ),
             );
-          await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+          if (!cshMessageId) {
+            const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            cshMessageId = sent.id;
+            saveData();
+          }
         }
       } catch (error) {
         console.error('Failed to send CSH countdown message', error);
