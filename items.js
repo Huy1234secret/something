@@ -9,7 +9,8 @@ function loadDigItems() {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || !row[0]) continue;
-    const id = String(row[0]).replace(/\s+/g, '');
+    let id = String(row[0]).replace(/\s+/g, '');
+    if (/arcs of resurgence/i.test(row[0])) id = 'ArcsOfResurgence';
     const types = [row[5], row[6], row[7]]
       .filter(Boolean)
       .map(t => String(t).trim())
@@ -35,32 +36,6 @@ function loadDigItems() {
 const DIG_ITEMS = loadDigItems();
 
 const ITEMS = {
-  ArcsOfResurgence: {
-    id: 'ArcsOfResurgence',
-    name: 'Arcs of Resurgence',
-    emoji: '🌀',
-    rarity: 'Legendary',
-    value: 0,
-    useable: false,
-    types: ['Cosmetic'],
-    note: '',
-    image: '',
-    price: 0,
-    sellPrice: null,
-  },
-  GoldRing: {
-    id: 'GoldRing',
-    name: 'Gold Ring',
-    emoji: '💍',
-    rarity: 'Rare',
-    value: 0,
-    useable: false,
-    types: ['Cosmetic'],
-    note: '',
-    image: '',
-    price: 0,
-    sellPrice: null,
-  },
   Padlock: {
     id: 'Padlock',
     name: 'Padlock',
@@ -113,6 +88,19 @@ const ITEMS = {
     price: 10000,
     sellPrice: null,
   },
+  PotatoSeed: {
+    id: 'PotatoSeed',
+    name: 'Potato seed package',
+    emoji: '<:ITPotatoseed:1413869045429571614>',
+    rarity: 'Rare',
+    value: 150,
+    useable: false,
+    types: ['Consumable', 'Material'],
+    note: '',
+    image: '',
+    price: 75000,
+    sellPrice: null,
+  },
   HarvestScythe: {
     id: 'HarvestScythe',
     name: 'Harvest Scythe',
@@ -138,6 +126,19 @@ const ITEMS = {
     image: 'https://i.ibb.co/60mfbHqp/Wheat.png',
     price: 0,
     sellPrice: 5000,
+  },
+  Potato: {
+    id: 'Potato',
+    name: 'Potato',
+    emoji: '<:ITPotato:1413869500046119005>',
+    rarity: 'Rare',
+    value: 50,
+    useable: false,
+    types: ['Sellable', 'Material'],
+    note: '',
+    image: '',
+    price: null,
+    sellPrice: 40000,
   },
   WateringCan: {
     id: 'WateringCan',

@@ -52,17 +52,34 @@ const WHEAT_IMAGES = [
 ];
 const WHEAT_DEAD = 'https://i.ibb.co/rSZ27dp/Wheat-died.png';
 
+const POTATO_IMAGES = [
+  'https://i.ibb.co/nscnxYW4/Potato-1.png',
+  'https://i.ibb.co/Y46jvYDb/Potato-2.png',
+  'https://i.ibb.co/21BmJ3xC/Potato-3.png',
+  'https://i.ibb.co/8GSPgk5/Potato-4.png',
+  'https://i.ibb.co/PGwhDhcR/Potato-5.png',
+  'https://i.ibb.co/XxYWKHhP/Potato-6.png',
+  'https://i.ibb.co/93TGsnN7/Potato-7.png',
+];
+const POTATO_DEAD = 'https://i.ibb.co/TDnmKZ8B/Potato-death.png';
+
 // Preload commonly used images so they are fetched only once
 const FARM_BG_IMG = loadCachedImage(FARM_BG);
 const SELECT_OVERLAY_IMG = loadCachedImage(SELECT_IMG);
 const WATERED_PLOT_IMG = loadCachedImage(WATERED_PLOT);
 const WHEAT_IMG_PROMISES = WHEAT_IMAGES.map((url) => loadCachedImage(url));
 const WHEAT_DEAD_IMG = loadCachedImage(WHEAT_DEAD);
+const POTATO_IMG_PROMISES = POTATO_IMAGES.map(url => loadCachedImage(url));
+const POTATO_DEAD_IMG = loadCachedImage(POTATO_DEAD);
 
 const WHEAT_GROW_TIME = 4 * 60 * 60 * 1000; // 4h
 const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 5; // 48m per stage
 const WHEAT_DRY_DEATH_TIME = 2 * 60 * 60 * 1000; // 2h without water
 const WHEAT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const POTATO_GROW_TIME = 8 * 60 * 60 * 1000; // 8h
+const POTATO_STAGE_TIME = 80 * 60 * 1000; // 80m per stage
+const POTATO_DRY_DEATH_TIME = 1 * 60 * 60 * 1000; // 1h without water
+const POTATO_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
 const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
 
 const PLOT_POSITIONS = {
@@ -91,25 +108,73 @@ function cleanupExpiredWater(farm) {
   Object.values(farm || {}).forEach(plot => isPlotWatered(plot));
 }
 
+function getPlantData(seedId) {
+  if (seedId === 'WheatSeed')
+    return {
+      images: WHEAT_IMG_PROMISES,
+      deadImg: WHEAT_DEAD_IMG,
+      growTime: WHEAT_GROW_TIME,
+      stageTime: WHEAT_STAGE_TIME,
+      dryDeathTime: WHEAT_DRY_DEATH_TIME,
+      expireTime: WHEAT_EXPIRE_TIME,
+      seedItem: ITEMS.WheatSeed,
+      harvestItem: ITEMS.Sheaf,
+      name: 'Wheat',
+      harvest() {
+        const crop = Math.floor(Math.random() * 4) + 2;
+        const roll = Math.random();
+        let seeds = 0;
+        if (roll < 0.05) seeds = 2;
+        else if (roll < 0.8) seeds = 1;
+        return { crop, seeds };
+      },
+    };
+  if (seedId === 'PotatoSeed')
+    return {
+      images: POTATO_IMG_PROMISES,
+      deadImg: POTATO_DEAD_IMG,
+      growTime: POTATO_GROW_TIME,
+      stageTime: POTATO_STAGE_TIME,
+      dryDeathTime: POTATO_DRY_DEATH_TIME,
+      expireTime: POTATO_EXPIRE_TIME,
+      seedItem: ITEMS.PotatoSeed,
+      harvestItem: ITEMS.Potato,
+      name: 'Potato',
+      harvest() {
+        const crop = Math.floor(Math.random() * 3) + 1;
+        const r = Math.random();
+        let seeds = 0;
+        if (r < 0.01) seeds = 2;
+        else if (r < 0.9) seeds = 1;
+        return { crop, seeds };
+      },
+    };
+  return null;
+}
+
 function getPlotStatus(plot) {
   if (!plot || !plot.seedId) return { grown: false, dead: false };
+  const data = getPlantData(plot.seedId);
+  if (!data) return { grown: false, dead: false };
   const elapsed = Date.now() - (plot.plantedAt || 0);
-  const grown = elapsed >= WHEAT_GROW_TIME;
+  const grown = elapsed >= data.growTime;
   const watered = isPlotWatered(plot);
-  const deadEarly = !watered && elapsed >= WHEAT_DRY_DEATH_TIME && !grown;
-  const deadLate = grown && elapsed >= WHEAT_GROW_TIME + WHEAT_EXPIRE_TIME;
+  const deadEarly = !watered && elapsed >= data.dryDeathTime && !grown;
+  const deadLate = grown && elapsed >= data.growTime + data.expireTime;
   return { grown, dead: deadEarly || deadLate };
 }
 
 async function getPlantImage(plot) {
-  if (plot.seedId === 'WheatSeed') {
-    const status = getPlotStatus(plot);
-    if (status.dead) return await WHEAT_DEAD_IMG;
-    const elapsed = Date.now() - plot.plantedAt;
-    const stage = Math.min(Math.floor(elapsed / WHEAT_STAGE_TIME), 5);
-    return await WHEAT_IMG_PROMISES[stage];
-  }
-  return null;
+  const data = getPlantData(plot.seedId);
+  if (!data) return null;
+  const status = getPlotStatus(plot);
+  if (status.dead) return await data.deadImg;
+  const elapsed = Date.now() - plot.plantedAt;
+  const stage = Math.min(
+    Math.floor(elapsed / data.stageTime),
+    data.images.length - 1,
+  );
+  return await data.images[stage];
 }
 
 async function renderFarm(farm, selected = []) {
@@ -191,17 +256,19 @@ function buildFarmContainer(user, selected = [], farm = {}) {
   for (const [id, plot] of Object.entries(farm)) {
     if (!plot.seedId) continue;
     const status = getPlotStatus(plot);
-    const plant = ITEMS.Wheat;
+    const data = getPlantData(plot.seedId);
+    const emoji = data ? data.harvestItem.emoji : '';
+    const name = data ? data.name : 'Plant';
     if (status.grown && !status.dead)
       progressLines.push(
-        `* **#${id} - ${plant.emoji} ${plant.name} is ready to harvest!**`,
+        `* **#${id} - ${emoji} ${name} is ready to harvest!**`,
       );
     else if (status.dead)
-      progressLines.push(`* #${id} - ${plant.emoji} ${plant.name} has died`);
+      progressLines.push(`* #${id} - ${emoji} ${name} has died`);
     else {
-      const readyAt = Math.round((plot.plantedAt + WHEAT_GROW_TIME) / 1000);
+      const readyAt = Math.round((plot.plantedAt + (data ? data.growTime : 0)) / 1000);
       progressLines.push(
-        `* #${id} - ${plant.emoji} ${plant.name} will be ready <t:${readyAt}:R>`,
+        `* #${id} - ${emoji} ${name} will be ready <t:${readyAt}:R>`,
       );
     }
   }
@@ -307,11 +374,7 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              if (s.id === 'WheatSeed') {
-                const match = /<(a?):(\w+):(\d+)>/.exec(ITEMS.WheatSeed.emoji);
-                if (match)
-                  option.setEmoji({ id: match[3], name: match[2], animated: Boolean(match[1]) });
-              } else if (s.emoji) {
+              if (s.emoji) {
                 const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
                 option.setEmoji(
                   match
@@ -430,33 +493,30 @@ function setup(client, resources) {
       const plots = interaction.values.map(v => parseInt(v, 10));
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
       const farm = stats.farm;
-      let harvested = 0;
-      let returnedSeeds = 0;
+      const harvestedMap = {};
+      const seedMap = {};
       let deadNote = false;
       const initialFull = alertInventoryFull(interaction, interaction.user, stats);
       let full = getInventoryCount(stats) >= MAX_ITEMS;
       plots.forEach(id => {
         const plot = farm[id];
         const status = getPlotStatus(plot);
-        if (!plot.seedId) return;
+        const data = getPlantData(plot.seedId);
+        if (!plot.seedId || !data) return;
         if (status.dead) deadNote = true;
         else if (status.grown && !full) {
-          const amount = Math.floor(Math.random() * 4) + 2;
-          harvested += amount;
+          const { crop, seeds } = data.harvest();
           const inv = stats.inventory;
-          let entry = inv.find(i => i.id === ITEMS.Wheat.id);
-          if (entry) entry.amount = (entry.amount || 0) + amount;
-          else inv.push({ ...ITEMS.Wheat, amount });
-
-          const roll = Math.random();
-          let seeds = 0;
-          if (roll < 0.05) seeds = 2;
-          else if (roll < 0.8) seeds = 1;
+          harvestedMap[data.harvestItem.id] =
+            (harvestedMap[data.harvestItem.id] || 0) + crop;
+          let entry = inv.find(i => i.id === data.harvestItem.id);
+          if (entry) entry.amount = (entry.amount || 0) + crop;
+          else inv.push({ ...data.harvestItem, amount: crop });
           if (seeds > 0) {
-            returnedSeeds += seeds;
-            let seedEntry = inv.find(i => i.id === ITEMS.WheatSeed.id);
+            seedMap[data.seedItem.id] = (seedMap[data.seedItem.id] || 0) + seeds;
+            let seedEntry = inv.find(i => i.id === data.seedItem.id);
             if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
-            else inv.push({ ...ITEMS.WheatSeed, amount: seeds });
+            else inv.push({ ...data.seedItem, amount: seeds });
           }
           full = getInventoryCount(stats) >= MAX_ITEMS;
         }
@@ -468,13 +528,16 @@ function setup(client, resources) {
       state.selected = [];
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
-      if (harvested > 0)
-        content += `You harvested ${harvested} ${ITEMS.Wheat.emoji} ${ITEMS.Wheat.name}.`;
-      if (returnedSeeds > 0)
-        content += `${content ? '\n' : ''}You received ${returnedSeeds} ${ITEMS.WheatSeed.emoji} ${ITEMS.WheatSeed.name}${
-          returnedSeeds > 1 ? 's' : ''
-        }.`;
-      if (deadNote) content += `\n-# Your wheat died...`;
+      for (const [id, amt] of Object.entries(harvestedMap)) {
+        const it = ITEMS[id];
+        const name = id === 'Sheaf' ? 'Wheat' : it.name;
+        content += `${content ? '\n' : ''}You harvested ${amt} ${it.emoji} ${name}.`;
+      }
+      for (const [id, amt] of Object.entries(seedMap)) {
+        const it = ITEMS[id];
+        content += `${content ? '\n' : ''}You received ${amt} ${it.emoji} ${it.name}${amt > 1 ? 's' : ''}.`;
+      }
+      if (deadNote) content += `\n-# Some plants died...`;
       if (!content) content = 'Nothing harvested.';
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)

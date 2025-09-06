@@ -47,6 +47,7 @@ const MAX_LEVEL = 9999;
 const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
+let shop = { stock: {}, nextRestock: 0 };
 
 function fixItemEntries(statsMap) {
   const itemsById = Object.fromEntries(
@@ -95,6 +96,7 @@ function loadData() {
     timedRoles = data.timed_roles || [];
     commandBans = data.command_bans || {};
     cshMessageId = data.csh_message_id || null;
+    shop = data.shop || { stock: {}, nextRestock: 0 };
   } catch (err) {
     userStats = {};
     userCardSettings = {};
@@ -116,6 +118,7 @@ function saveData() {
     timed_roles: timedRoles,
     command_bans: commandBans,
     csh_message_id: cshMessageId,
+    shop,
   };
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
 }
@@ -182,7 +185,7 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
-const resources = { userStats, userCardSettings, commandBans, saveData, xpNeeded, addXp, defaultColor, defaultBackground, scheduleRole, pendingRequests };
+const resources = { userStats, userCardSettings, commandBans, shop, saveData, xpNeeded, addXp, defaultColor, defaultBackground, scheduleRole, pendingRequests };
 
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]

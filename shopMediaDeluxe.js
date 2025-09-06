@@ -307,7 +307,7 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 
   // Price Row
   const rowY = gy + gh - priceSectionH / 2;
-  const coinSize = 40;
+  const coinSize = priceFontSize * 1.8;
   const coinR = coinSize / 2;
     const coinX = gx + contentPad + coinR;
     if (coinImg) {

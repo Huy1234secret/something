@@ -5,6 +5,8 @@
 // npm i canvas
 const { createCanvas } = require('canvas');
 const { loadCachedImage } = require('./imageCache');
+const DISCOUNT_BADGE_URL = 'https://i.ibb.co/W8NJVd1/5cb0254a-d630-49ca-9819-65da6b536b4e.png';
+const DISCOUNT_BADGE_IMG = loadCachedImage(DISCOUNT_BADGE_URL);
 
 /* ------------------------ helpers (unchanged) ------------------------ */
 function rrect(ctx, x, y, w, h, r = 16) {
@@ -199,11 +201,26 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
     ctx.drawImage(coinImg, coinX, coinY, coinSize, coinSize);
   }
 
-  ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'middle';
   const priceText = String(item.price ?? '???');
   const priceMaxW = w - pad * 2 - coinSize - (w * 0.03);
   const startPriceSize = Math.floor(h * 0.1);
+  if (item.discount && item.originalPrice) {
+    ctx.save();
+    ctx.fillStyle = '#ff0000';
+    const oldSize = shrinkToFit(ctx, String(item.originalPrice), priceMaxW, startPriceSize * 0.7);
+    ctx.fillText(String(item.originalPrice), coinX + coinSize + (w * 0.03), coinY + coinSize / 2 - oldSize);
+    const width = ctx.measureText(String(item.originalPrice)).width;
+    ctx.strokeStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.moveTo(coinX + coinSize + (w * 0.03), coinY + coinSize / 2 - oldSize + 1);
+    ctx.lineTo(coinX + coinSize + (w * 0.03) + width, coinY + coinSize / 2 - oldSize + 1);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#00ff00';
+  } else {
+    ctx.fillStyle = '#ffffff';
+  }
   shrinkToFit(ctx, priceText, priceMaxW, startPriceSize);
   ctx.fillText(priceText, coinX + coinSize + (w * 0.03), coinY + coinSize / 2);
   ctx.restore(); // Restore text alignment
@@ -215,6 +232,18 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   const imgBoxH = h - titleSectionH - priceSectionH - noteSectionH;
 
   await drawContain(ctx, item._img || item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
+  if (Number.isFinite(item.stock)) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.floor(imgBoxH * 0.25)}px Sans`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`×${item.stock}`, imgBoxX + imgBoxW - 8, imgBoxY + imgBoxH - 8);
+    ctx.textAlign = 'left';
+  }
+  if (item.discount) {
+    const dImg = await DISCOUNT_BADGE_IMG;
+    const size = Math.min(50, imgBoxW * 0.3);
+    ctx.drawImage(dImg, imgBoxX + 5, imgBoxY + imgBoxH - size - 5, size, size);
+  }
 
   if (item.note) {
     ctx.fillStyle = '#c4d1eb';
@@ -223,6 +252,23 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
     ctx.font = `${noteFontSize}px Sans`;
     const noteY = imgBoxY + imgBoxH + lineHeight * 0.8;
     wrap(ctx, String(item.note), x + pad, noteY, w - pad * 2, lineHeight, 2);
+  }
+
+  if (item.stock !== undefined && item.stock <= 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#000';
+    rrect(ctx, x, y, w, h, 18);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = '#ff0000';
+    ctx.font = `bold ${Math.floor(h * 0.12)}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Out of Stock!', 0, 0);
+    ctx.restore();
   }
 }
 
