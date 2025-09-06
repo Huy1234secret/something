@@ -7,12 +7,10 @@ const {
   MessageFlags,
   TextDisplayBuilder,
   ContainerBuilder,
-  SectionBuilder,
   SeparatorBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ThumbnailBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
@@ -296,36 +294,18 @@ client.on = function(event, listener) {
             'You will participate in a team, max 2 per team. If not enough you will be disqualified!',
             `-# Team registration start <t:${cshTimestamp}:R>`,
           ].join('\n');
-          const section1 = new SectionBuilder()
-            .setThumbnailAccessory(
-              new ThumbnailBuilder().setURL(
-                'https://i.ibb.co/rfLBNZJC/45da76a2-9fe3-4b98-96cb-614185f87d41.png',
+          const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('CSH')
+              .setPlaceholder('Team registration time not yet')
+              .setDisabled(true)
+              .addOptions(
+                new StringSelectMenuOptionBuilder()
+                  .setLabel('placeholder')
+                  .setValue('placeholder'),
               ),
-            )
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(message1));
-          const section2 = new SectionBuilder()
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(message2),
-            );
-
-          const container = new ContainerBuilder()
-            .setAccentColor(0x00ffff)
-            .addSectionComponents(section1)
-            .addSeparatorComponents(new SeparatorBuilder())
-            .addSectionComponents(section2)
-            .addActionRowComponents(
-              new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                  .setCustomId('CSH')
-                  .setPlaceholder('Team registration time not yet')
-                  .setDisabled(true)
-                  .addOptions(
-                    new StringSelectMenuOptionBuilder()
-                      .setLabel('placeholder')
-                      .setValue('placeholder'),
-                  ),
-              ),
-            );
+          );
+          const content = [message1, message2].join('\n');
           let existing = null;
           if (cshMessageId) {
             existing = await channel.messages
@@ -333,7 +313,7 @@ client.on = function(event, listener) {
               .catch(() => null);
           }
           if (!existing) {
-            const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            const sent = await channel.send({ content, components: [row] });
             cshMessageId = sent.id;
             saveData();
           }
