@@ -143,6 +143,12 @@ function findClosestItemId(query) {
   return closest;
 }
 
+function makeTextContainer(content, color = 0xffffff) {
+  return new ContainerBuilder()
+    .setAccentColor(color)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+}
+
 async function sendMarket(user, send, resources) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
@@ -490,17 +496,13 @@ function setup(client, resources) {
             ? resources.shop.deluxeStock
             : resources.shop.stock;
         const sInfo = (store || {})[itemId] || {};
-        if (!item || !sInfo.amount || sInfo.amount < amount) {
-          await interaction.update({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent('Item not available.'),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+          if (!item || !sInfo.amount || sInfo.amount < amount) {
+            await interaction.update({
+              components: [makeTextContainer('Item not available.')],
+              flags: MessageFlags.IsComponentsV2,
+            });
+            return;
+          }
         const stats =
           resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
         normalizeInventory(stats);
@@ -508,20 +510,18 @@ function setup(client, resources) {
           ? Math.round(item.price * (1 - sInfo.discount))
           : item.price;
         const total = price * amount;
-        if ((stats[currency] || 0) < total) {
-          const need = total - (stats[currency] || 0);
-          await interaction.update({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent(
+          if ((stats[currency] || 0) < total) {
+            const need = total - (stats[currency] || 0);
+            await interaction.update({
+              components: [
+                makeTextContainer(
                   `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
                 ),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+              ],
+              flags: MessageFlags.IsComponentsV2,
+            });
+            return;
+          }
         if (getInventoryCount(stats) + amount > MAX_ITEMS) {
           await interaction
             .deferUpdate({ flags: MessageFlags.IsComponentsV2 })
@@ -593,17 +593,13 @@ function setup(client, resources) {
         };
         normalizeInventory(stats);
         const entry = (stats.inventory || []).find(i => i.id === itemId);
-        if (!entry || entry.amount < amount) {
-          await interaction.update({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent('Sale failed.'),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+          if (!entry || entry.amount < amount) {
+            await interaction.update({
+              components: [makeTextContainer('Sale failed.')],
+              flags: MessageFlags.IsComponentsV2,
+            });
+            return;
+          }
         entry.amount -= amount;
         if (entry.amount <= 0)
           stats.inventory = stats.inventory.filter(i => i.id !== itemId);
@@ -632,70 +628,50 @@ function setup(client, resources) {
       const messageId = parts[3];
       const index = parseInt(parts[4], 10);
       const state = shopStates.get(messageId);
-        if (!state || interaction.user.id !== state.userId) {
+          if (!state || interaction.user.id !== state.userId) {
+            await interaction.reply({
+              components: [makeTextContainer('Purchase expired.')],
+              flags: MessageFlags.IsComponentsV2,
+            });
+            return;
+          }
+      const items = SHOP_ITEMS[state.type] || [];
+      const start = (state.page - 1) * 6;
+      const baseItem = items[start + index];
+        if (!baseItem) {
           await interaction.reply({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent('Purchase expired.'),
-              ),
-            ],
+            components: [makeTextContainer('Item not available.')],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
-      const items = SHOP_ITEMS[state.type] || [];
-      const start = (state.page - 1) * 6;
-      const baseItem = items[start + index];
-      if (!baseItem) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Item not available.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
       const store =
         state.type === 'deluxe'
           ? resources.shop.deluxeStock
           : resources.shop.stock;
       const sInfo = (store || {})[baseItem.id] || {};
-      if (!sInfo.amount) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Out of stock.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!sInfo.amount) {
+          await interaction.reply({
+            components: [makeTextContainer('Out of stock.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const amount = parseInt(interaction.fields.getTextInputValue('amount'), 10);
-      if (isNaN(amount) || amount <= 0) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Invalid amount.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-      if (amount > sInfo.amount) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent(`Only ${sInfo.amount} left in stock.`),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (isNaN(amount) || amount <= 0) {
+          await interaction.reply({
+            components: [makeTextContainer('Invalid amount.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+        if (amount > sInfo.amount) {
+          await interaction.reply({
+            components: [makeTextContainer(`Only ${sInfo.amount} left in stock.`)],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const stats =
         resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
       const price = sInfo.discount
@@ -707,18 +683,18 @@ function setup(client, resources) {
         state.type === 'deluxe'
           ? '<:CRDeluxeCoin:1405595587780280382>'
           : '<:CRCoin:1405595571141480570>';
-      if ((stats[currencyField] || 0) < total) {
-        const need = total - (stats[currencyField] || 0);
-        await interaction.reply({
-          components: [
-            new TextDisplayBuilder().setContent(
-              `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if ((stats[currencyField] || 0) < total) {
+          const need = total - (stats[currencyField] || 0);
+          await interaction.reply({
+            components: [
+              makeTextContainer(
+                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+              ),
+            ],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const buyBtn = new ButtonBuilder()
         .setCustomId(`shop-confirm-${baseItem.id}-${amount}`)
         .setLabel('Buy')
@@ -752,13 +728,9 @@ function setup(client, resources) {
         if (current && current.timer === timer) {
           resources.pendingRequests.delete(interaction.user.id);
           try {
-            await interaction.editReply({
-              components: [
-                new ActionRowBuilder().addComponents(
-                  new TextDisplayBuilder().setContent('Purchase expired.'),
-                ),
-              ],
-            });
+              await interaction.editReply({
+                components: [makeTextContainer('Purchase expired.')],
+              });
           } catch {}
         }
       }, 30000);
@@ -768,48 +740,36 @@ function setup(client, resources) {
     ) {
       const messageId = interaction.customId.split('-').slice(-1)[0];
       const state = shopStates.get(messageId);
-      if (!state || interaction.user.id !== state.userId) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Sell expired.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!state || interaction.user.id !== state.userId) {
+          await interaction.reply({
+            components: [makeTextContainer('Sell expired.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const stats = resources.userStats[state.userId] || { inventory: [] };
       normalizeInventory(stats);
       const rawId = interaction.fields.getTextInputValue('item');
       const itemId = findClosestItemId(rawId);
       const entry = (stats.inventory || []).find(i => i.id === itemId);
-      if (!entry || !(ITEMS[itemId] || {}).sellPrice) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Item not available.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!entry || !(ITEMS[itemId] || {}).sellPrice) {
+          await interaction.reply({
+            components: [makeTextContainer('Item not available.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const raw = interaction.fields.getTextInputValue('amount');
       let amount;
       if (/^all$/i.test(raw)) amount = entry.amount;
       else amount = parseInt(raw, 10);
-      if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Invalid amount.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
+          await interaction.reply({
+            components: [makeTextContainer('Invalid amount.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const item = ITEMS[itemId];
       const sellPrice = item.sellPrice;
       const [min, max] = Array.isArray(sellPrice)
@@ -850,46 +810,34 @@ function setup(client, resources) {
       const messageId = parts[3];
       const itemId = parts[4];
       const state = shopStates.get(messageId);
-      if (!state || interaction.user.id !== state.userId) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Sell expired.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!state || interaction.user.id !== state.userId) {
+          await interaction.reply({
+            components: [makeTextContainer('Sell expired.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const stats = resources.userStats[state.userId] || { inventory: [] };
       normalizeInventory(stats);
       const entry = (stats.inventory || []).find(i => i.id === itemId);
-      if (!entry) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Item not available.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (!entry) {
+          await interaction.reply({
+            components: [makeTextContainer('Item not available.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const raw = interaction.fields.getTextInputValue('amount');
       let amount;
       if (/^all$/i.test(raw)) amount = entry.amount;
       else amount = parseInt(raw, 10);
-      if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
-        await interaction.reply({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new TextDisplayBuilder().setContent('Invalid amount.'),
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+        if (isNaN(amount) || amount <= 0 || amount > entry.amount) {
+          await interaction.reply({
+            components: [makeTextContainer('Invalid amount.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
       const item = ITEMS[itemId];
       const sellPrice = item.sellPrice;
       const [min, max] = Array.isArray(sellPrice)
