@@ -326,7 +326,13 @@ client.on = function(event, listener) {
                   ),
               ),
             );
-          if (!cshMessageId) {
+          let existing = null;
+          if (cshMessageId) {
+            existing = await channel.messages
+              .fetch(cshMessageId)
+              .catch(() => null);
+          }
+          if (!existing) {
             const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
             cshMessageId = sent.id;
             saveData();
