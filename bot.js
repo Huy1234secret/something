@@ -306,13 +306,6 @@ client.on = function(event, listener) {
           const section2 = new SectionBuilder()
             .addTextDisplayComponents(
               new TextDisplayBuilder().setContent(message2),
-            )
-            .setButtonAccessory(
-              new ButtonBuilder()
-                .setCustomId('csh-placeholder')
-                .setLabel('Team registration time not yet')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(true),
             );
 
           const container = new ContainerBuilder()
