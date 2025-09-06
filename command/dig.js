@@ -18,6 +18,7 @@ const {
   getInventoryCount,
   MAX_ITEMS,
   alertInventoryFull,
+  useDurableItem,
 } = require('../utils');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
@@ -301,6 +302,9 @@ async function handleDig(interaction, resources, stats) {
     color = 0xff0000;
   }
   await resources.addXp(user, xp, resources.client);
+  const toolId = stats.dig_tool || 'Shovel';
+  const res = useDurableItem(interaction, user, stats, toolId);
+  if (res.broken && res.remaining === 0 && stats.dig_tool === toolId) delete stats.dig_tool;
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();

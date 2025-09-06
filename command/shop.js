@@ -78,7 +78,16 @@ function nextRestockHour() {
   return d.getTime() + 60 * 60 * 1000;
 }
 
-function restockShop(resources) {
+function nextMonthStart() {
+  const d = new Date();
+  d.setUTCDate(1);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return d.getTime();
+}
+
+function restockCoinShop(resources) {
+  resources.shop = resources.shop || {};
   resources.shop.stock = resources.shop.stock || {};
   for (const [id, cfg] of Object.entries(STOCK_CONFIG)) {
     const amount = rand(cfg.min, cfg.max);
@@ -89,6 +98,16 @@ function restockShop(resources) {
     };
   }
   resources.shop.nextRestock = nextRestockHour();
+  resources.saveData();
+}
+
+function restockDeluxeShop(resources) {
+  resources.shop = resources.shop || {};
+  resources.shop.deluxeStock = resources.shop.deluxeStock || {};
+  for (const item of SHOP_ITEMS.deluxe) {
+    resources.shop.deluxeStock[item.id] = { amount: 1, max: 1, discount: 0 };
+  }
+  resources.shop.nextDeluxeRestock = nextMonthStart();
   resources.saveData();
 }
 
@@ -205,9 +224,22 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   if (state.type === 'market') {
     return sendMarket(user, send, resources);
   }
-  if (!resources.shop.nextRestock || Date.now() >= resources.shop.nextRestock)
-    restockShop(resources);
-  const stock = resources.shop.stock || {};
+  let stock = {};
+  let restockTime = 0;
+  if (state.type === 'deluxe') {
+    if (
+      !resources.shop.nextDeluxeRestock ||
+      Date.now() >= resources.shop.nextDeluxeRestock
+    )
+      restockDeluxeShop(resources);
+    stock = resources.shop.deluxeStock || {};
+    restockTime = resources.shop.nextDeluxeRestock || Date.now();
+  } else {
+    if (!resources.shop.nextRestock || Date.now() >= resources.shop.nextRestock)
+      restockCoinShop(resources);
+    stock = resources.shop.stock || {};
+    restockTime = resources.shop.nextRestock || Date.now();
+  }
   const items = SHOP_ITEMS[state.type] || [];
   const perPage = 6;
   const pages = Math.max(1, Math.ceil(items.length / perPage));
@@ -242,7 +274,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
 
   const tagline =
     state.type === 'deluxe' ? '-# Want to buy something BETTER?' : '-# Welcome!';
-  const restockTs = Math.floor((resources.shop.nextRestock || Date.now()) / 1000);
+  const restockTs = Math.floor(restockTime / 1000);
 
   const thumbURL =
     state.type === 'deluxe'
@@ -423,7 +455,11 @@ function setup(client, resources) {
           await interaction.reply({ content: 'Item not available.' });
           return;
         }
-        const sInfo = resources.shop.stock[item.id] || {};
+        const store =
+          state.type === 'deluxe'
+            ? resources.shop.deluxeStock
+            : resources.shop.stock;
+        const sInfo = (store || {})[item.id] || {};
         if (!sInfo.amount) {
           await interaction.reply({ content: 'Out of stock.', flags: MessageFlags.Ephemeral });
           return;
@@ -449,7 +485,11 @@ function setup(client, resources) {
         const currency = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
         const item =
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
-        const sInfo = resources.shop.stock[itemId] || {};
+        const store =
+          state.type === 'deluxe'
+            ? resources.shop.deluxeStock
+            : resources.shop.stock;
+        const sInfo = (store || {})[itemId] || {};
         if (!item || !sInfo.amount || sInfo.amount < amount) {
           await interaction.update({
             components: [
@@ -492,13 +532,22 @@ function setup(client, resources) {
         stats[currency] = (stats[currency] || 0) - total;
         stats.inventory = stats.inventory || [];
         const base = ITEMS[item.id] || item;
-        const existing = stats.inventory.find(i => i.id === item.id);
-        if (existing) existing.amount = (existing.amount || 0) + amount;
-        else stats.inventory.push({ ...base, amount });
+        if (base.durability !== undefined) {
+          for (let i = 0; i < amount; i++)
+            (stats.inventory = stats.inventory || []).push({
+              ...base,
+              amount: 1,
+              durability: base.durability,
+            });
+        } else {
+          const existing = stats.inventory.find(i => i.id === item.id);
+          if (existing) existing.amount = (existing.amount || 0) + amount;
+          else stats.inventory.push({ ...base, amount });
+        }
         normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
         sInfo.amount -= amount;
-        resources.shop.stock[item.id] = sInfo;
+        store[item.id] = sInfo;
         resources.saveData();
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
@@ -608,7 +657,11 @@ function setup(client, resources) {
         });
         return;
       }
-      const sInfo = resources.shop.stock[baseItem.id] || {};
+      const store =
+        state.type === 'deluxe'
+          ? resources.shop.deluxeStock
+          : resources.shop.stock;
+      const sInfo = (store || {})[baseItem.id] || {};
       if (!sInfo.amount) {
         await interaction.reply({
           components: [

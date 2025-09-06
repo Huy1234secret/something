@@ -206,23 +206,26 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   const priceMaxW = w - pad * 2 - coinSize - (w * 0.03);
   const startPriceSize = Math.floor(h * 0.1);
   if (item.discount && item.originalPrice) {
+    ctx.fillStyle = '#00ff00';
+    shrinkToFit(ctx, priceText, priceMaxW, startPriceSize);
+    ctx.fillText(priceText, coinX + coinSize + (w * 0.03), coinY + coinSize / 2);
     ctx.save();
     ctx.fillStyle = '#ff0000';
     const oldSize = shrinkToFit(ctx, String(item.originalPrice), priceMaxW, startPriceSize * 0.7);
-    ctx.fillText(String(item.originalPrice), coinX + coinSize + (w * 0.03), coinY + coinSize / 2 - oldSize);
+    const oldY = coinY + coinSize / 2 - oldSize;
+    ctx.fillText(String(item.originalPrice), coinX + coinSize + (w * 0.03), oldY);
     const width = ctx.measureText(String(item.originalPrice)).width;
     ctx.strokeStyle = '#ff0000';
     ctx.beginPath();
-    ctx.moveTo(coinX + coinSize + (w * 0.03), coinY + coinSize / 2 - oldSize + 1);
-    ctx.lineTo(coinX + coinSize + (w * 0.03) + width, coinY + coinSize / 2 - oldSize + 1);
+    ctx.moveTo(coinX + coinSize + (w * 0.03), oldY + 1);
+    ctx.lineTo(coinX + coinSize + (w * 0.03) + width, oldY + 1);
     ctx.stroke();
     ctx.restore();
-    ctx.fillStyle = '#00ff00';
   } else {
     ctx.fillStyle = '#ffffff';
+    shrinkToFit(ctx, priceText, priceMaxW, startPriceSize);
+    ctx.fillText(priceText, coinX + coinSize + (w * 0.03), coinY + coinSize / 2);
   }
-  shrinkToFit(ctx, priceText, priceMaxW, startPriceSize);
-  ctx.fillText(priceText, coinX + coinSize + (w * 0.03), coinY + coinSize / 2);
   ctx.restore(); // Restore text alignment
 
   // --- MIDDLE: Image and Note ---
@@ -234,15 +237,23 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   await drawContain(ctx, item._img || item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
   if (Number.isFinite(item.stock)) {
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.floor(imgBoxH * 0.25)}px Sans`;
+    const stockSize = Math.floor(imgBoxH * 0.2);
+    ctx.font = `bold ${stockSize}px Sans`;
     ctx.textAlign = 'right';
     ctx.fillText(`×${item.stock}`, imgBoxX + imgBoxW - 8, imgBoxY + imgBoxH - 8);
     ctx.textAlign = 'left';
   }
   if (item.discount) {
     const dImg = await DISCOUNT_BADGE_IMG;
-    const size = Math.min(50, imgBoxW * 0.3);
-    ctx.drawImage(dImg, imgBoxX + 5, imgBoxY + imgBoxH - size - 5, size, size);
+    const size = Math.floor(imgBoxH * 0.2);
+    const dx = imgBoxX + 5;
+    const dy = imgBoxY + imgBoxH - size - 5;
+    ctx.drawImage(dImg, dx, dy, size, size);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.floor(size * 0.8)}px Sans`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(item.discount * 100)}%`, dx + size + 5, dy + size / 2);
+    ctx.textBaseline = 'alphabetic';
   }
 
   if (item.note) {

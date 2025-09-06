@@ -37,7 +37,15 @@ const PARSE_MAP = {
 };
 
 const { ITEMS } = require('./items');
-const { MessageFlags } = require('discord.js');
+const {
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 
 function parseAmount(str) {
   const match = String(str).trim().match(/^(-?\d+(?:\.\d+)?)([a-zA-Z]{1,2})?$/);
@@ -60,16 +68,22 @@ function normalizeInventory(stats) {
     return;
   }
   const map = {};
+  const durable = [];
   for (const item of stats.inventory) {
     if (!item || !item.id) continue;
     const base = ITEMS[item.id] || {};
     const merged = { ...base, ...item };
     const id = merged.id;
     const amount = merged.amount || 0;
-    if (!map[id]) map[id] = { ...merged, amount };
+    if (typeof merged.durability === 'number') {
+      for (let i = 0; i < amount; i++) durable.push({ ...merged, amount: 1 });
+    } else if (!map[id]) map[id] = { ...merged, amount };
     else map[id].amount += amount;
   }
-  stats.inventory = Object.values(map).filter(i => (i.amount || 0) > 0);
+  stats.inventory = [
+    ...Object.values(map).filter(i => (i.amount || 0) > 0),
+    ...durable.filter(i => (i.amount || 0) > 0),
+  ];
 }
 
 const MAX_TIMEOUT = 2 ** 31 - 1;
@@ -98,6 +112,47 @@ function alertInventoryFull(interaction, user, stats, pending = 0) {
   return false;
 }
 
+function useDurableItem(interaction, user, stats, itemId) {
+  const inv = stats.inventory || [];
+  const index = inv.findIndex(
+    i => i.id === itemId && typeof i.durability === 'number',
+  );
+  if (index === -1) {
+    return { broken: false, remaining: inv.filter(i => i.id === itemId).length };
+  }
+  const item = inv[index];
+  item.durability -= 1;
+  if (item.durability <= 0) {
+    inv.splice(index, 1);
+    const remaining = inv.filter(i => i.id === itemId).length;
+    const base = ITEMS[itemId] || { name: itemId, emoji: '' };
+    const btn = new ButtonBuilder()
+      .setCustomId('durability-left')
+      .setLabel(
+        `You have ${remaining} ${base.name} ${base.emoji} left`,
+      )
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+    const container = new ContainerBuilder()
+      .setAccentColor(0xff0000)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${user} Your ${base.name} ${base.emoji} is broken!`,
+        ),
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addActionRowComponents(new ActionRowBuilder().addComponents(btn));
+    interaction
+      .followUp({
+        components: [container],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      })
+      .catch(() => {});
+    return { broken: true, remaining };
+  }
+  return { broken: false, remaining: inv.filter(i => i.id === itemId).length };
+}
+
 module.exports = {
   formatNumber,
   parseAmount,
@@ -106,4 +161,5 @@ module.exports = {
   getInventoryCount,
   MAX_ITEMS,
   alertInventoryFull,
+  useDurableItem,
 };

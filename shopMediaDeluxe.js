@@ -307,24 +307,25 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 
   // Price Row
   const rowY = gy + gh - priceSectionH / 2;
-  const coinSize = priceFontSize * 1.8;
+  const coinSize = priceFontSize * 2.2;
   const coinR = coinSize / 2;
-    const coinX = gx + contentPad + coinR;
-    if (coinImg) {
-      ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinSize, coinSize);
-    } else {
-      ctx.fillStyle = '#c99700';
-      ctx.beginPath();
-      ctx.arc(coinX, rowY, coinR, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  const coinX = gx + contentPad + coinR;
+  if (coinImg) {
+    ctx.drawImage(coinImg, coinX - coinR, rowY - coinR, coinSize, coinSize);
+  } else {
+    ctx.fillStyle = '#c99700';
+    ctx.beginPath();
+    ctx.arc(coinX, rowY, coinR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-    // Price Text
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
-    ctx.font = `bold ${priceFontSize}px Sans`;
-    const priceText = String(item.price ?? '???');
-    ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
+  // Price Text
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = `bold ${priceFontSize}px Sans`;
+  const priceText = String(item.price ?? '???');
+  ctx.fillText(priceText, coinX + coinR + (gw * 0.025), rowY);
 
   // Stock
   if (Number.isFinite(item.stock) && Number.isFinite(item.maxStock)) {

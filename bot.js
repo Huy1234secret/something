@@ -150,10 +150,14 @@ async function addXp(user, amount, client) {
   if (stats.level > prev) {
     const channel = client.channels.cache.get(levelUpChannelId);
     if (channel) {
-      const components = [
-        new TextDisplayBuilder().setContent(`**Leveled up**\n${user} leveled from ${prev} to ${stats.level}`),
-      ];
-      channel.send({ components, flags: MessageFlags.IsComponentsV2 });
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `**Leveled up**\n${user} leveled from ${prev} to ${stats.level}`,
+          ),
+        );
+      channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
   }
   saveData();
