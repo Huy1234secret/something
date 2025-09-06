@@ -6,6 +6,15 @@ const sendError = async (client, channelId, title, error) => {
 };
 
 function setupErrorHandling(client, channelId) {
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    originalConsoleError(...args);
+    const message = args
+      .map(a => (a && a.stack ? a.stack : String(a)))
+      .join('\n');
+    sendError(client, channelId, 'Console Error', message).catch(() => {});
+  };
+
   process.on('unhandledRejection', error => {
     sendError(client, channelId, 'Unhandled Rejection', error);
   });
