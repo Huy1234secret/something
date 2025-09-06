@@ -80,12 +80,15 @@ function buildContainer(user, stats, state = {}) {
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(
-      new SectionBuilder().setThumbnailAccessory(
-        new ThumbnailBuilder().setURL(user.displayAvatarURL()),
-      ),
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## Equipped cosmetics:\n${equippedList}`),
+      new SectionBuilder()
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setURL(user.displayAvatarURL()),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `## Equipped cosmetics:\n${equippedList}`,
+          ),
+        ),
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
