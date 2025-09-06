@@ -35,6 +35,32 @@ function loadDigItems() {
 const DIG_ITEMS = loadDigItems();
 
 const ITEMS = {
+  ArcsOfResurgence: {
+    id: 'ArcsOfResurgence',
+    name: 'Arcs of Resurgence',
+    emoji: '🌀',
+    rarity: 'Legendary',
+    value: 0,
+    useable: false,
+    types: ['Cosmetic'],
+    note: '',
+    image: '',
+    price: 0,
+    sellPrice: null,
+  },
+  GoldRing: {
+    id: 'GoldRing',
+    name: 'Gold Ring',
+    emoji: '💍',
+    rarity: 'Rare',
+    value: 0,
+    useable: false,
+    types: ['Cosmetic'],
+    note: '',
+    image: '',
+    price: 0,
+    sellPrice: null,
+  },
   Padlock: {
     id: 'Padlock',
     name: 'Padlock',

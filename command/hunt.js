@@ -389,6 +389,25 @@ async function handleHunt(interaction, resources, stats) {
   }
   bullet.amount -= 1;
   if (bullet.amount <= 0) stats.inventory = inv.filter(i => i !== bullet);
+  const slots = stats.cosmeticSlots || [];
+  const hasArc = slots.includes('ArcsOfResurgence');
+  let successChance = 0.45;
+  let failChance = 0.45;
+  let deathChance = 0.1;
+  if (hasArc) {
+    failChance *= 0.75;
+    const remain = 1 - failChance;
+    successChance = remain - deathChance;
+  }
+  if (successChance > 0.9) {
+    successChance = 0.9;
+    failChance = 0.09;
+    deathChance = 0.01;
+  } else if (successChance < 0.001) {
+    successChance = 0.001;
+    failChance = 0.99;
+    deathChance = 0.009;
+  }
   const roll = Math.random();
   const cooldown = Date.now() + 30000;
   stats.hunt_cd_until = cooldown;
@@ -396,7 +415,7 @@ async function handleHunt(interaction, resources, stats) {
   let text;
   let color;
   let xp;
-  if (roll < 0.45) {
+  if (roll < successChance) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
     const tier = tierMap[stats.hunt_gun] || 1;
@@ -425,7 +444,7 @@ async function handleHunt(interaction, resources, stats) {
     } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
-  } else if (roll < 0.9) {
+  } else if (roll < successChance + failChance) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
     color = 0xff0000;

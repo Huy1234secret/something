@@ -90,6 +90,7 @@ const FAIL_MESSAGES = [
 
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
+const DELUXE_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
 const RARITY_EMOJIS = {
   Common: '<:SBRCommon:1409932856762826862>',
   Rare: '<:SBRRare:1409932954037387324>',
@@ -145,7 +146,13 @@ async function sendBeg(user, send, resources) {
 
   stats.beg_cd_until = now + 15000;
   const name = pick(NAMES);
-  if (Math.random() < 0.5) {
+  const slots = stats.cosmeticSlots || [];
+  const hasArc = slots.includes('ArcsOfResurgence');
+  const hasRing = slots.includes('GoldRing');
+  let successChance = 0.5;
+  if (hasArc) successChance += 0.15;
+  successChance = Math.min(Math.max(successChance, 0.001), 0.9);
+  if (Math.random() < successChance) {
     const successMsg = pick(SUCCESS_MESSAGES);
     let currencyLine;
     let xp;
@@ -158,7 +165,11 @@ async function sendBeg(user, send, resources) {
       diamondGiven = true;
       currencyLine = `-# They are so generous, they gifted you **${formatNumber(amount)} Diamonds ${DIAMOND_EMOJI}!!**`;
     } else {
-      const amount = Math.floor(Math.random() * 9001) + 1000;
+      let amount = Math.floor(Math.random() * 9001) + 1000;
+      let mult = 1;
+      if (hasArc) mult *= 8.77;
+      if (hasRing) mult *= 1.1;
+      amount = Math.floor(amount * mult);
       stats.coins = (stats.coins || 0) + amount;
       currencyLine = `-# You got **${formatNumber(amount)} Coins ${COIN_EMOJI}!**`;
     }
@@ -176,11 +187,21 @@ async function sendBeg(user, send, resources) {
         }!**`;
       }
     }
+    let ownerPart = '';
+    if (hasArc && Math.random() < 0.01) {
+      if (Math.random() < 0.1) {
+        const amount = Math.floor(Math.random() * 9001) + 1000;
+        stats.deluxe = (stats.deluxe || 0) + amount;
+        ownerPart = `\n${user} Goofy boi, take **${formatNumber(amount)} Deluxe Coins ${DELUXE_EMOJI}!**`;
+      } else {
+        ownerPart = '\n...';
+      }
+    }
     if (diamondGiven) xp = itemGiven ? 15000 : 2500;
     else xp = itemGiven ? 1000 : 100;
     await resources.addXp(user, xp, resources.client);
     resources.saveData();
-    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}\n-# You gained **${xp} XP**`;
+    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}${ownerPart}\n-# You gained **${xp} XP**`;
     const container = new ContainerBuilder()
       .setAccentColor(0x00ff00)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
