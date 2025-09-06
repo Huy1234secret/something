@@ -35,6 +35,7 @@ const SHOP_ITEMS = {
     ITEMS.Landmine,
     ITEMS.SeraphicHeart,
     ITEMS.WheatSeed,
+    ITEMS.PotatoSeed,
     ITEMS.WateringCan,
     ITEMS.HarvestScythe,
     ITEMS.BulletBox,
@@ -45,6 +46,51 @@ const SHOP_ITEMS = {
 };
 
 const shopStates = new Map();
+
+const STOCK_CONFIG = {
+  WheatSeed: { min: 5, max: 15 },
+  PotatoSeed: { min: 3, max: 10 },
+  SeraphicHeart: { min: 1, max: 5 },
+  Padlock: { min: 3, max: 7 },
+  Landmine: { min: 1, max: 3 },
+  WateringCan: { min: 1, max: 2 },
+  HarvestScythe: { min: 1, max: 2 },
+  BulletBox: { min: 1, max: 3 },
+  HuntingRifleT1: { min: 1, max: 2 },
+  Shovel: { min: 1, max: 2 },
+};
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getDiscount() {
+  const r = Math.random();
+  if (r < 0.00075) return 0.5;
+  if (r < 0.005) return 0.25;
+  if (r < 0.1) return 0.1;
+  return 0;
+}
+
+function nextRestockHour() {
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  return d.getTime() + 60 * 60 * 1000;
+}
+
+function restockShop(resources) {
+  resources.shop.stock = resources.shop.stock || {};
+  for (const [id, cfg] of Object.entries(STOCK_CONFIG)) {
+    const amount = rand(cfg.min, cfg.max);
+    resources.shop.stock[id] = {
+      amount,
+      max: amount,
+      discount: getDiscount(),
+    };
+  }
+  resources.shop.nextRestock = nextRestockHour();
+  resources.saveData();
+}
 
 function levenshtein(a, b) {
   const matrix = Array.from({ length: a.length + 1 }, () => []);
@@ -159,12 +205,31 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   if (state.type === 'market') {
     return sendMarket(user, send, resources);
   }
+  if (!resources.shop.nextRestock || Date.now() >= resources.shop.nextRestock)
+    restockShop(resources);
+  const stock = resources.shop.stock || {};
   const items = SHOP_ITEMS[state.type] || [];
   const perPage = 6;
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   const page = Math.min(Math.max(state.page, 1), pages);
   const start = (page - 1) * perPage;
-  const pageItems = items.slice(start, start + perPage);
+  const pageItems = items.slice(start, start + perPage).map(it => {
+    const s = stock[it.id] || {};
+    let price = it.price;
+    let originalPrice = null;
+    if (s.discount) {
+      originalPrice = price;
+      price = Math.round(price * (1 - s.discount));
+    }
+    return {
+      ...it,
+      price,
+      originalPrice,
+      stock: s.amount,
+      maxStock: s.max,
+      discount: s.discount,
+    };
+  });
 
   const buffer =
     state.type === 'deluxe'
@@ -177,6 +242,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
 
   const tagline =
     state.type === 'deluxe' ? '-# Want to buy something BETTER?' : '-# Welcome!';
+  const restockTs = Math.floor((resources.shop.nextRestock || Date.now()) / 1000);
 
   const thumbURL =
     state.type === 'deluxe'
@@ -188,7 +254,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(title),
       new TextDisplayBuilder().setContent(
-        `${tagline}\n<:SBComingstock:1405083859254771802> Shop will have new stock in 0s\n* Page ${page}/${pages}`,
+        `${tagline}\n<:SBComingstock:1405083859254771802> Shop will have new stock <t:${restockTs}:R>\n* Page ${page}/${pages}`,
       ),
     );
 
@@ -213,12 +279,16 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   const buttons = [];
   for (let i = 0; i < perPage; i++) {
     const item = pageItems[i];
-    const btn = new ButtonBuilder()
-      .setCustomId(`shop-buy-${i}`)
-      .setLabel(item ? item.name : '???')
-      .setEmoji(item ? item.emoji : '❓')
-      .setStyle(ButtonStyle.Secondary);
-    if (!item) btn.setDisabled(true);
+    const btn = new ButtonBuilder().setCustomId(`shop-buy-${i}`);
+    if (item) {
+      const label = `[${item.stock || 0}/${item.maxStock || 0}] ${item.name}`;
+      btn.setLabel(label).setEmoji(item.emoji);
+      if (item.discount) btn.setStyle(ButtonStyle.Success);
+      else btn.setStyle(ButtonStyle.Secondary);
+      if (!item.stock) btn.setDisabled(true);
+    } else {
+      btn.setLabel('???').setEmoji('❓').setStyle(ButtonStyle.Secondary).setDisabled(true);
+    }
     buttons.push(btn);
   }
 
@@ -348,11 +418,16 @@ function setup(client, resources) {
         const index = parseInt(interaction.customId.split('-')[2], 10);
         const items = SHOP_ITEMS[state.type] || [];
         const start = (state.page - 1) * 6;
-          const item = items[start + index];
-          if (!item) {
-            await interaction.reply({ content: 'Item not available.' });
-            return;
-          }
+        const item = items[start + index];
+        if (!item) {
+          await interaction.reply({ content: 'Item not available.' });
+          return;
+        }
+        const sInfo = resources.shop.stock[item.id] || {};
+        if (!sInfo.amount) {
+          await interaction.reply({ content: 'Out of stock.', flags: MessageFlags.Ephemeral });
+          return;
+        }
         const modal = new ModalBuilder()
           .setCustomId(`shop-buy-modal-${interaction.message.id}-${index}`)
           .setTitle('Buy Item');
@@ -374,7 +449,8 @@ function setup(client, resources) {
         const currency = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
         const item =
           Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
-        if (!item) {
+        const sInfo = resources.shop.stock[itemId] || {};
+        if (!item || !sInfo.amount || sInfo.amount < amount) {
           await interaction.update({
             components: [
               new ActionRowBuilder().addComponents(
@@ -388,7 +464,10 @@ function setup(client, resources) {
         const stats =
           resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
         normalizeInventory(stats);
-        const total = item.price * amount;
+        const price = sInfo.discount
+          ? Math.round(item.price * (1 - sInfo.discount))
+          : item.price;
+        const total = price * amount;
         if ((stats[currency] || 0) < total) {
           const need = total - (stats[currency] || 0);
           await interaction.update({
@@ -418,6 +497,8 @@ function setup(client, resources) {
         else stats.inventory.push({ ...base, amount });
         normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
+        sInfo.amount -= amount;
+        resources.shop.stock[item.id] = sInfo;
         resources.saveData();
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
@@ -439,6 +520,13 @@ function setup(client, resources) {
               ),
           );
         await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+        const mainState = shopStates.get(state.shopMessageId);
+        if (mainState) {
+          try {
+            const msg = await interaction.channel.messages.fetch(state.shopMessageId);
+            await sendShop(interaction.user, msg.edit.bind(msg), resources, mainState);
+          } catch {}
+        }
       } else if (interaction.customId === 'shop-cancel') {
         const pending = resources.pendingRequests.get(interaction.user.id);
         if (pending) clearTimeout(pending.timer);
@@ -508,33 +596,59 @@ function setup(client, resources) {
         }
       const items = SHOP_ITEMS[state.type] || [];
       const start = (state.page - 1) * 6;
-      const item = items[start + index];
-        if (!item) {
-          await interaction.reply({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent('Item not available.'),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+      const baseItem = items[start + index];
+      if (!baseItem) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Item not available.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const sInfo = resources.shop.stock[baseItem.id] || {};
+      if (!sInfo.amount) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Out of stock.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const amount = parseInt(interaction.fields.getTextInputValue('amount'), 10);
-        if (isNaN(amount) || amount <= 0) {
-          await interaction.reply({
-            components: [
-              new ActionRowBuilder().addComponents(
-                new TextDisplayBuilder().setContent('Invalid amount.'),
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+      if (isNaN(amount) || amount <= 0) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent('Invalid amount.'),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      if (amount > sInfo.amount) {
+        await interaction.reply({
+          components: [
+            new ActionRowBuilder().addComponents(
+              new TextDisplayBuilder().setContent(`Only ${sInfo.amount} left in stock.`),
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const stats =
         resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
-      const total = item.price * amount;
+      const price = sInfo.discount
+        ? Math.round(baseItem.price * (1 - sInfo.discount))
+        : baseItem.price;
+      const total = price * amount;
       const currencyField = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
       const coinEmoji =
         state.type === 'deluxe'
@@ -553,7 +667,7 @@ function setup(client, resources) {
         return;
       }
       const buyBtn = new ButtonBuilder()
-        .setCustomId(`shop-confirm-${item.id}-${amount}`)
+        .setCustomId(`shop-confirm-${baseItem.id}-${amount}`)
         .setLabel('Buy')
         .setStyle(ButtonStyle.Success);
       const cancelBtn = new ButtonBuilder()
@@ -565,7 +679,7 @@ function setup(client, resources) {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent('### Purchase Alert'),
           new TextDisplayBuilder().setContent(
-            `* Hey ${interaction.user} you are purchasing **×${amount} ${item.name} ${item.emoji}** with ${total} ${coinEmoji}`,
+            `* Hey ${interaction.user} you are purchasing **×${amount} ${baseItem.name} ${baseItem.emoji}** with ${total} ${coinEmoji}`,
           ),
         )
         .addSeparatorComponents(new SeparatorBuilder())
@@ -575,7 +689,11 @@ function setup(client, resources) {
           flags: MessageFlags.IsComponentsV2,
         });
         const reply = await interaction.fetchReply();
-        shopStates.set(reply.id, { userId: interaction.user.id, type: state.type });
+        shopStates.set(reply.id, {
+          userId: interaction.user.id,
+          type: state.type,
+          shopMessageId: messageId,
+        });
       const timer = setTimeout(async () => {
         const current = resources.pendingRequests.get(interaction.user.id);
         if (current && current.timer === timer) {
