@@ -30,6 +30,7 @@ const farmViewCommand = require('./command/farmView');
 const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
+const myCosmeticCommand = require('./command/myCosmetic');
 const { ITEMS } = require('./items');
 const { setSafeTimeout } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -277,10 +278,11 @@ client.on = function(event, listener) {
     addCurrencyCommand.setup(client, resources);
     addItemCommand.setup(client, resources);
     farmViewCommand.setup(client, resources);
-      huntCommand.setup(client, resources);
-      digCommand.setup(client, resources);
-      begCommand.setup(client, resources);
-      timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
+    huntCommand.setup(client, resources);
+    digCommand.setup(client, resources);
+    begCommand.setup(client, resources);
+    myCosmeticCommand.setup(client, resources);
+    timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
       const cshChannelId = '1413532331972497509';
       const cshTimestamp = Math.floor(Date.UTC(2025, 10, 1) / 1000);
