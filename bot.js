@@ -289,11 +289,6 @@ client.on = function(event, listener) {
             '## Holly Jolly Hunt 2025',
             '* Something’s afoot at the North Pole… 🐾❄️ On December 1st 2025 📅, report to Ć̵̘R̴̞͌E̶̞͉͛A̷̘̅̌T̸̺̔O̶̤͌̕R̴̨̯̓͑ for a trail of riddles 🧩, secret codes 🔐, and festive red herrings🎄. Crack the case🕵️‍♂️, outsmart rival teams 🧠, and uncover Santa’s missing cargo 🛷 before the clock strikes tinsel.**.',
           ].join('\n');
-          const message2 = [
-            '-# This is bot scavenger hunt, so all puzzle will be inside bot features and it will not be held outside.',
-            'You will participate in a team, max 2 per team. If not enough you will be disqualified!',
-            `-# Team registration start <t:${cshTimestamp}:R>`,
-          ].join('\n');
           const row = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
               .setCustomId('CSH')
@@ -305,7 +300,6 @@ client.on = function(event, listener) {
                   .setValue('placeholder'),
               ),
           );
-          const content = [message1, message2].join('\n');
           let existing = null;
           if (cshMessageId) {
             existing = await channel.messages
@@ -313,7 +307,19 @@ client.on = function(event, listener) {
               .catch(() => null);
           }
           if (!existing) {
-            const sent = await channel.send({ content, components: [row] });
+            const container = new ContainerBuilder()
+              .setAccentColor(0x00ffff)
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(message1),
+                new TextDisplayBuilder().setContent('-# This is bot scavenger hunt, so all puzzle will be inside bot features and it will not be held outside.'),
+              )
+              .addSeparatorComponents(new SeparatorBuilder())
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent('You will participate in a team, max 2 per team. If not enough you will be disqualified!'),
+                new TextDisplayBuilder().setContent(`-# Team registration start <t:${cshTimestamp}:R>`),
+              )
+              .addActionRowComponents(row);
+            const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
             cshMessageId = sent.id;
             saveData();
           }
