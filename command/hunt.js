@@ -19,6 +19,7 @@ const {
   getInventoryCount,
   MAX_ITEMS,
   alertInventoryFull,
+  useDurableItem,
 } = require('../utils');
 const { handleDeath } = require('../death');
 
@@ -461,6 +462,9 @@ async function handleHunt(interaction, resources, stats) {
     text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP**`;
   }
   await resources.addXp(user, xp, resources.client);
+  const gun = stats.hunt_gun;
+  const res = useDurableItem(interaction, user, stats, gun);
+  if (res.broken && res.remaining === 0 && stats.hunt_gun === gun) delete stats.hunt_gun;
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();

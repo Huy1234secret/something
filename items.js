@@ -97,7 +97,7 @@ const ITEMS = {
     useable: false,
     types: ['Consumable', 'Material'],
     note: '',
-    image: '',
+    image: 'https://i.ibb.co/ywBxrJh/Potato-seed.png',
     price: 75000,
     sellPrice: null,
   },
@@ -113,6 +113,7 @@ const ITEMS = {
     image: 'https://i.ibb.co/vCjYnjPS/Harvest-scythe.png',
     price: 120000,
     sellPrice: null,
+    durability: 25,
   },
   Sheaf: {
     id: 'Sheaf',
@@ -152,6 +153,7 @@ const ITEMS = {
     image: 'https://i.ibb.co/vv65JBH8/Watering-Can.png',
     price: 70000,
     sellPrice: null,
+    durability: 10,
   },
   DiamondBag: {
     id: 'DiamondBag',
@@ -217,6 +219,7 @@ const ITEMS = {
     image: 'https://i.ibb.co/3mbdZLv3/rifle.png',
     price: 50000,
     sellPrice: null,
+    durability: 50,
   },
   BulletBox: {
     id: 'BulletBox',
@@ -243,6 +246,7 @@ const ITEMS = {
     image: 'https://i.ibb.co/PGDZzsG3/Shovel.png',
     price: 50000,
     sellPrice: null,
+    durability: 50,
   },
   Bullet: {
     id: 'Bullet',

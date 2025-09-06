@@ -21,6 +21,7 @@ const {
   getInventoryCount,
   MAX_ITEMS,
   alertInventoryFull,
+  useDurableItem,
 } = require('../utils');
 
 const CANVAS_SIZE = 500;
@@ -456,6 +457,14 @@ function setup(client, resources) {
       const state = farmStates.get(interaction.message.id);
       if (!state || interaction.user.id !== state.userId) return;
       const stats = resources.userStats[state.userId] || { farm: {} };
+      const scythe = (stats.inventory || []).find(i => i.id === 'HarvestScythe');
+      if (!scythe) {
+        await interaction.reply({
+          content: `${WARNING} You need a Harvest Scythe to harvest.`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
       const harvestable = Object.entries(stats.farm)
         .filter(([id, plot]) => {
           const status = getPlotStatus(plot);
@@ -522,6 +531,7 @@ function setup(client, resources) {
         }
         farm[id] = {};
       });
+      useDurableItem(interaction, interaction.user, stats, 'HarvestScythe');
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
@@ -605,6 +615,8 @@ function setup(client, resources) {
         }
         farm[id] = plot;
       });
+      useDurableItem(interaction, interaction.user, stats, 'WateringCan');
+      normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
       await updateFarmMessage(state, interaction.user, stats, resources);
