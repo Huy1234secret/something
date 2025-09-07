@@ -31,6 +31,7 @@ const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
+const masteryCommand = require('./command/mastery');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -48,6 +49,13 @@ const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 let shop = { stock: {}, nextRestock: 0 };
+
+const ITEMS_BY_RARITY = {};
+for (const item of Object.values(ITEMS)) {
+  const r = String(item.rarity || 'common').toLowerCase();
+  if (!ITEMS_BY_RARITY[r]) ITEMS_BY_RARITY[r] = [];
+  ITEMS_BY_RARITY[r].push(item);
+}
 
 function fixItemEntries(statsMap) {
   const itemsById = Object.fromEntries(
@@ -129,6 +137,42 @@ function xpNeeded(level) {
   return Math.floor(100 * Math.pow(n, 1.5));
 }
 
+function chatMasteryXpNeeded(level) {
+  const L = Number(level);
+  const n = Number.isFinite(L) && L > 0 ? L : 1;
+  return Math.floor(100 * Math.pow(1000, (n - 1) / 99) + 0.5);
+}
+
+function grantRandomItem(user, stats, channel) {
+  const roll = Math.random();
+  let rarity;
+  if (roll < 0.5) rarity = 'common';
+  else if (roll < 0.9) rarity = 'rare';
+  else if (roll < 0.99) rarity = 'epic';
+  else if (roll < 0.999) rarity = 'legendary';
+  else if (roll < 0.9998) rarity = 'mythical';
+  else rarity = 'godly';
+  const pool = ITEMS_BY_RARITY[rarity] || [];
+  if (pool.length === 0) return;
+  const item = pool[Math.floor(Math.random() * pool.length)];
+  stats.inventory = stats.inventory || [];
+  stats.inventory.push({
+    id: item.id,
+    amount: 1,
+    emoji: item.emoji,
+    name: item.name,
+    image: item.image,
+  });
+  const container = new ContainerBuilder()
+    .setAccentColor(0xffffff)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`${user} found ${item.emoji || ''} ${item.name}!`)
+    );
+  channel
+    .send({ components: [container], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 })
+    .catch(() => {});
+}
+
 async function addXp(user, amount, client) {
   const stats = userStats[user.id] || {};
   stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
@@ -137,17 +181,39 @@ async function addXp(user, amount, client) {
   stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
   stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
   stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
+  stats.chat_mastery_level = Number.isFinite(stats.chat_mastery_level)
+    ? stats.chat_mastery_level
+    : 0;
+  stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
+    ? stats.chat_mastery_xp
+    : 0;
 
   stats.xp += amount;
   stats.total_xp += amount;
+  stats.chat_mastery_xp += amount;
   let prev = stats.level;
   while (stats.level < MAX_LEVEL && stats.xp >= xpNeeded(stats.level)) {
     stats.xp -= xpNeeded(stats.level);
     stats.level += 1;
   }
+  while (
+    stats.chat_mastery_level < 100 &&
+    stats.chat_mastery_xp >= chatMasteryXpNeeded(stats.chat_mastery_level + 1)
+  ) {
+    stats.chat_mastery_xp -= chatMasteryXpNeeded(
+      stats.chat_mastery_level + 1,
+    );
+    stats.chat_mastery_level += 1;
+  }
+  if (stats.chat_mastery_level >= 100) stats.chat_mastery_xp = 0;
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   userStats[user.id] = stats;
   if (stats.level > prev) {
+    if (stats.chat_mastery_level >= 90) {
+      for (let lvl = prev + 1; lvl <= stats.level; lvl++) {
+        stats.diamonds += lvl;
+      }
+    }
     const channel = client.channels.cache.get(levelUpChannelId);
     if (channel) {
       const container = new ContainerBuilder()
@@ -190,7 +256,20 @@ function scheduleRole(userId, guildId, roleId, expiresAt, save=false) {
 
 loadData();
 
-const resources = { userStats, userCardSettings, commandBans, shop, saveData, xpNeeded, addXp, defaultColor, defaultBackground, scheduleRole, pendingRequests };
+const resources = {
+  userStats,
+  userCardSettings,
+  commandBans,
+  shop,
+  saveData,
+  xpNeeded,
+  addXp,
+  defaultColor,
+  defaultBackground,
+  scheduleRole,
+  pendingRequests,
+  chatMasteryXpNeeded,
+};
 
 const client = new Client({
   intents:[GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates]
@@ -290,6 +369,7 @@ client.on = function(event, listener) {
     digCommand.setup(client, resources);
     begCommand.setup(client, resources);
     myCosmeticCommand.setup(client, resources);
+    masteryCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
       const cshChannelId = '1413532331972497509';
@@ -384,9 +464,42 @@ client.on('messageCreate', async message => {
       saveData();
     }
   }
+  const stats = userStats[message.author.id] || {
+    level: 1,
+    xp: 0,
+    total_xp: 0,
+    coins: 0,
+    diamonds: 0,
+    deluxe_coins: 0,
+  };
+  stats.chat_messages = (stats.chat_messages || 0) + 1;
+  userStats[message.author.id] = stats;
 
-  await addXp(message.author, Math.floor(Math.random()*10)+1, client);
-  addCoins(message.author, Math.floor(Math.random()*100)+1);
+  await addXp(message.author, Math.floor(Math.random() * 10) + 1, client);
+  addCoins(message.author, Math.floor(Math.random() * 100) + 1);
+
+  const updated = userStats[message.author.id];
+  if (
+    updated.chat_mastery_level >= 40 &&
+    updated.chat_messages % 100 === 0
+  ) {
+    const d = Math.floor(Math.random() * 10) + 1;
+    updated.diamonds = (updated.diamonds || 0) + d;
+    const container = new ContainerBuilder()
+      .setAccentColor(0xffffff)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${message.author} earned ${d} diamonds!`,
+        ),
+      );
+    message.channel
+      .send({ components: [container], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 })
+      .catch(() => {});
+  }
+  if (updated.chat_mastery_level >= 60 && Math.random() < 0.01) {
+    grantRandomItem(message.author, updated, message.channel);
+  }
+  saveData();
 
   if (!isCommand) return;
 
@@ -532,7 +645,23 @@ client.on('voiceStateUpdate', (before, after) => {
       voiceSessions.delete(before.id);
       const minutes = Math.floor(duration / 60000);
       const user = after.member || before.member;
-      if (user) addXp(user, Math.floor(minutes/5), client);
+      if (user) {
+        const xpGain = minutes * 10;
+        if (xpGain > 0) addXp(user, xpGain, client);
+        const stats = userStats[user.id] || {};
+        if (stats.chat_mastery_level >= 20) {
+          const hours = Math.floor(duration / 3600000);
+          for (let i = 0; i < hours; i++) {
+            stats.diamonds = (stats.diamonds || 0) + Math.floor(Math.random() * 91) + 10;
+          }
+        }
+        if (stats.chat_mastery_level >= 60 && Math.random() < 0.01) {
+          const channel = client.channels.cache.get(levelUpChannelId);
+          if (channel) grantRandomItem(user.user || user, stats, channel);
+        }
+        userStats[user.id] = stats;
+        saveData();
+      }
     }
   }
 });
