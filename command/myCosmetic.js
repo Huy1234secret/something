@@ -41,7 +41,7 @@ function buildContainer(user, stats, state = {}) {
     perks.push(
       '-# +777% Coin earn',
       '-# +15% Success beg chance',
-      '-# -25% Hunting caught chance',
+      '-# +25% Hunting fail chance',
       '-# 1% Owner encounter chance',
     );
   }

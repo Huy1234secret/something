@@ -7,7 +7,7 @@ const {
   ThumbnailBuilder,
   SeparatorBuilder,
 } = require('discord.js');
-const { formatNumber } = require('../utils');
+const { formatNumber, applyCoinBoost } = require('../utils');
 const { ITEMS } = require('../items');
 const { handleDeath } = require('../death');
 
@@ -152,7 +152,8 @@ async function executeRob(robber, target, send, resources) {
     if (amount < 1) amount = 1;
     if ((robberStats.coins || 0) < amount) amount = robberStats.coins || 0;
     robberStats.coins = (robberStats.coins || 0) - amount;
-    targetStats.coins = (targetStats.coins || 0) + amount;
+    const boosted = applyCoinBoost(targetStats, amount);
+    targetStats.coins = (targetStats.coins || 0) + boosted;
     robberStats.rob_cooldown_until = now + COOLDOWN;
     resources.userStats[robber.id] = robberStats;
     resources.userStats[target.id] = targetStats;
@@ -161,7 +162,7 @@ async function executeRob(robber, target, send, resources) {
     const msg = arr[Math.floor(Math.random() * arr.length)]
       .replace(/\{usermention\}/g, `<@${robber.id}>`)
       .replace(/\{robbinguser\}/g, target.username)
-      .replace(/\{amount\}/g, formatNumber(amount))
+      .replace(/\{amount\}/g, formatNumber(boosted))
       .replace(/coin/g, COIN_EMOJI);
     await send({
       components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
@@ -197,7 +198,8 @@ async function executeRob(robber, target, send, resources) {
   let amount = Math.floor((targetStats.coins || 0) * percent / 100);
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
-  robberStats.coins = (robberStats.coins || 0) + amount;
+  const boosted = applyCoinBoost(robberStats, amount);
+  robberStats.coins = (robberStats.coins || 0) + boosted;
   robberStats.rob_cooldown_until = now + COOLDOWN;
   resources.userStats[robber.id] = robberStats;
   resources.userStats[target.id] = targetStats;
@@ -208,7 +210,7 @@ async function executeRob(robber, target, send, resources) {
       buildEmbed(
         0x00ff00,
         title,
-        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(amount)} ${COIN_EMOJI}`,
+        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(boosted)} ${COIN_EMOJI}`,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],

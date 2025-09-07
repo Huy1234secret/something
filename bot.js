@@ -32,7 +32,7 @@ const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
 const { ITEMS } = require('./items');
-const { setSafeTimeout } = require('./utils');
+const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
 
 const DATA_FILE = 'user_data.json';
@@ -165,6 +165,7 @@ async function addXp(user, amount, client) {
 
 function addCoins(user, amount) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
+  amount = applyCoinBoost(stats, amount);
   stats.coins = (stats.coins || 0) + amount;
   userStats[user.id] = stats;
   saveData();
