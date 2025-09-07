@@ -61,13 +61,13 @@ function buildResponse(user, stats, chatMasteryXpNeeded) {
     new TextDisplayBuilder().setContent(`## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
   );
   const perks = buildPerks(level);
+  if (level >= 100) {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(CHAT_THUMB_MAX));
+  } else {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(CHAT_THUMB));
+  }
   const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
   container.addSectionComponents(header);
-  if (level >= 100) {
-    container.addThumbnailComponents(new ThumbnailBuilder().setURL(CHAT_THUMB_MAX));
-  } else {
-    container.addThumbnailComponents(new ThumbnailBuilder().setURL(CHAT_THUMB));
-  }
   container
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('* Mastery perks, every 10 levels unlock 1 perk.'))
