@@ -336,6 +336,22 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
     const stockY = rowY - coinR - stockSize * 0.5;
     ctx.fillText(`Stock: ${item.stock}/${item.maxStock}`, gx + contentPad, stockY);
   }
+
+  if (item.stock !== undefined && item.stock <= 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    rrect(ctx, x, y, w, h, cardRadius);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = '#ff0000';
+    ctx.font = `bold ${Math.floor(h * 0.12)}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Out of Stock!', x + w / 2, y + h / 2);
+    ctx.restore();
+  }
 }
 
 /* ------------------------ main (IMPROVED) ------------------------ */
