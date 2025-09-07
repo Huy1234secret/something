@@ -93,6 +93,25 @@ function banHammerEmbed(user, targetId) {
     );
 }
 
+function xpSodaEmbed(user, used, amountLeft, expiresAt) {
+  const btn = new ButtonBuilder()
+    .setCustomId('xpsoda-left')
+    .setLabel(`You have ×${amountLeft} XP Soda left!`)
+    .setEmoji(ITEMS.XPSoda.emoji)
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(true);
+  return new ContainerBuilder()
+    .setAccentColor(RARITY_COLORS[ITEMS.XPSoda.rarity])
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('## XP BOOSTED'),
+      new TextDisplayBuilder().setContent(
+        `Hey ${user}, you have used **×${used} XP Soda ${ITEMS.XPSoda.emoji}**, your XP will be doubled for <t:${Math.floor(expiresAt / 1000)}:R>!`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addActionRowComponents(new ActionRowBuilder().addComponents(btn));
+}
+
 function expiredPadlockContainer(user, disable = false) {
   const btn = new ButtonBuilder()
     .setCustomId('padlock-use-again')
@@ -201,6 +220,27 @@ function useLandmine(user, resources) {
   return { component: landmineEmbed(user, remaining, expires) };
 }
 
+function useXPSoda(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'XPSoda');
+  const item = ITEMS.XPSoda;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  const base = Math.max(Date.now(), stats.xp_boost_until || 0);
+  const expires = base + 6 * 60 * 60 * 1000 * amount;
+  stats.xp_boost_until = expires;
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  return { component: xpSodaEmbed(user, amount, remaining, expires) };
+}
+
 function useBanHammer(user, targetId, resources) {
   if (targetId === user.id) {
     return {
@@ -230,6 +270,8 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = usePadlock(user, resources);
   } else if (itemId === 'Landmine') {
     result = useLandmine(user, resources);
+  } else if (itemId === 'XPSoda') {
+    result = useXPSoda(user, amount, resources);
   } else if (itemId === 'DiamondBag') {
     result = useDiamondItem(user, 'DiamondBag', amount, 10000, resources);
   } else if (itemId === 'DiamondCrate') {
