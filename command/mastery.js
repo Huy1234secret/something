@@ -71,7 +71,13 @@ function buildResponse(user, stats, chatMasteryXpNeeded) {
   container
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('* Mastery perks, every 10 levels unlock 1 perk.'))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(perks));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(perks))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        '* Mastery Level 100 Rewards:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 XP Soda <:ITXPSoda:1414252478257561701>'
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder());
 
   const select = new StringSelectMenuBuilder()
     .setCustomId('mastery-select')

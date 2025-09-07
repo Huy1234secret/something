@@ -187,11 +187,24 @@ async function addXp(user, amount, client) {
   stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
     ? stats.chat_mastery_xp
     : 0;
+  stats.inventory = Array.isArray(stats.inventory) ? stats.inventory : [];
+  stats.xp_boost_until = Number.isFinite(stats.xp_boost_until)
+    ? stats.xp_boost_until
+    : 0;
+  if (stats.xp_boost_until && stats.xp_boost_until <= Date.now()) {
+    stats.xp_boost_until = 0;
+  }
 
-  stats.xp += amount;
-  stats.total_xp += amount;
+  let xpGain = amount;
+  if (stats.xp_boost_until && stats.xp_boost_until > Date.now()) {
+    xpGain *= 2;
+  }
+  xpGain = Math.floor(xpGain);
+  stats.xp += xpGain;
+  stats.total_xp += xpGain;
   stats.chat_mastery_xp += amount;
   let prev = stats.level;
+  const prevMastery = stats.chat_mastery_level;
   while (stats.level < MAX_LEVEL && stats.xp >= xpNeeded(stats.level)) {
     stats.xp -= xpNeeded(stats.level);
     stats.level += 1;
@@ -206,6 +219,32 @@ async function addXp(user, amount, client) {
     stats.chat_mastery_level += 1;
   }
   if (stats.chat_mastery_level >= 100) stats.chat_mastery_xp = 0;
+  if (prevMastery < 100 && stats.chat_mastery_level >= 100) {
+    stats.deluxe_coins = (stats.deluxe_coins || 0) + 1000;
+    stats.diamonds = (stats.diamonds || 0) + 1000;
+    stats.coins = (stats.coins || 0) + 1000000;
+    const xpSoda = ITEMS.XPSoda;
+    const entry = stats.inventory.find(i => i.id === 'XPSoda');
+    if (entry) entry.amount += 10;
+    else
+      stats.inventory.push({
+        id: xpSoda.id,
+        name: xpSoda.name,
+        emoji: xpSoda.emoji,
+        image: xpSoda.image,
+        amount: 10,
+      });
+    try {
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### Chat Mastery Maxed!\nYou reached level 100 chat mastery and received:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 XP Soda ${xpSoda.emoji}`,
+          ),
+        );
+      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } catch {}
+  }
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   userStats[user.id] = stats;
   if (stats.level > prev) {
