@@ -108,7 +108,7 @@ function setup(client, resources) {
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${interaction.user}, select a mastery to check the level and perks!`))
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(new ActionRowBuilder().addComponents(select));
-      await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+      await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       if (error.code !== 10062) console.error(error);
     }
@@ -120,7 +120,7 @@ function setup(client, resources) {
       if (interaction.values[0] !== 'chat') return;
       const stats = resources.userStats[interaction.user.id] || {};
       const container = buildResponse(interaction.user, stats, resources.chatMasteryXpNeeded);
-      await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral });
+      await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       if (error.code !== 10062) console.error(error);
     }
