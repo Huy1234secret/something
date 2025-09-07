@@ -57,7 +57,9 @@ function buildResponse(user, stats, chatMasteryXpNeeded) {
   const xp = stats.chat_mastery_xp || 0;
   const next = level >= 100 ? 0 : chatMasteryXpNeeded(level + 1);
   const bar = buildBar(xp, next);
-  const header = new SectionBuilder().setText(`## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`);
+  const header = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
+  );
   const perks = buildPerks(level);
   const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
   container.addSectionComponents(header);
