@@ -155,10 +155,18 @@ function useDurableItem(interaction, user, stats, itemId) {
 
 function applyCoinBoost(stats, amount) {
   const slots = (stats && stats.cosmeticSlots) || [];
-  let boost = 0;
-  if (slots.includes('ArcsOfResurgence')) boost += 7.77;
-  if (slots.includes('GoldRing')) boost += 0.1;
-  return Math.floor(amount + amount * boost);
+  let percent = 0;
+  if (slots.includes('ArcsOfResurgence')) percent += 7.77;
+  if (slots.includes('GoldRing')) percent += 0.1;
+  if (stats && stats.chat_mastery_level >= 70) {
+    percent += (stats.level || 0) * 0.1;
+  }
+  let perk = 1;
+  if (stats && stats.chat_mastery_level >= 10) perk += 0.5;
+  if (stats && stats.chat_mastery_level >= 30) perk += 1.0;
+  if (stats && stats.chat_mastery_level >= 50) perk += 1.5;
+  if (stats && stats.chat_mastery_level >= 80) perk += 2.0;
+  return Math.floor(perk * (amount + amount * percent));
 }
 
 module.exports = {
