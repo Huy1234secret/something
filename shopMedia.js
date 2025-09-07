@@ -267,18 +267,17 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 
   if (item.stock !== undefined && item.stock <= 0) {
     ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     rrect(ctx, x, y, w, h, 18);
     ctx.fill();
     ctx.restore();
+
     ctx.save();
-    ctx.translate(x + w / 2, y + h / 2);
-    ctx.rotate(-Math.PI / 4);
     ctx.fillStyle = '#ff0000';
     ctx.font = `bold ${Math.floor(h * 0.12)}px Sans`;
     ctx.textAlign = 'center';
-    ctx.fillText('Out of Stock!', 0, 0);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Out of Stock!', x + w / 2, y + h / 2);
     ctx.restore();
   }
 }
