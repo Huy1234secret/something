@@ -4,7 +4,7 @@ const {
   ContainerBuilder,
   TextDisplayBuilder,
 } = require('discord.js');
-const { formatNumber, normalizeInventory } = require('../utils');
+const { formatNumber, normalizeInventory, applyCoinBoost } = require('../utils');
 const { ITEMS } = require('../items');
 
 const NAMES = [
@@ -148,7 +148,6 @@ async function sendBeg(user, send, resources) {
   const name = pick(NAMES);
   const slots = stats.cosmeticSlots || [];
   const hasArc = slots.includes('ArcsOfResurgence');
-  const hasRing = slots.includes('GoldRing');
   let successChance = 0.5;
   if (hasArc) successChance += 0.15;
   successChance = Math.min(Math.max(successChance, 0.001), 0.9);
@@ -166,10 +165,7 @@ async function sendBeg(user, send, resources) {
       currencyLine = `-# They are so generous, they gifted you **${formatNumber(amount)} Diamonds ${DIAMOND_EMOJI}!!**`;
     } else {
       let amount = Math.floor(Math.random() * 9001) + 1000;
-      let mult = 1;
-      if (hasArc) mult *= 8.77;
-      if (hasRing) mult *= 1.1;
-      amount = Math.floor(amount * mult);
+      amount = applyCoinBoost(stats, amount);
       stats.coins = (stats.coins || 0) + amount;
       currencyLine = `-# You got **${formatNumber(amount)} Coins ${COIN_EMOJI}!**`;
     }

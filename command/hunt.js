@@ -396,7 +396,7 @@ async function handleHunt(interaction, resources, stats) {
   let failChance = 0.45;
   let deathChance = 0.1;
   if (hasArc) {
-    failChance *= 0.75;
+    failChance *= 1.25;
     const remain = 1 - failChance;
     successChance = remain - deathChance;
   }

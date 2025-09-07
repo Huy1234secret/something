@@ -19,6 +19,7 @@ const {
   MAX_ITEMS,
   alertInventoryFull,
   useDurableItem,
+  applyCoinBoost,
 } = require('../utils');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
@@ -259,7 +260,8 @@ async function handleDig(interaction, resources, stats) {
   let color;
   let xp;
   if (success) {
-    const amount = Math.floor(Math.random() * 4001) + 1000;
+    let amount = Math.floor(Math.random() * 4001) + 1000;
+    amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
     let extra = '';

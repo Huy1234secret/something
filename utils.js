@@ -153,6 +153,14 @@ function useDurableItem(interaction, user, stats, itemId) {
   return { broken: false, remaining: inv.filter(i => i.id === itemId).length };
 }
 
+function applyCoinBoost(stats, amount) {
+  const slots = (stats && stats.cosmeticSlots) || [];
+  let boost = 0;
+  if (slots.includes('ArcsOfResurgence')) boost += 7.77;
+  if (slots.includes('GoldRing')) boost += 0.1;
+  return Math.floor(amount + amount * boost);
+}
+
 module.exports = {
   formatNumber,
   parseAmount,
@@ -162,4 +170,5 @@ module.exports = {
   MAX_ITEMS,
   alertInventoryFull,
   useDurableItem,
+  applyCoinBoost,
 };

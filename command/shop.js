@@ -26,6 +26,7 @@ const {
   getInventoryCount,
   MAX_ITEMS,
   alertInventoryFull,
+  applyCoinBoost,
 } = require('../utils');
 
 // Currently coin and deluxe shops with no items
@@ -603,7 +604,8 @@ function setup(client, resources) {
         entry.amount -= amount;
         if (entry.amount <= 0)
           stats.inventory = stats.inventory.filter(i => i.id !== itemId);
-        stats.coins = (stats.coins || 0) + total;
+        const boosted = applyCoinBoost(stats, total);
+        stats.coins = (stats.coins || 0) + boosted;
         normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
         resources.saveData();
@@ -611,7 +613,7 @@ function setup(client, resources) {
           .setAccentColor(0x00ff00)
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `Sold ×${amount} ${entry.name} ${entry.emoji} for ${total} ${coinEmoji}.`,
+              `Sold ×${amount} ${entry.name} ${entry.emoji} for ${boosted} ${coinEmoji}.`,
             ),
           );
         await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
