@@ -54,15 +54,15 @@ const WHEAT_IMAGES = [
 const WHEAT_DEAD = 'https://i.ibb.co/rSZ27dp/Wheat-died.png';
 
 const POTATO_IMAGES = [
-  'https://i.ibb.co/nscnxYW4/Potato-1.png',
-  'https://i.ibb.co/Y46jvYDb/Potato-2.png',
-  'https://i.ibb.co/21BmJ3xC/Potato-3.png',
-  'https://i.ibb.co/8GSPgk5/Potato-4.png',
-  'https://i.ibb.co/PGwhDhcR/Potato-5.png',
-  'https://i.ibb.co/XxYWKHhP/Potato-6.png',
-  'https://i.ibb.co/93TGsnN7/Potato-7.png',
+  'https://i.ibb.co/m5qNxVY5/Potato-1.png',
+  'https://i.ibb.co/KcjGG539/Potato-2.png',
+  'https://i.ibb.co/TpWZjht/Potato-3.png',
+  'https://i.ibb.co/YFPBG7bv/Potato-4.png',
+  'https://i.ibb.co/wrFLC0Hq/Potato-5.png',
+  'https://i.ibb.co/m54MmRQ0/Potato-6.png',
+  'https://i.ibb.co/8SSWkJs/Potato-7.png',
 ];
-const POTATO_DEAD = 'https://i.ibb.co/TDnmKZ8B/Potato-death.png';
+const POTATO_DEAD = 'https://i.ibb.co/FqHY9Gmd/Potato-death.png';
 
 // Preload commonly used images so they are fetched only once
 const FARM_BG_IMG = loadCachedImage(FARM_BG);
