@@ -505,6 +505,7 @@ function setup(client, resources) {
       const harvestedMap = {};
       const seedMap = {};
       let deadNote = false;
+      let harvestedCount = 0;
       const initialFull = alertInventoryFull(interaction, interaction.user, stats);
       let full = getInventoryCount(stats) >= MAX_ITEMS;
       plots.forEach(id => {
@@ -513,25 +514,34 @@ function setup(client, resources) {
         const data = getPlantData(plot.seedId);
         if (!plot.seedId || !data) return;
         if (status.dead) deadNote = true;
-        else if (status.grown && !full) {
-          const { crop, seeds } = data.harvest();
-          const inv = stats.inventory;
-          harvestedMap[data.harvestItem.id] =
-            (harvestedMap[data.harvestItem.id] || 0) + crop;
-          let entry = inv.find(i => i.id === data.harvestItem.id);
-          if (entry) entry.amount = (entry.amount || 0) + crop;
-          else inv.push({ ...data.harvestItem, amount: crop });
-          if (seeds > 0) {
-            seedMap[data.seedItem.id] = (seedMap[data.seedItem.id] || 0) + seeds;
-            let seedEntry = inv.find(i => i.id === data.seedItem.id);
-            if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
-            else inv.push({ ...data.seedItem, amount: seeds });
+        else if (status.grown) {
+          harvestedCount += 1;
+          if (!full) {
+            const { crop, seeds } = data.harvest();
+            const inv = stats.inventory;
+            harvestedMap[data.harvestItem.id] =
+              (harvestedMap[data.harvestItem.id] || 0) + crop;
+            let entry = inv.find(i => i.id === data.harvestItem.id);
+            if (entry) entry.amount = (entry.amount || 0) + crop;
+            else inv.push({ ...data.harvestItem, amount: crop });
+            if (seeds > 0) {
+              seedMap[data.seedItem.id] = (seedMap[data.seedItem.id] || 0) + seeds;
+              let seedEntry = inv.find(i => i.id === data.seedItem.id);
+              if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
+              else inv.push({ ...data.seedItem, amount: seeds });
+            }
+            full = getInventoryCount(stats) >= MAX_ITEMS;
           }
-          full = getInventoryCount(stats) >= MAX_ITEMS;
         }
         farm[id] = {};
       });
-      useDurableItem(interaction, interaction.user, stats, 'HarvestScythe');
+      useDurableItem(
+        interaction,
+        interaction.user,
+        stats,
+        'HarvestScythe',
+        harvestedCount,
+      );
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
@@ -615,7 +625,13 @@ function setup(client, resources) {
         }
         farm[id] = plot;
       });
-      useDurableItem(interaction, interaction.user, stats, 'WateringCan');
+      useDurableItem(
+        interaction,
+        interaction.user,
+        stats,
+        'WateringCan',
+        plots.length,
+      );
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();

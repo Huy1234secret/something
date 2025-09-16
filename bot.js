@@ -173,7 +173,7 @@ function grantRandomItem(user, stats, channel) {
     .catch(() => {});
 }
 
-async function addXp(user, amount, client) {
+async function addXp(user, amount, client, chatMasteryAmount = 0) {
   const stats = userStats[user.id] || {};
   stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
   stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
@@ -202,7 +202,8 @@ async function addXp(user, amount, client) {
   xpGain = Math.floor(xpGain);
   stats.xp += xpGain;
   stats.total_xp += xpGain;
-  stats.chat_mastery_xp += amount;
+  const chatXpGain = Math.max(0, Math.floor(chatMasteryAmount));
+  stats.chat_mastery_xp += chatXpGain;
   let prev = stats.level;
   const prevMastery = stats.chat_mastery_level;
   while (stats.level < MAX_LEVEL && stats.xp >= xpNeeded(stats.level)) {
@@ -514,7 +515,8 @@ client.on('messageCreate', async message => {
   stats.chat_messages = (stats.chat_messages || 0) + 1;
   userStats[message.author.id] = stats;
 
-  await addXp(message.author, Math.floor(Math.random() * 10) + 1, client);
+  const messageXp = Math.floor(Math.random() * 10) + 1;
+  await addXp(message.author, messageXp, client, messageXp);
   addCoins(message.author, Math.floor(Math.random() * 100) + 1);
 
   const updated = userStats[message.author.id];
@@ -686,7 +688,7 @@ client.on('voiceStateUpdate', (before, after) => {
       const user = after.member || before.member;
       if (user) {
         const xpGain = minutes * 10;
-        if (xpGain > 0) addXp(user, xpGain, client);
+        if (xpGain > 0) addXp(user, xpGain, client, xpGain);
         const stats = userStats[user.id] || {};
         if (stats.chat_mastery_level >= 20) {
           const hours = Math.floor(duration / 3600000);
