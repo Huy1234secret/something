@@ -112,7 +112,7 @@ function alertInventoryFull(interaction, user, stats, pending = 0) {
   return false;
 }
 
-function useDurableItem(interaction, user, stats, itemId, usage = 1) {
+function useDurableItem(interaction, user, stats, itemId) {
   const inv = stats.inventory || [];
   const index = inv.findIndex(
     i => i.id === itemId && typeof i.durability === 'number',
@@ -121,11 +121,7 @@ function useDurableItem(interaction, user, stats, itemId, usage = 1) {
     return { broken: false, remaining: inv.filter(i => i.id === itemId).length };
   }
   const item = inv[index];
-  const amountUsed = Math.max(0, Math.floor(usage));
-  if (amountUsed <= 0) {
-    return { broken: false, remaining: inv.filter(i => i.id === itemId).length };
-  }
-  item.durability -= amountUsed;
+  item.durability -= 1;
   if (item.durability <= 0) {
     inv.splice(index, 1);
     const remaining = inv.filter(i => i.id === itemId).length;
