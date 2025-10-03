@@ -143,6 +143,10 @@ function chatMasteryXpNeeded(level) {
   return Math.floor(100 * Math.pow(1000, (n - 1) / 99) + 0.5);
 }
 
+function huntMasteryXpNeeded(level) {
+  return chatMasteryXpNeeded(level);
+}
+
 function grantRandomItem(user, stats, channel) {
   const roll = Math.random();
   let rarity;
@@ -186,6 +190,18 @@ async function addXp(user, amount, client) {
     : 0;
   stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
     ? stats.chat_mastery_xp
+    : 0;
+  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
+    ? stats.hunt_mastery_level
+    : 0;
+  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
+    ? stats.hunt_mastery_xp
+    : 0;
+  stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
+    ? stats.hunt_detector_charges
+    : 0;
+  stats.hunt_luck_counter = Number.isFinite(stats.hunt_luck_counter)
+    ? stats.hunt_luck_counter
     : 0;
   stats.inventory = Array.isArray(stats.inventory) ? stats.inventory : [];
   stats.xp_boost_until = Number.isFinite(stats.xp_boost_until)
@@ -268,6 +284,63 @@ async function addXp(user, amount, client) {
   saveData();
 }
 
+async function addHuntMasteryXp(user, amount, client) {
+  const stats = userStats[user.id] || {};
+  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
+    ? stats.hunt_mastery_level
+    : 0;
+  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
+    ? stats.hunt_mastery_xp
+    : 0;
+  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins)
+    ? stats.deluxe_coins
+    : 0;
+  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
+  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
+  stats.inventory = Array.isArray(stats.inventory) ? stats.inventory : [];
+
+  stats.hunt_mastery_xp += amount;
+  const previous = stats.hunt_mastery_level;
+  while (
+    stats.hunt_mastery_level < 100 &&
+    stats.hunt_mastery_xp >= huntMasteryXpNeeded(stats.hunt_mastery_level + 1)
+  ) {
+    stats.hunt_mastery_xp -= huntMasteryXpNeeded(
+      stats.hunt_mastery_level + 1,
+    );
+    stats.hunt_mastery_level += 1;
+  }
+  if (stats.hunt_mastery_level >= 100) stats.hunt_mastery_xp = 0;
+  if (previous < 100 && stats.hunt_mastery_level >= 100) {
+    stats.deluxe_coins += 1000;
+    stats.diamonds += 1000;
+    stats.coins += 1000000;
+    const detector = ITEMS.AnimalDetector;
+    const entry = stats.inventory.find(i => i.id === detector.id);
+    if (entry) entry.amount += 10;
+    else
+      stats.inventory.push({
+        id: detector.id,
+        name: detector.name,
+        emoji: detector.emoji,
+        image: detector.image,
+        amount: 10,
+      });
+    try {
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### Hunting Mastery Maxed!\nYou reached level 100 hunting mastery and received:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 Animal Detectors ${detector.emoji}`,
+          ),
+        );
+      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } catch {}
+  }
+  userStats[user.id] = stats;
+  saveData();
+}
+
 function addCoins(user, amount) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
   amount = applyCoinBoost(stats, amount);
@@ -308,6 +381,8 @@ const resources = {
   scheduleRole,
   pendingRequests,
   chatMasteryXpNeeded,
+  addHuntMasteryXp,
+  huntMasteryXpNeeded,
 };
 
 const client = new Client({
