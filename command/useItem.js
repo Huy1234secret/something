@@ -280,6 +280,8 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = useDiamondItem(user, 'DiamondChest', amount, 980000, resources);
   } else if (itemId === 'BulletBox') {
     result = useBulletBox(user, amount, resources);
+  } else if (itemId === 'AnimalDetector') {
+    result = useAnimalDetector(user, amount, resources);
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
@@ -340,6 +342,43 @@ function useBulletBox(user, amount, resources) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${user}, you have used **×${amount} ${item.name} ${item.emoji}** and got:\n### ×${gained} ${bulletItem.name} ${bulletItem.emoji}`,
+      ),
+    );
+  return { component: container };
+}
+
+function useAnimalDetector(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'AnimalDetector');
+  const item = ITEMS.AnimalDetector;
+  if (!entry || entry.amount < amount) {
+    return {
+      error: `${WARNING} You need at least ${amount} ${item.name} to use.`,
+    };
+  }
+  entry.amount -= amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  const gained = 25 * amount;
+  stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
+    ? stats.hunt_detector_charges
+    : 0;
+  stats.hunt_detector_charges += gained;
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const container = new ContainerBuilder()
+    .setAccentColor(RARITY_COLORS[item.rarity])
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${user}, you activated **×${amount} ${item.name} ${item.emoji}**!`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# Guaranteed hunts remaining: ${stats.hunt_detector_charges}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        '-# Each detector grants 25 guaranteed hunts.',
       ),
     );
   return { component: container };

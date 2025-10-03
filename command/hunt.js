@@ -23,6 +23,13 @@ const {
 } = require('../utils');
 const { handleDeath } = require('../death');
 
+const ITEMS_BY_RARITY = {};
+for (const item of Object.values(ITEMS)) {
+  const rarity = String(item.rarity || 'Common').toLowerCase();
+  if (!ITEMS_BY_RARITY[rarity]) ITEMS_BY_RARITY[rarity] = [];
+  ITEMS_BY_RARITY[rarity].push(item);
+}
+
 const AREAS = [
   {
     name: 'Temperate Forest',
@@ -212,8 +219,11 @@ function buildStatContainer(user, stats) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `## <:SBHuntingstat:1410892320538230834> Mastery Level: ${
-          stats.hunt_level || 0
+          stats.hunt_mastery_level || 0
         }`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `Guaranteed hunts left: ${stats.hunt_detector_charges || 0}`,
       ),
       new TextDisplayBuilder().setContent(
         `Hunt amount: ${stats.hunt_total || 0}\n-# Success: ${
@@ -328,11 +338,18 @@ function buildEquipmentContainer(user, stats) {
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
 }
 
-function pickAnimal(areaKey, tier) {
-  const candidates = ANIMALS.map(a => ({
-    animal: a,
-    chance: (a.chances[areaKey] || [0, 0, 0])[tier - 1] || 0,
-  })).filter(c => c.chance > 0);
+function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
+  const allowSecret = (stats && stats.hunt_mastery_level >= 100) || false;
+  const candidates = ANIMALS.map(a => {
+    let chance = (a.chances[areaKey] || [0, 0, 0])[tier - 1] || 0;
+    if (!allowSecret && a.rarity === 'Secret') chance = 0;
+    if (luckBoost && a.rarity !== 'Common') chance *= 2;
+    return { animal: a, chance };
+  }).filter(c => c.chance > 0);
+  if (candidates.length === 0) {
+    const fallback = ANIMALS.find(a => allowSecret || a.rarity !== 'Secret');
+    return fallback || ANIMALS[0];
+  }
   const total = candidates.reduce((sum, c) => sum + c.chance, 0);
   const r = Math.random() * total;
   let acc = 0;
@@ -350,6 +367,9 @@ async function sendHunt(user, send, resources, fetchReply) {
   const text = areaObj
     ? `### ${user}, You will be hunting in ${areaObj.name}!`
     : `### ${user}, select an area before hunting!`;
+  if ((stats.hunt_detector_charges || 0) > 0) {
+    text += `\n-# Animal Detector charges left: ${stats.hunt_detector_charges}`;
+  }
   const container = buildMainContainer(
     user,
     stats,
@@ -388,55 +408,153 @@ async function handleHunt(interaction, resources, stats) {
     await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
     return;
   }
+
+  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
+    ? stats.hunt_mastery_level
+    : 0;
+  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
+    ? stats.hunt_mastery_xp
+    : 0;
+  stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
+    ? stats.hunt_detector_charges
+    : 0;
+  stats.hunt_luck_counter = Number.isFinite(stats.hunt_luck_counter)
+    ? stats.hunt_luck_counter
+    : 0;
+
+  const masteryLevel = stats.hunt_mastery_level || 0;
+
   bullet.amount -= 1;
+  let bulletRefunded = false;
+  if (masteryLevel >= 20 && Math.random() < 0.25) {
+    bullet.amount += 1;
+    bulletRefunded = true;
+  }
   if (bullet.amount <= 0) stats.inventory = inv.filter(i => i !== bullet);
+
   const slots = stats.cosmeticSlots || [];
   const hasArc = slots.includes('ArcsOfResurgence');
+
   let successChance = 0.45;
-  let failChance = 0.45;
   let deathChance = 0.1;
+  let failChance = 1 - successChance - deathChance;
+
+  if (masteryLevel >= 10) successChance += 0.05;
+  if (masteryLevel >= 60) successChance += 0.15;
+  failChance = Math.max(0, 1 - successChance - deathChance);
+
   if (hasArc) {
     failChance *= 1.25;
     const remain = 1 - failChance;
     successChance = remain - deathChance;
   }
-  if (successChance > 0.9) {
-    successChance = 0.9;
-    failChance = 0.09;
-    deathChance = 0.01;
-  } else if (successChance < 0.001) {
-    successChance = 0.001;
-    failChance = 0.99;
-    deathChance = 0.009;
+
+  const detectorActive = stats.hunt_detector_charges > 0;
+  if (detectorActive) {
+    successChance = 1;
+    failChance = 0;
+    deathChance = 0;
   }
-  const roll = Math.random();
-  const cooldown = Date.now() + 30000;
+
+  if (!detectorActive) {
+    if (successChance > 0.9) {
+      successChance = 0.9;
+      failChance = 0.09;
+      deathChance = 0.01;
+    } else if (successChance < 0.001) {
+      successChance = 0.001;
+      failChance = 0.99;
+      deathChance = 0.009;
+    }
+  }
+
+  let luckBoost = false;
+  if (masteryLevel >= 80) {
+    stats.hunt_luck_counter += 1;
+    if (stats.hunt_luck_counter >= 10) {
+      luckBoost = true;
+      stats.hunt_luck_counter = 0;
+    }
+  } else {
+    stats.hunt_luck_counter = 0;
+  }
+
+  const cooldownDuration =
+    masteryLevel >= 90 ? 10000 : masteryLevel >= 40 ? 20000 : 30000;
+  const cooldown = Date.now() + cooldownDuration;
   stats.hunt_cd_until = cooldown;
   stats.hunt_total = (stats.hunt_total || 0) + 1;
+
+  const roll = Math.random();
   let text;
   let color;
   let xp;
+  let died = false;
+  const extraLines = [];
+
   if (roll < successChance) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
     const tier = tierMap[stats.hunt_gun] || 1;
-    const animal = pickAnimal(areaObj.key, tier);
+    const animal = pickAnimal(areaObj.key, tier, stats, { luckBoost });
     const item = ITEMS[animal.id];
     if (!stats.hunt_discover) stats.hunt_discover = [];
-    if (!stats.hunt_discover.includes(item.id))
-      stats.hunt_discover.push(item.id);
+    if (!stats.hunt_discover.includes(item.id)) stats.hunt_discover.push(item.id);
+
+    let addedEntry = null;
     if (!initialFull) {
       const willExceed = getInventoryCount(stats) + 1 > MAX_ITEMS;
       if (!willExceed) {
         const existing = (stats.inventory || []).find(i => i.id === item.id);
-        if (existing) existing.amount += 1;
-        else (stats.inventory = stats.inventory || []).push({ ...item, amount: 1 });
+        if (existing) {
+          existing.amount += 1;
+          addedEntry = existing;
+        } else {
+          addedEntry = { ...item, amount: 1 };
+          (stats.inventory = stats.inventory || []).push(addedEntry);
+        }
         alertInventoryFull(interaction, user, stats);
       } else {
         alertInventoryFull(interaction, user, stats, 1);
       }
+    } else {
+      alertInventoryFull(interaction, user, stats, 1);
     }
-    normalizeInventory(stats);
+
+    let duplicated = false;
+    if (addedEntry && masteryLevel >= 70 && Math.random() < 0.1) {
+      addedEntry.amount += 1;
+      duplicated = true;
+    }
+
+    let bonusItemText = '';
+    if (masteryLevel >= 50 && Math.random() < 0.1) {
+      const rarityRoll = Math.random() * 100;
+      let rarityKey;
+      if (rarityRoll < 60) rarityKey = 'common';
+      else if (rarityRoll < 90) rarityKey = 'rare';
+      else if (rarityRoll < 97) rarityKey = 'epic';
+      else if (rarityRoll < 99.5) rarityKey = 'legendary';
+      else if (rarityRoll < 99.95) rarityKey = 'mythical';
+      else rarityKey = 'godly';
+      const pool = ITEMS_BY_RARITY[rarityKey] || [];
+      if (pool.length) {
+        const reward = pool[Math.floor(Math.random() * pool.length)];
+        const invList = stats.inventory || [];
+        const existingReward = invList.find(i => i.id === reward.id);
+        const needsSlot = !existingReward;
+        const willExceedBonus =
+          needsSlot && getInventoryCount(stats) + 1 > MAX_ITEMS;
+        if (!initialFull && !willExceedBonus) {
+          if (existingReward) existingReward.amount += 1;
+          else invList.push({ ...reward, amount: 1 });
+          bonusItemText = `-# Bonus drop: ${reward.emoji || ''} ${reward.name}`;
+        } else if (!initialFull) {
+          alertInventoryFull(interaction, user, stats, 1);
+        }
+      }
+    }
+
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
     xp = Math.floor(100 * (HUNT_XP_MULTIPLIER[animal.rarity] || 1));
@@ -445,6 +563,14 @@ async function handleHunt(interaction, resources, stats) {
     } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
+
+    if (luckBoost) {
+      extraLines.push('-# Hunting luck surged, rarer animals were easier to find!');
+    }
+    if (duplicated) {
+      extraLines.push(`-# Duplicate bonus: another ${animal.name} ${animal.emoji} was added!`);
+    }
+    if (bonusItemText) extraLines.push(bonusItemText);
   } else if (roll < successChance + failChance) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
@@ -459,9 +585,26 @@ async function handleHunt(interaction, resources, stats) {
       HUNT_DEATH_MESSAGES[Math.floor(Math.random() * HUNT_DEATH_MESSAGES.length)];
     color = 0x000000;
     xp = -1000;
+    died = true;
     text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP**`;
   }
+
+  if (bulletRefunded) extraLines.push('-# Bullet refunded!');
+  if (detectorActive) {
+    stats.hunt_detector_charges = Math.max(
+      0,
+      stats.hunt_detector_charges - 1,
+    );
+    extraLines.push(
+      `-# Animal Detector charges left: ${stats.hunt_detector_charges}`,
+    );
+  }
+  if (extraLines.length) {
+    text += `\n${extraLines.join('\n')}`;
+  }
+
   await resources.addXp(user, xp, resources.client);
+  await resources.addHuntMasteryXp(user, xp, resources.client);
   const gun = stats.hunt_gun;
   const res = useDurableItem(interaction, user, stats, gun);
   if (res.broken && res.remaining === 0 && stats.hunt_gun === gun) delete stats.hunt_gun;
@@ -476,7 +619,7 @@ async function handleHunt(interaction, resources, stats) {
     areaObj.image,
   );
   await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
-  if (roll >= 0.9) {
+  if (died) {
     await handleDeath(user, 'hunting', resources);
   }
 }

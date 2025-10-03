@@ -13,6 +13,8 @@ const {
 
 const CHAT_THUMB = 'https://i.ibb.co/6RGR6jYf/Chat-badge-normal.png';
 const CHAT_THUMB_MAX = 'https://ibb.co/jFHRrQ4';
+const HUNT_THUMB = 'https://i.ibb.co/tw7x9WvN/Hunting-Mastery-Normal.png';
+const HUNT_THUMB_MAX = 'https://i.ibb.co/chv2L8H7/Hunting-Mastery-Gold.png';
 
 function buildBar(current, needed) {
   if (needed <= 0) return '░'.repeat(20);
@@ -20,7 +22,26 @@ function buildBar(current, needed) {
   return '▓'.repeat(filled) + '░'.repeat(20 - filled);
 }
 
-function buildPerks(level) {
+function buildMasterySelect(active) {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('mastery-select')
+    .setPlaceholder('Mastery')
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Chat Mastery')
+        .setValue('chat')
+        .setEmoji('<:SBMChat:1414143736488788089>')
+        .setDefault(active === 'chat'),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Hunting Mastery')
+        .setValue('hunt')
+        .setEmoji('🏹')
+        .setDefault(active === 'hunt'),
+    );
+  return select;
+}
+
+function buildChatPerks(level) {
   const perks = [
     { level: 10, text: '+50% more coin from chat and voice chat', initial:'<:SBE1:1414145519462387752>', current:'<:SBF1:1414145589465190501>', done:'<:SBF4:1414145601737588839>' },
     { level: 20, text: 'every 1h in voice award some diamonds', initial:'<:SBE2:1414145551087177839>', current:'<:SBF2:1414145565436149790>', done:'<:SBF:1414145617512366120>' },
@@ -52,7 +73,39 @@ function buildPerks(level) {
   return lines.join('\n');
 }
 
-function buildResponse(user, stats, chatMasteryXpNeeded) {
+function buildHuntPerks(level) {
+  const perks = [
+    { level: 10, text: 'Increase hunt success chance by 5%' },
+    { level: 20, text: '25% chance to refund bullets when hunting' },
+    { level: 30, text: 'Animal sell value increased by 25%' },
+    { level: 40, text: 'Hunting cooldown reduced to 20s' },
+    { level: 50, text: '10% chance to find a random item while hunting' },
+    { level: 60, text: 'Additional 15% success chance when hunting' },
+    { level: 70, text: '10% chance to duplicate hunted animals' },
+    { level: 80, text: 'Every 10th hunt has doubled rare luck' },
+    { level: 90, text: 'Hunting cooldown reduced to 10s' },
+    { level: 100, text: 'Unlock secret animals' },
+  ];
+  let unlockedIndex = -1;
+  for (let i = 0; i < perks.length; i++) {
+    if (level >= perks[i].level) unlockedIndex = i;
+  }
+  const lines = perks.map((p, idx) => {
+    let icon = '🔒';
+    let text = p.text;
+    if (idx < unlockedIndex) {
+      icon = '✅';
+      text = `**${text}**`;
+    } else if (idx === unlockedIndex && level >= p.level) {
+      icon = '🟢';
+      text = `**${text}**`;
+    }
+    return `-# ${icon} ${text}`;
+  });
+  return lines.join('\n');
+}
+
+function buildChatResponse(user, stats, chatMasteryXpNeeded) {
   const level = stats.chat_mastery_level || 0;
   const xp = stats.chat_mastery_xp || 0;
   const next = level >= 100 ? 0 : chatMasteryXpNeeded(level + 1);
@@ -60,7 +113,7 @@ function buildResponse(user, stats, chatMasteryXpNeeded) {
   const header = new SectionBuilder().addTextDisplayComponents(
     new TextDisplayBuilder().setContent(`## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
   );
-  const perks = buildPerks(level);
+  const perks = buildChatPerks(level);
   if (level >= 100) {
     header.setThumbnailAccessory(new ThumbnailBuilder().setURL(CHAT_THUMB_MAX));
   } else {
@@ -79,16 +132,38 @@ function buildResponse(user, stats, chatMasteryXpNeeded) {
     )
     .addSeparatorComponents(new SeparatorBuilder());
 
-  const select = new StringSelectMenuBuilder()
-    .setCustomId('mastery-select')
-    .setPlaceholder('Mastery')
-    .addOptions(
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Chat Mastery')
-        .setValue('chat')
-        .setEmoji('<:SBMChat:1414143736488788089>')
-        .setDefault(true)
-    );
+  const select = buildMasterySelect('chat');
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+  return container;
+}
+
+function buildHuntResponse(user, stats, huntMasteryXpNeeded) {
+  const level = stats.hunt_mastery_level || 0;
+  const xp = stats.hunt_mastery_xp || 0;
+  const next = level >= 100 ? 0 : huntMasteryXpNeeded(level + 1);
+  const bar = buildBar(xp, next);
+  const header = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`## Hunting Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
+  );
+  const perks = buildHuntPerks(level);
+  if (level >= 100) {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(HUNT_THUMB_MAX));
+  } else {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(HUNT_THUMB));
+  }
+  const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
+  container.addSectionComponents(header);
+  container
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('* Mastery perks, every 10 levels unlock 1 perk.'))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(perks))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        '* Mastery Level 100 Rewards:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 Animal Detectors <:ITAnimalDetector:1423678926215188700>'
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder());
+  const select = buildMasterySelect('hunt');
   container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
   return container;
 }
@@ -100,15 +175,7 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     try {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'mastery') return;
-      const select = new StringSelectMenuBuilder()
-        .setCustomId('mastery-select')
-        .setPlaceholder('Mastery')
-        .addOptions(
-          new StringSelectMenuOptionBuilder()
-            .setLabel('Chat Mastery')
-            .setValue('chat')
-            .setEmoji('<:SBMChat:1414143736488788089>')
-        );
+      const select = buildMasterySelect('chat');
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${interaction.user}, select a mastery to check the level and perks!`))
@@ -123,9 +190,23 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     try {
       if (!interaction.isStringSelectMenu() || interaction.customId !== 'mastery-select') return;
-      if (interaction.values[0] !== 'chat') return;
       const stats = resources.userStats[interaction.user.id] || {};
-      const container = buildResponse(interaction.user, stats, resources.chatMasteryXpNeeded);
+      let container;
+      if (interaction.values[0] === 'chat') {
+        container = buildChatResponse(
+          interaction.user,
+          stats,
+          resources.chatMasteryXpNeeded,
+        );
+      } else if (interaction.values[0] === 'hunt') {
+        container = buildHuntResponse(
+          interaction.user,
+          stats,
+          resources.huntMasteryXpNeeded,
+        );
+      } else {
+        return;
+      }
       await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       if (error.code !== 10062) console.error(error);

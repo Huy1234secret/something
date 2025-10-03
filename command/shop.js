@@ -21,6 +21,7 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');
+const { ANIMAL_ITEMS } = require('../animals');
 const {
   normalizeInventory,
   getInventoryCount,
@@ -778,7 +779,13 @@ function setup(client, resources) {
         ? sellPrice
         : [sellPrice, sellPrice];
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
-      const total = price * amount;
+      const statsLevel = Number.isFinite(stats.hunt_mastery_level)
+        ? stats.hunt_mastery_level
+        : 0;
+      let total = price * amount;
+      if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
+        total = Math.floor(total * 1.25);
+      }
       const coinEmoji = '<:CRCoin:1405595571141480570>';
       const sellBtn = new ButtonBuilder()
         .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
@@ -846,7 +853,13 @@ function setup(client, resources) {
         ? sellPrice
         : [sellPrice, sellPrice];
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
-      const total = price * amount;
+      const statsLevel = Number.isFinite(stats.hunt_mastery_level)
+        ? stats.hunt_mastery_level
+        : 0;
+      let total = price * amount;
+      if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
+        total = Math.floor(total * 1.25);
+      }
       const coinEmoji = '<:CRCoin:1405595571141480570>';
       const sellBtn = new ButtonBuilder()
         .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
