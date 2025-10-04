@@ -18,7 +18,7 @@ const {
 const { setSafeTimeout } = require('./utils');
 
 const EVENT_ROLE_ID = '1374410305991610520';
-const PARTICIPANT_REQUEST_CHANNEL_ID = '1372572234949853367';
+const PARTICIPANT_CHANNEL_ID = '1372572234949853367';
 const JOIN_BUTTON_ID = 'spooky-hunt-join';
 const SUBMIT_BUTTON_ID = 'spooky-hunt-submit';
 const MODAL_ID = 'spooky-hunt-answer';
@@ -153,7 +153,7 @@ async function fetchChannel(channelId, client) {
 
 async function sendParticipantRequestNotification(client, user, participantChannel) {
   const requestChannel = await fetchChannel(
-    PARTICIPANT_REQUEST_CHANNEL_ID,
+    PARTICIPANT_CHANNEL_ID,
     client
   );
   if (!requestChannel || !requestChannel.isTextBased()) {
@@ -231,9 +231,27 @@ async function eliminateParticipant(state, userId, client, saveData, decayTimers
 }
 
 async function ensureEventMessage(state, client, saveData) {
-  if (!state.channel_id) return;
-  const channel = await fetchChannel(state.channel_id, client);
+  const channel = await fetchChannel(PARTICIPANT_CHANNEL_ID, client);
   if (!channel || !channel.isTextBased()) return;
+
+  let dirty = false;
+  if (state.channel_id !== channel.id) {
+    state.channel_id = channel.id;
+    dirty = true;
+  }
+  const guildId = channel.guildId || channel.guild?.id || null;
+  if (state.guild_id !== guildId) {
+    state.guild_id = guildId;
+    dirty = true;
+  }
+  const parentId = channel.parentId || null;
+  if (state.parent_id !== parentId) {
+    state.parent_id = parentId;
+    dirty = true;
+  }
+  if (dirty) {
+    saveData();
+  }
 
   let message = null;
   if (state.message_id) {
@@ -478,19 +496,26 @@ function setup(client, resources) {
           await interaction.editReply('This command can only be used in a server channel.');
           return;
         }
-        const state = spookyHuntState;
-        state.channel_id = interaction.channelId;
-        state.guild_id = interaction.guildId;
-        state.parent_id = interaction.channel?.parentId || null;
+        const channel = await fetchChannel(PARTICIPANT_CHANNEL_ID, client);
+        if (!channel || !channel.isTextBased()) {
+          await interaction.editReply(
+            'The Spooky Hunt participant channel is unavailable. Please confirm the bot can access it.'
+          );
+          return;
+        }
+
+        spookyHuntState.channel_id = channel.id;
+        spookyHuntState.guild_id = channel.guildId || channel.guild?.id || null;
+        spookyHuntState.parent_id = channel.parentId || null;
         saveData();
 
-        await ensureEventMessage(state, client, saveData);
-        if (!state.message_id) {
+        await ensureEventMessage(spookyHuntState, client, saveData);
+        if (!spookyHuntState.message_id) {
           await interaction.editReply('Failed to send the event message.');
           return;
         }
         await interaction.editReply(
-          `The Spooky Hunt message is active: <#${state.channel_id}>`
+          `The Spooky Hunt message is active: ${channel}`
         );
         return;
       }
