@@ -44,6 +44,14 @@ function ensureState(state) {
   state.participants = state.participants || {};
   state.ended = Boolean(state.ended);
   state.winner_id = state.winner_id || null;
+  for (const entry of Object.values(state.participants)) {
+    if (!entry || typeof entry !== 'object') continue;
+    entry.channel_id = entry.channel_id || null;
+    entry.hearts = typeof entry.hearts === 'number' ? entry.hearts : MAX_HEARTS;
+    entry.next_decay_at = entry.next_decay_at || null;
+    entry.eliminated = Boolean(entry.eliminated);
+    entry.notified = Boolean(entry.notified);
+  }
 }
 
 function buildEventContainer(state) {
@@ -508,6 +516,7 @@ function setup(client, resources) {
               hearts: MAX_HEARTS,
               next_decay_at: Date.now() + DECAY_DURATION,
               eliminated: false,
+              notified: false,
             };
             spookyHuntState.participants[userId] = entry;
             saveData();
@@ -553,12 +562,19 @@ function setup(client, resources) {
             ephemeral: true,
           });
 
-          if (createdNewChannel) {
-            sendParticipantRequestNotification(
-              client,
-              interaction.user,
-              channel
-            ).catch(() => {});
+          const shouldNotify = createdNewChannel || !entry.notified;
+          if (shouldNotify) {
+            try {
+              await sendParticipantRequestNotification(
+                client,
+                interaction.user,
+                channel
+              );
+              entry.notified = true;
+              saveData();
+            } catch (error) {
+              console.error('Failed to notify spooky hunt staff', error);
+            }
           }
           return;
         }
