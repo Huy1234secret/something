@@ -32,6 +32,7 @@ const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
 const masteryCommand = require('./command/mastery');
+const badgesCommand = require('./command/badges');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -236,26 +237,26 @@ async function addXp(user, amount, client) {
   }
   if (stats.chat_mastery_level >= 100) stats.chat_mastery_xp = 0;
   if (prevMastery < 100 && stats.chat_mastery_level >= 100) {
-    stats.deluxe_coins = (stats.deluxe_coins || 0) + 1000;
-    stats.diamonds = (stats.diamonds || 0) + 1000;
-    stats.coins = (stats.coins || 0) + 1000000;
+    stats.deluxe_coins = (stats.deluxe_coins || 0) + 1500;
+    stats.diamonds = (stats.diamonds || 0) + 3000;
+    stats.coins = (stats.coins || 0) + 4000000;
     const xpSoda = ITEMS.XPSoda;
     const entry = stats.inventory.find(i => i.id === 'XPSoda');
-    if (entry) entry.amount += 10;
+    if (entry) entry.amount += 25;
     else
       stats.inventory.push({
         id: xpSoda.id,
         name: xpSoda.name,
         emoji: xpSoda.emoji,
         image: xpSoda.image,
-        amount: 10,
+        amount: 25,
       });
     try {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `### Chat Mastery Maxed!\nYou reached level 100 chat mastery and received:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 XP Soda ${xpSoda.emoji}`,
+            `### Chat Mastery Maxed!\nYou reached level 100 chat mastery and received:\n-# 1500 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 3000 Diamonds <:CRDiamond:1405595593069432912>\n-# 4M Coins <:CRCoin:1405595571141480570>\n-# 25 XP Soda ${xpSoda.emoji}`,
           ),
         );
       await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -312,26 +313,26 @@ async function addHuntMasteryXp(user, amount, client) {
   }
   if (stats.hunt_mastery_level >= 100) stats.hunt_mastery_xp = 0;
   if (previous < 100 && stats.hunt_mastery_level >= 100) {
-    stats.deluxe_coins += 1000;
-    stats.diamonds += 1000;
-    stats.coins += 1000000;
+    stats.deluxe_coins += 3000;
+    stats.diamonds += 7500;
+    stats.coins += 12500000;
     const detector = ITEMS.AnimalDetector;
     const entry = stats.inventory.find(i => i.id === detector.id);
-    if (entry) entry.amount += 10;
+    if (entry) entry.amount += 20;
     else
       stats.inventory.push({
         id: detector.id,
         name: detector.name,
         emoji: detector.emoji,
         image: detector.image,
-        amount: 10,
+        amount: 20,
       });
     try {
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `### Hunting Mastery Maxed!\nYou reached level 100 hunting mastery and received:\n-# 1000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 1000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# 10 Animal Detectors ${detector.emoji}`,
+            `### Hunting Mastery Maxed!\nYou reached level 100 hunting mastery and received:\n-# 3000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 7500 Diamonds <:CRDiamond:1405595593069432912>\n-# 12.5M Coins <:CRCoin:1405595571141480570>\n-# 20 Animal Detectors ${detector.emoji}`,
           ),
         );
       await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -484,6 +485,7 @@ client.on = function(event, listener) {
     begCommand.setup(client, resources);
     myCosmeticCommand.setup(client, resources);
     masteryCommand.setup(client, resources);
+    badgesCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists

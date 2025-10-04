@@ -14,6 +14,12 @@ const {
 } = require('discord.js');
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
+const { AREAS, AREA_BY_NAME, AREA_BY_KEY, HUNT_LURES, RARE_RARITIES } = require('../huntData');
+const {
+  getBadgeById,
+  getBadgeProgress,
+  formatBadgeRewardLines,
+} = require('../badges');
 const {
   normalizeInventory,
   getInventoryCount,
@@ -29,33 +35,6 @@ for (const item of Object.values(ITEMS)) {
   if (!ITEMS_BY_RARITY[rarity]) ITEMS_BY_RARITY[rarity] = [];
   ITEMS_BY_RARITY[rarity].push(item);
 }
-
-const AREAS = [
-  {
-    name: 'Temperate Forest',
-    key: 'TemperateForest',
-    emoji: '<:SBTemperateForest:1410883390739054703>',
-    image: 'https://i.ibb.co/PzN2mTKj/Temperate-Forest.png',
-  },
-  {
-    name: 'Swamp',
-    key: 'Swamp',
-    emoji: '<:SBSwamp:1410883405087768587>',
-    image: 'https://i.ibb.co/fGV7ftKn/Swamp.png',
-  },
-  {
-    name: 'Savannah',
-    key: 'Savannah',
-    emoji: '<:SBSavannah:1410883416135569408>',
-    image: 'https://i.ibb.co/s9y7mN4L/Savannah.png',
-  },
-  {
-    name: 'Arctic Tundra',
-    key: 'ArcticTundra',
-    emoji: '<:SBArcticTundra:1410883429813452872>',
-    image: 'https://i.ibb.co/21pKKfNN/Arctic-Tundra.png',
-  },
-];
 
 const FAIL_MESSAGES = [
   'The animals spotted you first and vanished into the trees',
@@ -133,8 +112,10 @@ const HUNT_XP_MULTIPLIER = {
 
 const huntStates = new Map();
 
+const MASTER_ZOOLOGIST_BADGE = getBadgeById('MasterZoologist');
+
 function getArea(name) {
-  return AREAS.find(a => a.name === name);
+  return AREA_BY_NAME[name];
 }
 
 function articleFor(word) {
@@ -236,6 +217,21 @@ function buildStatContainer(user, stats) {
         `Item discovered: ${discovered} / ${totalAnimals}`,
       ),
     );
+  const lureState = stats.hunt_lures || {};
+  const activeLures = Object.entries(lureState)
+    .filter(([, data]) => data && data.remaining > 0)
+    .map(([areaKey, data]) => {
+      const areaInfo = AREA_BY_KEY[areaKey];
+      const item = ITEMS[data.itemId] || {};
+      const areaName = areaInfo ? areaInfo.name : areaKey;
+      const itemName = item.name || 'Lure';
+      return `-# ${areaName}: ${itemName} (${data.remaining} hunts left)`;
+    });
+  if (activeLures.length) {
+    section.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`Active lures:\n${activeLures.join('\n')}`),
+    );
+  }
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
@@ -340,10 +336,14 @@ function buildEquipmentContainer(user, stats) {
 
 function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
   const allowSecret = (stats && stats.hunt_mastery_level >= 100) || false;
+  const lureInfo = HUNT_LURES[areaKey];
+  const lureState = stats && stats.hunt_lures ? stats.hunt_lures[areaKey] : null;
+  const lureActive = Boolean(lureInfo && lureState && lureState.remaining > 0);
   const candidates = ANIMALS.map(a => {
     let chance = (a.chances[areaKey] || [0, 0, 0])[tier - 1] || 0;
     if (!allowSecret && a.rarity === 'Secret') chance = 0;
     if (luckBoost && a.rarity !== 'Common') chance *= 2;
+    if (lureActive && RARE_RARITIES.has(a.rarity)) chance *= 2;
     return { animal: a, chance };
   }).filter(c => c.chance > 0);
   if (candidates.length === 0) {
@@ -395,6 +395,7 @@ async function handleHunt(interaction, resources, stats) {
   normalizeInventory(stats);
   const initialFull = alertInventoryFull(interaction, user, stats);
   const inv = stats.inventory || [];
+  stats.hunt_lures = stats.hunt_lures || {};
   const bulletId = stats.hunt_bullet || 'Bullet';
   const bullet = inv.find(i => i.id === bulletId);
   if (!bullet || bullet.amount <= 0) {
@@ -496,6 +497,9 @@ async function handleHunt(interaction, resources, stats) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
     const tier = tierMap[stats.hunt_gun] || 1;
+    const lureConfig = HUNT_LURES[areaObj.key];
+    const lureState = lureConfig ? stats.hunt_lures[areaObj.key] : null;
+    const lureActive = Boolean(lureConfig && lureState && lureState.remaining > 0);
     const animal = pickAnimal(areaObj.key, tier, stats, { luckBoost });
     const item = ITEMS[animal.id];
     if (!stats.hunt_discover) stats.hunt_discover = [];
@@ -567,10 +571,23 @@ async function handleHunt(interaction, resources, stats) {
     if (luckBoost) {
       extraLines.push('-# Hunting luck surged, rarer animals were easier to find!');
     }
+    if (lureActive) {
+      const lureItem = ITEMS[lureConfig.itemId] || { name: 'Lure', emoji: '' };
+      lureState.remaining = Math.max(0, lureState.remaining - 1);
+      const remainingText =
+        lureState.remaining > 0
+          ? `-# ${lureItem.name} boost hunts left: ${lureState.remaining}`
+          : `-# ${lureItem.name} boost has expired.`;
+      extraLines.push('-# Rarer animals were drawn in by your lure!');
+      extraLines.push(remainingText);
+      if (lureState.remaining <= 0) delete stats.hunt_lures[areaObj.key];
+    }
     if (duplicated) {
       extraLines.push(`-# Duplicate bonus: another ${animal.name} ${animal.emoji} was added!`);
     }
     if (bonusItemText) extraLines.push(bonusItemText);
+
+    await checkMasterZoologistBadge(user, stats, resources, extraLines);
   } else if (roll < successChance + failChance) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
     const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
@@ -622,6 +639,70 @@ async function handleHunt(interaction, resources, stats) {
   if (died) {
     await handleDeath(user, 'hunting', resources);
   }
+}
+
+async function checkMasterZoologistBadge(user, stats, resources, extraLines) {
+  if (!MASTER_ZOOLOGIST_BADGE) return;
+  stats.badges = stats.badges || {};
+  if (stats.badges[MASTER_ZOOLOGIST_BADGE.id]) return;
+  const progress = getBadgeProgress(MASTER_ZOOLOGIST_BADGE, stats);
+  if (!progress.max || progress.current < progress.max) return;
+
+  stats.badges[MASTER_ZOOLOGIST_BADGE.id] = true;
+
+  for (const prize of MASTER_ZOOLOGIST_BADGE.prizes) {
+    if (prize.type === 'currency') {
+      const key = prize.currency;
+      stats[key] = Number.isFinite(stats[key]) ? stats[key] : 0;
+      stats[key] += prize.amount;
+    } else if (prize.type === 'item') {
+      const base = ITEMS[prize.itemId] || {
+        id: prize.itemId,
+        name: prize.itemId,
+        emoji: '',
+        image: '',
+      };
+      const inv = stats.inventory || [];
+      let entry = inv.find(i => i.id === base.id);
+      if (entry) entry.amount += prize.amount;
+      else
+        inv.push({
+          id: base.id,
+          name: base.name,
+          emoji: base.emoji,
+          image: base.image,
+          amount: prize.amount,
+        });
+    }
+  }
+
+  const rewardLines = formatBadgeRewardLines(MASTER_ZOOLOGIST_BADGE);
+  const badgeContainer = new ContainerBuilder()
+    .setAccentColor(0xffff00)
+    .addSectionComponents(
+      new SectionBuilder()
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setURL(MASTER_ZOOLOGIST_BADGE.thumbnail || user.displayAvatarURL()),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `# Congratulation ${user}!\n### You have earned Master Zoologist badge!\n-# For discovering every single animals in hunting`,
+          ),
+        ),
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `You have earned:\n${rewardLines.join('\n')}`,
+      ),
+    );
+  try {
+    await user.send({ components: [badgeContainer], flags: MessageFlags.IsComponentsV2 });
+  } catch {}
+  extraLines.push(
+    `-# ${MASTER_ZOOLOGIST_BADGE.name} badge earned! Check your DMs for rewards.`,
+  );
+  resources.userStats[user.id] = stats;
 }
 
 function setup(client, resources) {

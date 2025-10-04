@@ -14,6 +14,8 @@ const {
   TextInputStyle,
 } = require('discord.js');
 const { ITEMS } = require('../items');
+const { ANIMALS } = require('../animals');
+const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
 const { normalizeInventory, setSafeTimeout } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
@@ -28,6 +30,22 @@ const RARITY_COLORS = {
   Prismatic: 0x00ff00,
   Secret: 0x000000,
 };
+
+const AREA_BY_LURE = Object.fromEntries(
+  Object.entries(HUNT_LURES).map(([areaKey, data]) => [data.itemId, areaKey]),
+);
+
+const RARITY_ORDER = [
+  'Common',
+  'Uncommon',
+  'Rare',
+  'Epic',
+  'Legendary',
+  'Mythical',
+  'Godly',
+  'Prismatic',
+  'Secret',
+];
 
 function padlockEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
@@ -282,6 +300,8 @@ async function handleUseItem(user, itemId, amount, send, resources) {
     result = useBulletBox(user, amount, resources);
   } else if (itemId === 'AnimalDetector') {
     result = useAnimalDetector(user, amount, resources);
+  } else if (AREA_BY_LURE[itemId]) {
+    result = useHuntLure(user, itemId, amount, resources);
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
@@ -290,6 +310,107 @@ async function handleUseItem(user, itemId, amount, send, resources) {
   } else {
     await send({ components: [result.component], flags: MessageFlags.IsComponentsV2 });
   }
+}
+
+function buildLureSummary(areaKey) {
+  const baseTotals = [{}, {}, {}];
+  const boostedTotals = [{}, {}, {}];
+  for (const animal of ANIMALS) {
+    const chances = animal.chances[areaKey];
+    if (!chances) continue;
+    for (let tier = 0; tier < chances.length; tier++) {
+      const chance = Number(chances[tier]) || 0;
+      if (chance <= 0) continue;
+      const rarity = animal.rarity;
+      baseTotals[tier][rarity] = (baseTotals[tier][rarity] || 0) + chance;
+      const multiplier = RARE_RARITIES.has(rarity) ? 2 : 1;
+      boostedTotals[tier][rarity] =
+        (boostedTotals[tier][rarity] || 0) + chance * multiplier;
+    }
+  }
+  const summaries = [];
+  for (let tier = 0; tier < baseTotals.length; tier++) {
+    const base = baseTotals[tier];
+    const boosted = boostedTotals[tier];
+    const baseSum = Object.values(base).reduce((sum, value) => sum + value, 0);
+    const boostedSum = Object.values(boosted).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+    if (baseSum <= 0 || boostedSum <= 0) continue;
+    const rarities = Array.from(
+      new Set([...Object.keys(base), ...Object.keys(boosted)]),
+    ).sort((a, b) => {
+      const aIndex = RARITY_ORDER.indexOf(a);
+      const bIndex = RARITY_ORDER.indexOf(b);
+      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+    });
+    const lines = rarities
+      .map(rarity => {
+        const baseValue = base[rarity] || 0;
+        const boostedValue = boosted[rarity] || 0;
+        const basePct = (baseValue / baseSum) * 100;
+        const boostedPct = (boostedValue / boostedSum) * 100;
+        const delta = boostedPct - basePct;
+        const sign = delta >= 0 ? '+' : '';
+        return `-# ${rarity}: ${basePct.toFixed(2)}% → ${boostedPct.toFixed(
+          2,
+        )}% (${sign}${delta.toFixed(2)}%)`;
+      })
+      .filter(Boolean);
+    if (lines.length === 0) continue;
+    summaries.push(`### Tier ${tier + 1} rarity shifts\n${lines.join('\n')}`);
+  }
+  return summaries;
+}
+
+function useHuntLure(user, itemId, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === itemId);
+  const item = ITEMS[itemId];
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  const areaKey = AREA_BY_LURE[itemId];
+  const areaInfo = AREA_BY_KEY[areaKey] || { name: areaKey };
+  stats.hunt_lures = stats.hunt_lures || {};
+  const state = stats.hunt_lures[areaKey] || { itemId, remaining: 0 };
+  state.itemId = itemId;
+  state.remaining = (state.remaining || 0) + 20 * amount;
+  stats.hunt_lures[areaKey] = state;
+  normalizeInventory(stats);
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+
+  const summary = buildLureSummary(areaKey);
+  const container = new ContainerBuilder()
+    .setAccentColor(RARITY_COLORS[item.rarity] || 0xffffff)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`## ${item.name} activated!`),
+      new TextDisplayBuilder().setContent(
+        `Hey ${user}, you have used ×${amount} ${item.name} ${item.emoji}!`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# Area boosted: ${areaInfo.name}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        `-# Successful hunts remaining: ${state.remaining}`,
+      ),
+      new TextDisplayBuilder().setContent(
+        '-# Rare animal chances are doubled while this lure is active.',
+      ),
+    );
+  if (summary.length) {
+    container.addSeparatorComponents(new SeparatorBuilder());
+    summary.forEach(block =>
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(block)),
+    );
+  }
+  return { component: container };
 }
 
 function useDiamondItem(user, itemId, amount, perDiamond, resources) {
