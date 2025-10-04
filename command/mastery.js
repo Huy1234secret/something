@@ -74,41 +74,90 @@ function buildChatPerks(level) {
 }
 
 function buildHuntPerks(level) {
-  const baseIcons = {
-    initial: '<:SBE1:1414145519462387752>',
-    current: '<:SBF2:1414145565436149790>',
-    done: '<:SBF:1414145617512366120>',
-  };
-  const finalIcons = {
-    initial: '<:SBE3:1414145536696516698>',
-    current: '<:SBF3:1414145576878080132>',
-    done: '<:SBF3:1414145576878080132>',
-  };
   const perks = [
-    { level: 10, text: 'Increase hunt success chance by 5%', icons: baseIcons },
-    { level: 20, text: '25% chance to refund bullets when hunting', icons: baseIcons },
-    { level: 30, text: 'Animal sell value increased by 25%', icons: baseIcons },
-    { level: 40, text: 'Hunting cooldown reduced to 20s', icons: baseIcons },
-    { level: 50, text: '10% chance to find a random item while hunting', icons: baseIcons },
-    { level: 60, text: 'Additional 15% success chance when hunting', icons: baseIcons },
-    { level: 70, text: '10% chance to duplicate hunted animals', icons: baseIcons },
-    { level: 80, text: 'Every 10th hunt has doubled rare luck', icons: baseIcons },
-    { level: 90, text: 'Hunting cooldown reduced to 10s', icons: baseIcons },
-    { level: 100, text: 'Unlock secret animals', icons: finalIcons },
+    {
+      level: 10,
+      text: 'Increase hunt success chance by 5%',
+      initial: '<:SBE1:1414145519462387752>',
+      current: '<:SBF1:1414145589465190501>',
+      done: '<:SBF4:1414145601737588839>',
+    },
+    {
+      level: 20,
+      text: '25% chance to refund bullets when hunting',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 30,
+      text: 'Animal sell value increased by 25%',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 40,
+      text: 'Hunting cooldown reduced to 20s',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 50,
+      text: '10% chance to find a random item while hunting',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 60,
+      text: 'Additional 15% success chance when hunting',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 70,
+      text: '10% chance to duplicate hunted animals',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 80,
+      text: 'Every 10th hunt has doubled rare luck',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 90,
+      text: 'Hunting cooldown reduced to 10s',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 100,
+      text: 'Unlock secret animals',
+      initial: '<:SBE3:1414145536696516698>',
+      current: '<:SBF3:1414145576878080132>',
+      done: '<:SBF3:1414145576878080132>',
+    },
   ];
   let unlockedIndex = -1;
   for (let i = 0; i < perks.length; i++) {
     if (level >= perks[i].level) unlockedIndex = i;
   }
   const lines = perks.map((p, idx) => {
-    const icons = p.icons || baseIcons;
-    let icon = icons.initial;
+    let icon = p.initial;
     let text = p.text;
     if (idx < unlockedIndex) {
-      icon = icons.done;
+      icon = p.done;
       text = `**${text}**`;
     } else if (idx === unlockedIndex && level >= p.level) {
-      icon = icons.current;
+      icon = p.current;
       text = `**${text}**`;
     }
     return `-# ${icon} ${text}`;
