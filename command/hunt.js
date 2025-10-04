@@ -364,7 +364,7 @@ async function sendHunt(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   resources.userStats[user.id] = stats;
   const areaObj = getArea(stats.hunt_area);
-  const text = areaObj
+  let text = areaObj
     ? `### ${user}, You will be hunting in ${areaObj.name}!`
     : `### ${user}, select an area before hunting!`;
   if ((stats.hunt_detector_charges || 0) > 0) {
