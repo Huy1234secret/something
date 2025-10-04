@@ -380,7 +380,7 @@ async function finalizeEvent(state, client, saveData, decayTimers, winner) {
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `You earned:\n* 1000 Deluxe Coins ${DELUXE_EMOJI}\n* 25$ giftcard`
+        `You earned:\n* 1000 Deluxe Coins ${DELUXE_EMOJI}\n* 10$ giftcard`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder())
