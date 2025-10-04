@@ -156,7 +156,10 @@ async function sendParticipantRequestNotification(client, user, participantChann
     PARTICIPANT_REQUEST_CHANNEL_ID,
     client
   );
-  if (!requestChannel || !requestChannel.isTextBased()) return;
+  if (!requestChannel || !requestChannel.isTextBased()) {
+    console.warn('Spooky hunt participant request channel unavailable');
+    return false;
+  }
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffa500)
@@ -177,9 +180,16 @@ async function sendParticipantRequestNotification(client, user, participantChann
     );
   }
 
-  requestChannel
-    .send({ components: [container], flags: MessageFlags.IsComponentsV2 })
-    .catch(() => {});
+  try {
+    await requestChannel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to send spooky hunt participant notification', error);
+    return false;
+  }
 }
 
 async function eliminateParticipant(state, userId, client, saveData, decayTimers, reason) {
@@ -565,13 +575,15 @@ function setup(client, resources) {
           const shouldNotify = createdNewChannel || !entry.notified;
           if (shouldNotify) {
             try {
-              await sendParticipantRequestNotification(
+              const notified = await sendParticipantRequestNotification(
                 client,
                 interaction.user,
                 channel
               );
-              entry.notified = true;
-              saveData();
+              if (notified) {
+                entry.notified = true;
+                saveData();
+              }
             } catch (error) {
               console.error('Failed to notify spooky hunt staff', error);
             }
