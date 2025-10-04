@@ -26,6 +26,9 @@ const DELUXE_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
 const CORRECT_ANSWER = normalizeAnswer('NEVER BLOW OUT THE SEVENTH CANDLE');
 const DECAY_DURATION = 24 * 60 * 60 * 1000;
 const MAX_HEARTS = 7;
+// Automatically remove staff notification messages shortly after they are sent
+// so the channel stays tidy when participants join repeatedly.
+const PARTICIPANT_NOTIFICATION_TTL = 60 * 1000;
 
 function normalizeAnswer(str) {
   return str
@@ -181,10 +184,17 @@ async function sendParticipantRequestNotification(client, user, participantChann
   }
 
   try {
-    await requestChannel.send({
+    const message = await requestChannel.send({
       components: [container],
       flags: MessageFlags.IsComponentsV2,
     });
+    if (PARTICIPANT_NOTIFICATION_TTL > 0) {
+      setSafeTimeout(() => {
+        message.delete().catch(() => {});
+      }, PARTICIPANT_NOTIFICATION_TTL);
+    } else {
+      message.delete().catch(() => {});
+    }
     return true;
   } catch (error) {
     console.error('Failed to send spooky hunt participant notification', error);
