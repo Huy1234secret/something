@@ -3,5 +3,18 @@
   "user_card_settings": {},
   "timed_roles": [],
   "command_bans": {},
-  "csh_message_id": null
+  "csh_message_id": null,
+  "shop": {
+    "stock": {},
+    "nextRestock": 0
+  },
+  "spooky_hunt": {
+    "message_id": null,
+    "channel_id": null,
+    "guild_id": null,
+    "parent_id": null,
+    "participants": {},
+    "ended": false,
+    "winner_id": null
+  }
 }
