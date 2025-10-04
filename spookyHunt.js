@@ -18,6 +18,7 @@ const {
 const { setSafeTimeout } = require('./utils');
 
 const EVENT_ROLE_ID = '1374410305991610520';
+const PARTICIPANT_REQUEST_CHANNEL_ID = '1372572234949853367';
 const JOIN_BUTTON_ID = 'spooky-hunt-join';
 const SUBMIT_BUTTON_ID = 'spooky-hunt-submit';
 const MODAL_ID = 'spooky-hunt-answer';
@@ -140,6 +141,37 @@ async function fetchChannel(channelId, client) {
   } catch {
     return null;
   }
+}
+
+async function sendParticipantRequestNotification(client, user, participantChannel) {
+  const requestChannel = await fetchChannel(
+    PARTICIPANT_REQUEST_CHANNEL_ID,
+    client
+  );
+  if (!requestChannel || !requestChannel.isTextBased()) return;
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0xffa500)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('### Spooky Hunt participant request')
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `${user} has stepped into the manor.`
+      )
+    );
+
+  if (participantChannel?.isTextBased?.() || participantChannel?.toString) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `Relic chamber: ${participantChannel}`
+      )
+    );
+  }
+
+  requestChannel
+    .send({ components: [container], flags: MessageFlags.IsComponentsV2 })
+    .catch(() => {});
 }
 
 async function eliminateParticipant(state, userId, client, saveData, decayTimers, reason) {
@@ -490,6 +522,7 @@ function setup(client, resources) {
           }
 
           let channel = await fetchChannel(entry.channel_id, client);
+          let createdNewChannel = false;
           if (!channel) {
             channel = await createParticipantChannel(spookyHuntState, interaction, saveData).catch(() => null);
             if (!channel) {
@@ -503,6 +536,7 @@ function setup(client, resources) {
             entry.next_decay_at = Date.now() + DECAY_DURATION;
             entry.hearts = entry.hearts || MAX_HEARTS;
             saveData();
+            createdNewChannel = true;
           }
 
           scheduleDecay(spookyHuntState, userId, client, saveData, decayTimers);
@@ -518,6 +552,14 @@ function setup(client, resources) {
             content: `Your relic chamber awaits: ${channel}`,
             ephemeral: true,
           });
+
+          if (createdNewChannel) {
+            sendParticipantRequestNotification(
+              client,
+              interaction.user,
+              channel
+            ).catch(() => {});
+          }
           return;
         }
         if (interaction.customId === SUBMIT_BUTTON_ID) {
