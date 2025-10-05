@@ -199,28 +199,19 @@ function buildStatContainer(user, stats) {
     .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
   const discovered = (stats.hunt_discover || []).length;
   const totalAnimals = ANIMALS.length;
-  const section = new SectionBuilder()
-    .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `## <:SBHuntingstat:1410892320538230834> Mastery Level: ${
-          stats.hunt_mastery_level || 0
-        }`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `Guaranteed hunts left: ${stats.hunt_detector_charges || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `Hunt amount: ${stats.hunt_total || 0}\n-# Success: ${
-          stats.hunt_success || 0
-        }\n-# failed: ${stats.hunt_fail || 0}\n-# died: ${
-          stats.hunt_die || 0
-        }`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `Item discovered: ${discovered} / ${totalAnimals}`,
-      ),
-    );
+  const masteryLevelText = new TextDisplayBuilder().setContent(
+    `## <:SBHuntingstat:1410892320538230834> Mastery Level: ${
+      stats.hunt_mastery_level || 0
+    }`,
+  );
+  const huntStatsText = new TextDisplayBuilder().setContent(
+    `Guaranteed hunts left: ${stats.hunt_detector_charges || 0}\nHunt amount: ${
+      stats.hunt_total || 0
+    }\n-# Success: ${stats.hunt_success || 0}\n-# failed: ${
+      stats.hunt_fail || 0
+    }\n-# died: ${stats.hunt_die || 0}`,
+  );
+  const infoLines = [`Item discovered: ${discovered} / ${totalAnimals}`];
   const lureState = stats.hunt_lures || {};
   const activeLures = Object.entries(lureState)
     .filter(([, data]) => data && data.remaining > 0)
@@ -232,10 +223,12 @@ function buildStatContainer(user, stats) {
       return `-# ${areaName}: ${itemName} (${data.remaining} hunts left)`;
     });
   if (activeLures.length) {
-    section.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`Active lures:\n${activeLures.join('\n')}`),
-    );
+    infoLines.push(`Active lures:\n${activeLures.join('\n')}`);
   }
+  const infoText = new TextDisplayBuilder().setContent(infoLines.join('\n\n'));
+  const section = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
+    .addTextDisplayComponents(masteryLevelText, huntStatsText, infoText);
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
@@ -358,12 +351,10 @@ function buildEquipmentContainer(user, stats) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
       new TextDisplayBuilder().setContent(
-        `* Gun equiped: ${equippedGun.name} ${equippedGun.emoji}`,
+        `* Gun equiped: ${equippedGun.name} ${equippedGun.emoji}\n* Bullet using: ${
+          equippedBullet.name
+        } ${equippedBullet.emoji}\n${activeLureText}`,
       ),
-      new TextDisplayBuilder().setContent(
-        `* Bullet using: ${equippedBullet.name} ${equippedBullet.emoji}`,
-      ),
-      new TextDisplayBuilder().setContent(activeLureText),
     );
   const infoContainer = new ContainerBuilder()
     .setAccentColor(0xffffff)
