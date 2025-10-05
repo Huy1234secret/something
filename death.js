@@ -10,7 +10,7 @@ const {
   ButtonBuilder,
 } = require('@discordjs/builders');
 const { ITEMS } = require('./items');
-const { normalizeInventory } = require('./utils');
+const { normalizeInventory, applyComponentEmoji } = require('./utils');
 
 const RARITY_ORDER = [
   ['Common', 0.5],
@@ -39,10 +39,10 @@ async function handleDeath(user, action, resources) {
     resources.saveData();
     const btn = new ButtonBuilder()
       .setCustomId('heart-left')
-      .setEmoji(ITEMS.SeraphicHeart.emoji)
       .setLabel(`You have ${heart.amount} ${ITEMS.SeraphicHeart.name} left!`)
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true);
+    applyComponentEmoji(btn, ITEMS.SeraphicHeart.emoji);
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
       .addTextDisplayComponents(

@@ -104,6 +104,26 @@ function getInventoryCount(stats) {
   return (stats.inventory || []).reduce((sum, i) => sum + (i.amount || 0), 0);
 }
 
+function resolveComponentEmoji(emoji) {
+  if (!emoji) return emoji;
+  if (typeof emoji !== 'string') return emoji;
+  const match = emoji.match(/^<(?:(a):)?([a-zA-Z0-9_]+):(\d+)>$/);
+  if (!match) return emoji;
+  const [, animatedFlag, name, id] = match;
+  return {
+    id,
+    name,
+    animated: Boolean(animatedFlag),
+  };
+}
+
+function applyComponentEmoji(component, emoji) {
+  if (!emoji) return component;
+  const resolved = resolveComponentEmoji(emoji);
+  component.setEmoji(resolved);
+  return component;
+}
+
 function alertInventoryFull(interaction, user, stats, pending = 0) {
   if (getInventoryCount(stats) + pending >= MAX_ITEMS) {
     interaction
@@ -184,4 +204,6 @@ module.exports = {
   alertInventoryFull,
   useDurableItem,
   applyCoinBoost,
+  resolveComponentEmoji,
+  applyComponentEmoji,
 };

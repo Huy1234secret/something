@@ -18,7 +18,7 @@ const {
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
-const { normalizeInventory, setSafeTimeout } = require('../utils');
+const { normalizeInventory, setSafeTimeout, applyComponentEmoji } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
@@ -53,9 +53,9 @@ function padlockEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
     .setCustomId('padlock-left')
     .setLabel(`You have ×${amountLeft} Padlock left!`)
-    .setEmoji(ITEMS.Padlock.emoji)
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
+  applyComponentEmoji(btn, ITEMS.Padlock.emoji);
   return new ContainerBuilder()
     .setAccentColor(RARITY_COLORS[ITEMS.Padlock.rarity])
     .addSectionComponents(
@@ -81,9 +81,9 @@ function landmineEmbed(user, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
     .setCustomId('landmine-left')
     .setLabel(`You have ×${amountLeft} Landmine left!`)
-    .setEmoji(ITEMS.Landmine.emoji)
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
+  applyComponentEmoji(btn, ITEMS.Landmine.emoji);
   return new ContainerBuilder()
     .setAccentColor(RARITY_COLORS[ITEMS.Landmine.rarity])
     .addSectionComponents(
@@ -117,9 +117,9 @@ function xpSodaEmbed(user, used, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
     .setCustomId('xpsoda-left')
     .setLabel(`You have ×${amountLeft} XP Soda left!`)
-    .setEmoji(ITEMS.XPSoda.emoji)
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
+  applyComponentEmoji(btn, ITEMS.XPSoda.emoji);
   return new ContainerBuilder()
     .setAccentColor(RARITY_COLORS[ITEMS.XPSoda.rarity])
     .addTextDisplayComponents(
@@ -133,11 +133,13 @@ function xpSodaEmbed(user, used, amountLeft, expiresAt) {
 }
 
 function expiredPadlockContainer(user, disable = false) {
-  const btn = new ButtonBuilder()
-    .setCustomId('padlock-use-again')
-    .setStyle(ButtonStyle.Success)
-    .setLabel('Use ×1 Padlock')
-    .setEmoji(ITEMS.Padlock.emoji);
+  const btn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('padlock-use-again')
+      .setStyle(ButtonStyle.Success)
+      .setLabel('Use ×1 Padlock'),
+    ITEMS.Padlock.emoji,
+  );
   if (disable) btn.setDisabled(true);
   return new ContainerBuilder()
     .setAccentColor(0xff0000)

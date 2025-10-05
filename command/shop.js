@@ -30,6 +30,8 @@ const {
   MAX_ITEMS,
   alertInventoryFull,
   applyCoinBoost,
+  applyComponentEmoji,
+  resolveComponentEmoji,
 } = require('../utils');
 
 const DELUXE_ITEM_IDS = ['DiamondBag', 'DiamondCrate', 'DiamondChest'];
@@ -268,14 +270,13 @@ async function sendMarket(user, send, resources) {
   let showOther = false;
   if (sellable.length) {
     let options = sellable.map(item => {
-      const match = /<(a?):(\w+):(\d+)>/.exec(item.emoji);
-      return {
+      const emoji = resolveComponentEmoji(item.emoji);
+      const option = {
         label: `${item.name} - ${item.amount}`,
         value: item.id,
-        emoji: match
-          ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
-          : undefined,
       };
+      if (emoji) option.emoji = emoji;
+      return option;
     });
     if (options.length >= 24) {
       options = options.slice(0, 24);
@@ -295,19 +296,23 @@ async function sendMarket(user, send, resources) {
       .setPlaceholder('Nothing to sell')
       .setDisabled(true);
   }
+  const marketTypeOptions = [
+    { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
+    { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
+    {
+      label: 'Market',
+      value: 'market',
+      emoji: '<:SBMarket:1408156436789461165>',
+      default: true,
+    },
+  ].map(option => ({
+    ...option,
+    emoji: resolveComponentEmoji(option.emoji),
+  }));
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
-    .addOptions([
-      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
-      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
-      {
-        label: 'Market',
-        value: 'market',
-        emoji: '<:SBMarket:1408156436789461165>',
-        default: true,
-      },
-    ]);
+    .addOptions(marketTypeOptions);
   const container = new ContainerBuilder()
     .setAccentColor(0x006400)
     .addTextDisplayComponents(
@@ -418,14 +423,18 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .setPlaceholder('Page')
     .addOptions(Array.from({ length: pages }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })));
 
+  const typeSelectOptions = [
+    { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
+    { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
+    { label: 'Market', value: 'market', emoji: '<:SBMarket:1408156436789461165>' },
+  ].map(option => ({
+    ...option,
+    emoji: resolveComponentEmoji(option.emoji),
+  }));
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
-    .addOptions([
-      { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
-      { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
-      { label: 'Market', value: 'market', emoji: '<:SBMarket:1408156436789461165>' },
-    ]);
+    .addOptions(typeSelectOptions);
 
   const buttons = [];
   for (let i = 0; i < perPage; i++) {
@@ -433,7 +442,8 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     const btn = new ButtonBuilder().setCustomId(`shop-buy-${i}`);
     if (item) {
       const label = `[${item.stock ?? 0}/${item.maxStock ?? 0}] ${item.name}`;
-      btn.setLabel(label).setEmoji(item.emoji);
+      btn.setLabel(label);
+      applyComponentEmoji(btn, item.emoji);
       if (item.discount) btn.setStyle(ButtonStyle.Success);
       else btn.setStyle(ButtonStyle.Secondary);
       if (!item.stock) btn.setDisabled(true);
@@ -442,7 +452,9 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
         if (!item.discount) btn.setStyle(ButtonStyle.Secondary);
       }
     } else {
-      btn.setLabel('???').setEmoji('❓').setStyle(ButtonStyle.Secondary).setDisabled(true);
+      btn.setLabel('???');
+      applyComponentEmoji(btn, '❓');
+      btn.setStyle(ButtonStyle.Secondary).setDisabled(true);
     }
     buttons.push(btn);
   }

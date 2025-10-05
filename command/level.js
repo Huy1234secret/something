@@ -16,6 +16,7 @@ const {
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
 } = require('@discordjs/builders');
+const { applyComponentEmoji } = require('../utils');
 const { renderLevelCard } = require('../levelCard');
 const { loadImage } = require('canvas');
 
@@ -67,11 +68,13 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
   separator.data.accent_color = 0xffffff;
 
   // Create the button inside a container
-  const button = new ButtonBuilder()
-    .setCustomId('card-edit')
-    .setLabel('Card Edit')
-    .setEmoji('<:SBBotgear:1403611995814629447>')
-    .setStyle(ButtonStyle.Secondary);
+  const button = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('card-edit')
+      .setLabel('Card Edit')
+      .setStyle(ButtonStyle.Secondary),
+    '<:SBBotgear:1403611995814629447>',
+  );
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)

@@ -12,7 +12,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
 } = require('@discordjs/builders');
-const { formatNumber, normalizeInventory } = require('../utils');
+const { formatNumber, normalizeInventory, applyComponentEmoji } = require('../utils');
 const { ITEMS } = require('../items');
 
 async function sendWallet(user, send, { userStats, saveData }) {
@@ -45,21 +45,23 @@ async function sendWallet(user, send, { userStats, saveData }) {
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
   const padlockButton = new ButtonBuilder()
     .setCustomId('walletpadlock')
-    .setEmoji(
-      padlockActive ? ITEMS.Padlock.emoji : '<:SBline:1405444056200253521>',
-    )
     .setStyle(padlockActive ? ButtonStyle.Success : ButtonStyle.Secondary)
     .setDisabled(true);
+  applyComponentEmoji(
+    padlockButton,
+    padlockActive ? ITEMS.Padlock.emoji : '<:SBline:1405444056200253521>',
+  );
 
   const landmineActive =
     stats.landmine_until && stats.landmine_until > Date.now();
   const landmineButton = new ButtonBuilder()
     .setCustomId('walletlandmine')
-    .setEmoji(
-      landmineActive ? ITEMS.Landmine.emoji : '<:SBline:1405444056200253521>',
-    )
     .setStyle(landmineActive ? ButtonStyle.Danger : ButtonStyle.Secondary)
     .setDisabled(true);
+  applyComponentEmoji(
+    landmineButton,
+    landmineActive ? ITEMS.Landmine.emoji : '<:SBline:1405444056200253521>',
+  );
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
