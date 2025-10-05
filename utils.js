@@ -105,29 +105,24 @@ function getInventoryCount(stats) {
 }
 
 function resolveComponentEmoji(emoji) {
-  if (!emoji) return null;
-  if (typeof emoji !== 'string') {
-    return emoji && typeof emoji === 'object' ? { ...emoji } : null;
-  }
+  if (!emoji) return emoji;
+  if (typeof emoji !== 'string') return emoji;
   const trimmed = emoji.trim();
-  if (!trimmed) return null;
   const match = trimmed.match(/^<(?:(a):)?([a-zA-Z0-9_]+):(\d+)>$/);
   if (match) {
-    const [, animatedFlag, rawName, id] = match;
-    const sanitizedName =
-      typeof rawName === 'string' && /^[a-zA-Z0-9_]{2,32}$/.test(rawName)
-        ? rawName
-        : null;
-    const resolved = { id, animated: Boolean(animatedFlag) };
-    if (sanitizedName) resolved.name = sanitizedName;
-    return resolved;
+    const [, animatedFlag, name, id] = match;
+    return {
+      id,
+      name,
+      animated: Boolean(animatedFlag),
+    };
   }
   return { name: trimmed };
 }
 
 function applyComponentEmoji(component, emoji) {
+  if (!emoji) return component;
   const resolved = resolveComponentEmoji(emoji);
-  if (!resolved) return component;
   component.setEmoji(resolved);
   return component;
 }
