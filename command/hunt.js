@@ -362,7 +362,7 @@ function buildEquipmentContainer(user, stats) {
       );
   }
 
-  const section = new SectionBuilder()
+  const equipmentSection = new SectionBuilder()
     .setThumbnailAccessory(
       new ThumbnailBuilder().setURL(user.displayAvatarURL()),
     )
@@ -371,25 +371,20 @@ function buildEquipmentContainer(user, stats) {
       new TextDisplayBuilder().setContent(
         `* Gun equiped: ${equippedGun.name} ${equippedGun.emoji}\n* Bullet using: ${
           equippedBullet.name
-        } ${equippedBullet.emoji}\n${activeLureText}`,
+        } ${equippedBullet.emoji}`,
       ),
+      new TextDisplayBuilder().setContent(activeLureText),
     );
-  const infoContainer = new ContainerBuilder()
+
+  const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(section)
+    .addSectionComponents(equipmentSection)
     .addActionRowComponents(new ActionRowBuilder().addComponents(gunSelect))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect));
-
-  const lureSection = new SectionBuilder()
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(activeLureText));
-
-  const lureContainer = new ContainerBuilder()
-    .setAccentColor(0xffffff)
-    .addSectionComponents(lureSection)
+    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect))
     .addActionRowComponents(new ActionRowBuilder().addComponents(lureSelect))
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
 
-  return [infoContainer, lureContainer];
+  return [container];
 }
 
 function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
