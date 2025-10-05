@@ -84,6 +84,31 @@ const DEFAULT_COIN_ORDER = [
   ...BASE_COIN_ITEM_ORDER.slice(3),
 ];
 
+const MAX_ACTION_ROWS_PER_CONTAINER = 3;
+
+function distributeActionRows(baseContainer, rows, accentColor) {
+  const containers = [baseContainer];
+  let current = baseContainer;
+  let count = 0;
+
+  for (const row of rows) {
+    if (!row || !Array.isArray(row.components) || row.components.length === 0)
+      continue;
+
+    if (count >= MAX_ACTION_ROWS_PER_CONTAINER) {
+      current = new ContainerBuilder();
+      if (accentColor !== undefined) current.setAccentColor(accentColor);
+      containers.push(current);
+      count = 0;
+    }
+
+    current.addActionRowComponents(row);
+    count++;
+  }
+
+  return containers;
+}
+
 function getItemsByIds(ids) {
   return ids.map(id => ITEMS[id]).filter(Boolean);
 }
@@ -420,22 +445,31 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     buttons.push(btn);
   }
 
+  const buttonRows = [];
+  for (let i = 0; i < buttons.length; i += 3) {
+    const rowButtons = buttons.slice(i, i + 3);
+    if (rowButtons.length)
+      buttonRows.push(new ActionRowBuilder().addComponents(...rowButtons));
+  }
+
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(headerSection)
     .addSeparatorComponents(new SeparatorBuilder())
     .addMediaGalleryComponents(mediaGallery)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(pageSelect),
-      new ActionRowBuilder().addComponents(typeSelect),
-      new ActionRowBuilder().addComponents(...buttons.slice(0, 3)),
-      new ActionRowBuilder().addComponents(...buttons.slice(3)),
-    );
+    .addSeparatorComponents(new SeparatorBuilder());
+
+  const actionRows = [
+    new ActionRowBuilder().addComponents(pageSelect),
+    new ActionRowBuilder().addComponents(typeSelect),
+    ...buttonRows,
+  ];
+
+  const containers = distributeActionRows(container, actionRows, 0xffffff);
 
   const message = await send({
     files: [attachment],
-    components: [container],
+    components: containers,
     flags: MessageFlags.IsComponentsV2,
   });
   shopStates.set(message.id, { userId: user.id, page, type: state.type });
