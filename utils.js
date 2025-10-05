@@ -108,13 +108,13 @@ function resolveComponentEmoji(emoji) {
   if (!emoji) return emoji;
   if (typeof emoji !== 'string') return emoji;
   const trimmed = emoji.trim();
-  const match = trimmed.match(/^<(?:(a):)?([a-zA-Z0-9_]+):(\d+)>$/);
+  const match = trimmed.match(/^<(a?):([a-zA-Z0-9_]+):(\d+)>$/);
   if (match) {
     const [, animatedFlag, name, id] = match;
     return {
       id,
       name,
-      animated: Boolean(animatedFlag),
+      animated: animatedFlag === 'a',
     };
   }
   return { name: trimmed };
