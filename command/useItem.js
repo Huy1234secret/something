@@ -301,7 +301,9 @@ async function handleUseItem(user, itemId, amount, send, resources) {
   } else if (itemId === 'AnimalDetector') {
     result = useAnimalDetector(user, amount, resources);
   } else if (AREA_BY_LURE[itemId]) {
-    result = useHuntLure(user, itemId, amount, resources);
+    result = {
+      error: `${WARNING} You can now activate hunting lures from the hunt equipment menu.`,
+    };
   } else {
     result = { error: `${WARNING} Cannot use this item.` };
   }
@@ -599,4 +601,4 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup, handleUseItem, restoreActiveItemTimers };
+module.exports = { setup, handleUseItem, restoreActiveItemTimers, useHuntLure };

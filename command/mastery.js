@@ -15,6 +15,8 @@ const CHAT_THUMB = 'https://i.ibb.co/6RGR6jYf/Chat-badge-normal.png';
 const CHAT_THUMB_MAX = 'https://ibb.co/jFHRrQ4';
 const HUNT_THUMB = 'https://i.ibb.co/tw7x9WvN/Hunting-Mastery-Normal.png';
 const HUNT_THUMB_MAX = 'https://i.ibb.co/chv2L8H7/Hunting-Mastery-Gold.png';
+const FARM_THUMB = 'https://i.ibb.co/Hp7hHDYm/Farm-Mastery-normal.png';
+const FARM_THUMB_MAX = 'https://i.ibb.co/DDw5mzcy/Farm-Mastery-Gold.png';
 
 function buildBar(current, needed) {
   if (needed <= 0) return '░'.repeat(20);
@@ -37,6 +39,11 @@ function buildMasterySelect(active) {
         .setValue('hunt')
         .setEmoji('🏹')
         .setDefault(active === 'hunt'),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Farm Mastery')
+        .setValue('farm')
+        .setEmoji('🌾')
+        .setDefault(active === 'farm'),
     );
   return select;
 }
@@ -165,6 +172,98 @@ function buildHuntPerks(level) {
   return lines.join('\n');
 }
 
+function buildFarmPerks(level) {
+  const perks = [
+    {
+      level: 10,
+      text: 'All crops grow 10% faster',
+      initial: '<:SBE1:1414145519462387752>',
+      current: '<:SBF1:1414145589465190501>',
+      done: '<:SBF4:1414145601737588839>',
+    },
+    {
+      level: 20,
+      text: 'All crops worth 30% more',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 30,
+      text: 'Unlock White Cabbage and Pumpkin seeds',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 40,
+      text: '15% chance to replant harvested crops',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 50,
+      text: 'All crops grow 25% faster',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 60,
+      text: 'Unlock Melon and Starfruit seeds',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 70,
+      text: 'Harvesting can drop a random item',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 80,
+      text: 'All crops worth 100% more',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 90,
+      text: 'All crops grow 50% faster',
+      initial: '<:SBE2:1414145551087177839>',
+      current: '<:SBF2:1414145565436149790>',
+      done: '<:SBF:1414145617512366120>',
+    },
+    {
+      level: 100,
+      text: 'Unlock secret seed',
+      initial: '<:SBE3:1414145536696516698>',
+      current: '<:SBF3:1414145576878080132>',
+      done: '<:SBF3:1414145576878080132>',
+    },
+  ];
+  let unlockedIndex = -1;
+  for (let i = 0; i < perks.length; i++) {
+    if (level >= perks[i].level) unlockedIndex = i;
+  }
+  const lines = perks.map((p, idx) => {
+    let icon = p.initial;
+    let text = p.text;
+    if (idx < unlockedIndex) {
+      icon = p.done;
+      text = `**${text}**`;
+    } else if (idx === unlockedIndex && level >= p.level) {
+      icon = p.current;
+      text = `**${text}**`;
+    }
+    return `-# ${icon} ${text}`;
+  });
+  return lines.join('\n');
+}
+
 function buildChatResponse(user, stats, chatMasteryXpNeeded) {
   const level = stats.chat_mastery_level || 0;
   const xp = stats.chat_mastery_xp || 0;
@@ -228,6 +327,34 @@ function buildHuntResponse(user, stats, huntMasteryXpNeeded) {
   return container;
 }
 
+function buildFarmResponse(user, stats, farmMasteryXpNeeded) {
+  const level = stats.farm_mastery_level || 0;
+  const xp = stats.farm_mastery_xp || 0;
+  const next = level >= 100 ? 0 : farmMasteryXpNeeded(level + 1);
+  const bar = buildBar(xp, next);
+  const header = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      `## Farm Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`,
+    ),
+  );
+  const perks = buildFarmPerks(level);
+  if (level >= 100) {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(FARM_THUMB_MAX));
+  } else {
+    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(FARM_THUMB));
+  }
+  const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
+  container.addSectionComponents(header);
+  container
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('* Mastery perks, every 10 levels unlock 1 perk.'))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(perks))
+    .addSeparatorComponents(new SeparatorBuilder());
+  const select = buildMasterySelect('farm');
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+  return container;
+}
+
 function setup(client, resources) {
   const command = new SlashCommandBuilder().setName('mastery').setDescription('Show your mastery levels');
   client.application.commands.create(command);
@@ -263,6 +390,12 @@ function setup(client, resources) {
           interaction.user,
           stats,
           resources.huntMasteryXpNeeded,
+        );
+      } else if (interaction.values[0] === 'farm') {
+        container = buildFarmResponse(
+          interaction.user,
+          stats,
+          resources.farmMasteryXpNeeded,
         );
       } else {
         return;

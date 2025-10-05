@@ -30,28 +30,38 @@ const {
   applyCoinBoost,
 } = require('../utils');
 
-// Currently coin and deluxe shops with no items
-const SHOP_ITEMS = {
-  coin: [
-    ITEMS.Padlock,
-    ITEMS.Landmine,
-    ITEMS.SeraphicHeart,
-    ITEMS.WheatSeed,
-    ITEMS.PotatoSeed,
-    ITEMS.WateringCan,
-    ITEMS.HarvestScythe,
-    ITEMS.BulletBox,
-    ITEMS.HuntingRifleT1,
-    ITEMS.Shovel,
-  ],
-  deluxe: [ITEMS.DiamondBag, ITEMS.DiamondCrate, ITEMS.DiamondChest],
-};
+const DELUXE_ITEM_IDS = ['DiamondBag', 'DiamondCrate', 'DiamondChest'];
+
+const BASE_COIN_ITEM_ORDER = [
+  'Padlock',
+  'Landmine',
+  'SeraphicHeart',
+  'WateringCan',
+  'HarvestScythe',
+  'BulletBox',
+  'HuntingRifleT1',
+  'Shovel',
+];
+
+const BASE_SEED_IDS = ['WheatSeed', 'PotatoSeed'];
+
+const OPTIONAL_COIN_ITEMS = [
+  { id: 'XPSoda', chance: 0.35, min: 1, max: 3 },
+  { id: 'AnimalDetector', chance: 0.15, min: 1, max: 2 },
+  { id: 'MarshlightLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'SnowglassLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'SunprideLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'VerdantLures', chance: 0.25, min: 10, max: 25 },
+];
+
+const FARM_CROP_IDS = new Set(['Sheaf', 'Potato', 'WhiteCabbage']);
 
 const shopStates = new Map();
 
 const STOCK_CONFIG = {
   WheatSeed: { min: 5, max: 15 },
   PotatoSeed: { min: 3, max: 10 },
+  WhiteCabbageSeed: { min: 2, max: 6 },
   SeraphicHeart: { min: 1, max: 5 },
   Padlock: { min: 3, max: 7 },
   Landmine: { min: 1, max: 3 },
@@ -60,7 +70,39 @@ const STOCK_CONFIG = {
   BulletBox: { min: 1, max: 3 },
   HuntingRifleT1: { min: 1, max: 2 },
   Shovel: { min: 1, max: 2 },
+  XPSoda: { min: 1, max: 3 },
+  AnimalDetector: { min: 1, max: 2 },
+  MarshlightLures: { min: 10, max: 25 },
+  SnowglassLures: { min: 10, max: 25 },
+  SunprideLures: { min: 10, max: 25 },
+  VerdantLures: { min: 10, max: 25 },
 };
+
+const DEFAULT_COIN_ORDER = [
+  ...BASE_COIN_ITEM_ORDER.slice(0, 3),
+  ...BASE_SEED_IDS,
+  ...BASE_COIN_ITEM_ORDER.slice(3),
+];
+
+function getItemsByIds(ids) {
+  return ids.map(id => ITEMS[id]).filter(Boolean);
+}
+
+function getCoinItemIds(resources) {
+  const ids =
+    resources.shop &&
+    Array.isArray(resources.shop.activeCoinItemIds) &&
+    resources.shop.activeCoinItemIds.length
+      ? resources.shop.activeCoinItemIds
+      : DEFAULT_COIN_ORDER;
+  return ids;
+}
+
+function getShopItems(type, resources) {
+  if (type === 'coin') return getItemsByIds(getCoinItemIds(resources));
+  if (type === 'deluxe') return getItemsByIds(DELUXE_ITEM_IDS);
+  return [];
+}
 
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -90,15 +132,51 @@ function nextMonthStart() {
 
 function restockCoinShop(resources) {
   resources.shop = resources.shop || {};
-  resources.shop.stock = resources.shop.stock || {};
-  for (const [id, cfg] of Object.entries(STOCK_CONFIG)) {
+  const stock = {};
+  const activeIds = [];
+
+  // Base equipment and tools (non seeds)
+  for (const id of BASE_COIN_ITEM_ORDER) {
+    const cfg = STOCK_CONFIG[id];
+    if (!cfg) continue;
     const amount = rand(cfg.min, cfg.max);
-    resources.shop.stock[id] = {
-      amount,
-      max: amount,
-      discount: getDiscount(),
-    };
+    stock[id] = { amount, max: amount, discount: getDiscount() };
+    activeIds.push(id);
   }
+
+  // Seed slots with potential White Cabbage replacement
+  const chosenSeeds = [];
+  let replaced = false;
+  for (const baseSeed of BASE_SEED_IDS) {
+    let seedId = baseSeed;
+    if (!replaced && Math.random() < 0.75) {
+      seedId = 'WhiteCabbageSeed';
+      replaced = true;
+    }
+    const cfg = STOCK_CONFIG[seedId];
+    if (!cfg) continue;
+    const amount = rand(cfg.min, cfg.max);
+    stock[seedId] = { amount, max: amount, discount: getDiscount() };
+    chosenSeeds.push(seedId);
+  }
+
+  // Insert seeds after SeraphicHeart (third position)
+  const seedInsertIndex = 3;
+  activeIds.splice(seedInsertIndex, 0, ...chosenSeeds);
+
+  // Optional items with appearance chance
+  for (const optional of OPTIONAL_COIN_ITEMS) {
+    if (Math.random() < optional.chance) {
+      const cfg = STOCK_CONFIG[optional.id];
+      if (!cfg) continue;
+      const amount = rand(cfg.min, cfg.max);
+      stock[optional.id] = { amount, max: amount, discount: getDiscount() };
+      activeIds.push(optional.id);
+    }
+  }
+
+  resources.shop.stock = stock;
+  resources.shop.activeCoinItemIds = activeIds;
   resources.shop.nextRestock = nextRestockHour();
   resources.saveData();
 }
@@ -106,8 +184,8 @@ function restockCoinShop(resources) {
 function restockDeluxeShop(resources) {
   resources.shop = resources.shop || {};
   resources.shop.deluxeStock = resources.shop.deluxeStock || {};
-  for (const item of SHOP_ITEMS.deluxe) {
-    resources.shop.deluxeStock[item.id] = { amount: 1, max: 1, discount: 0 };
+  for (const id of DELUXE_ITEM_IDS) {
+    resources.shop.deluxeStock[id] = { amount: 1, max: 1, discount: 0 };
   }
   resources.shop.nextDeluxeRestock = nextMonthStart();
   resources.saveData();
@@ -234,6 +312,10 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   }
   let stock = {};
   let restockTime = 0;
+  const stats = resources.userStats[user.id] || {};
+  const farmLevel = Number.isFinite(stats.farm_mastery_level)
+    ? stats.farm_mastery_level
+    : 0;
   if (state.type === 'deluxe') {
     if (
       !resources.shop.nextDeluxeRestock ||
@@ -248,7 +330,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     stock = resources.shop.stock || {};
     restockTime = resources.shop.nextRestock || Date.now();
   }
-  const items = SHOP_ITEMS[state.type] || [];
+  const items = getShopItems(state.type, resources);
   const perPage = 6;
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   const page = Math.min(Math.max(state.page, 1), pages);
@@ -265,9 +347,11 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       ...it,
       price,
       originalPrice,
-      stock: s.amount,
-      maxStock: s.max,
+      stock: s.amount ?? 0,
+      maxStock: s.max ?? 0,
       discount: s.discount,
+      locked: it.id === 'WhiteCabbageSeed' && farmLevel < 30,
+      lockedText: it.id === 'WhiteCabbageSeed' && farmLevel < 30 ? 'Farm Mastery Lv.30' : null,
     };
   });
 
@@ -321,11 +405,15 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     const item = pageItems[i];
     const btn = new ButtonBuilder().setCustomId(`shop-buy-${i}`);
     if (item) {
-      const label = `[${item.stock || 0}/${item.maxStock || 0}] ${item.name}`;
+      const label = `[${item.stock ?? 0}/${item.maxStock ?? 0}] ${item.name}`;
       btn.setLabel(label).setEmoji(item.emoji);
       if (item.discount) btn.setStyle(ButtonStyle.Success);
       else btn.setStyle(ButtonStyle.Secondary);
       if (!item.stock) btn.setDisabled(true);
+      if (item.locked) {
+        btn.setDisabled(true);
+        if (!item.discount) btn.setStyle(ButtonStyle.Secondary);
+      }
     } else {
       btn.setLabel('???').setEmoji('❓').setStyle(ButtonStyle.Secondary).setDisabled(true);
     }
@@ -456,11 +544,22 @@ function setup(client, resources) {
         const state = shopStates.get(interaction.message.id);
         if (!state || interaction.user.id !== state.userId) return;
         const index = parseInt(interaction.customId.split('-')[2], 10);
-        const items = SHOP_ITEMS[state.type] || [];
+        const items = getShopItems(state.type, resources);
         const start = (state.page - 1) * 6;
         const item = items[start + index];
         if (!item) {
           await interaction.reply({ content: 'Item not available.' });
+          return;
+        }
+        const viewerStats = resources.userStats[state.userId] || {};
+        const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
+          ? viewerStats.farm_mastery_level
+          : 0;
+        if (item.id === 'WhiteCabbageSeed' && viewerFarmLevel < 30) {
+          await interaction.reply({
+            content: 'You need Farm Mastery Lv.30 to purchase this seed package.',
+            flags: MessageFlags.Ephemeral,
+          });
           return;
         }
         const store =
@@ -491,8 +590,7 @@ function setup(client, resources) {
             ? '<:CRDeluxeCoin:1405595587780280382>'
             : '<:CRCoin:1405595571141480570>';
         const currency = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
-        const item =
-          Object.values(SHOP_ITEMS).flat().find(i => i.id === itemId) || ITEMS[itemId];
+        const item = ITEMS[itemId];
         const store =
           state.type === 'deluxe'
             ? resources.shop.deluxeStock
@@ -508,6 +606,18 @@ function setup(client, resources) {
         const stats =
           resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
         normalizeInventory(stats);
+        const farmMasteryLevel = Number.isFinite(stats.farm_mastery_level)
+          ? stats.farm_mastery_level
+          : 0;
+        if (itemId === 'WhiteCabbageSeed' && farmMasteryLevel < 30) {
+          await interaction.update({
+            components: [
+              makeTextContainer('You need Farm Mastery Lv.30 to purchase this seed package.'),
+            ],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         const price = sInfo.discount
           ? Math.round(item.price * (1 - sInfo.discount))
           : item.price;
@@ -638,7 +748,7 @@ function setup(client, resources) {
             });
             return;
           }
-      const items = SHOP_ITEMS[state.type] || [];
+      const items = getShopItems(state.type, resources);
       const start = (state.page - 1) * 6;
       const baseItem = items[start + index];
         if (!baseItem) {
@@ -648,6 +758,17 @@ function setup(client, resources) {
           });
           return;
         }
+      const viewerStats = resources.userStats[state.userId] || {};
+      const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
+        ? viewerStats.farm_mastery_level
+        : 0;
+      if (baseItem.id === 'WhiteCabbageSeed' && viewerFarmLevel < 30) {
+        await interaction.reply({
+          components: [makeTextContainer('You need Farm Mastery Lv.30 to purchase this seed package.')],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const store =
         state.type === 'deluxe'
           ? resources.shop.deluxeStock
@@ -786,6 +907,15 @@ function setup(client, resources) {
       if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
         total = Math.floor(total * 1.25);
       }
+      const farmLevel = Number.isFinite(stats.farm_mastery_level)
+        ? stats.farm_mastery_level
+        : 0;
+      if (FARM_CROP_IDS.has(itemId)) {
+        let bonus = 0;
+        if (farmLevel >= 20) bonus += 0.3;
+        if (farmLevel >= 80) bonus += 1.0;
+        total = Math.floor(total * (1 + bonus));
+      }
       const coinEmoji = '<:CRCoin:1405595571141480570>';
       const sellBtn = new ButtonBuilder()
         .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
@@ -859,6 +989,15 @@ function setup(client, resources) {
       let total = price * amount;
       if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
         total = Math.floor(total * 1.25);
+      }
+      const farmLevel = Number.isFinite(stats.farm_mastery_level)
+        ? stats.farm_mastery_level
+        : 0;
+      if (FARM_CROP_IDS.has(itemId)) {
+        let bonus = 0;
+        if (farmLevel >= 20) bonus += 0.3;
+        if (farmLevel >= 80) bonus += 1.0;
+        total = Math.floor(total * (1 + bonus));
       }
       const coinEmoji = '<:CRCoin:1405595571141480570>';
       const sellBtn = new ButtonBuilder()
