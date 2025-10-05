@@ -1,12 +1,14 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   TextDisplayBuilder,
   ThumbnailBuilder,
   SeparatorBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { formatNumber, applyCoinBoost } = require('../utils');
 const { ITEMS } = require('../items');
 const { handleDeath } = require('../death');

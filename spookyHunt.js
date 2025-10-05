@@ -2,19 +2,21 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   MessageFlags,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
   ButtonStyle,
   ChannelType,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+} = require('discord.js');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
   ThumbnailBuilder,
   SectionBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { setSafeTimeout } = require('./utils');
 
 const EVENT_ROLE_ID = '1374410305991610520';

@@ -14,9 +14,12 @@ const ABBREVIATIONS = [
 function formatNumber(num) {
   const sign = num < 0 ? '-' : '';
   num = Math.abs(num);
-  for (const { value, symbol } of ABBREVIATIONS) {
+  for (const {
+  value,
+  symbol } of ABBREVIATIONS) {
     if (num >= value) {
-      const formatted = (num / value).toFixed(2).replace(/\.0+$|0+$/,'');
+      const formatted = (num / value).toFixed(2).replace(/\.0+$|0+$/,
+  '');
       return `${sign}${formatted}${symbol}`;
     }
   }
@@ -34,18 +37,20 @@ const PARSE_MAP = {
   Sp: 1e24,
   Oc: 1e27,
   No: 1e30,
-};
+  };
 
 const { ITEMS } = require('./items');
 const {
   MessageFlags,
+  ButtonStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 
 function parseAmount(str) {
   const match = String(str).trim().match(/^(-?\d+(?:\.\d+)?)([a-zA-Z]{1,2})?$/);

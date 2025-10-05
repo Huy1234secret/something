@@ -1,19 +1,21 @@
 const {
   SlashCommandBuilder,
   AttachmentBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
   ButtonStyle,
   MessageFlags,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} = require('discord.js');
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
   TextDisplayBuilder,
   ContainerBuilder,
   SeparatorBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { renderLevelCard } = require('../levelCard');
 const { loadImage } = require('canvas');
 

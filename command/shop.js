@@ -1,6 +1,13 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  ButtonStyle,
+  AttachmentBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
@@ -12,12 +19,7 @@ const {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  AttachmentBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');

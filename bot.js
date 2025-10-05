@@ -5,6 +5,9 @@ const {
   GatewayIntentBits,
   Partials,
   MessageFlags,
+  ButtonStyle,
+} = require('discord.js');
+const {
   TextDisplayBuilder,
   ContainerBuilder,
   SeparatorBuilder,
@@ -12,10 +15,9 @@ const {
   ThumbnailBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 require('dotenv').config();
 const levelCommand = require('./command/level');
 const walletCommand = require('./command/wallet');

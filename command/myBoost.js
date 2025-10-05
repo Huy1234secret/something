@@ -1,9 +1,11 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+} = require('discord.js');
+const {
   ContainerBuilder,
   TextDisplayBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 
 function formatBoostLine(name, amount, expiresAt, { prefix = '' } = {}) {
   const timestamp = Math.floor(expiresAt / 1000);

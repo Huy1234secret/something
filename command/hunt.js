@@ -1,16 +1,18 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  ButtonStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { AREAS, AREA_BY_NAME, AREA_BY_KEY, HUNT_LURES, RARE_RARITIES } = require('../huntData');

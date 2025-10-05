@@ -1,6 +1,9 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  ButtonStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
@@ -8,8 +11,7 @@ const {
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { formatNumber, normalizeInventory } = require('../utils');
 const { ITEMS } = require('../items');
 

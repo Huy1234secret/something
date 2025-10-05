@@ -1,6 +1,12 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
@@ -8,11 +14,7 @@ const {
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
