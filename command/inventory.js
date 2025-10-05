@@ -4,7 +4,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
@@ -77,7 +76,9 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
       ),
     );
 
-  const listText = new TextDisplayBuilder().setContent(listContent);
+  const listSection = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(listContent),
+  );
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('inventory-page')
@@ -102,16 +103,14 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
       })),
     );
 
+  const controlsSection = new SectionBuilder().addActionRowComponents(
+    new ActionRowBuilder().addComponents(pageSelect),
+    new ActionRowBuilder().addComponents(typeSelect),
+  );
+
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(headerSection)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(listText)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(pageSelect),
-      new ActionRowBuilder().addComponents(typeSelect),
-    );
+    .addSectionComponents(headerSection, listSection, controlsSection);
 
   const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   inventoryStates.set(message.id, { userId: user.id, page, types });
