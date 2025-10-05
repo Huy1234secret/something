@@ -64,6 +64,37 @@ const POTATO_IMAGES = [
 ];
 const POTATO_DEAD = 'https://i.ibb.co/FqHY9Gmd/Potato-death.png';
 
+const WHITE_CABBAGE_IMAGES = [
+  'https://i.ibb.co/PzMNdCmR/Cabbage-1.png',
+  'https://i.ibb.co/J0fP0f0/Cabbage-2.png',
+  'https://i.ibb.co/T3t7ysW/Cabbage-3.png',
+  'https://i.ibb.co/dNP86fD/Cabbage-4.png',
+  'https://i.ibb.co/nqWvHZPv/Cabbage-5.png',
+  'https://i.ibb.co/5xBDQrZ7/Cabbage-6.png',
+];
+const WHITE_CABBAGE_DEAD = 'https://i.ibb.co/VYjh46dh/Cabbage-death.png';
+
+const FARM_ACTION_XP = 10;
+const CROP_XP_BASE = 100;
+const CROP_RARITY_MULTIPLIER = {
+  Common: 1,
+  Rare: 1.5,
+  Epic: 2,
+  Legendary: 3.5,
+  Mythical: 5,
+  Godly: 10,
+  Secret: 25,
+};
+
+const FARM_DROP_TABLE = [
+  { rarity: 'Common', weight: 0.55 },
+  { rarity: 'Rare', weight: 0.3 },
+  { rarity: 'Epic', weight: 0.11 },
+  { rarity: 'Legendary', weight: 0.03 },
+  { rarity: 'Mythical', weight: 0.009 },
+  { rarity: 'Godly', weight: 0.001 },
+];
+
 // Preload commonly used images so they are fetched only once
 const FARM_BG_IMG = loadCachedImage(FARM_BG);
 const SELECT_OVERLAY_IMG = loadCachedImage(SELECT_IMG);
@@ -72,6 +103,15 @@ const WHEAT_IMG_PROMISES = WHEAT_IMAGES.map((url) => loadCachedImage(url));
 const WHEAT_DEAD_IMG = loadCachedImage(WHEAT_DEAD);
 const POTATO_IMG_PROMISES = POTATO_IMAGES.map(url => loadCachedImage(url));
 const POTATO_DEAD_IMG = loadCachedImage(POTATO_DEAD);
+const WHITE_CABBAGE_IMG_PROMISES = WHITE_CABBAGE_IMAGES.map(url => loadCachedImage(url));
+const WHITE_CABBAGE_DEAD_IMG = loadCachedImage(WHITE_CABBAGE_DEAD);
+
+const ITEMS_BY_RARITY = {};
+for (const item of Object.values(ITEMS)) {
+  const rarity = String(item.rarity || 'Common');
+  if (!ITEMS_BY_RARITY[rarity]) ITEMS_BY_RARITY[rarity] = [];
+  ITEMS_BY_RARITY[rarity].push(item);
+}
 
 const WHEAT_GROW_TIME = 4 * 60 * 60 * 1000; // 4h
 const WHEAT_STAGE_TIME = WHEAT_GROW_TIME / 5; // 48m per stage
@@ -81,7 +121,35 @@ const POTATO_GROW_TIME = 8 * 60 * 60 * 1000; // 8h
 const POTATO_STAGE_TIME = 80 * 60 * 1000; // 80m per stage
 const POTATO_DRY_DEATH_TIME = 1 * 60 * 60 * 1000; // 1h without water
 const POTATO_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const WHITE_CABBAGE_GROW_TIME = 12 * 60 * 60 * 1000; // 12h
+const WHITE_CABBAGE_STAGE_TIME = WHITE_CABBAGE_GROW_TIME / (WHITE_CABBAGE_IMAGES.length - 1);
+const WHITE_CABBAGE_DRY_DEATH_TIME = 2 * 60 * 60 * 1000; // 2h without water
+const WHITE_CABBAGE_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
 const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
+
+const FARM_REPLANT_CHANCE = 0.15;
+const FARM_DROP_CHANCE = 0.6;
+
+function getFarmGrowthMultiplier(level) {
+  if (level >= 90) return 0.5;
+  if (level >= 50) return 0.75;
+  if (level >= 10) return 0.9;
+  return 1;
+}
+
+function getRandomFarmDrop() {
+  const roll = Math.random();
+  let acc = 0;
+  for (const entry of FARM_DROP_TABLE) {
+    acc += entry.weight;
+    if (roll <= acc) {
+      const pool = ITEMS_BY_RARITY[entry.rarity] || [];
+      if (pool.length === 0) break;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+  }
+  return null;
+}
 
 const PLOT_POSITIONS = {
   1: { x: 100, y: 100 },
@@ -109,13 +177,19 @@ function cleanupExpiredWater(farm) {
   Object.values(farm || {}).forEach(plot => isPlotWatered(plot));
 }
 
-function getPlantData(seedId) {
-  if (seedId === 'WheatSeed')
+function getPlantData(seedId, stats = {}) {
+  const level = Number.isFinite(stats.farm_mastery_level)
+    ? stats.farm_mastery_level
+    : 0;
+  const growthMultiplier = getFarmGrowthMultiplier(level);
+  if (seedId === 'WheatSeed') {
+    const growTime = Math.round(WHEAT_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(1, Math.round(growTime / (WHEAT_IMAGES.length - 1)));
     return {
       images: WHEAT_IMG_PROMISES,
       deadImg: WHEAT_DEAD_IMG,
-      growTime: WHEAT_GROW_TIME,
-      stageTime: WHEAT_STAGE_TIME,
+      growTime,
+      stageTime,
       dryDeathTime: WHEAT_DRY_DEATH_TIME,
       expireTime: WHEAT_EXPIRE_TIME,
       seedItem: ITEMS.WheatSeed,
@@ -130,12 +204,15 @@ function getPlantData(seedId) {
         return { crop, seeds };
       },
     };
-  if (seedId === 'PotatoSeed')
+  }
+  if (seedId === 'PotatoSeed') {
+    const growTime = Math.round(POTATO_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(1, Math.round(growTime / (POTATO_IMAGES.length - 1)));
     return {
       images: POTATO_IMG_PROMISES,
       deadImg: POTATO_DEAD_IMG,
-      growTime: POTATO_GROW_TIME,
-      stageTime: POTATO_STAGE_TIME,
+      growTime,
+      stageTime,
       dryDeathTime: POTATO_DRY_DEATH_TIME,
       expireTime: POTATO_EXPIRE_TIME,
       seedItem: ITEMS.PotatoSeed,
@@ -150,12 +227,38 @@ function getPlantData(seedId) {
         return { crop, seeds };
       },
     };
+  }
+  if (seedId === 'WhiteCabbageSeed') {
+    const growTime = Math.round(WHITE_CABBAGE_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(
+      1,
+      Math.round(growTime / (WHITE_CABBAGE_IMAGES.length - 1)),
+    );
+    return {
+      images: WHITE_CABBAGE_IMG_PROMISES,
+      deadImg: WHITE_CABBAGE_DEAD_IMG,
+      growTime,
+      stageTime,
+      dryDeathTime: WHITE_CABBAGE_DRY_DEATH_TIME,
+      expireTime: WHITE_CABBAGE_EXPIRE_TIME,
+      seedItem: ITEMS.WhiteCabbageSeed,
+      harvestItem: ITEMS.WhiteCabbage,
+      name: 'White Cabbage',
+      harvest() {
+        const roll = Math.random();
+        let seeds = 0;
+        if (roll < 0.05) seeds = 2;
+        else if (roll < 0.8) seeds = 1;
+        return { crop: 1, seeds };
+      },
+    };
+  }
   return null;
 }
 
-function getPlotStatus(plot) {
+function getPlotStatus(plot, stats) {
   if (!plot || !plot.seedId) return { grown: false, dead: false };
-  const data = getPlantData(plot.seedId);
+  const data = getPlantData(plot.seedId, stats);
   if (!data) return { grown: false, dead: false };
   const elapsed = Date.now() - (plot.plantedAt || 0);
   const grown = elapsed >= data.growTime;
@@ -165,10 +268,10 @@ function getPlotStatus(plot) {
   return { grown, dead: deadEarly || deadLate };
 }
 
-async function getPlantImage(plot) {
-  const data = getPlantData(plot.seedId);
+async function getPlantImage(plot, stats) {
+  const data = getPlantData(plot.seedId, stats);
   if (!data) return null;
-  const status = getPlotStatus(plot);
+  const status = getPlotStatus(plot, stats);
   if (status.dead) return await data.deadImg;
   const elapsed = Date.now() - plot.plantedAt;
   const stage = Math.min(
@@ -178,7 +281,7 @@ async function getPlantImage(plot) {
   return await data.images[stage];
 }
 
-async function renderFarm(farm, selected = []) {
+async function renderFarm(farm, selected = [], stats = {}) {
   const canvas = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = canvas.getContext('2d');
   const [bg, wateredImg, overlay] = await Promise.all([
@@ -199,7 +302,7 @@ async function renderFarm(farm, selected = []) {
     if (!plot.seedId) continue;
     const pos = SEED_POSITIONS[id];
     if (!pos) continue;
-    const img = await getPlantImage(plot);
+    const img = await getPlantImage(plot, stats);
     if (img) ctx.drawImage(img, pos.x - img.width / 2, pos.y - img.height);
   }
 
@@ -214,7 +317,7 @@ async function renderFarm(farm, selected = []) {
 
 const farmStates = new Map();
 
-function buildFarmContainer(user, selected = [], farm = {}) {
+function buildFarmContainer(user, selected = [], farm = {}, stats = {}) {
   const select = new StringSelectMenuBuilder()
     .setCustomId('farm-select')
     .setPlaceholder('Plot Selection')
@@ -229,7 +332,7 @@ function buildFarmContainer(user, selected = [], farm = {}) {
     );
 
   const harvestable = Object.values(farm).some(plot => {
-    const status = getPlotStatus(plot);
+    const status = getPlotStatus(plot, stats);
     return status.grown || status.dead;
   });
 
@@ -256,8 +359,8 @@ function buildFarmContainer(user, selected = [], farm = {}) {
   const progressLines = [];
   for (const [id, plot] of Object.entries(farm)) {
     if (!plot.seedId) continue;
-    const status = getPlotStatus(plot);
-    const data = getPlantData(plot.seedId);
+    const status = getPlotStatus(plot, stats);
+    const data = getPlantData(plot.seedId, stats);
     const emoji = data ? data.harvestItem.emoji : '';
     const name = data ? data.name : 'Plant';
     if (status.grown && !status.dead)
@@ -303,9 +406,9 @@ async function sendFarmView(user, send, resources) {
   cleanupExpiredWater(stats.farm);
   resources.userStats[user.id] = stats;
 
-  const buffer = await renderFarm(stats.farm, []);
+  const buffer = await renderFarm(stats.farm, [], stats);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
-  const container = buildFarmContainer(user, [], stats.farm);
+  const container = buildFarmContainer(user, [], stats.farm, stats);
 
   const farmMsg = await send({
     files: [attachment],
@@ -318,9 +421,9 @@ async function sendFarmView(user, send, resources) {
 
 async function updateFarmMessage(state, user, stats, resources) {
   cleanupExpiredWater(stats.farm);
-  const buffer = await renderFarm(stats.farm, state.selected || []);
+  const buffer = await renderFarm(stats.farm, state.selected || [], stats);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
-  const container = buildFarmContainer(user, state.selected || [], stats.farm);
+  const container = buildFarmContainer(user, state.selected || [], stats.farm, stats);
   await state.farmMsg.edit({ files: [attachment], components: [container] });
   if (resources) resources.saveData();
 }
@@ -406,8 +509,25 @@ function setup(client, resources) {
       await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       const seedId = interaction.values[0];
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
+      const farmLevel = Number.isFinite(stats.farm_mastery_level)
+        ? stats.farm_mastery_level
+        : 0;
       const seed = (stats.inventory || []).find(i => i.id === seedId);
       const required = state.selected.length;
+      if (seedId === 'WhiteCabbageSeed' && farmLevel < 30) {
+        const container = new ContainerBuilder()
+          .setAccentColor(0xffffff)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `${WARNING} You need Farm Mastery Lv.30 to plant White Cabbage seeds.`,
+            ),
+          );
+        await interaction.editReply({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       if (!seed || seed.amount < required) {
         const msg = `${WARNING} You need ${required} ${seed ? seed.name : 'seed'} ${
           seed ? seed.emoji : ''
@@ -439,6 +559,13 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
+      if (plantable.length > 0) {
+        await resources.addFarmMasteryXp(
+          interaction.user,
+          plantable.length * FARM_ACTION_XP,
+          resources.client,
+        );
+      }
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = 'Planted!';
       if (occupied.length) {
@@ -467,7 +594,7 @@ function setup(client, resources) {
       }
       const harvestable = Object.entries(stats.farm)
         .filter(([id, plot]) => {
-          const status = getPlotStatus(plot);
+          const status = getPlotStatus(plot, stats);
           return status.grown || status.dead;
         })
         .map(([id]) => id);
@@ -504,14 +631,22 @@ function setup(client, resources) {
       const farm = stats.farm;
       const harvestedMap = {};
       const seedMap = {};
+      const dropMap = {};
       let deadNote = false;
+      const farmLevel = Number.isFinite(stats.farm_mastery_level)
+        ? stats.farm_mastery_level
+        : 0;
+      let totalHarvestXp = 0;
+      let harvestedAny = false;
+      const replantedPlots = [];
       const initialFull = alertInventoryFull(interaction, interaction.user, stats);
       let full = getInventoryCount(stats) >= MAX_ITEMS;
       plots.forEach(id => {
         const plot = farm[id];
-        const status = getPlotStatus(plot);
-        const data = getPlantData(plot.seedId);
+        const status = getPlotStatus(plot, stats);
+        const data = getPlantData(plot.seedId, stats);
         if (!plot.seedId || !data) return;
+        let replanted = false;
         if (status.dead) deadNote = true;
         else if (status.grown && !full) {
           const { crop, seeds } = data.harvest();
@@ -527,15 +662,49 @@ function setup(client, resources) {
             if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
             else inv.push({ ...data.seedItem, amount: seeds });
           }
+          const rarity = data.harvestItem.rarity || 'Common';
+          const multiplier = CROP_RARITY_MULTIPLIER[rarity] || 1;
+          totalHarvestXp += crop * CROP_XP_BASE * multiplier;
+          harvestedAny = true;
+          if (farmLevel >= 40 && Math.random() < FARM_REPLANT_CHANCE) {
+            farm[id] = {
+              seedId: plot.seedId,
+              plantedAt: Date.now(),
+              watered: false,
+            };
+            replanted = true;
+            replantedPlots.push(id);
+          }
           full = getInventoryCount(stats) >= MAX_ITEMS;
         }
-        farm[id] = {};
+        if (!replanted) farm[id] = {};
       });
       useDurableItem(interaction, interaction.user, stats, 'HarvestScythe');
+      if (harvestedAny && farmLevel >= 70 && Math.random() < FARM_DROP_CHANCE) {
+        const bonus = getRandomFarmDrop();
+        if (bonus) {
+          const inv = stats.inventory || [];
+          const existing = inv.find(i => i.id === bonus.id);
+          if (getInventoryCount(stats) + 1 <= MAX_ITEMS) {
+            if (existing) existing.amount = (existing.amount || 0) + 1;
+            else inv.push({ ...bonus, amount: 1 });
+            dropMap[bonus.id] = (dropMap[bonus.id] || 0) + 1;
+          } else if (!initialFull) {
+            alertInventoryFull(interaction, interaction.user, stats, 1);
+          }
+        }
+      }
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
+      if (totalHarvestXp > 0) {
+        await resources.addFarmMasteryXp(
+          interaction.user,
+          totalHarvestXp,
+          resources.client,
+        );
+      }
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
       for (const [id, amt] of Object.entries(harvestedMap)) {
@@ -547,7 +716,13 @@ function setup(client, resources) {
         const it = ITEMS[id];
         content += `${content ? '\n' : ''}You received ${amt} ${it.emoji} ${it.name}${amt > 1 ? 's' : ''}.`;
       }
+      for (const [id, amt] of Object.entries(dropMap)) {
+        const it = ITEMS[id];
+        content += `${content ? '\n' : ''}-# Bonus drop: ${amt} ${it.emoji} ${it.name}${amt > 1 ? 's' : ''}`;
+      }
       if (deadNote) content += `\n-# Some plants died...`;
+      if (replantedPlots.length)
+        content += `\n-# Plots ${replantedPlots.map(n => `#${n}`).join(', ')} were replanted automatically.`;
       if (!content) content = 'Nothing harvested.';
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)
@@ -619,6 +794,13 @@ function setup(client, resources) {
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
+      if (plots.length > 0) {
+        await resources.addFarmMasteryXp(
+          interaction.user,
+          plots.length * FARM_ACTION_XP,
+          resources.client,
+        );
+      }
       await updateFarmMessage(state, interaction.user, stats, resources);
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)

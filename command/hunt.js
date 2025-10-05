@@ -28,6 +28,7 @@ const {
   useDurableItem,
 } = require('../utils');
 const { handleDeath } = require('../death');
+const { useHuntLure } = require('./useItem');
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -111,6 +112,12 @@ const HUNT_XP_MULTIPLIER = {
 };
 
 const huntStates = new Map();
+
+const AREA_BY_LURE = Object.fromEntries(
+  Object.entries(HUNT_LURES).map(([areaKey, data]) => [data.itemId, areaKey]),
+);
+
+const LURE_ITEM_IDS = new Set(Object.values(HUNT_LURES).map(data => data.itemId));
 
 const MASTER_ZOOLOGIST_BADGE = getBadgeById('MasterZoologist');
 
@@ -311,6 +318,42 @@ function buildEquipmentContainer(user, stats) {
 
   const equippedGun = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
   const equippedBullet = ITEMS[stats.hunt_bullet] || { name: 'None', emoji: '' };
+  const areaInfo = AREA_BY_NAME[stats.hunt_area] || null;
+  const areaKey = areaInfo ? areaInfo.key : null;
+  const activeLureState = areaKey && stats.hunt_lures ? stats.hunt_lures[areaKey] : null;
+  const activeLureItem = activeLureState ? ITEMS[activeLureState.itemId] : null;
+  const activeLureText = activeLureItem
+    ? `* Lure using: ${activeLureItem.name} ${activeLureItem.emoji} - ${
+        activeLureState.remaining || 0
+      } hunts left`
+    : '* Lure using: None';
+
+  const lureSelect = new StringSelectMenuBuilder()
+    .setCustomId('hunt-lure-select')
+    .setPlaceholder('Activate a lure');
+  const lureEntries = (stats.inventory || []).filter(entry => LURE_ITEM_IDS.has(entry.id));
+  if (lureEntries.length) {
+    for (const entry of lureEntries) {
+      const item = ITEMS[entry.id];
+      if (!item) continue;
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(item.name)
+        .setValue(item.id)
+        .setDescription(`You have: ${entry.amount}`);
+      if (item.emoji) option.setEmoji(item.emoji);
+      lureSelect.addOptions(option);
+    }
+  } else {
+    lureSelect
+      .setDisabled(true)
+      .setPlaceholder('No lures available')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('No lures')
+          .setValue('none'),
+      );
+  }
+
   const section = new SectionBuilder()
     .setThumbnailAccessory(
       new ThumbnailBuilder().setURL(user.displayAvatarURL()),
@@ -323,6 +366,7 @@ function buildEquipmentContainer(user, stats) {
       new TextDisplayBuilder().setContent(
         `* Bullet using: ${equippedBullet.name} ${equippedBullet.emoji}`,
       ),
+      new TextDisplayBuilder().setContent(activeLureText),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
@@ -330,6 +374,7 @@ function buildEquipmentContainer(user, stats) {
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(gunSelect))
     .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(lureSelect))
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
 }
@@ -847,6 +892,35 @@ function setup(client, resources) {
         await interaction.update({
           components: [container],
           flags: MessageFlags.IsComponentsV2,
+        });
+      } else if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === 'hunt-lure-select'
+      ) {
+        const state = huntStates.get(interaction.message.id);
+        if (!state || state.userId !== interaction.user.id) return;
+        const itemId = interaction.values[0];
+        if (!LURE_ITEM_IDS.has(itemId)) {
+          await interaction.reply({
+            content: '<:SBWarning:1404101025849147432> Invalid lure.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        const result = useHuntLure(interaction.user, itemId, 1, resources);
+        if (result.error) {
+          await interaction.reply({ content: result.error, flags: MessageFlags.Ephemeral });
+          return;
+        }
+        const stats = resources.userStats[state.userId] || {};
+        const container = buildEquipmentContainer(interaction.user, stats);
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        await interaction.followUp({
+          components: [result.component],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
         });
       } else if (interaction.isButton() && interaction.customId === 'hunt-back') {
         const state = huntStates.get(interaction.message.id);

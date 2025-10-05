@@ -32,6 +32,7 @@ const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
 const masteryCommand = require('./command/mastery');
+const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
 const spookyHunt = require('./spookyHunt');
 const { ITEMS } = require('./items');
@@ -176,6 +177,10 @@ function chatMasteryXpNeeded(level) {
 }
 
 function huntMasteryXpNeeded(level) {
+  return chatMasteryXpNeeded(level);
+}
+
+function farmMasteryXpNeeded(level) {
   return chatMasteryXpNeeded(level);
 }
 
@@ -373,6 +378,28 @@ async function addHuntMasteryXp(user, amount, client) {
   saveData();
 }
 
+async function addFarmMasteryXp(user, amount, client) {
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  const stats = userStats[user.id] || {};
+  stats.farm_mastery_level = Number.isFinite(stats.farm_mastery_level)
+    ? stats.farm_mastery_level
+    : 0;
+  stats.farm_mastery_xp = Number.isFinite(stats.farm_mastery_xp)
+    ? stats.farm_mastery_xp
+    : 0;
+  stats.farm_mastery_xp += amount;
+  while (
+    stats.farm_mastery_level < 100 &&
+    stats.farm_mastery_xp >= farmMasteryXpNeeded(stats.farm_mastery_level + 1)
+  ) {
+    stats.farm_mastery_xp -= farmMasteryXpNeeded(stats.farm_mastery_level + 1);
+    stats.farm_mastery_level += 1;
+  }
+  if (stats.farm_mastery_level >= 100) stats.farm_mastery_xp = 0;
+  userStats[user.id] = stats;
+  saveData();
+}
+
 function addCoins(user, amount) {
   const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
   amount = applyCoinBoost(stats, amount);
@@ -415,6 +442,8 @@ const resources = {
   chatMasteryXpNeeded,
   addHuntMasteryXp,
   huntMasteryXpNeeded,
+  addFarmMasteryXp,
+  farmMasteryXpNeeded,
   spookyHuntState,
 };
 
@@ -517,6 +546,7 @@ client.on = function(event, listener) {
     begCommand.setup(client, resources);
     myCosmeticCommand.setup(client, resources);
     masteryCommand.setup(client, resources);
+    myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
     spookyHunt.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));

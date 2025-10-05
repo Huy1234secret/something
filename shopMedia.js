@@ -265,7 +265,25 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
     wrap(ctx, String(item.note), x + pad, noteY, w - pad * 2, lineHeight, 2);
   }
 
-  if (item.stock !== undefined && item.stock <= 0) {
+  if (item.locked) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    rrect(ctx, x, y, w, h, 18);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    const baseSize = Math.floor(h * 0.12);
+    const fitted = shrinkToFit(ctx, item.lockedText || 'Locked', w - w * 0.1, baseSize);
+    ctx.font = `bold ${fitted}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(item.lockedText || 'Locked', x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  } else if (item.stock !== undefined && item.stock <= 0) {
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     rrect(ctx, x, y, w, h, 18);
