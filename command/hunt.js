@@ -27,6 +27,8 @@ const {
   MAX_ITEMS,
   alertInventoryFull,
   useDurableItem,
+  applyComponentEmoji,
+  resolveComponentEmoji,
 } = require('../utils');
 const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
@@ -144,26 +146,32 @@ function buildMainContainer(
   for (const area of AREAS) {
     const opt = new StringSelectMenuOptionBuilder()
       .setLabel(area.name)
-      .setValue(area.name)
-      .setEmoji(area.emoji);
+      .setValue(area.name);
+    applyComponentEmoji(opt, area.emoji);
     if (stats.hunt_area === area.name) opt.setDefault(true);
     select.addOptions(opt);
   }
-  const huntBtn = new ButtonBuilder()
-    .setCustomId('hunt-action')
-    .setLabel('hunt')
-    .setStyle(ButtonStyle.Danger)
-    .setEmoji(ITEMS.HuntingRifleT1.emoji);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('hunt-stat')
-    .setLabel('Hunt Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji('<:SBHuntingstat:1410892320538230834>');
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('hunt-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  const huntBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-action')
+      .setLabel('hunt')
+      .setStyle(ButtonStyle.Danger),
+    ITEMS.HuntingRifleT1.emoji,
+  );
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-stat')
+      .setLabel('Hunt Stat')
+      .setStyle(ButtonStyle.Secondary),
+    '<:SBHuntingstat:1410892320538230834>',
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary),
+    '<:SBHuntingequipmentsetting:1410895836644376576>',
+  );
   if (disableButtons) {
     huntBtn.setDisabled(true);
     statBtn.setDisabled(true);
@@ -188,17 +196,21 @@ function buildStatContainer(user, stats) {
     .setCustomId('hunt-back')
     .setLabel('Back')
     .setStyle(ButtonStyle.Secondary);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('hunt-stat')
-    .setLabel('Hunt Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(true)
-    .setEmoji('<:SBHuntingstat:1410892320538230834>');
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('hunt-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-stat')
+      .setLabel('Hunt Stat')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    '<:SBHuntingstat:1410892320538230834>',
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary),
+    '<:SBHuntingequipmentsetting:1410895836644376576>',
+  );
   const discovered = (stats.hunt_discover || []).length;
   const totalAnimals = ANIMALS.length;
   const masteryLevelText = new TextDisplayBuilder().setContent(
@@ -242,17 +254,21 @@ function buildEquipmentContainer(user, stats) {
     .setCustomId('hunt-back')
     .setLabel('Back')
     .setStyle(ButtonStyle.Secondary);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('hunt-stat')
-    .setLabel('Hunt Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji('<:SBHuntingstat:1410892320538230834>');
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('hunt-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(true)
-    .setEmoji('<:SBHuntingequipmentsetting:1410895836644376576>');
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-stat')
+      .setLabel('Hunt Stat')
+      .setStyle(ButtonStyle.Secondary),
+    '<:SBHuntingstat:1410892320538230834>',
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('hunt-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    '<:SBHuntingequipmentsetting:1410895836644376576>',
+  );
 
   const guns = (stats.inventory || []).filter(i =>
     i.id.startsWith('HuntingRifle'),
@@ -266,7 +282,7 @@ function buildEquipmentContainer(user, stats) {
       const opt = new StringSelectMenuOptionBuilder()
         .setLabel(it.name)
         .setValue(it.id)
-        .setEmoji(it.emoji)
+        .setEmoji(resolveComponentEmoji(it.emoji))
         .setDescription(`You have ${g.amount} ${it.name}`);
       if (stats.hunt_gun === it.id) opt.setDefault(true);
       gunSelect.addOptions(opt);
@@ -292,7 +308,7 @@ function buildEquipmentContainer(user, stats) {
       const opt = new StringSelectMenuOptionBuilder()
         .setLabel(it.name)
         .setValue(it.id)
-        .setEmoji(it.emoji)
+        .setEmoji(resolveComponentEmoji(it.emoji))
         .setDescription(`You have ${b.amount} ${it.name}`);
       if (stats.hunt_bullet === it.id) opt.setDefault(true);
       bulletSelect.addOptions(opt);
@@ -332,7 +348,7 @@ function buildEquipmentContainer(user, stats) {
         .setLabel(item.name)
         .setValue(item.id)
         .setDescription(`You have: ${entry.amount}`);
-      if (item.emoji) option.setEmoji(item.emoji);
+      if (item.emoji) option.setEmoji(resolveComponentEmoji(item.emoji));
       lureSelect.addOptions(option);
     }
   } else {

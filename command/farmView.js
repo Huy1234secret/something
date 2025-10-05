@@ -24,6 +24,8 @@ const {
   MAX_ITEMS,
   alertInventoryFull,
   useDurableItem,
+  applyComponentEmoji,
+  resolveComponentEmoji,
 } = require('../utils');
 
 const CANVAS_SIZE = 500;
@@ -338,25 +340,31 @@ function buildFarmContainer(user, selected = [], farm = {}, stats = {}) {
     return status.grown || status.dead;
   });
 
-  const plantBtn = new ButtonBuilder()
-    .setCustomId('farm-plant')
-    .setLabel('Plant')
-    .setEmoji('<:SBPlant:1410244118222999685>')
-    .setStyle(ButtonStyle.Success)
-    .setDisabled(selected.length === 0);
+  const plantBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('farm-plant')
+      .setLabel('Plant')
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(selected.length === 0),
+    '<:SBPlant:1410244118222999685>',
+  );
 
-  const harvestBtn = new ButtonBuilder()
-    .setCustomId('farm-harvest')
-    .setLabel('Harvest')
-    .setEmoji(ITEMS.HarvestScythe.emoji)
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(!harvestable);
+  const harvestBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('farm-harvest')
+      .setLabel('Harvest')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(!harvestable),
+    ITEMS.HarvestScythe.emoji,
+  );
 
-  const waterBtn = new ButtonBuilder()
-    .setCustomId('farm-water')
-    .setLabel('Watering')
-    .setEmoji(ITEMS.WateringCan.emoji)
-    .setStyle(ButtonStyle.Primary);
+  const waterBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('farm-water')
+      .setLabel('Watering')
+      .setStyle(ButtonStyle.Primary),
+    ITEMS.WateringCan.emoji,
+  );
 
   const progressLines = [];
   for (const [id, plot] of Object.entries(farm)) {
@@ -480,14 +488,7 @@ function setup(client, resources) {
               const option = new StringSelectMenuOptionBuilder()
                 .setLabel(`${s.name} - ${s.amount}`)
                 .setValue(s.id);
-              if (s.emoji) {
-                const match = /<(a?):(\w+):(\d+)>/.exec(s.emoji);
-                option.setEmoji(
-                  match
-                    ? { id: match[3], name: match[2], animated: Boolean(match[1]) }
-                    : s.emoji,
-                );
-              }
+              if (s.emoji) option.setEmoji(resolveComponentEmoji(s.emoji));
               return option;
             }),
           );

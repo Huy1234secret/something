@@ -21,6 +21,7 @@ const {
   alertInventoryFull,
   useDurableItem,
   applyCoinBoost,
+  applyComponentEmoji,
 } = require('../utils');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
@@ -84,21 +85,27 @@ function getRandomDigItem() {
 }
 
 function buildMainContainer(user, text, color, disable = false) {
-  const digBtn = new ButtonBuilder()
-    .setCustomId('dig-action')
-    .setLabel('Dig')
-    .setStyle(ButtonStyle.Danger)
-    .setEmoji(ITEMS.Shovel.emoji);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('dig-stat')
-    .setLabel('Dig Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji(DIG_STAT_EMOJI);
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('dig-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji(DIG_STAT_EMOJI);
+  const digBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-action')
+      .setLabel('Dig')
+      .setStyle(ButtonStyle.Danger),
+    ITEMS.Shovel.emoji,
+  );
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-stat')
+      .setLabel('Dig Stat')
+      .setStyle(ButtonStyle.Secondary),
+    DIG_STAT_EMOJI,
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary),
+    DIG_STAT_EMOJI,
+  );
   if (disable) {
     digBtn.setDisabled(true);
     statBtn.setDisabled(true);
@@ -120,17 +127,21 @@ function buildStatContainer(user, stats) {
     .setCustomId('dig-back')
     .setLabel('Back')
     .setStyle(ButtonStyle.Secondary);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('dig-stat')
-    .setLabel('Dig Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(true)
-    .setEmoji(DIG_STAT_EMOJI);
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('dig-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji(DIG_STAT_EMOJI);
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-stat')
+      .setLabel('Dig Stat')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    DIG_STAT_EMOJI,
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary),
+    DIG_STAT_EMOJI,
+  );
   const discovered = (stats.dig_discover || []).length;
   const totalItems = DIG_ITEMS.length;
   const section = new SectionBuilder()
@@ -163,17 +174,21 @@ function buildEquipmentContainer(user, stats) {
     .setCustomId('dig-back')
     .setLabel('Back')
     .setStyle(ButtonStyle.Secondary);
-  const statBtn = new ButtonBuilder()
-    .setCustomId('dig-stat')
-    .setLabel('Dig Stat')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji(DIG_STAT_EMOJI);
-  const equipBtn = new ButtonBuilder()
-    .setCustomId('dig-equipment')
-    .setLabel('Equipment')
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(true)
-    .setEmoji(DIG_STAT_EMOJI);
+  const statBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-stat')
+      .setLabel('Dig Stat')
+      .setStyle(ButtonStyle.Secondary),
+    DIG_STAT_EMOJI,
+  );
+  const equipBtn = applyComponentEmoji(
+    new ButtonBuilder()
+      .setCustomId('dig-equipment')
+      .setLabel('Equipment')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    DIG_STAT_EMOJI,
+  );
 
   const tools = (stats.inventory || []).filter(i => {
     const it = ITEMS[i.id];
@@ -193,8 +208,8 @@ function buildEquipmentContainer(user, stats) {
       const opt = new StringSelectMenuOptionBuilder()
         .setLabel(it.name)
         .setValue(it.id)
-        .setEmoji(it.emoji)
         .setDescription(`You have ${t.amount} ${it.name}`);
+      applyComponentEmoji(opt, it.emoji);
       if (stats.dig_tool === it.id) opt.setDefault(true);
       toolSelect.addOptions(opt);
     }

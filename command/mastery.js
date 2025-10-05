@@ -12,6 +12,7 @@ const {
   SectionBuilder,
   ThumbnailBuilder,
 } = require('@discordjs/builders');
+const { applyComponentEmoji } = require('../utils');
 
 const CHAT_THUMB = 'https://i.ibb.co/6RGR6jYf/Chat-badge-normal.png';
 const CHAT_THUMB_MAX = 'https://ibb.co/jFHRrQ4';
@@ -31,21 +32,27 @@ function buildMasterySelect(active) {
     .setCustomId('mastery-select')
     .setPlaceholder('Mastery')
     .addOptions(
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Chat Mastery')
-        .setValue('chat')
-        .setEmoji('<:SBMChat:1414143736488788089>')
-        .setDefault(active === 'chat'),
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Hunting Mastery')
-        .setValue('hunt')
-        .setEmoji('🏹')
-        .setDefault(active === 'hunt'),
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Farm Mastery')
-        .setValue('farm')
-        .setEmoji('🌾')
-        .setDefault(active === 'farm'),
+      applyComponentEmoji(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Chat Mastery')
+          .setValue('chat')
+          .setDefault(active === 'chat'),
+        '<:SBMChat:1414143736488788089>',
+      ),
+      applyComponentEmoji(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Hunting Mastery')
+          .setValue('hunt')
+          .setDefault(active === 'hunt'),
+        '🏹',
+      ),
+      applyComponentEmoji(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Farm Mastery')
+          .setValue('farm')
+          .setDefault(active === 'farm'),
+        '🌾',
+      ),
     );
   return select;
 }
