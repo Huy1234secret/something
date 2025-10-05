@@ -473,13 +473,20 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     .addMediaGalleryComponents(mediaGallery)
     .addSeparatorComponents(new SeparatorBuilder());
 
-  const actionRows = [
+  const selectionRows = [
     new ActionRowBuilder().addComponents(pageSelect),
     new ActionRowBuilder().addComponents(typeSelect),
-    ...buttonRows,
   ];
 
-  const containers = distributeActionRows(container, actionRows, 0xffffff);
+  const containers = distributeActionRows(container, selectionRows, 0xffffff);
+
+  if (buttonRows.length) {
+    const buttonContainer = new ContainerBuilder().setAccentColor(0xffffff);
+    for (const row of buttonRows) {
+      buttonContainer.addActionRowComponents(row);
+    }
+    containers.push(buttonContainer);
+  }
 
   const message = await send({
     files: [attachment],
