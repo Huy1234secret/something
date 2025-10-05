@@ -107,15 +107,17 @@ function getInventoryCount(stats) {
 function resolveComponentEmoji(emoji) {
   if (!emoji) return emoji;
   if (typeof emoji !== 'string') return emoji;
-  const match = emoji.match(/^<(?:(a):)?([a-zA-Z0-9_]+):(\d+)>$/);
-  if (!match) {
-    return emoji;
+  const trimmed = emoji.trim();
+  const match = trimmed.match(/^<(?:(a):)?([a-zA-Z0-9_]+):(\d+)>$/);
+  if (match) {
+    const [, animatedFlag, name, id] = match;
+    return {
+      id,
+      name,
+      animated: Boolean(animatedFlag),
+    };
   }
-  const [, animatedFlag, , id] = match;
-  return {
-    id,
-    animated: Boolean(animatedFlag),
-  };
+  return { name: trimmed };
 }
 
 function applyComponentEmoji(component, emoji) {
