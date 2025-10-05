@@ -4,7 +4,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -176,9 +175,7 @@ function buildMainContainer(
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(select))
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(huntBtn, statBtn, equipBtn),
     );
@@ -368,15 +365,22 @@ function buildEquipmentContainer(user, stats) {
       ),
       new TextDisplayBuilder().setContent(activeLureText),
     );
-  return new ContainerBuilder()
+  const infoContainer = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(gunSelect))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect));
+
+  const lureSection = new SectionBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(activeLureText));
+
+  const lureContainer = new ContainerBuilder()
+    .setAccentColor(0xffffff)
+    .addSectionComponents(lureSection)
     .addActionRowComponents(new ActionRowBuilder().addComponents(lureSelect))
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
+
+  return [infoContainer, lureContainer];
 }
 
 function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
@@ -722,25 +726,28 @@ async function checkMasterZoologistBadge(user, stats, resources, extraLines) {
   }
 
   const rewardLines = formatBadgeRewardLines(MASTER_ZOOLOGIST_BADGE);
-  const badgeContainer = new ContainerBuilder()
-    .setAccentColor(0xffff00)
-    .addSectionComponents(
-      new SectionBuilder()
-        .setThumbnailAccessory(
-          new ThumbnailBuilder().setURL(MASTER_ZOOLOGIST_BADGE.thumbnail || user.displayAvatarURL()),
-        )
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `# Congratulation ${user}!\n### You have earned Master Zoologist badge!\n-# For discovering every single animals in hunting`,
-          ),
-        ),
+  const introSection = new SectionBuilder()
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(
+        MASTER_ZOOLOGIST_BADGE.thumbnail || user.displayAvatarURL(),
+      ),
     )
-    .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `You have earned:\n${rewardLines.join('\n')}`,
+        `# Congratulation ${user}!\n### You have earned Master Zoologist badge!\n-# For discovering every single animals in hunting`,
       ),
     );
+
+  const rewardSection = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      `You have earned:\n${rewardLines.join('\n')}`,
+    ),
+  );
+
+  const badgeContainer = new ContainerBuilder()
+    .setAccentColor(0xffff00)
+    .addSectionComponents(introSection)
+    .addSectionComponents(rewardSection);
   try {
     await user.send({ components: [badgeContainer], flags: MessageFlags.IsComponentsV2 });
   } catch {}
@@ -856,9 +863,9 @@ function setup(client, resources) {
         const state = huntStates.get(interaction.message.id);
         if (!state || state.userId !== interaction.user.id) return;
         const stats = resources.userStats[state.userId] || {};
-        const container = buildEquipmentContainer(interaction.user, stats);
+        const containers = buildEquipmentContainer(interaction.user, stats);
         await interaction.update({
-          components: [container],
+          components: containers,
           flags: MessageFlags.IsComponentsV2,
         });
       } else if (
@@ -872,9 +879,9 @@ function setup(client, resources) {
         stats.hunt_gun = gun;
         resources.userStats[state.userId] = stats;
         resources.saveData();
-        const container = buildEquipmentContainer(interaction.user, stats);
+        const containers = buildEquipmentContainer(interaction.user, stats);
         await interaction.update({
-          components: [container],
+          components: containers,
           flags: MessageFlags.IsComponentsV2,
         });
       } else if (
@@ -888,9 +895,9 @@ function setup(client, resources) {
         stats.hunt_bullet = bullet;
         resources.userStats[state.userId] = stats;
         resources.saveData();
-        const container = buildEquipmentContainer(interaction.user, stats);
+        const containers = buildEquipmentContainer(interaction.user, stats);
         await interaction.update({
-          components: [container],
+          components: containers,
           flags: MessageFlags.IsComponentsV2,
         });
       } else if (
@@ -913,9 +920,9 @@ function setup(client, resources) {
           return;
         }
         const stats = resources.userStats[state.userId] || {};
-        const container = buildEquipmentContainer(interaction.user, stats);
+        const containers = buildEquipmentContainer(interaction.user, stats);
         await interaction.update({
-          components: [container],
+          components: containers,
           flags: MessageFlags.IsComponentsV2,
         });
         await interaction.followUp({

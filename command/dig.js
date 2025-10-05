@@ -4,7 +4,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -109,7 +108,6 @@ function buildMainContainer(user, text, color, disable = false) {
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(digBtn, statBtn, equipBtn),
     );
@@ -221,9 +219,7 @@ function buildEquipmentContainer(user, stats) {
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(toolSelect))
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
     );
