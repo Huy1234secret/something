@@ -2,9 +2,11 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   MessageFlags,
+} = require('discord.js');
+const {
   TextDisplayBuilder,
   ContainerBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 
 const WARN = '<:SBWarning:1404101025849147432> ';
 

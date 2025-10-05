@@ -1,13 +1,15 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+} = require('discord.js');
+const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const {
   BADGES,
   getBadgeProgress,

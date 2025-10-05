@@ -1,16 +1,18 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  ButtonStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { ITEMS, DIG_ITEMS } = require('../items');
 const {
   normalizeInventory,

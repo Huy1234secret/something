@@ -1,6 +1,10 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+  AttachmentBuilder,
+  ButtonStyle,
+} = require('discord.js');
+const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -9,10 +13,8 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-  AttachmentBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} = require('discord.js');
+} = require('@discordjs/builders');
 const { createCanvas } = require('canvas');
 const { loadCachedImage } = require('../imageCache');
 const { ITEMS } = require('../items');

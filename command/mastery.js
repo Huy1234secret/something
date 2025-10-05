@@ -1,6 +1,8 @@
 const {
   SlashCommandBuilder,
   MessageFlags,
+} = require('discord.js');
+const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -9,7 +11,7 @@ const {
   StringSelectMenuOptionBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-} = require('discord.js');
+} = require('@discordjs/builders');
 
 const CHAT_THUMB = 'https://i.ibb.co/6RGR6jYf/Chat-badge-normal.png';
 const CHAT_THUMB_MAX = 'https://ibb.co/jFHRrQ4';
