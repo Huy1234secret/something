@@ -104,9 +104,15 @@ async function sendEventMessage(channel, state) {
 function scheduleDecay(state, userId, client, saveData, decayTimers) {
   const entry = state.participants[userId];
   if (!entry || entry.eliminated || state.ended) return;
-  if (!entry.next_decay_at || entry.next_decay_at < Date.now()) {
+  if (!entry.next_decay_at) {
     entry.next_decay_at = Date.now() + DECAY_DURATION;
     saveData();
+  }
+  if (entry.next_decay_at <= Date.now()) {
+    clearTimeout(decayTimers.get(userId));
+    decayTimers.delete(userId);
+    handleDecay(state, userId, client, saveData, decayTimers).catch(() => {});
+    return;
   }
   clearTimeout(decayTimers.get(userId));
   const delay = Math.max(0, entry.next_decay_at - Date.now());
