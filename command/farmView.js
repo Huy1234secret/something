@@ -35,6 +35,24 @@ const WATERED_PLOT = 'https://i.ibb.co/tpyMJL5G/Watered-plot.png';
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 
+const SEED_LEVEL_REQUIREMENTS = {
+  WhiteCabbageSeed: 30,
+  PumpkinSeed: 30,
+  MelonSeed: 60,
+  StarFruitSeed: 60,
+};
+
+function getSeedRequirement(seedId) {
+  const requirement = SEED_LEVEL_REQUIREMENTS[seedId];
+  return Number.isFinite(requirement) ? requirement : null;
+}
+
+function formatSeedRequirementName(seedId) {
+  const item = ITEMS[seedId];
+  if (!item || !item.name) return 'this seed';
+  return item.name.replace(/seed package$/i, 'seeds');
+}
+
 const SEED_POSITIONS = {
   1: { x: 150, y: 200 },
   2: { x: 250, y: 200 },
@@ -78,6 +96,39 @@ const WHITE_CABBAGE_IMAGES = [
 ];
 const WHITE_CABBAGE_DEAD = 'https://i.ibb.co/VYjh46dh/Cabbage-death.png';
 
+const PUMPKIN_IMAGES = [
+  'https://i.ibb.co/cX6W64DG/Pumpkin-1.png',
+  'https://i.ibb.co/sp4JBJyJ/Pumpkin-2.png',
+  'https://i.ibb.co/WWnZWPDq/Pumpkin-3.png',
+  'https://i.ibb.co/0j3dRkHQ/Pumpkin-4.png',
+  'https://i.ibb.co/dJHPTqdC/Pumpkin-5.png',
+  'https://i.ibb.co/Kz6wGhkY/Pumpkin-6.png',
+  'https://i.ibb.co/k6hNJnLW/Pumpkin-7.png',
+];
+const PUMPKIN_DEAD = 'https://i.ibb.co/7NCwtLGw/Pumpkin-death.png';
+
+const MELON_IMAGES = [
+  'https://i.ibb.co/zh2YvJyq/Melon-1.png',
+  'https://i.ibb.co/RGmTcTmK/Melon-2.png',
+  'https://i.ibb.co/QjxQL2fT/Melon-3.png',
+  'https://i.ibb.co/5WDVq79L/Melon-4.png',
+  'https://i.ibb.co/zT4ffLQv/Melon-5.png',
+  'https://i.ibb.co/dJp5LCXH/Melon-6.png',
+  'https://i.ibb.co/PGQ2YQ1Q/Melon-7.png',
+];
+const MELON_DEAD = 'https://i.ibb.co/23J1xm3R/Melon-death.png';
+
+const STAR_FRUIT_IMAGES = [
+  'https://i.ibb.co/dTK3LQW/Star-Fruit-1.png',
+  'https://i.ibb.co/zhF5WGSY/Star-Fruit-2.png',
+  'https://i.ibb.co/VpwwBbkX/Star-Fruit-3.png',
+  'https://i.ibb.co/Kd06nmf/Star-Fruit-4.png',
+  'https://i.ibb.co/3YFZXMfv/Star-Fruit-5.png',
+  'https://i.ibb.co/xKBTTYn3/Star-Fruit-6.png',
+  'https://i.ibb.co/G3B2vdKZ/Star-Fruit-7.png',
+];
+const STAR_FRUIT_DEAD = 'https://i.ibb.co/rf41mBrR/Star-Fruit-death.png';
+
 const FARM_ACTION_XP = 10;
 const CROP_XP_BASE = 100;
 const CROP_RARITY_MULTIPLIER = {
@@ -109,6 +160,12 @@ const POTATO_IMG_PROMISES = POTATO_IMAGES.map(url => loadCachedImage(url));
 const POTATO_DEAD_IMG = loadCachedImage(POTATO_DEAD);
 const WHITE_CABBAGE_IMG_PROMISES = WHITE_CABBAGE_IMAGES.map(url => loadCachedImage(url));
 const WHITE_CABBAGE_DEAD_IMG = loadCachedImage(WHITE_CABBAGE_DEAD);
+const PUMPKIN_IMG_PROMISES = PUMPKIN_IMAGES.map(url => loadCachedImage(url));
+const PUMPKIN_DEAD_IMG = loadCachedImage(PUMPKIN_DEAD);
+const MELON_IMG_PROMISES = MELON_IMAGES.map(url => loadCachedImage(url));
+const MELON_DEAD_IMG = loadCachedImage(MELON_DEAD);
+const STAR_FRUIT_IMG_PROMISES = STAR_FRUIT_IMAGES.map(url => loadCachedImage(url));
+const STAR_FRUIT_DEAD_IMG = loadCachedImage(STAR_FRUIT_DEAD);
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -129,6 +186,27 @@ const WHITE_CABBAGE_GROW_TIME = 12 * 60 * 60 * 1000; // 12h
 const WHITE_CABBAGE_STAGE_TIME = WHITE_CABBAGE_GROW_TIME / (WHITE_CABBAGE_IMAGES.length - 1);
 const WHITE_CABBAGE_DRY_DEATH_TIME = 2 * 60 * 60 * 1000; // 2h without water
 const WHITE_CABBAGE_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const PUMPKIN_GROW_TIME = 16 * 60 * 60 * 1000; // 16h
+const PUMPKIN_STAGE_TIME = Math.max(
+  1,
+  Math.round(PUMPKIN_GROW_TIME / (PUMPKIN_IMAGES.length - 1)),
+);
+const PUMPKIN_DRY_DEATH_TIME = 3 * 60 * 60 * 1000; // 3h without water
+const PUMPKIN_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const MELON_GROW_TIME = 24 * 60 * 60 * 1000; // 24h
+const MELON_STAGE_TIME = Math.max(
+  1,
+  Math.round(MELON_GROW_TIME / (MELON_IMAGES.length - 1)),
+);
+const MELON_DRY_DEATH_TIME = 4 * 60 * 60 * 1000; // 4h without water
+const MELON_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const STAR_FRUIT_GROW_TIME = 72 * 60 * 60 * 1000; // 72h
+const STAR_FRUIT_STAGE_TIME = Math.max(
+  1,
+  Math.round(STAR_FRUIT_GROW_TIME / (STAR_FRUIT_IMAGES.length - 1)),
+);
+const STAR_FRUIT_DRY_DEATH_TIME = 8 * 60 * 60 * 1000; // 8h without water
+const STAR_FRUIT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
 const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
 
 const FARM_REPLANT_CHANCE = 0.15;
@@ -253,6 +331,81 @@ function getPlantData(seedId, stats = {}) {
         let seeds = 0;
         if (roll < 0.05) seeds = 2;
         else if (roll < 0.8) seeds = 1;
+        return { crop: 1, seeds };
+      },
+    };
+  }
+  if (seedId === 'PumpkinSeed') {
+    const growTime = Math.round(PUMPKIN_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(
+      1,
+      Math.round(growTime / (PUMPKIN_IMAGES.length - 1)),
+    );
+    return {
+      images: PUMPKIN_IMG_PROMISES,
+      deadImg: PUMPKIN_DEAD_IMG,
+      growTime,
+      stageTime,
+      dryDeathTime: PUMPKIN_DRY_DEATH_TIME,
+      expireTime: PUMPKIN_EXPIRE_TIME,
+      seedItem: ITEMS.PumpkinSeed,
+      harvestItem: ITEMS.Pumpkin,
+      name: 'Pumpkin',
+      harvest() {
+        const roll = Math.random();
+        let seeds = 0;
+        if (roll < 0.04) seeds = 2;
+        else if (roll < 0.74) seeds = 1;
+        return { crop: 1, seeds };
+      },
+    };
+  }
+  if (seedId === 'MelonSeed') {
+    const growTime = Math.round(MELON_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(
+      1,
+      Math.round(growTime / (MELON_IMAGES.length - 1)),
+    );
+    return {
+      images: MELON_IMG_PROMISES,
+      deadImg: MELON_DEAD_IMG,
+      growTime,
+      stageTime,
+      dryDeathTime: MELON_DRY_DEATH_TIME,
+      expireTime: MELON_EXPIRE_TIME,
+      seedItem: ITEMS.MelonSeed,
+      harvestItem: ITEMS.Melon,
+      name: 'Melon',
+      harvest() {
+        const roll = Math.random();
+        let seeds = 0;
+        if (roll < 0.03) seeds = 2;
+        else if (roll < 0.53) seeds = 1;
+        return { crop: 1, seeds };
+      },
+    };
+  }
+  if (seedId === 'StarFruitSeed') {
+    const growTime = Math.round(STAR_FRUIT_GROW_TIME * growthMultiplier);
+    const stageTime = Math.max(
+      1,
+      Math.round(growTime / (STAR_FRUIT_IMAGES.length - 1)),
+    );
+    return {
+      images: STAR_FRUIT_IMG_PROMISES,
+      deadImg: STAR_FRUIT_DEAD_IMG,
+      growTime,
+      stageTime,
+      dryDeathTime: STAR_FRUIT_DRY_DEATH_TIME,
+      expireTime: STAR_FRUIT_EXPIRE_TIME,
+      seedItem: ITEMS.StarFruitSeed,
+      harvestItem: ITEMS.StarFruit,
+      name: 'Star Fruit',
+      harvest() {
+        const roll = Math.random();
+        let seeds = 0;
+        if (roll < 0.02) seeds = 2;
+        else if (roll < 0.47) seeds = 1;
         return { crop: 1, seeds };
       },
     };
@@ -517,12 +670,13 @@ function setup(client, resources) {
         : 0;
       const seed = (stats.inventory || []).find(i => i.id === seedId);
       const required = state.selected.length;
-      if (seedId === 'WhiteCabbageSeed' && farmLevel < 30) {
+      const requirement = getSeedRequirement(seedId);
+      if (requirement && farmLevel < requirement) {
         const container = new ContainerBuilder()
           .setAccentColor(0xffffff)
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `${WARNING} You need Farm Mastery Lv.30 to plant White Cabbage seeds.`,
+              `${WARNING} You need Farm Mastery Lv.${requirement} to plant ${formatSeedRequirementName(seedId)}.`,
             ),
           );
         await interaction.editReply({
