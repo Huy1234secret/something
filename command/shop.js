@@ -49,6 +49,20 @@ const BASE_COIN_ITEM_ORDER = [
 
 const BASE_SEED_IDS = ['WheatSeed', 'PotatoSeed'];
 
+const SEED_LEVEL_REQUIREMENTS = {
+  WhiteCabbageSeed: 30,
+  PumpkinSeed: 30,
+  MelonSeed: 60,
+  StarFruitSeed: 60,
+};
+
+const SPECIAL_SEED_REPLACEMENTS = [
+  { id: 'StarFruitSeed', chance: 0.2 },
+  { id: 'MelonSeed', chance: 0.4 },
+  { id: 'PumpkinSeed', chance: 0.55 },
+  { id: 'WhiteCabbageSeed', chance: 0.75 },
+];
+
 const OPTIONAL_COIN_ITEMS = [
   { id: 'XPSoda', chance: 0.35, min: 1, max: 3 },
   { id: 'AnimalDetector', chance: 0.15, min: 1, max: 2 },
@@ -58,7 +72,7 @@ const OPTIONAL_COIN_ITEMS = [
   { id: 'VerdantLures', chance: 0.25, min: 10, max: 25 },
 ];
 
-const FARM_CROP_IDS = new Set(['Sheaf', 'Potato', 'WhiteCabbage']);
+const FARM_CROP_IDS = new Set(['Sheaf', 'Potato', 'WhiteCabbage', 'Pumpkin', 'Melon', 'StarFruit']);
 
 const shopStates = new Map();
 
@@ -66,6 +80,9 @@ const STOCK_CONFIG = {
   WheatSeed: { min: 5, max: 15 },
   PotatoSeed: { min: 3, max: 10 },
   WhiteCabbageSeed: { min: 2, max: 6 },
+  PumpkinSeed: { min: 1, max: 5 },
+  MelonSeed: { min: 1, max: 3 },
+  StarFruitSeed: { min: 1, max: 2 },
   SeraphicHeart: { min: 1, max: 5 },
   Padlock: { min: 3, max: 7 },
   Landmine: { min: 1, max: 3 },
@@ -115,6 +132,11 @@ function distributeActionRows(baseContainer, rows, accentColor) {
 
 function getItemsByIds(ids) {
   return ids.map(id => ITEMS[id]).filter(Boolean);
+}
+
+function getSeedRequirement(id) {
+  const requirement = SEED_LEVEL_REQUIREMENTS[id];
+  return Number.isFinite(requirement) ? requirement : null;
 }
 
 function getCoinItemIds(resources) {
@@ -174,14 +196,17 @@ function restockCoinShop(resources) {
   }
 
   // Seed slots with potential White Cabbage replacement
-  const chosenSeeds = [];
-  let replaced = false;
-  for (const baseSeed of BASE_SEED_IDS) {
-    let seedId = baseSeed;
-    if (!replaced && Math.random() < 0.75) {
-      seedId = 'WhiteCabbageSeed';
-      replaced = true;
+  const seedSlots = [...BASE_SEED_IDS];
+  for (const replacement of SPECIAL_SEED_REPLACEMENTS) {
+    if (Math.random() < replacement.chance) {
+      const slotIndex = Math.floor(Math.random() * seedSlots.length);
+      seedSlots[slotIndex] = replacement.id;
+      break;
     }
+  }
+
+  const chosenSeeds = [];
+  for (const seedId of seedSlots) {
     const cfg = STOCK_CONFIG[seedId];
     if (!cfg) continue;
     const amount = rand(cfg.min, cfg.max);
@@ -375,6 +400,8 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       originalPrice = price;
       price = Math.round(price * (1 - s.discount));
     }
+    const requiredLevel = SEED_LEVEL_REQUIREMENTS[it.id];
+    const locked = Number.isFinite(requiredLevel) && farmLevel < requiredLevel;
     return {
       ...it,
       price,
@@ -382,8 +409,8 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       stock: s.amount ?? 0,
       maxStock: s.max ?? 0,
       discount: s.discount,
-      locked: it.id === 'WhiteCabbageSeed' && farmLevel < 30,
-      lockedText: it.id === 'WhiteCabbageSeed' && farmLevel < 30 ? 'Farm Mastery Lv.30' : null,
+      locked,
+      lockedText: locked ? `Farm Mastery Lv.${requiredLevel}` : null,
     };
   });
 
@@ -610,9 +637,10 @@ function setup(client, resources) {
         const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
           ? viewerStats.farm_mastery_level
           : 0;
-        if (item.id === 'WhiteCabbageSeed' && viewerFarmLevel < 30) {
+        const requirement = getSeedRequirement(item.id);
+        if (requirement && viewerFarmLevel < requirement) {
           await interaction.reply({
-            content: 'You need Farm Mastery Lv.30 to purchase this seed package.',
+            content: `You need Farm Mastery Lv.${requirement} to purchase this seed package.`,
             flags: MessageFlags.Ephemeral,
           });
           return;
@@ -664,10 +692,13 @@ function setup(client, resources) {
         const farmMasteryLevel = Number.isFinite(stats.farm_mastery_level)
           ? stats.farm_mastery_level
           : 0;
-        if (itemId === 'WhiteCabbageSeed' && farmMasteryLevel < 30) {
+        const requirementConfirm = getSeedRequirement(itemId);
+        if (requirementConfirm && farmMasteryLevel < requirementConfirm) {
           await interaction.update({
             components: [
-              makeTextContainer('You need Farm Mastery Lv.30 to purchase this seed package.'),
+              makeTextContainer(
+                `You need Farm Mastery Lv.${requirementConfirm} to purchase this seed package.`,
+              ),
             ],
             flags: MessageFlags.IsComponentsV2,
           });
@@ -817,9 +848,14 @@ function setup(client, resources) {
       const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
         ? viewerStats.farm_mastery_level
         : 0;
-      if (baseItem.id === 'WhiteCabbageSeed' && viewerFarmLevel < 30) {
+      const requirement = getSeedRequirement(baseItem.id);
+      if (requirement && viewerFarmLevel < requirement) {
         await interaction.reply({
-          components: [makeTextContainer('You need Farm Mastery Lv.30 to purchase this seed package.')],
+          components: [
+            makeTextContainer(
+              `You need Farm Mastery Lv.${requirement} to purchase this seed package.`,
+            ),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
