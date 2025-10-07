@@ -36,6 +36,7 @@ const myCosmeticCommand = require('./command/myCosmetic');
 const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
+const battlePassCommand = require('./command/battlePass');
 const spookyHunt = require('./spookyHunt');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
@@ -550,6 +551,7 @@ client.on = function(event, listener) {
     masteryCommand.setup(client, resources);
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
+    battlePassCommand.setup(client, resources);
     spookyHunt.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
