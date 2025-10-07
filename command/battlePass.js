@@ -760,13 +760,17 @@ function buildBattlePassSummary(items, currentXP, totalXP) {
   return lines.join('\n');
 }
 
-function buildContainer() {
+function buildContainer(summary) {
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         '## Christmas Battle Pass\n-# Seasonal rewards preview\n-# Rewards & XP refresh on every use',
       ),
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(summary),
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addMediaGalleryComponents(
@@ -795,17 +799,10 @@ function setup(client) {
       const { items, currentXP, totalXP } = generateBattlePassData();
       const buffer = await renderBattlePass(items, currentXP, totalXP);
       const attachment = new AttachmentBuilder(buffer, { name: 'battle-pass.png' });
-      const embed = {
-        title: 'Christmas Battle Pass',
-        description: buildBattlePassSummary(items, currentXP, totalXP),
-        color: 0x2ad67b,
-        image: { url: 'attachment://battle-pass.png' },
-        footer: { text: FOOTER_TEXT },
-      };
-      const container = buildContainer();
+      const summary = buildBattlePassSummary(items, currentXP, totalXP);
+      const container = buildContainer(summary);
       await interaction.editReply({
         files: [attachment],
-        embeds: [embed],
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
