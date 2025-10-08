@@ -514,11 +514,10 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], nextThres
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#2ad67b';
   ctx.textAlign = 'center';
-  const remaining =
-    nextThreshold != null ? Math.max(nextThreshold - current, 0) : Math.max(total - current, 0);
+  const target = nextThreshold != null ? nextThreshold : total;
   const label =
-    nextThreshold != null
-      ? `Progress: ${formatNumber(remaining)} XP to next reward`
+    target > 0
+      ? `Progress: ${formatNumber(Math.min(current, target))} / ${formatNumber(target)} XP`
       : 'All rewards unlocked';
   ctx.fillText(label, x + w / 2, y - 12);
   ctx.textAlign = 'left';
