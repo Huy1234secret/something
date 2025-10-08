@@ -7,14 +7,5 @@
   "shop": {
     "stock": {},
     "nextRestock": 0
-  },
-  "spooky_hunt": {
-    "message_id": null,
-    "channel_id": null,
-    "guild_id": null,
-    "parent_id": null,
-    "participants": {},
-    "ended": false,
-    "winner_id": null
   }
 }
