@@ -26,10 +26,11 @@ const {
   useDurableItem,
   applyComponentEmoji,
   resolveComponentEmoji,
+  hasNaughtyList,
 } = require('../utils');
+const { getFarmBackgroundUrl, getItemDisplay, DEFAULT_FARM_BACKGROUND_URL } = require('../skins');
 
 const CANVAS_SIZE = 500;
-const FARM_BG = 'https://i.ibb.co/NnG9tLD4/Flower-Garden.png';
 const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 const WATERED_PLOT = 'https://i.ibb.co/tpyMJL5G/Watered-plot.png';
 
@@ -151,7 +152,7 @@ const FARM_DROP_TABLE = [
 ];
 
 // Preload commonly used images so they are fetched only once
-const FARM_BG_IMG = loadCachedImage(FARM_BG);
+const DEFAULT_FARM_BG_IMG = loadCachedImage(DEFAULT_FARM_BACKGROUND_URL);
 const SELECT_OVERLAY_IMG = loadCachedImage(SELECT_IMG);
 const WATERED_PLOT_IMG = loadCachedImage(WATERED_PLOT);
 const WHEAT_IMG_PROMISES = WHEAT_IMAGES.map((url) => loadCachedImage(url));
@@ -264,16 +265,17 @@ function getPlantData(seedId, stats = {}) {
     ? stats.farm_mastery_level
     : 0;
   const growthMultiplier = getFarmGrowthMultiplier(level);
+  const penaltyMultiplier = hasNaughtyList(stats) ? 2 : 1;
   if (seedId === 'WheatSeed') {
-    const growTime = Math.round(WHEAT_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(WHEAT_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(1, Math.round(growTime / (WHEAT_IMAGES.length - 1)));
     return {
       images: WHEAT_IMG_PROMISES,
       deadImg: WHEAT_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: WHEAT_DRY_DEATH_TIME,
-      expireTime: WHEAT_EXPIRE_TIME,
+      dryDeathTime: WHEAT_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: WHEAT_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.WheatSeed,
       harvestItem: ITEMS.Sheaf,
       name: 'Wheat',
@@ -288,15 +290,15 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'PotatoSeed') {
-    const growTime = Math.round(POTATO_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(POTATO_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(1, Math.round(growTime / (POTATO_IMAGES.length - 1)));
     return {
       images: POTATO_IMG_PROMISES,
       deadImg: POTATO_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: POTATO_DRY_DEATH_TIME,
-      expireTime: POTATO_EXPIRE_TIME,
+      dryDeathTime: POTATO_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: POTATO_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.PotatoSeed,
       harvestItem: ITEMS.Potato,
       name: 'Potato',
@@ -311,7 +313,7 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'WhiteCabbageSeed') {
-    const growTime = Math.round(WHITE_CABBAGE_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(WHITE_CABBAGE_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(
       1,
       Math.round(growTime / (WHITE_CABBAGE_IMAGES.length - 1)),
@@ -321,8 +323,8 @@ function getPlantData(seedId, stats = {}) {
       deadImg: WHITE_CABBAGE_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: WHITE_CABBAGE_DRY_DEATH_TIME,
-      expireTime: WHITE_CABBAGE_EXPIRE_TIME,
+      dryDeathTime: WHITE_CABBAGE_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: WHITE_CABBAGE_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.WhiteCabbageSeed,
       harvestItem: ITEMS.WhiteCabbage,
       name: 'White Cabbage',
@@ -336,7 +338,7 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'PumpkinSeed') {
-    const growTime = Math.round(PUMPKIN_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(PUMPKIN_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(
       1,
       Math.round(growTime / (PUMPKIN_IMAGES.length - 1)),
@@ -346,8 +348,8 @@ function getPlantData(seedId, stats = {}) {
       deadImg: PUMPKIN_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: PUMPKIN_DRY_DEATH_TIME,
-      expireTime: PUMPKIN_EXPIRE_TIME,
+      dryDeathTime: PUMPKIN_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: PUMPKIN_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.PumpkinSeed,
       harvestItem: ITEMS.Pumpkin,
       name: 'Pumpkin',
@@ -361,7 +363,7 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'MelonSeed') {
-    const growTime = Math.round(MELON_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(MELON_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(
       1,
       Math.round(growTime / (MELON_IMAGES.length - 1)),
@@ -371,8 +373,8 @@ function getPlantData(seedId, stats = {}) {
       deadImg: MELON_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: MELON_DRY_DEATH_TIME,
-      expireTime: MELON_EXPIRE_TIME,
+      dryDeathTime: MELON_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: MELON_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.MelonSeed,
       harvestItem: ITEMS.Melon,
       name: 'Melon',
@@ -386,7 +388,7 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'StarFruitSeed') {
-    const growTime = Math.round(STAR_FRUIT_GROW_TIME * growthMultiplier);
+    const growTime = Math.round(STAR_FRUIT_GROW_TIME * growthMultiplier * penaltyMultiplier);
     const stageTime = Math.max(
       1,
       Math.round(growTime / (STAR_FRUIT_IMAGES.length - 1)),
@@ -396,8 +398,8 @@ function getPlantData(seedId, stats = {}) {
       deadImg: STAR_FRUIT_DEAD_IMG,
       growTime,
       stageTime,
-      dryDeathTime: STAR_FRUIT_DRY_DEATH_TIME,
-      expireTime: STAR_FRUIT_EXPIRE_TIME,
+      dryDeathTime: STAR_FRUIT_DRY_DEATH_TIME * penaltyMultiplier,
+      expireTime: STAR_FRUIT_EXPIRE_TIME * penaltyMultiplier,
       seedItem: ITEMS.StarFruitSeed,
       harvestItem: ITEMS.StarFruit,
       name: 'Star Fruit',
@@ -441,8 +443,13 @@ async function getPlantImage(plot, stats) {
 async function renderFarm(farm, selected = [], stats = {}) {
   const canvas = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = canvas.getContext('2d');
+  const bgUrl = getFarmBackgroundUrl(stats);
+  const bgPromise =
+    bgUrl === DEFAULT_FARM_BACKGROUND_URL
+      ? DEFAULT_FARM_BG_IMG
+      : loadCachedImage(bgUrl);
   const [bg, wateredImg, overlay] = await Promise.all([
-    FARM_BG_IMG,
+    bgPromise,
     WATERED_PLOT_IMG,
     SELECT_OVERLAY_IMG,
   ]);
@@ -511,12 +518,18 @@ function buildFarmContainer(user, selected = [], farm = {}, stats = {}) {
     ITEMS.HarvestScythe.emoji,
   );
 
+  const wateringDisplay = getItemDisplay(
+    stats,
+    ITEMS.WateringCan,
+    ITEMS.WateringCan.name,
+    ITEMS.WateringCan.emoji,
+  );
   const waterBtn = applyComponentEmoji(
     new ButtonBuilder()
       .setCustomId('farm-water')
       .setLabel('Watering')
       .setStyle(ButtonStyle.Primary),
-    ITEMS.WateringCan.emoji,
+    wateringDisplay.emoji,
   );
 
   const progressLines = [];

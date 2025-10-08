@@ -22,7 +22,11 @@ const {
   useDurableItem,
   applyCoinBoost,
   applyComponentEmoji,
+  getCooldownMultiplier,
+  computeActionSuccessChance,
+  isSnowballed,
 } = require('../utils');
+const { getItemDisplay } = require('../skins');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
@@ -224,13 +228,21 @@ function buildEquipmentContainer(user, stats) {
       );
   }
 
-  const equippedTool = ITEMS[stats.dig_tool] || { name: 'None', emoji: '' };
+  const equippedToolItem = ITEMS[stats.dig_tool] || {
+    id: stats.dig_tool,
+    name: 'None',
+    emoji: '',
+  };
+  const equippedToolDisplay =
+    stats.dig_tool && equippedToolItem
+      ? getItemDisplay(stats, equippedToolItem, equippedToolItem.name, equippedToolItem.emoji)
+      : { name: 'None', emoji: '' };
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(THUMB_URL))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
       new TextDisplayBuilder().setContent(
-        `* Tool equipped: ${equippedTool.name} ${equippedTool.emoji}`,
+        `* Tool equipped: ${equippedToolDisplay.name} ${equippedToolDisplay.emoji}`,
       ),
     );
   return new ContainerBuilder()
@@ -265,8 +277,14 @@ async function sendDig(user, send, resources, fetchReply) {
 async function handleDig(interaction, resources, stats) {
   const { message, user } = interaction;
   const initialFull = alertInventoryFull(interaction, user, stats);
-  const success = Math.random() < 0.5;
-  const cooldown = Date.now() + 30000;
+  const snowballed = isSnowballed(stats);
+  const { chance: successChance, forcedFail } = computeActionSuccessChance(0.5, stats, {
+    min: 0.01,
+    max: 0.95,
+  });
+  const success = !forcedFail && Math.random() < successChance;
+  const cooldownDuration = Math.round(30000 * getCooldownMultiplier(stats));
+  const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
   stats.dig_total = (stats.dig_total || 0) + 1;
   let text;
@@ -311,9 +329,13 @@ async function handleDig(interaction, resources, stats) {
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
     xp = 25;
-    text = `${
-      FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)]
-    }\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
+    let failLine = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
+    if (forcedFail && snowballed) {
+      failLine += '\\n-# A frosty snowball curse makes every attempt fail!';
+    }
+    text = `${failLine}\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(
+      cooldown / 1000,
+    )}:R>`;
     color = 0xff0000;
   }
   await resources.addXp(user, xp, resources.client);

@@ -11,6 +11,7 @@ const {
   StringSelectMenuBuilder,
 } = require('@discordjs/builders');
 const { normalizeInventory, getInventoryCount, MAX_ITEMS } = require('../utils');
+const { getItemDisplay } = require('../skins');
 
 const ITEM_TYPES = [
   'Consumable',
@@ -59,14 +60,16 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
     listContent = '-# Nothing here';
   } else {
     listContent = pageItems
-      .map(
-        item =>
-          `**${item.emoji} ${item.name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${
-            (item.types || []).join(', ')
-          }\n<:SBreply:1403665761825980456>Rarity: ${
-            RARITY_EMOJIS[item.rarity] || ''
-          } ${item.rarity}`,
-      )
+      .map(item => {
+        const display = getItemDisplay(stats, item, item.name, item.emoji);
+        const emoji = display.emoji || item.emoji;
+        const name = display.name || item.name;
+        return `**${emoji} ${name}** ═ ${item.amount}\n<:SBreply1:1403665779404050562>Type: ${
+          (item.types || []).join(', ')
+        }\n<:SBreply:1403665761825980456>Rarity: ${
+          RARITY_EMOJIS[item.rarity] || ''
+        } ${item.rarity}`;
+      })
       .join('\n\n');
   }
 

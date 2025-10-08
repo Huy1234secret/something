@@ -3,7 +3,7 @@
 // "Deluxe Shop" – premium 3x2 grid with gold accents only (no header/tabs)
 // npm i canvas
 const { createCanvas } = require('canvas');
-const { loadCachedImage } = require('./imageCache');
+const { loadCachedImage, loadEmojiImage } = require('./imageCache');
 
 // Image used for pricing coin
 const COIN_IMG_URL = 'https://i.ibb.co/PXDPtHZ/Deluxe-Coin.png';
@@ -57,40 +57,61 @@ function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   return size;
 }
 
-async function drawCover(ctx, imgSrcOrImg, x, y, w, h, radius = 16) {
+async function drawCover(ctx, item, x, y, w, h, radius = 16) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  if (!imgSrcOrImg) {
-    const g = ctx.createLinearGradient(x, y, x + w, y + h);
-    g.addColorStop(0, '#0c0f18');
-    g.addColorStop(1, '#11131c');
-    ctx.fillStyle = g;
-    ctx.fillRect(x, y, w, h);
-  } else {
+  const base = ctx.createLinearGradient(x, y, x + w, y + h);
+  base.addColorStop(0, '#0c0f18');
+  base.addColorStop(1, '#11131c');
+  ctx.fillStyle = base;
+  ctx.fillRect(x, y, w, h);
+
+  const emoji = item.displayEmoji || item.emoji;
+  let drawn = false;
+  if (emoji) {
+    const img = await loadEmojiImage(emoji);
+    if (img) {
+      const scale = Math.min(w / img.width, h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      const dx = x + (w - dw) / 2;
+      const dy = y + (h - dh) / 2;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, dx, dy, dw, dh);
+      drawn = true;
+    }
+  }
+
+  if (!drawn && emoji) {
+    ctx.fillStyle = '#f5f9ff';
+    ctx.font = `bold ${Math.floor(h * 0.6)}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    drawn = true;
+  }
+
+  if (!drawn && item.image) {
     try {
-      const img = typeof imgSrcOrImg === 'string'
-        ? await loadCachedImage(imgSrcOrImg)
-        : imgSrcOrImg;
-      // Scale image to fully fit within the provided area
+      const img = await loadCachedImage(item.image);
       const s = Math.min(w / img.width, h / img.height);
       const dw = img.width * s;
       const dh = img.height * s;
       const dx = x + (w - dw) / 2;
       const dy = y + (h - dh) / 2;
       ctx.drawImage(img, dx, dy, dw, dh);
-    } catch {
-      ctx.fillStyle = '#10131d';
-      ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = '#3a4259';
-      ctx.font = 'bold 18px Sans';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Image not found', x + w / 2, y + h / 2);
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-    }
+      drawn = true;
+    } catch {}
+  }
+
+  if (!drawn) {
+    ctx.fillStyle = '#1a2235';
+    ctx.fillRect(x, y, w, h);
   }
 
   const sp = ctx.createRadialGradient(x + w * 0.5, y + h * 0.45, 10, x + w * 0.5, y + h * 0.45, Math.max(w, h) * 0.7);
@@ -252,7 +273,7 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 
   // Cover Image
     const coverPad = gw * 0.03;
-    await drawCover(ctx, item._img || item.image, gx + coverPad, gy + coverPad, gw - coverPad * 2, coverH - coverPad, innerRadius * 0.8);
+    await drawCover(ctx, item, gx + coverPad, gy + coverPad, gw - coverPad * 2, coverH - coverPad, innerRadius * 0.8);
 
   // EXCLUSIVE banner
   if (item.exclusive) {
@@ -283,7 +304,7 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 
   // Title
   ctx.fillStyle = '#f1f5ff';
-  const title = item.name || 'Deluxe Item';
+  const title = item.displayName || item.name || 'Deluxe Item';
   const titleSize = Math.floor(gh * 0.065);
   shrinkToFit(ctx, title, gw - contentPad * 2, titleSize);
   ctx.fillText(title, gx + contentPad, cy);

@@ -91,6 +91,68 @@ function normalizeInventory(stats) {
   ];
 }
 
+function hasGoodList(stats) {
+  return Boolean(stats && stats.good_list_until && stats.good_list_until > Date.now());
+}
+
+function hasNaughtyList(stats) {
+  return Boolean(stats && stats.naughty_list_until && stats.naughty_list_until > Date.now());
+}
+
+function isSnowballed(stats) {
+  return Boolean(stats && stats.snowball_fail_until && stats.snowball_fail_until > Date.now());
+}
+
+function cleanupCooldownBuffs(stats) {
+  if (!stats) return;
+  if (!Array.isArray(stats.cooldown_buffs)) {
+    stats.cooldown_buffs = [];
+    return;
+  }
+  const now = Date.now();
+  stats.cooldown_buffs = stats.cooldown_buffs.filter(entry => entry && entry.expiresAt > now);
+}
+
+function addCooldownBuff(stats, amount, durationMs) {
+  if (!stats) return;
+  if (!Array.isArray(stats.cooldown_buffs)) stats.cooldown_buffs = [];
+  stats.cooldown_buffs.push({ amount, expiresAt: Date.now() + durationMs });
+  cleanupCooldownBuffs(stats);
+}
+
+function getCooldownMultiplier(stats) {
+  if (!stats) return 1;
+  cleanupCooldownBuffs(stats);
+  const total = (stats.cooldown_buffs || []).reduce(
+    (sum, entry) => sum + (Number.isFinite(entry.amount) ? entry.amount : 0),
+    0,
+  );
+  return Math.max(0.1, 1 - total);
+}
+
+function getLuckBonus(stats) {
+  let bonus = 0;
+  if (hasGoodList(stats)) bonus += 1;
+  return bonus;
+}
+
+function computeActionSuccessChance(base, stats, { deathChance = 0, min = 0.001, max = 0.99 } = {}) {
+  if (isSnowballed(stats)) {
+    return { chance: 0, forcedFail: true };
+  }
+
+  if (hasNaughtyList(stats)) {
+    const limit = Math.max(0, 1 - deathChance);
+    const clamped = Math.min(Math.max(0.01, min), Math.max(min, Math.min(limit, 0.01)));
+    return { chance: clamped, forcedFail: false };
+  }
+
+  const limit = Math.max(0, 1 - deathChance);
+  let chance = Math.min(limit, base + getLuckBonus(stats));
+  chance = Math.min(max, Math.max(min, chance));
+  return { chance, forcedFail: false };
+}
+
 const MAX_TIMEOUT = 2 ** 31 - 1;
 
 function setSafeTimeout(fn, delay) {
@@ -194,7 +256,14 @@ function applyCoinBoost(stats, amount) {
   if (stats && stats.chat_mastery_level >= 30) perk += 1.0;
   if (stats && stats.chat_mastery_level >= 50) perk += 1.5;
   if (stats && stats.chat_mastery_level >= 80) perk += 2.0;
-  return Math.floor(perk * (amount + amount * percent));
+  if (hasNaughtyList(stats)) {
+    percent *= 0.1;
+  }
+  let result = Math.floor(perk * (amount + amount * percent));
+  if (hasNaughtyList(stats)) {
+    result = Math.floor(result * 0.5);
+  }
+  return result;
 }
 
 module.exports = {
@@ -209,4 +278,11 @@ module.exports = {
   applyCoinBoost,
   resolveComponentEmoji,
   applyComponentEmoji,
+  addCooldownBuff,
+  getCooldownMultiplier,
+  computeActionSuccessChance,
+  hasGoodList,
+  hasNaughtyList,
+  isSnowballed,
+  getLuckBonus,
 };

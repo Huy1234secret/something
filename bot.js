@@ -33,6 +33,7 @@ const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
+const mySkinCommand = require('./command/mySkin');
 const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
@@ -548,6 +549,7 @@ client.on = function(event, listener) {
     digCommand.setup(client, resources);
     begCommand.setup(client, resources);
     myCosmeticCommand.setup(client, resources);
+    mySkinCommand.setup(client, resources);
     masteryCommand.setup(client, resources);
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);

@@ -146,14 +146,20 @@ async function sendBeg(user, send, resources) {
     return;
   }
 
-  stats.beg_cd_until = now + 15000;
+  const cooldownDuration = Math.round(15000 * getCooldownMultiplier(stats));
+  stats.beg_cd_until = now + cooldownDuration;
   const name = pick(NAMES);
   const slots = stats.cosmeticSlots || [];
   const hasArc = slots.includes('ArcsOfResurgence');
   let successChance = 0.5;
   if (hasArc) successChance += 0.15;
-  successChance = Math.min(Math.max(successChance, 0.001), 0.9);
-  if (Math.random() < successChance) {
+  const snowballed = isSnowballed(stats);
+  const { chance: finalChance, forcedFail } = computeActionSuccessChance(successChance, stats, {
+    min: 0.01,
+    max: 0.99,
+  });
+  const success = !forcedFail && Math.random() < finalChance;
+  if (success) {
     const successMsg = pick(SUCCESS_MESSAGES);
     let currencyLine;
     let xp;
@@ -205,7 +211,10 @@ async function sendBeg(user, send, resources) {
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
     await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   } else {
-    const failMsg = pick(FAIL_MESSAGES);
+    let failMsg = pick(FAIL_MESSAGES);
+    if (forcedFail && snowballed) {
+      failMsg += '\\n-# A frosty snowball curse makes every attempt fail!';
+    }
     const xp = 25;
     await resources.addXp(user, xp, resources.client);
     resources.saveData();

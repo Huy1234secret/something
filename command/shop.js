@@ -23,6 +23,7 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { ITEMS } = require('../items');
+const { getItemDisplay } = require('../skins');
 const { ANIMAL_ITEMS } = require('../animals');
 const {
   normalizeInventory,
@@ -402,8 +403,11 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     }
     const requiredLevel = SEED_LEVEL_REQUIREMENTS[it.id];
     const locked = Number.isFinite(requiredLevel) && farmLevel < requiredLevel;
+    const display = getItemDisplay(stats, it);
     return {
       ...it,
+      displayName: display.name,
+      displayEmoji: display.emoji,
       price,
       originalPrice,
       stock: s.amount ?? 0,
