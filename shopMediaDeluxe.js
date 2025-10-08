@@ -96,19 +96,6 @@ async function drawCover(ctx, item, x, y, w, h, radius = 16) {
     drawn = true;
   }
 
-  if (!drawn && item.image) {
-    try {
-      const img = await loadCachedImage(item.image);
-      const s = Math.min(w / img.width, h / img.height);
-      const dw = img.width * s;
-      const dh = img.height * s;
-      const dx = x + (w - dw) / 2;
-      const dy = y + (h - dh) / 2;
-      ctx.drawImage(img, dx, dy, dw, dh);
-      drawn = true;
-    } catch {}
-  }
-
   if (!drawn) {
     ctx.fillStyle = '#1a2235';
     ctx.fillRect(x, y, w, h);
@@ -378,7 +365,7 @@ async function deluxeCard(ctx, x, y, w, h, item = {}, coinImg, priceFontSize) {
 /* ------------------------ main (IMPROVED) ------------------------ */
 /**
  * Render "Deluxe Shop" 3x2 grid (6 cards). No header/tabs.
- * items: {name, price, note, image, rarity, exclusive, buttonText, stock, maxStock}
+ * items: {name, price, note, rarity, exclusive, buttonText, stock, maxStock}
  * opts: {width, height}
  * @returns Buffer (PNG)
  */
@@ -402,23 +389,13 @@ async function renderDeluxeMedia(items = [], opts = {}) {
   const cardW = Math.floor(innerW / cols);
   const cardH = Math.floor(innerH / rows);
 
-  // Preload images to speed up rendering
+  // Preload coin art to speed up rendering
   let coinImg = null;
   try {
     coinImg = await loadCachedImage(COIN_IMG_URL);
   } catch {
     coinImg = null;
   }
-
-  await Promise.all(items.map(async (it) => {
-    if (it && it.image) {
-      try {
-        it._img = await loadCachedImage(it.image);
-      } catch {
-        it._img = null;
-      }
-    }
-  }));
 
   // Use a fixed price font size so all cards match
   const priceFontSize = 25;
