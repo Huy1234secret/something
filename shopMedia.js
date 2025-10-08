@@ -1,6 +1,6 @@
 // shopMedia.js
 // Improved by Gemini: Converted static layout to a responsive, proportional design.
-// Normal Shop (3x2). No header/tabs. Image is fully visible (contain-fit) and centered.
+// Normal Shop (3x2). No header/tabs. Item emoji are rendered in the preview area.
 // Coin icon uses a Discord emoji URL to ensure it loads correctly
 // npm i canvas
 const { createCanvas } = require('canvas');
@@ -316,8 +316,8 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 /* ------------------------ main (IMPROVED) ------------------------ */
 /**
  * Render a 3x2 grid (6 cards). No header, no tabs, no buy button.
- * - Shows full item image centered inside the card (no cropping).
- * items: {name, price, note, image, rarity}
+ * - Shows item emoji centered inside the card.
+ * items: {name, price, note, rarity}
  * opts: {width,height}
  */
 async function renderShopMedia(items = [], opts = {}) {
@@ -339,19 +339,6 @@ async function renderShopMedia(items = [], opts = {}) {
   } catch {
     coinImg = null;
   }
-
-  // preload all item images concurrently
-  await Promise.all(
-    items.map(async (it) => {
-      if (it && it.image) {
-        try {
-          it._img = await loadCachedImage(it.image);
-        } catch {
-          it._img = null;
-        }
-      }
-    })
-  );
 
   // --- Proportional Grid Metrics ---
   const sidePadding = W * 0.03;
