@@ -38,7 +38,6 @@ const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
 const battlePassCommand = require('./command/battlePass');
-const spookyHunt = require('./spookyHunt');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -49,15 +48,6 @@ let userCardSettings = {};
 let timedRoles = [];
 let commandBans = {};
 let cshMessageId = null;
-let spookyHuntState = {
-  message_id: null,
-  channel_id: null,
-  guild_id: null,
-  parent_id: null,
-  participants: {},
-  ended: false,
-  winner_id: null,
-};
 const defaultColor = [0,255,255];
 const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
@@ -121,32 +111,13 @@ function loadData() {
     commandBans = data.command_bans || {};
     cshMessageId = data.csh_message_id || null;
     shop = data.shop || { stock: {}, nextRestock: 0 };
-    spookyHuntState = {
-      message_id: null,
-      channel_id: null,
-      guild_id: null,
-      parent_id: null,
-      participants: {},
-      ended: false,
-      winner_id: null,
-      ...(data.spooky_hunt || {}),
-    };
-    spookyHuntState.participants = spookyHuntState.participants || {};
   } catch (err) {
     userStats = {};
     userCardSettings = {};
     timedRoles = [];
     commandBans = {};
     cshMessageId = null;
-    spookyHuntState = {
-      message_id: null,
-      channel_id: null,
-      guild_id: null,
-      parent_id: null,
-      participants: {},
-      ended: false,
-      winner_id: null,
-    };
+    shop = { stock: {}, nextRestock: 0 };
   }
   const fixed = fixItemEntries(userStats);
   if (fixed > 0) {
@@ -163,7 +134,6 @@ function saveData() {
     command_bans: commandBans,
     csh_message_id: cshMessageId,
     shop,
-    spooky_hunt: spookyHuntState,
   };
   fs.writeFileSync(DATA_FILE, JSON.stringify(data));
 }
@@ -448,7 +418,6 @@ const resources = {
   huntMasteryXpNeeded,
   addFarmMasteryXp,
   farmMasteryXpNeeded,
-  spookyHuntState,
 };
 
 const client = new Client({
@@ -554,7 +523,6 @@ client.on = function(event, listener) {
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
     battlePassCommand.setup(client, resources);
-    spookyHunt.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
