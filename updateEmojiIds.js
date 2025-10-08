@@ -2,7 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { ITEMS } = require('./items');
 
-const DATA_FILE = path.join(__dirname, 'user_data.json');
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'user_data.json');
+
+if (!fs.existsSync(DATA_FILE)) {
+  console.error(`User data file not found at ${DATA_FILE}.`);
+  console.error('Run the bot once to generate it or copy user_data.template.json.');
+  process.exit(1);
+}
 
 // Load user data
 let data;

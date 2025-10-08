@@ -4,3 +4,7 @@ __pycache__/
 venv/
 node_modules/
 package-lock.json
+# Persisted runtime data
+user_data.json
+data/user_data.json
+data/user_data.*.json.bak
