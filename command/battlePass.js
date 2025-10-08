@@ -20,7 +20,6 @@ const CARD_COUNT = 5;
 const CARD_GAP = 18;
 const CARD_W = Math.floor((BP_WIDTH - MARGIN * 2 - CARD_GAP * (CARD_COUNT - 1)) / CARD_COUNT);
 const CARD_H = 260;
-const FOOTER_TEXT = 'Christmas Battle Pass';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
 
@@ -614,38 +613,7 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
   ctx.textAlign = 'left';
 }
 
-function drawTitle(ctx) {
-  const title = 'Christmas Battle Pass';
-  const sub = 'Seasonal Track • 1 Row • 5 Cards';
-
-  const rx = MARGIN;
-  const ry = 18;
-  const rw = BP_WIDTH - MARGIN * 2;
-  const rh = 56;
-  dropShadow(
-    ctx,
-    () => {
-      roundRect(ctx, rx, ry, rw, rh, 14);
-      const g = ctx.createLinearGradient(rx, ry, rx + rw, ry);
-      g.addColorStop(0, '#0f6a3f');
-      g.addColorStop(1, '#0c5132');
-      ctx.fillStyle = g;
-      ctx.fill();
-    },
-    { blur: 10, color: 'rgba(0,0,0,0.35)', offsetY: 4 },
-  );
-
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px Sans';
-  ctx.textAlign = 'left';
-  ctx.fillText(title, rx + 18, ry + 36);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.font = '16px Sans';
-  ctx.textAlign = 'right';
-  ctx.fillText(sub, rx + rw - 18, ry + 36);
-  ctx.textAlign = 'left';
-}
+function drawTitle(ctx) {}
 
 function drawBackground(ctx) {
   const bg = ctx.createLinearGradient(0, 0, 0, BP_HEIGHT);
@@ -680,23 +648,7 @@ function drawBackground(ctx) {
   drawSnowOverlay(ctx, 180);
 }
 
-function drawFooter(ctx) {
-  ctx.save();
-  ctx.font = '18px Sans';
-  const grad = ctx.createLinearGradient(
-    BP_WIDTH / 2 - 120,
-    BP_HEIGHT - 18,
-    BP_WIDTH / 2 + 120,
-    BP_HEIGHT - 18,
-  );
-  grad.addColorStop(0, '#d01e2e');
-  grad.addColorStop(0.5, '#2ad67b');
-  grad.addColorStop(1, '#d01e2e');
-  ctx.fillStyle = grad;
-  ctx.textAlign = 'center';
-  ctx.fillText(FOOTER_TEXT, BP_WIDTH / 2, BP_HEIGHT - 18);
-  ctx.restore();
-}
+function drawFooter(ctx) {}
 
 function layoutTickPositions(items, x, w) {
   if (items.length === 0) return { ticks: [], totalXP: 0 };
@@ -770,7 +722,7 @@ function buildContainer() {
     .setAccentColor(0xffffff)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        '## Christmas Battle Pass\n-# Seasonal rewards preview\n-# Rewards & XP refresh on every use',
+        '## Seasonal Battle Pass\n-# Seasonal rewards preview\n-# Rewards & XP refresh on every use',
       ),
     )
     .addSeparatorComponents(new SeparatorBuilder())
