@@ -9,7 +9,7 @@ const {
   ThumbnailBuilder,
   SeparatorBuilder,
 } = require('@discordjs/builders');
-const { formatNumber, applyCoinBoost } = require('../utils');
+const { formatNumber, applyCoinBoost, getCooldownMultiplier } = require('../utils');
 const { ITEMS } = require('../items');
 const { handleDeath } = require('../death');
 
@@ -156,7 +156,8 @@ async function executeRob(robber, target, send, resources) {
     robberStats.coins = (robberStats.coins || 0) - amount;
     const boosted = applyCoinBoost(targetStats, amount);
     targetStats.coins = (targetStats.coins || 0) + boosted;
-    robberStats.rob_cooldown_until = now + COOLDOWN;
+    const cooldownDuration = Math.round(COOLDOWN * getCooldownMultiplier(robberStats));
+    robberStats.rob_cooldown_until = now + cooldownDuration;
     resources.userStats[robber.id] = robberStats;
     resources.userStats[target.id] = targetStats;
     resources.saveData();
@@ -202,7 +203,8 @@ async function executeRob(robber, target, send, resources) {
   targetStats.coins = (targetStats.coins || 0) - amount;
   const boosted = applyCoinBoost(robberStats, amount);
   robberStats.coins = (robberStats.coins || 0) + boosted;
-  robberStats.rob_cooldown_until = now + COOLDOWN;
+  const cooldownDuration = Math.round(COOLDOWN * getCooldownMultiplier(robberStats));
+  robberStats.rob_cooldown_until = now + cooldownDuration;
   resources.userStats[robber.id] = robberStats;
   resources.userStats[target.id] = targetStats;
   resources.saveData();

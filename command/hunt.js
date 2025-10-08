@@ -29,9 +29,13 @@ const {
   useDurableItem,
   applyComponentEmoji,
   resolveComponentEmoji,
+  getCooldownMultiplier,
+  computeActionSuccessChance,
+  isSnowballed,
 } = require('../utils');
 const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
+const { getItemDisplay } = require('../skins');
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -324,7 +328,15 @@ function buildEquipmentContainer(user, stats) {
       );
   }
 
-  const equippedGun = ITEMS[stats.hunt_gun] || { name: 'None', emoji: '' };
+  const equippedGunItem = ITEMS[stats.hunt_gun] || {
+    id: stats.hunt_gun,
+    name: 'None',
+    emoji: '',
+  };
+  const equippedGun =
+    stats.hunt_gun && equippedGunItem
+      ? getItemDisplay(stats, equippedGunItem, equippedGunItem.name, equippedGunItem.emoji)
+      : { name: 'None', emoji: '' };
   const equippedBullet = ITEMS[stats.hunt_bullet] || { name: 'None', emoji: '' };
   const areaInfo = AREA_BY_NAME[stats.hunt_area] || null;
   const areaKey = areaInfo ? areaInfo.key : null;
@@ -522,6 +534,16 @@ async function handleHunt(interaction, resources, stats) {
     }
   }
 
+  const snowballed = isSnowballed(stats);
+  const { chance: adjustedChance, forcedFail } = computeActionSuccessChance(successChance, stats, {
+    deathChance,
+    min: detectorActive ? 0.01 : 0.01,
+    max: detectorActive ? 1 : 0.95,
+  });
+  const forcedFailure = forcedFail;
+  successChance = forcedFailure ? 0 : adjustedChance;
+  failChance = Math.max(0, 1 - successChance - deathChance);
+
   let luckBoost = false;
   if (masteryLevel >= 80) {
     stats.hunt_luck_counter += 1;
@@ -533,8 +555,8 @@ async function handleHunt(interaction, resources, stats) {
     stats.hunt_luck_counter = 0;
   }
 
-  const cooldownDuration =
-    masteryLevel >= 90 ? 10000 : masteryLevel >= 40 ? 20000 : 30000;
+  const baseCooldown = masteryLevel >= 90 ? 10000 : masteryLevel >= 40 ? 20000 : 30000;
+  const cooldownDuration = Math.round(baseCooldown * getCooldownMultiplier(stats));
   const cooldown = Date.now() + cooldownDuration;
   stats.hunt_cd_until = cooldown;
   stats.hunt_total = (stats.hunt_total || 0) + 1;
@@ -643,7 +665,10 @@ async function handleHunt(interaction, resources, stats) {
     await checkMasterZoologistBadge(user, stats, resources, extraLines);
   } else if (roll < successChance + failChance) {
     stats.hunt_fail = (stats.hunt_fail || 0) + 1;
-    const fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
+    let fail = FAIL_MESSAGES[Math.floor(Math.random() * FAIL_MESSAGES.length)];
+    if (forcedFailure && snowballed) {
+      fail += '\\n-# A frosty snowball curse makes every hunt fail!';
+    }
     color = 0xff0000;
     xp = 25;
     text = `${user}, ${fail}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(

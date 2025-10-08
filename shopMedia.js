@@ -4,7 +4,7 @@
 // Coin icon uses a Discord emoji URL to ensure it loads correctly
 // npm i canvas
 const { createCanvas } = require('canvas');
-const { loadCachedImage } = require('./imageCache');
+const { loadCachedImage, loadEmojiImage } = require('./imageCache');
 const DISCOUNT_BADGE_URL = 'https://i.ibb.co/W8NJVd1/5cb0254a-d630-49ca-9819-65da6b536b4e.png';
 const DISCOUNT_BADGE_IMG = loadCachedImage(DISCOUNT_BADGE_URL);
 
@@ -57,41 +57,53 @@ function shrinkToFit(ctx, text, maxWidth, startSize, font = 'Sans') {
   return size;
 }
 
-async function drawContain(ctx, imgSrcOrImg, x, y, w, h, radius = 14) {
+async function drawItemVisual(ctx, item, x, y, w, h, radius = 14) {
   ctx.save();
   rrect(ctx, x, y, w, h, radius);
   ctx.clip();
 
-  const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, '#0f172a');
-  g.addColorStop(1, '#111827');
-  ctx.fillStyle = g;
+  const gradient = ctx.createLinearGradient(x, y, x, y + h);
+  gradient.addColorStop(0, '#0f172a');
+  gradient.addColorStop(1, '#111827');
+  ctx.fillStyle = gradient;
   ctx.fillRect(x, y, w, h);
 
-  if (imgSrcOrImg) {
-    try {
-      const img =
-        typeof imgSrcOrImg === 'string'
-          ? await loadCachedImage(imgSrcOrImg)
-          : imgSrcOrImg;
+  const emoji = item.displayEmoji || item.emoji;
+  let drawn = false;
+  if (emoji) {
+    const img = await loadEmojiImage(emoji);
+    if (img) {
       const scale = Math.min(w / img.width, h / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
       const dx = x + (w - dw) / 2;
       const dy = y + (h - dh) / 2;
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'medium';
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, dx, dy, dw, dh);
-    } catch {
-      ctx.fillStyle = '#334155';
-      ctx.font = 'bold 18px Sans';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Image not found', x + w / 2, y + h / 2);
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
+      drawn = true;
     }
   }
+
+  if (!drawn && emoji) {
+    ctx.fillStyle = '#e5edff';
+    ctx.font = `bold ${Math.floor(h * 0.6)}px Sans`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    drawn = true;
+  }
+
+  if (!drawn) {
+    const fallback = ctx.createLinearGradient(x, y, x + w, y + h);
+    fallback.addColorStop(0, '#1e293b');
+    fallback.addColorStop(1, '#0f172a');
+    ctx.fillStyle = fallback;
+    ctx.fillRect(x, y, w, h);
+  }
+
   ctx.restore();
 }
 
@@ -184,7 +196,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
 
   // --- TOP: Name ---
   ctx.fillStyle = '#eaf1ff';
-  const name = item.name || 'Unknown Item';
+  const name = item.displayName || item.name || 'Unknown Item';
   const nameY = y + titleSectionH * 0.65;
   const startNameSize = Math.floor(h * 0.085);
   shrinkToFit(ctx, name, w - pad * 2, startNameSize);
@@ -234,7 +246,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   const imgBoxY = y + titleSectionH;
   const imgBoxH = h - titleSectionH - priceSectionH - noteSectionH;
 
-  await drawContain(ctx, item._img || item.image, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
+  await drawItemVisual(ctx, item, imgBoxX, imgBoxY, imgBoxW, imgBoxH);
   if (Number.isFinite(item.stock)) {
     ctx.fillStyle = '#ffffff';
     const stockSize = Math.floor(imgBoxH * 0.2);

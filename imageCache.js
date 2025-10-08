@@ -35,4 +35,16 @@ async function loadCachedImage(url) {
   }
 }
 
-module.exports = { loadCachedImage };
+const DISCORD_EMOJI_REGEX = /^<(a?):[a-zA-Z0-9_]+:(\d+)>$/;
+
+async function loadEmojiImage(emoji) {
+  if (typeof emoji !== 'string') return null;
+  const match = emoji.trim().match(DISCORD_EMOJI_REGEX);
+  if (!match) return null;
+  const [, animatedFlag, id] = match;
+  const ext = animatedFlag === 'a' ? 'gif' : 'png';
+  const url = `https://cdn.discordapp.com/emojis/${id}.${ext}?size=128&quality=lossless`;
+  return loadCachedImage(url);
+}
+
+module.exports = { loadCachedImage, loadEmojiImage };

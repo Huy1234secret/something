@@ -489,7 +489,7 @@ function fitText(ctx, text, maxWidth, baseSize, fontWeight = 'bold') {
   return `${fontWeight} 12px Sans`;
 }
 
-function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
+function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], nextThreshold = null) {
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.fill();
@@ -513,13 +513,15 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
   });
 
   ctx.font = 'bold 22px Sans';
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#2ad67b';
   ctx.textAlign = 'center';
-  ctx.fillText(
-    `Progress: ${formatNumber(current)} / ${formatNumber(total)} XP`,
-    x + w / 2,
-    y - 12,
-  );
+  const remaining =
+    nextThreshold != null ? Math.max(nextThreshold - current, 0) : Math.max(total - current, 0);
+  const label =
+    nextThreshold != null
+      ? `Progress: ${formatNumber(remaining)} XP to next reward`
+      : 'All rewards unlocked';
+  ctx.fillText(label, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -681,7 +683,16 @@ function drawBackground(ctx) {
 function drawFooter(ctx) {
   ctx.save();
   ctx.font = '18px Sans';
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  const grad = ctx.createLinearGradient(
+    BP_WIDTH / 2 - 120,
+    BP_HEIGHT - 18,
+    BP_WIDTH / 2 + 120,
+    BP_HEIGHT - 18,
+  );
+  grad.addColorStop(0, '#d01e2e');
+  grad.addColorStop(0.5, '#2ad67b');
+  grad.addColorStop(1, '#d01e2e');
+  ctx.fillStyle = grad;
   ctx.textAlign = 'center';
   ctx.fillText(FOOTER_TEXT, BP_WIDTH / 2, BP_HEIGHT - 18);
   ctx.restore();
@@ -717,7 +728,9 @@ async function renderBattlePass(items, currentXP, totalXP) {
   const pbY = rowY + CARD_H + 40;
   const pbH = 22;
   const { ticks } = layoutTickPositions(items, pbX, pbW);
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks);
+  const nextReward = items.find(item => item.threshold > currentXP) || null;
+  const nextThreshold = nextReward ? nextReward.threshold : null;
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks, nextThreshold);
 
   drawFooter(ctx);
 
@@ -752,15 +765,7 @@ function generateBattlePassData() {
   return { items, currentXP, totalXP };
 }
 
-function buildBattlePassSummary(items, currentXP, totalXP) {
-  const lines = items.map(card =>
-    `**#${card.num} ${card.name}** — ${card.amount} \u2022 Unlock @ ${formatNumber(card.threshold)} XP`,
-  );
-  lines.push(`\nProgress: **${formatNumber(currentXP)} / ${formatNumber(totalXP)} XP**`);
-  return lines.join('\n');
-}
-
-function buildContainer(summary) {
+function buildContainer() {
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addTextDisplayComponents(
@@ -769,18 +774,10 @@ function buildContainer(summary) {
       ),
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(summary),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
     .addMediaGalleryComponents(
       new MediaGalleryBuilder().addItems(
         new MediaGalleryItemBuilder().setURL('attachment://battle-pass.png'),
       ),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`### ${FOOTER_TEXT}`),
     );
 }
 
@@ -799,8 +796,7 @@ function setup(client) {
       const { items, currentXP, totalXP } = generateBattlePassData();
       const buffer = await renderBattlePass(items, currentXP, totalXP);
       const attachment = new AttachmentBuilder(buffer, { name: 'battle-pass.png' });
-      const summary = buildBattlePassSummary(items, currentXP, totalXP);
-      const container = buildContainer(summary);
+      const container = buildContainer();
       await interaction.editReply({
         files: [attachment],
         components: [container],
