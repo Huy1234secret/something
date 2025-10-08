@@ -19,4 +19,5 @@ This is a simple Discord bot rewritten in JavaScript using [`discord.js`](https:
 
 The bot responds to `!ping` messages with `Pong!` and exposes slash commands such as `/level`, `/wallet`, and `/add-role`.
 
-User level statistics and card design preferences are stored in `user_data.json` so they persist between restarts.
+User level statistics and card design preferences are stored in `data/user_data.json` so they persist between restarts.
+The file is generated automatically from `user_data.template.json`, is ignored by Git, and every save creates timestamped backups (`data/user_data.*.json.bak`) so local data is not overwritten when pulling new changes.

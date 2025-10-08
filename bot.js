@@ -42,7 +42,62 @@ const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
 
-const DATA_FILE = 'user_data.json';
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'user_data.json');
+const DATA_TEMPLATE = path.join(__dirname, 'user_data.template.json');
+const MAX_BACKUPS = 5;
+
+function createDefaultData() {
+  return {
+    user_stats: {},
+    user_card_settings: {},
+    timed_roles: [],
+    command_bans: {},
+    csh_message_id: null,
+    shop: { stock: {}, nextRestock: 0 },
+  };
+}
+
+function ensureDataStorage() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (fs.existsSync(DATA_FILE)) return;
+  if (fs.existsSync(DATA_TEMPLATE)) {
+    fs.copyFileSync(DATA_TEMPLATE, DATA_FILE);
+    return;
+  }
+  const defaults = createDefaultData();
+  fs.writeFileSync(DATA_FILE, JSON.stringify(defaults, null, 2));
+}
+
+function createBackup() {
+  if (!fs.existsSync(DATA_FILE)) return;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupName = `user_data.${timestamp}.json.bak`;
+  const backupPath = path.join(DATA_DIR, backupName);
+  try {
+    fs.copyFileSync(DATA_FILE, backupPath);
+  } catch (err) {
+    console.warn('Failed to create user data backup:', err.message);
+    return;
+  }
+  try {
+    const backups = fs
+      .readdirSync(DATA_DIR)
+      .filter(name => name.startsWith('user_data.') && name.endsWith('.json.bak'))
+      .sort();
+    while (backups.length > MAX_BACKUPS) {
+      const oldest = backups.shift();
+      try {
+        fs.rmSync(path.join(DATA_DIR, oldest), { force: true });
+      } catch (err) {
+        console.warn('Failed to remove old user data backup:', err.message);
+        break;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to prune user data backups:', err.message);
+  }
+}
 let userStats = {};
 let userCardSettings = {};
 let timedRoles = [];
@@ -103,8 +158,9 @@ function fixItemEntries(statsMap) {
 }
 
 function loadData() {
+  ensureDataStorage();
   try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE));
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     userStats = data.user_stats || {};
     userCardSettings = data.user_card_settings || {};
     timedRoles = data.timed_roles || [];
@@ -112,12 +168,14 @@ function loadData() {
     cshMessageId = data.csh_message_id || null;
     shop = data.shop || { stock: {}, nextRestock: 0 };
   } catch (err) {
+    console.error('Failed to load user data, restoring defaults:', err.message);
     userStats = {};
     userCardSettings = {};
     timedRoles = [];
     commandBans = {};
     cshMessageId = null;
     shop = { stock: {}, nextRestock: 0 };
+    saveData();
   }
   const fixed = fixItemEntries(userStats);
   if (fixed > 0) {
@@ -135,7 +193,9 @@ function saveData() {
     csh_message_id: cshMessageId,
     shop,
   };
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data));
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  createBackup();
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 function xpNeeded(level) {
