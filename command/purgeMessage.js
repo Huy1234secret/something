@@ -20,12 +20,6 @@ function setup(client) {
   const command = new SlashCommandBuilder()
     .setName('purge-message')
     .setDescription('Delete recent messages in this channel')
-    .addUserOption(option =>
-      option
-        .setName('user')
-        .setDescription('User whose messages to delete')
-        .setRequired(false),
-    )
     .addIntegerOption(option =>
       option
         .setName('amount')
@@ -33,6 +27,12 @@ function setup(client) {
         .setRequired(true)
         .setMinValue(1)
         .setMaxValue(100),
+    )
+    .addUserOption(option =>
+      option
+        .setName('user')
+        .setDescription('User whose messages to delete')
+        .setRequired(false),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .setDMPermission(false);
