@@ -13,6 +13,7 @@ const {
   StringSelectMenuOptionBuilder,
 } = require('@discordjs/builders');
 const { formatNumber } = require('../utils');
+const { isChristmasEventActive } = require('../events');
 
 const TOTAL_LEVELS = 100;
 const POINTS_PER_LEVEL = 100;
@@ -32,8 +33,9 @@ const HOLLY_JOLLY_RIFLE_EMOJI = '<:SKHollyJollyRifleTier1:1425339099119747183>';
 const HOLLY_JOLLY_SHOVEL_EMOJI = '<:SKHollyJollyShovel:1425339068413116447>';
 const HOLLY_JOLLY_WATERING_CAN_EMOJI = '<:SKHollyJollyWateringCan:1425340137084030986>';
 const FROSTLIGHT_GARDEN_EMOJI = '<:SKFrostlightGarden:1425344951994159124>';
-const ELF_HAT_EMOJI = '🧝‍♂️';
-const BATTLE_PASS_GIFT_EMOJI = '🎁';
+const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
+const ELF_HAT_EMOJI = '<:ITElfHat:1425752757112934440>';
+const CHRISTMAS_BATTLE_PASS_GIFT_EMOJI = '<:ITChristmasBattlePassGift:1425752835261337690>';
 
 const QUEST_TYPES = {
   hourly: 'Hourly Quests',
@@ -49,110 +51,158 @@ const QUEST_REROLL_COST = {
 
 const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
 
-const states = new Map();
+const REWARD_PAGE_SIZE = 5;
 
-const BATTLE_PASS_REWARDS = [
+const REWARD100_STAGES = [
+  { key: '30', label: '$30 Gift Card', type: 'special', announcement: true },
+  { key: '20', label: '$20 Gift Card', type: 'special', announcement: true },
+  { key: '10', label: '$10 Gift Card', type: 'special', announcement: true },
+  { key: 'deluxe', label: '1000 Deluxe Coins', type: 'deluxeCoins', amount: 1000, announcement: false },
+];
+
+const BASE_REWARDS = [
   { level: 1, type: 'coins', amount: 10000 },
-  { level: 2, type: 'item', name: 'Cookie', amount: 1, emoji: COOKIE_EMOJI },
-  { level: 3, type: 'diamonds', amount: 5 },
-  { level: 4, type: 'item', name: 'Battle Pass Gift', amount: 1, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 2, type: 'item', name: 'Cookie', amount: 3, emoji: COOKIE_EMOJI },
+  { level: 3, type: 'diamonds', amount: 50 },
+  { level: 4, type: 'item', name: 'Christmas Battle Pass Gift', amount: 1, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 5, type: 'item', name: 'Snow Ball', amount: 1, emoji: SNOWBALL_EMOJI },
   { level: 6, type: 'coins', amount: 15000 },
   { level: 7, type: 'item', name: 'Cup of Milk', amount: 1, emoji: MILK_EMOJI },
   { level: 8, type: 'item', name: 'Candy Cane', amount: 1, emoji: CANDY_CANE_EMOJI },
-  { level: 9, type: 'diamonds', amount: 10 },
+  { level: 9, type: 'diamonds', amount: 100 },
   { level: 10, type: 'item', name: 'Holly Jolly Rifle Tier 1', amount: 1, emoji: HOLLY_JOLLY_RIFLE_EMOJI },
-  { level: 11, type: 'deluxeCoins', amount: 1 },
+  { level: 11, type: 'deluxeCoins', amount: 10 },
   { level: 12, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
-  { level: 13, type: 'coins', amount: 20000 },
-  { level: 14, type: 'item', name: 'Elf Hat', amount: 1, emoji: ELF_HAT_EMOJI },
+  { level: 13, type: 'coins', amount: 25000 },
+  { level: 14, type: 'item', name: 'Cookie', amount: 4, emoji: COOKIE_EMOJI },
   { level: 15, type: 'item', name: 'Cup of Milk', amount: 2, emoji: MILK_EMOJI },
-  { level: 16, type: 'item', name: 'Holly Jolly Shovel', amount: 1, emoji: HOLLY_JOLLY_SHOVEL_EMOJI },
-  { level: 17, type: 'diamonds', amount: 20 },
+  { level: 16, type: 'snowflakes', amount: 1000 },
+  { level: 17, type: 'diamonds', amount: 200 },
   { level: 18, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
-  { level: 19, type: 'item', name: 'Frostlight Garden', amount: 1, emoji: FROSTLIGHT_GARDEN_EMOJI },
-  { level: 20, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
-  { level: 21, type: 'deluxeCoins', amount: 2 },
-  { level: 22, type: 'item', name: 'Holly Jolly Watering Can', amount: 1, emoji: HOLLY_JOLLY_WATERING_CAN_EMOJI },
-  { level: 23, type: 'item', name: 'Battle Pass Gift', amount: 2, emoji: BATTLE_PASS_GIFT_EMOJI },
-  { level: 24, type: 'coins', amount: 50000 },
-  { level: 25, type: 'item', name: 'Cookie', amount: 3, emoji: COOKIE_EMOJI },
-  { level: 26, type: 'diamonds', amount: 25 },
-  { level: 27, type: 'coins', amount: 60000 },
+  { level: 19, type: 'item', name: 'Cookie', amount: 5, emoji: COOKIE_EMOJI },
+  { level: 20, type: 'item', name: 'Gingerbread Man', amount: 2, emoji: GINGERBREAD_EMOJI },
+  { level: 21, type: 'deluxeCoins', amount: 20 },
+  { level: 22, type: 'item', name: 'Candy Cane', amount: 2, emoji: CANDY_CANE_EMOJI },
+  { level: 23, type: 'item', name: 'Christmas Battle Pass Gift', amount: 2, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
+  { level: 24, type: 'coins', amount: 40000 },
+  { level: 25, type: 'item', name: 'Cookie', amount: 6, emoji: COOKIE_EMOJI },
+  { level: 26, type: 'diamonds', amount: 250 },
+  { level: 27, type: 'snowflakes', amount: 2500 },
   { level: 28, type: 'item', name: 'Cup of Milk', amount: 2, emoji: MILK_EMOJI },
   { level: 29, type: 'item', name: 'Snow Ball', amount: 2, emoji: SNOWBALL_EMOJI },
-  { level: 30, type: 'item', name: 'Candy Cane', amount: 2, emoji: CANDY_CANE_EMOJI },
-  { level: 31, type: 'deluxeCoins', amount: 2 },
+  { level: 30, type: 'item', name: 'Holly Jolly Shovel', amount: 1, emoji: HOLLY_JOLLY_SHOVEL_EMOJI },
+  { level: 31, type: 'deluxeCoins', amount: 40 },
   { level: 32, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
   { level: 33, type: 'coins', amount: 70000 },
-  { level: 34, type: 'diamonds', amount: 30 },
-  { level: 35, type: 'item', name: 'Battle Pass Gift', amount: 2, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 34, type: 'diamonds', amount: 300 },
+  { level: 35, type: 'item', name: 'Christmas Battle Pass Gift', amount: 2, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 36, type: 'item', name: 'Cup of Milk', amount: 3, emoji: MILK_EMOJI },
-  { level: 37, type: 'coins', amount: 80000 },
-  { level: 38, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 37, type: 'coins', amount: 100000 },
+  { level: 38, type: 'item', name: 'Cookie', amount: 9, emoji: COOKIE_EMOJI },
   { level: 39, type: 'item', name: 'Snow Ball', amount: 3, emoji: SNOWBALL_EMOJI },
   { level: 40, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
-  { level: 41, type: 'coins', amount: 90000 },
-  { level: 42, type: 'diamonds', amount: 35 },
+  { level: 41, type: 'snowflakes', amount: 5000 },
+  { level: 42, type: 'diamonds', amount: 350 },
   { level: 43, type: 'item', name: 'Candy Cane', amount: 3, emoji: CANDY_CANE_EMOJI },
-  { level: 44, type: 'coins', amount: 110000 },
-  { level: 45, type: 'deluxeCoins', amount: 3 },
-  { level: 46, type: 'item', name: 'Battle Pass Gift', amount: 3, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 44, type: 'coins', amount: 175000 },
+  { level: 45, type: 'deluxeCoins', amount: 50 },
+  { level: 46, type: 'item', name: 'Christmas Battle Pass Gift', amount: 3, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 47, type: 'item', name: 'Cup of Milk', amount: 3, emoji: MILK_EMOJI },
   { level: 48, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
-  { level: 49, type: 'diamonds', amount: 40 },
-  { level: 50, type: 'coins', amount: 130000 },
-  { level: 51, type: 'item', name: 'Cookie', amount: 5, emoji: COOKIE_EMOJI },
+  { level: 49, type: 'diamonds', amount: 400 },
+  { level: 50, type: 'item', name: 'Holly Jolly Watering Can', amount: 1, emoji: HOLLY_JOLLY_WATERING_CAN_EMOJI },
+  { level: 51, type: 'item', name: 'Cookie', amount: 15, emoji: COOKIE_EMOJI },
   { level: 52, type: 'item', name: 'Snow Ball', amount: 3, emoji: SNOWBALL_EMOJI },
-  { level: 53, type: 'diamonds', amount: 45 },
+  { level: 53, type: 'diamonds', amount: 450 },
   { level: 54, type: 'item', name: 'Candy Cane', amount: 4, emoji: CANDY_CANE_EMOJI },
-  { level: 55, type: 'deluxeCoins', amount: 3 },
-  { level: 56, type: 'coins', amount: 150000 },
+  { level: 55, type: 'deluxeCoins', amount: 50 },
+  { level: 56, type: 'snowflakes', amount: 10000 },
   { level: 57, type: 'item', name: 'Cup of Milk', amount: 4, emoji: MILK_EMOJI },
   { level: 58, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
-  { level: 59, type: 'diamonds', amount: 50 },
-  { level: 60, type: 'item', name: 'Battle Pass Gift', amount: 3, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 59, type: 'diamonds', amount: 500 },
+  { level: 60, type: 'item', name: 'Christmas Battle Pass Gift', amount: 3, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 61, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
-  { level: 62, type: 'coins', amount: 180000 },
-  { level: 63, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 62, type: 'coins', amount: 500000 },
+  { level: 63, type: 'item', name: 'Cookie', amount: 10, emoji: COOKIE_EMOJI },
   { level: 64, type: 'item', name: 'Snow Ball', amount: 4, emoji: SNOWBALL_EMOJI },
-  { level: 65, type: 'diamonds', amount: 55 },
+  { level: 65, type: 'diamonds', amount: 550 },
   { level: 66, type: 'item', name: 'Cup of Milk', amount: 4, emoji: MILK_EMOJI },
   { level: 67, type: 'item', name: 'Candy Cane', amount: 4, emoji: CANDY_CANE_EMOJI },
-  { level: 68, type: 'coins', amount: 210000 },
-  { level: 69, type: 'deluxeCoins', amount: 4 },
-  { level: 70, type: 'item', name: 'Battle Pass Gift', amount: 4, emoji: BATTLE_PASS_GIFT_EMOJI },
-  { level: 71, type: 'item', name: 'Cookie', amount: 6, emoji: COOKIE_EMOJI },
-  { level: 72, type: 'diamonds', amount: 60 },
+  { level: 68, type: 'coins', amount: 700000 },
+  { level: 69, type: 'deluxeCoins', amount: 50 },
+  { level: 70, type: 'item', name: 'Christmas Battle Pass Gift', amount: 4, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
+  { level: 71, type: 'item', name: 'Cookie', amount: 20, emoji: COOKIE_EMOJI },
+  { level: 72, type: 'diamonds', amount: 600 },
   { level: 73, type: 'item', name: 'Cup of Milk', amount: 5, emoji: MILK_EMOJI },
-  { level: 74, type: 'coins', amount: 240000 },
+  { level: 74, type: 'snowflakes', amount: 15000 },
   { level: 75, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
   { level: 76, type: 'item', name: 'Snow Ball', amount: 5, emoji: SNOWBALL_EMOJI },
-  { level: 77, type: 'diamonds', amount: 65 },
+  { level: 77, type: 'diamonds', amount: 650 },
   { level: 78, type: 'item', name: 'Candy Cane', amount: 5, emoji: CANDY_CANE_EMOJI },
-  { level: 79, type: 'deluxeCoins', amount: 4 },
-  { level: 80, type: 'coins', amount: 280000 },
+  { level: 79, type: 'deluxeCoins', amount: 50 },
+  { level: 80, type: 'item', name: 'Frostlight Garden', amount: 1, emoji: FROSTLIGHT_GARDEN_EMOJI },
   { level: 81, type: 'item', name: 'Gingerbread Man', amount: 2, emoji: GINGERBREAD_EMOJI },
-  { level: 82, type: 'diamonds', amount: 70 },
+  { level: 82, type: 'diamonds', amount: 700 },
   { level: 83, type: 'item', name: 'Cup of Milk', amount: 5, emoji: MILK_EMOJI },
-  { level: 84, type: 'item', name: 'Battle Pass Gift', amount: 4, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 84, type: 'item', name: 'Christmas Battle Pass Gift', amount: 4, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 85, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
-  { level: 86, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 86, type: 'item', name: 'Candy Cane', amount: 6, emoji: CANDY_CANE_EMOJI },
   { level: 87, type: 'item', name: 'Snow Ball', amount: 6, emoji: SNOWBALL_EMOJI },
-  { level: 88, type: 'coins', amount: 330000 },
+  { level: 88, type: 'snowflakes', amount: 25000 },
   { level: 89, type: 'diamonds', amount: 75 },
-  { level: 90, type: 'item', name: 'Candy Cane', amount: 6, emoji: CANDY_CANE_EMOJI },
-  { level: 91, type: 'deluxeCoins', amount: 5 },
+  { level: 90, type: 'item', name: 'Candy Cane', amount: 7, emoji: CANDY_CANE_EMOJI },
+  { level: 91, type: 'deluxeCoins', amount: 50 },
   { level: 92, type: 'item', name: 'Cup of Milk', amount: 6, emoji: MILK_EMOJI },
-  { level: 93, type: 'diamonds', amount: 80 },
-  { level: 94, type: 'coins', amount: 400000 },
-  { level: 95, type: 'item', name: 'Battle Pass Gift', amount: 5, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 93, type: 'diamonds', amount: 800 },
+  { level: 94, type: 'coins', amount: 1500000 },
+  { level: 95, type: 'item', name: 'Christmas Battle Pass Gift', amount: 5, emoji: CHRISTMAS_BATTLE_PASS_GIFT_EMOJI },
   { level: 96, type: 'item', name: 'Good List', amount: 3, emoji: GOOD_LIST_EMOJI },
-  { level: 97, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 97, type: 'item', name: 'Elf Hat', amount: 1, emoji: ELF_HAT_EMOJI },
   { level: 98, type: 'item', name: 'Gingerbread Man', amount: 2, emoji: GINGERBREAD_EMOJI },
-  { level: 99, type: 'diamonds', amount: 100 },
-  { level: 100, type: 'item', name: '$30 Gift Card', amount: 1, emoji: '' },
+  { level: 99, type: 'diamonds', amount: 1000 },
 ];
+
+let resourcesRef = null;
+let battlePassRewards = [];
+const states = new Map();
+
+function getBattlePassData() {
+  if (!resourcesRef || !resourcesRef.battlePassData) {
+    return { reward100: { stage: 0, claims: [] } };
+  }
+  const data = resourcesRef.battlePassData;
+  if (!data.reward100) data.reward100 = { stage: 0, claims: [] };
+  if (!Array.isArray(data.reward100.claims)) data.reward100.claims = [];
+  return data;
+}
+
+function getReward100Stage() {
+  const data = getBattlePassData();
+  const stage = Number(data.reward100?.stage);
+  if (!Number.isInteger(stage)) return 0;
+  return Math.min(Math.max(stage, 0), REWARD100_STAGES.length - 1);
+}
+
+function buildRewards() {
+  const stageIndex = getReward100Stage();
+  const rewards = BASE_REWARDS.slice();
+  const stage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
+  if (stage.type === 'deluxeCoins') {
+    rewards.push({ level: 100, type: 'deluxeCoins', amount: stage.amount });
+  } else {
+    rewards.push({ level: 100, type: 'item', name: stage.label, amount: 1 });
+  }
+  return rewards;
+}
+
+function refreshRewards() {
+  battlePassRewards = buildRewards();
+}
+
+function getBattlePassRewards() {
+  if (battlePassRewards.length === 0) refreshRewards();
+  return battlePassRewards;
+}
 function pointsForLevel(level) {
   if (level <= 0) return 0;
   return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
@@ -169,8 +219,11 @@ function describeReward(reward) {
   if (reward.type === 'deluxeCoins') {
     return `${prefix} — ${DELUXE_COIN_EMOJI} ${formatNumber(reward.amount)} Deluxe Coins`;
   }
-  if (reward.name === '$30 Gift Card') {
-    return `${prefix} — $30 Gift Card`;
+  if (reward.type === 'snowflakes') {
+    return `${prefix} — ${SNOWFLAKE_EMOJI} ${formatNumber(reward.amount)} Snowflakes`;
+  }
+  if (reward.name && /Gift Card/.test(reward.name)) {
+    return `${prefix} — ${reward.name}`;
   }
   const qty = reward.amount > 1 ? `x${formatNumber(reward.amount)} ` : '';
   const emoji = reward.emoji ? `${reward.emoji} ` : '';
@@ -879,9 +932,7 @@ function generateAllQuests() {
 }
 
 function isBattlePassActive(now = new Date()) {
-  const year = now.getFullYear();
-  const seasonStart = new Date(year, 11, 1, 0, 0, 0, 0);
-  return now >= seasonStart;
+  return isChristmasEventActive(now);
 }
 
 function getQuestResetTime(type, now = new Date()) {
@@ -992,8 +1043,9 @@ function formatBattlePassSummary(state) {
 }
 
 function formatUpcomingRewards(state) {
+  const rewards = getBattlePassRewards();
   const startIndex = Math.max(0, state.currentLevel - 1);
-  const upcoming = BATTLE_PASS_REWARDS.slice(startIndex, startIndex + 5);
+  const upcoming = rewards.slice(startIndex, startIndex + 5);
   if (upcoming.length === 0) {
     return '### Upcoming Rewards\n-# All rewards claimed';
   }
@@ -1002,12 +1054,12 @@ function formatUpcomingRewards(state) {
 }
 
 function formatRewardPage(state) {
-  const pageSize = 10;
-  const start = state.rewardPage * pageSize;
-  const end = start + pageSize;
-  const slice = BATTLE_PASS_REWARDS.slice(start, end);
-  const startLevel = start + 1;
-  const endLevel = Math.min(end, TOTAL_LEVELS);
+  const rewards = getBattlePassRewards();
+  const start = state.rewardPage * REWARD_PAGE_SIZE;
+  const end = start + REWARD_PAGE_SIZE;
+  const slice = rewards.slice(start, end);
+  const startLevel = slice.length > 0 ? slice[0].level : start + 1;
+  const endLevel = slice.length > 0 ? slice[slice.length - 1].level : Math.min(startLevel + REWARD_PAGE_SIZE - 1, TOTAL_LEVELS);
   if (slice.length === 0) {
     return `### Levels ${startLevel}-${endLevel}\n-# No rewards on this page`;
   }
@@ -1016,17 +1068,19 @@ function formatRewardPage(state) {
 }
 
 function buildRewardPageSelect(state) {
-  const pageSize = 10;
-  const totalPages = Math.ceil(BATTLE_PASS_REWARDS.length / pageSize);
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
   const select = new StringSelectMenuBuilder()
     .setCustomId('bp:page')
-    .setPlaceholder('Jump to reward levels');
+    .setPlaceholder('Page');
   for (let i = 0; i < totalPages; i++) {
-    const start = i * pageSize + 1;
-    const end = Math.min((i + 1) * pageSize, TOTAL_LEVELS);
+    const startIndex = i * REWARD_PAGE_SIZE;
+    const slice = rewards.slice(startIndex, startIndex + REWARD_PAGE_SIZE);
+    const startLevel = slice.length > 0 ? slice[0].level : startIndex + 1;
+    const endLevel = slice.length > 0 ? slice[slice.length - 1].level : startLevel + REWARD_PAGE_SIZE - 1;
     select.addOptions(
       new StringSelectMenuOptionBuilder()
-        .setLabel(`Levels ${start}-${end}`)
+        .setLabel(`${startLevel} - ${endLevel}`)
         .setValue(String(i))
         .setDefault(i === state.rewardPage),
     );
@@ -1035,6 +1089,7 @@ function buildRewardPageSelect(state) {
 }
 
 function buildBattlePassContainer(state) {
+  state.canClaimReward100 = canClaimReward100(state.userId);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatBattlePassSummary(state)));
   container.addSeparatorComponents(new SeparatorBuilder());
@@ -1045,26 +1100,61 @@ function buildBattlePassContainer(state) {
   const rewardRow = new ActionRowBuilder().addComponents(buildRewardPageSelect(state));
   container.addActionRowComponents(rewardRow);
 
+  const claimButton = new ButtonBuilder()
+    .setCustomId('bp:claim100')
+    .setLabel('Claim Lv. 100 Reward')
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(!state.canClaimReward100);
   const questButton = new ButtonBuilder()
     .setCustomId('bp:quests')
     .setLabel('Quests')
     .setStyle(ButtonStyle.Primary);
-  container.addActionRowComponents(new ActionRowBuilder().addComponents(questButton));
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(claimButton, questButton));
   return container;
 }
 
+function resolveBattlePassInfo(stats) {
+  if (!stats) return { level: 1, points: 0 };
+  const data = stats.battle_pass || {};
+  const levelCandidates = [data.level, stats.battle_pass_level].map(Number).filter(Number.isFinite);
+  const pointsCandidates = [data.points, data.totalPoints, stats.battle_pass_points]
+    .map(Number)
+    .filter(Number.isFinite);
+  let level = levelCandidates.length ? levelCandidates[levelCandidates.length - 1] : null;
+  let points = pointsCandidates.length ? pointsCandidates[pointsCandidates.length - 1] : null;
+  if (level == null && points != null) level = Math.floor(points / POINTS_PER_LEVEL) + 1;
+  if (points == null && level != null) points = (level - 1) * POINTS_PER_LEVEL;
+  level = Number.isFinite(level) ? Math.floor(level) : 1;
+  level = Math.max(1, Math.min(TOTAL_LEVELS, level));
+  points = Number.isFinite(points) ? Math.floor(points) : (level - 1) * POINTS_PER_LEVEL;
+  points = Math.max(0, Math.min(TOTAL_POINTS_REQUIRED, points));
+  return { level, points };
+}
+
+function canClaimReward100(userId) {
+  const stats = resourcesRef?.userStats?.[userId];
+  const info = resolveBattlePassInfo(stats);
+  return info.level >= TOTAL_LEVELS;
+}
+
 function createBattlePassState(userId) {
-  const currentPoints = randomInt(0, TOTAL_POINTS_REQUIRED);
-  const currentLevel = Math.min(TOTAL_LEVELS, Math.floor(currentPoints / POINTS_PER_LEVEL) + 1);
-  const rewardPage = Math.min(Math.floor((currentLevel - 1) / 10), Math.ceil(TOTAL_LEVELS / 10) - 1);
+  const stats = resourcesRef?.userStats?.[userId];
+  const info = resolveBattlePassInfo(stats);
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  const rewardPage = Math.min(
+    Math.floor((info.level - 1) / REWARD_PAGE_SIZE),
+    Math.max(0, totalPages - 1),
+  );
   return {
     userId,
     view: 'battle-pass',
     rewardPage: Math.max(0, rewardPage),
     activeQuestType: 'hourly',
     quests: generateAllQuests(),
-    currentPoints,
-    currentLevel,
+    currentPoints: info.points,
+    currentLevel: info.level,
+    canClaimReward100: canClaimReward100(userId),
   };
 }
 
@@ -1161,11 +1251,94 @@ async function handleQuestCancel(interaction) {
   await interaction.update({ content: 'Reroll cancelled.', components: [] });
 }
 
+async function handleClaimReward(interaction, state) {
+  const stats = resourcesRef?.userStats?.[state.userId];
+  if (!stats) {
+    await interaction.reply({
+      content: 'Battle pass progress not found for this adventurer.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const info = resolveBattlePassInfo(stats);
+  if (info.level < TOTAL_LEVELS) {
+    await interaction.reply({
+      content: 'You must reach level 100 in the battle pass before claiming this reward.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const stageIndex = getReward100Stage();
+  const stage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
+  const data = getBattlePassData();
+  if (
+    stage.type === 'deluxeCoins' &&
+    data.reward100.claims.some(
+      entry => entry && entry.userId === interaction.user.id && entry.stage === stage.key,
+    )
+  ) {
+    await interaction.reply({
+      content: 'You have already claimed the current level 100 reward.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const claimRecord = {
+    userId: interaction.user.id,
+    stage: stage.key,
+    timestamp: Date.now(),
+  };
+  data.reward100.claims.push(claimRecord);
+
+  let response;
+  if (stage.type === 'deluxeCoins') {
+    stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
+    stats.deluxe_coins += stage.amount;
+    response = `You received ${formatNumber(stage.amount)} Deluxe Coins ${DELUXE_COIN_EMOJI}!`;
+  } else {
+    response = `You claimed the ${stage.label}! A staff member will contact you soon.`;
+    data.reward100.stage = Math.min(stageIndex + 1, REWARD100_STAGES.length - 1);
+  }
+
+  resourcesRef.userStats[state.userId] = stats;
+  refreshRewards();
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  state.rewardPage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
+  state.canClaimReward100 = canClaimReward100(state.userId);
+  resourcesRef.saveData();
+
+  await updateMainMessage(interaction.client, state);
+  await interaction.reply({ content: response, flags: MessageFlags.Ephemeral });
+
+  if (stage.announcement) {
+    const nextStageIndex = getReward100Stage();
+    const nextStage = REWARD100_STAGES[Math.min(nextStageIndex, REWARD100_STAGES.length - 1)];
+    const lines = [
+      '### Level 100 Reward Claimed!',
+      `${interaction.user} claimed the ${stage.label}.`,
+      `-# The reward is now ${nextStage.label}.`,
+    ];
+    const container = new ContainerBuilder()
+      .setAccentColor(0xd01e2e)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+    if (interaction.channel && typeof interaction.channel.send === 'function') {
+      interaction.channel
+        .send({ components: [container], flags: MessageFlags.IsComponentsV2 })
+        .catch(() => {});
+    }
+  }
+}
+
 function parseCustomId(id) {
   return id.split(':');
 }
 
-function setup(client) {
+function setup(client, resources) {
+  resourcesRef = resources;
+  refreshRewards();
   const command = new SlashCommandBuilder()
     .setName('battle-pass')
     .setDescription('View the Christmas battle pass rewards and quests.');
@@ -1223,6 +1396,10 @@ function setup(client) {
           await handleQuestCancel(interaction);
           return;
         }
+        if (action === 'claim100') {
+          await handleClaimReward(interaction, state);
+          return;
+        }
       }
 
       if (interaction.isStringSelectMenu()) {
@@ -1250,7 +1427,8 @@ function setup(client) {
           const value = interaction.values[0];
           const page = Number(value);
           if (!Number.isNaN(page)) {
-            state.rewardPage = clamp(page, 0, Math.ceil(BATTLE_PASS_REWARDS.length / 10) - 1);
+            const totalPages = Math.ceil(getBattlePassRewards().length / REWARD_PAGE_SIZE);
+            state.rewardPage = clamp(page, 0, Math.max(0, totalPages - 1));
           }
           state.view = 'battle-pass';
           await interaction.update({ components: renderState(state) });

@@ -3,6 +3,12 @@ const { formatNumber, parseAmount } = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const DELUXE_ALLOWED = new Set(['1152200741566566440', '902736357766594611']);
+const TYPE_LABELS = {
+  coin: 'coin',
+  diamond: 'diamond',
+  deluxe: 'deluxe coin',
+  snowflake: 'snowflake',
+};
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
 
 function setup(client, resources) {
@@ -21,6 +27,7 @@ function setup(client, resources) {
           { name: 'Coin', value: 'coin' },
           { name: 'Diamond', value: 'diamond' },
           { name: 'Deluxe Coin', value: 'deluxe' },
+          { name: 'Snowflake', value: 'snowflake' },
         ),
     )
     .addStringOption(o =>
@@ -57,10 +64,17 @@ function setup(client, resources) {
         await interaction.reply({ content: `${WARNING} You cannot modify Deluxe Coin.` });
         return;
       }
-      const stats = resources.userStats[target.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };
+      const stats =
+        resources.userStats[target.id] || {
+          coins: 0,
+          diamonds: 0,
+          deluxe_coins: 0,
+          snowflakes: 0,
+        };
       if (type === 'coin') stats.coins = (stats.coins || 0) + amount;
       else if (type === 'diamond') stats.diamonds = (stats.diamonds || 0) + amount;
       else if (type === 'deluxe') stats.deluxe_coins = (stats.deluxe_coins || 0) + amount;
+      else if (type === 'snowflake') stats.snowflakes = (stats.snowflakes || 0) + amount;
       resources.userStats[target.id] = stats;
       resources.saveData();
 
@@ -69,9 +83,11 @@ function setup(client, resources) {
           ? stats.coins
           : type === 'diamond'
           ? stats.diamonds
-          : stats.deluxe_coins;
+          : type === 'deluxe'
+          ? stats.deluxe_coins
+          : stats.snowflakes;
       await interaction.reply({
-        content: `Updated ${target.username}'s ${type.replace('deluxe', 'deluxe coin')} by ${formatNumber(amount)}. New balance: ${formatNumber(balance)}.`,
+        content: `Updated ${target.username}'s ${TYPE_LABELS[type] || type} by ${formatNumber(amount)}. New balance: ${formatNumber(balance)}.`,
         allowedMentions: { parse: [] },
       });
     } catch (error) {

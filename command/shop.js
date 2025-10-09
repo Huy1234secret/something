@@ -691,7 +691,11 @@ function setup(client, resources) {
             return;
           }
         const stats =
-          resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
+          resources.userStats[interaction.user.id] || {
+            coins: 0,
+            deluxe_coins: 0,
+            snowflakes: 0,
+          };
         normalizeInventory(stats);
         const farmMasteryLevel = Number.isFinite(stats.farm_mastery_level)
           ? stats.farm_mastery_level
@@ -892,7 +896,11 @@ function setup(client, resources) {
           return;
         }
       const stats =
-        resources.userStats[interaction.user.id] || { coins: 0, deluxe_coins: 0 };
+        resources.userStats[interaction.user.id] || {
+          coins: 0,
+          deluxe_coins: 0,
+          snowflakes: 0,
+        };
       const price = sInfo.discount
         ? Math.round(baseItem.price * (1 - sInfo.discount))
         : baseItem.price;

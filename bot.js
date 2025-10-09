@@ -56,6 +56,12 @@ function createDefaultData() {
     command_bans: {},
     csh_message_id: null,
     shop: { stock: {}, nextRestock: 0 },
+    battle_pass: {
+      reward100: {
+        stage: 0,
+        claims: [],
+      },
+    },
   };
 }
 
@@ -111,6 +117,7 @@ const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 let shop = { stock: {}, nextRestock: 0 };
+let battlePassData = { reward100: { stage: 0, claims: [] } };
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -168,6 +175,7 @@ function loadData() {
     commandBans = data.command_bans || {};
     cshMessageId = data.csh_message_id || null;
     shop = data.shop || { stock: {}, nextRestock: 0 };
+    battlePassData = data.battle_pass || { reward100: { stage: 0, claims: [] } };
   } catch (err) {
     console.error('Failed to load user data, restoring defaults:', err.message);
     userStats = {};
@@ -176,6 +184,7 @@ function loadData() {
     commandBans = {};
     cshMessageId = null;
     shop = { stock: {}, nextRestock: 0 };
+    battlePassData = { reward100: { stage: 0, claims: [] } };
     saveData();
   }
   const fixed = fixItemEntries(userStats);
@@ -193,6 +202,7 @@ function saveData() {
     command_bans: commandBans,
     csh_message_id: cshMessageId,
     shop,
+    battle_pass: battlePassData,
   };
   fs.mkdirSync(DATA_DIR, { recursive: true });
   createBackup();
@@ -257,6 +267,7 @@ async function addXp(user, amount, client) {
   stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
   stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
   stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
+  stats.snowflakes = Number.isFinite(stats.snowflakes) ? stats.snowflakes : 0;
   stats.chat_mastery_level = Number.isFinite(stats.chat_mastery_level)
     ? stats.chat_mastery_level
     : 0;
@@ -436,7 +447,17 @@ async function addFarmMasteryXp(user, amount, client) {
 }
 
 function addCoins(user, amount) {
-  const stats = userStats[user.id] || { level:1, xp:0, total_xp:0, coins:0, diamonds:0, deluxe_coins:0 };
+  const stats =
+    userStats[user.id] ||
+    {
+      level: 1,
+      xp: 0,
+      total_xp: 0,
+      coins: 0,
+      diamonds: 0,
+      deluxe_coins: 0,
+      snowflakes: 0,
+    };
   amount = applyCoinBoost(stats, amount);
   stats.coins = (stats.coins || 0) + amount;
   userStats[user.id] = stats;
@@ -467,6 +488,7 @@ const resources = {
   userCardSettings,
   commandBans,
   shop,
+  battlePassData,
   saveData,
   xpNeeded,
   addXp,
@@ -633,6 +655,7 @@ client.on('messageCreate', async message => {
     coins: 0,
     diamonds: 0,
     deluxe_coins: 0,
+    snowflakes: 0,
   };
   stats.chat_messages = (stats.chat_messages || 0) + 1;
   userStats[message.author.id] = stats;
