@@ -41,15 +41,18 @@ const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 const ELF_HAT_EMOJI = '<:ITElfHat:1425752757112934440>';
 const CHRISTMAS_BATTLE_PASS_GIFT_EMOJI = '<:ITChristmasBattlePassGift:1425752835261337690>';
 
-const BATTLE_PASS_IMAGE_WIDTH = 900;
-const BATTLE_PASS_IMAGE_HEIGHT = 520;
+const BATTLE_PASS_IMAGE_WIDTH = 1400;
+const BATTLE_PASS_IMAGE_HEIGHT = 420;
 const BATTLE_PASS_SUMMARY_IMAGE_NAME = 'battle-pass.png';
 
-const REWARD_IMAGE_WIDTH = 1000;
-const REWARD_IMAGE_HEIGHT = 780;
-const REWARD_IMAGE_MARGIN = 40;
-const REWARD_CARD_HEIGHT = 100;
-const REWARD_CARD_GAP = 16;
+const TRACK_MARGIN = 24;
+const TRACK_CARD_COUNT = 5;
+const TRACK_CARD_GAP = 18;
+const TRACK_CARD_WIDTH = Math.floor(
+  (BATTLE_PASS_IMAGE_WIDTH - TRACK_MARGIN * 2 - TRACK_CARD_GAP * (TRACK_CARD_COUNT - 1)) /
+    TRACK_CARD_COUNT,
+);
+const TRACK_CARD_HEIGHT = 260;
 
 const QUEST_TYPES = {
   hourly: 'Hourly Quests',
@@ -248,39 +251,7 @@ function pointsForLevel(level) {
   return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
 }
 
-function rewardLabelForImage(reward) {
-  if (reward.type === 'coins') {
-    return `${formatNumber(reward.amount)} Coins`;
-  }
-  if (reward.type === 'diamonds') {
-    return `${formatNumber(reward.amount)} Diamonds`;
-  }
-  if (reward.type === 'deluxeCoins') {
-    return `${formatNumber(reward.amount)} Deluxe Coins`;
-  }
-  if (reward.type === 'snowflakes') {
-    return `${formatNumber(reward.amount)} Snowflakes`;
-  }
-  if (reward.name && /Gift Card/.test(reward.name)) {
-    return reward.name;
-  }
-  const qty = reward.amount > 1 ? `x${formatNumber(reward.amount)} ` : '';
-  return `${qty}${reward.name}`.trim();
-}
-
-function rewardEmojiForImage(reward) {
-  if (reward.emoji) return reward.emoji;
-  if (reward.type === 'coins') return COIN_EMOJI;
-  if (reward.type === 'diamonds') return DIAMOND_EMOJI;
-  if (reward.type === 'deluxeCoins') return DELUXE_COIN_EMOJI;
-  if (reward.type === 'snowflakes') return SNOWFLAKE_EMOJI;
-  if (reward.name && /Gift Card/i.test(reward.name)) return '🎁';
-  if (reward.type === 'special' && reward.name) return '🎁';
-  return '⭐';
-}
-
-function drawRoundedRect(ctx, x, y, w, h, radius = 18) {
-  const r = Math.min(radius, Math.min(w, h) / 2);
+function roundRect(ctx, x, y, w, h, r = 18) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -290,228 +261,434 @@ function drawRoundedRect(ctx, x, y, w, h, radius = 18) {
   ctx.closePath();
 }
 
-function drawPanel(ctx, x, y, w, h, { fill = 'rgba(17, 31, 43, 0.8)', stroke = 'rgba(255,255,255,0.08)' } = {}) {
-  drawRoundedRect(ctx, x, y, w, h, 26);
-  ctx.fillStyle = fill;
-  ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+function dropShadow(
+  ctx,
+  fn,
+  { blur = 20, color = 'rgba(0,0,0,0.25)', offsetX = 0, offsetY = 6 } = {},
+) {
+  const prev = {
+    shadowBlur: ctx.shadowBlur,
+    shadowColor: ctx.shadowColor,
+    shadowOffsetX: ctx.shadowOffsetX,
+    shadowOffsetY: ctx.shadowOffsetY,
+  };
+  ctx.shadowBlur = blur;
+  ctx.shadowColor = color;
+  ctx.shadowOffsetX = offsetX;
+  ctx.shadowOffsetY = offsetY;
+  fn();
+  ctx.shadowBlur = prev.shadowBlur;
+  ctx.shadowColor = prev.shadowColor;
+  ctx.shadowOffsetX = prev.shadowOffsetX;
+  ctx.shadowOffsetY = prev.shadowOffsetY;
+}
+
+function drawSnowOverlay(ctx, count = 160) {
+  for (let i = 0; i < count; i++) {
+    const x = Math.random() * BATTLE_PASS_IMAGE_WIDTH;
+    const y = Math.random() * BATTLE_PASS_IMAGE_HEIGHT;
+    const r = Math.random() * 2.2 + 0.6;
+    ctx.globalAlpha = Math.random() * 0.7 + 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCandyCaneBorder(ctx) {
+  const stripeH = 14;
+  for (let x = 0; x < BATTLE_PASS_IMAGE_WIDTH; x += 28) {
+    ctx.fillStyle = '#d01e2e';
+    ctx.fillRect(x, 0, 20, stripeH);
+    ctx.fillRect(x + 10, BATTLE_PASS_IMAGE_HEIGHT - stripeH, 20, stripeH);
   }
 }
 
-function drawProgressBarImage(ctx, x, y, w, h, progress, total) {
-  drawRoundedRect(ctx, x, y, w, h, h / 2);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+function drawSnowman(ctx, x, y, scale = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 26, 0, Math.PI * 2);
   ctx.fill();
-  const pct = total <= 0 ? 1 : clamp(progress / total, 0, 1);
-  const fillWidth = Math.max(h, Math.round(w * pct));
-  drawRoundedRect(ctx, x, y, fillWidth, h, h / 2);
+  ctx.beginPath();
+  ctx.arc(0, -34, 20, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(-6, -40, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(6, -40, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ff7f27';
+  ctx.beginPath();
+  ctx.moveTo(0, -34);
+  ctx.lineTo(20, -30);
+  ctx.lineTo(0, -28);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-16, -62, 32, 6);
+  ctx.fillRect(-12, -80, 24, 18);
+
+  ctx.fillStyle = '#222';
+  [-14, -3, 8].forEach((yy) => {
+    ctx.beginPath();
+    ctx.arc(0, yy, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = '#d01e2e';
+  ctx.fillRect(-16, -28, 32, 6);
+  ctx.fillRect(10, -28, 6, 18);
+
+  ctx.restore();
+}
+
+function drawGingerbread(ctx, x, y, scale = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#b06a3b';
+  ctx.beginPath();
+  ctx.arc(0, -24, 14, 0, Math.PI * 2);
+  ctx.fill();
+  roundRect(ctx, -12, -16, 24, 32, 8);
+  ctx.fill();
+  roundRect(ctx, -26, -10, 14, 8, 4);
+  ctx.fill();
+  roundRect(ctx, 12, -10, 14, 8, 4);
+  ctx.fill();
+  roundRect(ctx, -12, 14, 10, 16, 4);
+  ctx.fill();
+  roundRect(ctx, 2, 14, 10, 16, 4);
+  ctx.fill();
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, -22, 6, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-5, -26, 1.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(5, -26, 1.7, 0, Math.PI * 2);
+  ctx.fill();
+  [-2, 6].forEach((yy) => {
+    ctx.beginPath();
+    ctx.arc(0, yy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
+  roundRect(ctx, x, y, w, h, h / 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fill();
+
+  const pct = Math.max(0, Math.min(1, total === 0 ? 0 : current / total));
+  const fillW = Math.max(h, Math.round(w * pct));
+  roundRect(ctx, x, y, fillW, h, h / 2);
   const grad = ctx.createLinearGradient(x, y, x + w, y);
   grad.addColorStop(0, '#2ad67b');
   grad.addColorStop(1, '#20b35b');
   ctx.fillStyle = grad;
   ctx.fill();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  tickXs.forEach((tx) => {
+    ctx.beginPath();
+    ctx.moveTo(tx, y - 6);
+    ctx.lineTo(tx, y + h + 6);
+    ctx.stroke();
+  });
+
+  ctx.font = 'bold 22px Sans';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    `Progress: ${formatNumber(Math.round(current))} / ${formatNumber(Math.round(total))} XP`,
+    x + w / 2,
+    y - 12,
+  );
+  ctx.textAlign = 'left';
 }
 
-function formatLevelRange(start, end) {
-  return start === end ? `Level ${start}` : `Levels ${start}-${end}`;
+function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
+  dropShadow(ctx, () => {
+    roundRect(ctx, x, y, TRACK_CARD_WIDTH, TRACK_CARD_HEIGHT, 20);
+    const g = ctx.createLinearGradient(0, y, 0, y + TRACK_CARD_HEIGHT);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(1, 'rgba(240,246,248,0.95)');
+    ctx.fillStyle = g;
+    ctx.fill();
+  });
+
+  const badgeR = 20;
+  const bx = x + 18;
+  const by = y + 18;
+  ctx.beginPath();
+  ctx.arc(bx + badgeR, by + badgeR, badgeR, 0, Math.PI * 2);
+  ctx.fillStyle = themeAccent;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 20px Sans';
+  ctx.textAlign = 'center';
+  ctx.fillText(String(card.num ?? '—'), bx + badgeR, by + badgeR + 7);
+
+  ctx.fillStyle = '#9aa4aa';
+  ctx.font = 'bold 16px Sans';
+  ctx.textAlign = 'left';
+  const xpLabel = card.xpLabel ?? (card.xpReq != null ? `${formatNumber(card.xpReq)} XP` : '');
+  if (xpLabel) {
+    ctx.fillText(xpLabel, x + 18, y + 70);
+  }
+
+  const boxW = TRACK_CARD_WIDTH - 36;
+  const boxH = 110;
+  const boxX = x + 18;
+  const boxY = y + 86;
+  roundRect(ctx, boxX, boxY, boxW, boxH, 14);
+  ctx.setLineDash([8, 8]);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#c6d1d8';
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.save();
+  ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = '#9fb3bf';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 6; i++) {
+    ctx.rotate(Math.PI / 3);
+    ctx.beginPath();
+    ctx.moveTo(0, -22);
+    ctx.lineTo(0, 22);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  if (card.name) {
+    ctx.fillStyle = '#1f2a33';
+    ctx.font = 'bold 18px Sans';
+    ctx.textAlign = 'center';
+    ctx.fillText(card.name, x + TRACK_CARD_WIDTH / 2, y + 220);
+  }
+  if (card.amount) {
+    ctx.fillStyle = '#5b6b76';
+    ctx.font = '16px Sans';
+    ctx.fillText(card.amount, x + TRACK_CARD_WIDTH / 2, y + 244);
+  }
 }
 
-function renderBattlePassSummaryImage(state) {
+function drawTitle(ctx, title, subtitle) {
+  const rx = TRACK_MARGIN;
+  const ry = 18;
+  const rw = BATTLE_PASS_IMAGE_WIDTH - TRACK_MARGIN * 2;
+  const rh = 56;
+  dropShadow(
+    ctx,
+    () => {
+      roundRect(ctx, rx, ry, rw, rh, 14);
+      const g = ctx.createLinearGradient(rx, ry, rx + rw, ry);
+      g.addColorStop(0, '#0f6a3f');
+      g.addColorStop(1, '#0c5132');
+      ctx.fillStyle = g;
+      ctx.fill();
+    },
+    { blur: 10, color: 'rgba(0,0,0,0.35)', offsetY: 4 },
+  );
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px Sans';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, rx + 18, ry + 36);
+
+  if (subtitle) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = '16px Sans';
+    ctx.textAlign = 'right';
+    ctx.fillText(subtitle, rx + rw - 18, ry + 36);
+  }
+}
+
+function drawBackground(ctx) {
+  const bg = ctx.createLinearGradient(0, 0, 0, BATTLE_PASS_IMAGE_HEIGHT);
+  bg.addColorStop(0, '#0b2e20');
+  bg.addColorStop(0.5, '#0f3d2a');
+  bg.addColorStop(1, '#12402a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
+
+  drawCandyCaneBorder(ctx);
+
+  const vignette = ctx.createRadialGradient(
+    BATTLE_PASS_IMAGE_WIDTH / 2,
+    BATTLE_PASS_IMAGE_HEIGHT / 2,
+    Math.min(BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT) / 6,
+    BATTLE_PASS_IMAGE_WIDTH / 2,
+    BATTLE_PASS_IMAGE_HEIGHT / 2,
+    BATTLE_PASS_IMAGE_WIDTH / 1.1,
+  );
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
+
+  ctx.fillStyle = '#eaf5ff';
+  roundRect(ctx, -10, BATTLE_PASS_IMAGE_HEIGHT - 80, BATTLE_PASS_IMAGE_WIDTH + 20, 120, 40);
+  ctx.fill();
+
+  drawSnowman(ctx, BATTLE_PASS_IMAGE_WIDTH - 90, BATTLE_PASS_IMAGE_HEIGHT - 90, 1.2);
+  drawGingerbread(ctx, 80, BATTLE_PASS_IMAGE_HEIGHT - 90, 1.2);
+
+  drawSnowOverlay(ctx, 180);
+}
+
+function layoutTickPositions(thresholds, x, w, totalXP) {
+  const safeTotal = totalXP > 0 ? totalXP : 1;
+  const ticks = (thresholds || [])
+    .map((value) => clamp(value / safeTotal, 0, 1))
+    .map((pct) => x + Math.round(w * pct));
+  return { ticks, totalXP: safeTotal };
+}
+
+function formatCardName(reward) {
+  if (reward.type === 'coins') return 'Coins';
+  if (reward.type === 'diamonds') return 'Diamonds';
+  if (reward.type === 'deluxeCoins') return 'Deluxe Coins';
+  if (reward.type === 'snowflakes') return 'Snowflakes';
+  if (reward.name) return reward.name;
+  return 'Reward';
+}
+
+function formatCardQuantity(reward) {
+  if (reward.type === 'coins' || reward.type === 'diamonds' || reward.type === 'deluxeCoins' || reward.type === 'snowflakes') {
+    return formatNumber(reward.amount || 0);
+  }
+  if (Number.isFinite(reward.amount) && reward.amount > 1) {
+    return `x${formatNumber(reward.amount)}`;
+  }
+  if (Number.isFinite(reward.amount) && reward.amount === 1 && reward.name) {
+    return 'x1';
+  }
+  return '';
+}
+
+function createCardFromReward(reward) {
+  const xpTarget = pointsForLevel(reward.level);
+  const quantity = formatCardQuantity(reward);
+  const amount = quantity ? `Tier ${reward.level} • ${quantity}` : `Tier ${reward.level}`;
+  return {
+    num: reward.level,
+    xpReq: xpTarget,
+    name: formatCardName(reward),
+    amount,
+    placeholder: false,
+  };
+}
+
+function createPlaceholderCard(label = 'All Rewards Claimed') {
+  return {
+    num: '—',
+    xpReq: TOTAL_POINTS_REQUIRED,
+    name: label,
+    amount: '',
+    placeholder: true,
+  };
+}
+
+function ensureCardCount(cards) {
+  const list = cards.slice(0, TRACK_CARD_COUNT);
+  while (list.length < TRACK_CARD_COUNT) {
+    list.push(createPlaceholderCard());
+  }
+  return list;
+}
+
+function renderCardTrackImage({ title, subtitle, cards, currentXP, totalXP, tickValues }) {
   const canvas = createCanvas(BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
   const ctx = canvas.getContext('2d');
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, BATTLE_PASS_IMAGE_HEIGHT);
-  gradient.addColorStop(0, '#06141f');
-  gradient.addColorStop(1, '#0e2a3b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
+  drawBackground(ctx);
+  drawTitle(ctx, title, subtitle);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  for (let i = 0; i < BATTLE_PASS_IMAGE_WIDTH; i += 40) {
-    ctx.fillRect(i, 0, 2, BATTLE_PASS_IMAGE_HEIGHT);
-  }
+  const rowY = 100;
+  let x = TRACK_MARGIN;
+  const normalizedCards = ensureCardCount(cards);
+  normalizedCards.forEach((card) => {
+    drawCard(ctx, x, rowY, card);
+    x += TRACK_CARD_WIDTH + TRACK_CARD_GAP;
+  });
 
-  ctx.font = '700 36px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'left';
-  ctx.fillText('Christmas Battle Pass', 40, 60);
+  const pbX = TRACK_MARGIN;
+  const pbW = BATTLE_PASS_IMAGE_WIDTH - TRACK_MARGIN * 2;
+  const pbY = rowY + TRACK_CARD_HEIGHT + 40;
+  const pbH = 22;
 
+  const { ticks, totalXP: safeTotal } = layoutTickPositions(tickValues, pbX, pbW, totalXP);
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, safeTotal, ticks);
+
+  return canvas.toBuffer('image/png');
+}
+
+function formatLevelRange(start, end) {
+  return start === end ? `Tier ${start}` : `Tiers ${start}-${end}`;
+}
+
+function renderBattlePassSummaryImage(state) {
   const rewards = getBattlePassRewards();
   const currentLevel = Math.min(state.currentLevel || 1, TOTAL_LEVELS);
-  const totalPoints = clamp(state.currentPoints || 0, 0, TOTAL_POINTS_REQUIRED);
-  const totalLine = `${formatNumber(totalPoints)} / ${formatNumber(TOTAL_POINTS_REQUIRED)} pts`;
-
-  const summaryBox = { x: 40, y: 80, w: BATTLE_PASS_IMAGE_WIDTH - 80, h: 150 };
-  drawPanel(ctx, summaryBox.x, summaryBox.y, summaryBox.w, summaryBox.h, {
-    fill: 'rgba(10, 24, 34, 0.82)',
-  });
-
-  ctx.fillStyle = '#b7c9d6';
-  ctx.font = '600 20px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText(`Level ${currentLevel}`, summaryBox.x + 24, summaryBox.y + 46);
-  ctx.fillText(`Total Progress: ${totalLine}`, summaryBox.x + 24, summaryBox.y + 80);
-
-  if (currentLevel >= TOTAL_LEVELS) {
-    ctx.fillStyle = '#2ad67b';
-    ctx.font = '600 22px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillText('All rewards unlocked!', summaryBox.x + 24, summaryBox.y + 120);
-  } else {
-    const prevThreshold = pointsForLevel(currentLevel - 1);
-    const nextThreshold = pointsForLevel(currentLevel);
-    const progress = totalPoints - prevThreshold;
-    const needed = nextThreshold - prevThreshold;
-    const barX = summaryBox.x + 24;
-    const barY = summaryBox.y + summaryBox.h - 50;
-    const barW = summaryBox.w - 48;
-    const barH = 26;
-    drawProgressBarImage(ctx, barX, barY, barW, barH, progress, needed);
-    ctx.fillStyle = '#dff8e8';
-    ctx.font = '600 18px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${formatNumber(progress)} / ${formatNumber(needed)} pts to next level`, barX + barW / 2, barY - 12);
-    ctx.textAlign = 'left';
-  }
+  const currentPoints = clamp(state.currentPoints || 0, 0, TOTAL_POINTS_REQUIRED);
 
   const upcomingStart = Math.max(0, currentLevel - 1);
-  const upcoming = rewards.slice(upcomingStart, upcomingStart + 5);
-  const pageStart = state.rewardPage * REWARD_PAGE_SIZE;
-  const pageRewards = rewards.slice(pageStart, pageStart + REWARD_PAGE_SIZE);
-  const pageStartLevel = pageRewards[0]?.level ?? pageStart + 1;
-  const pageEndLevel = pageRewards[pageRewards.length - 1]?.level ?? Math.min(pageStartLevel + REWARD_PAGE_SIZE - 1, TOTAL_LEVELS);
+  const upcoming = rewards.slice(upcomingStart, upcomingStart + TRACK_CARD_COUNT);
+  const cards = upcoming.map(createCardFromReward);
 
-  const upcomingBox = { x: 40, y: summaryBox.y + summaryBox.h + 24, w: (BATTLE_PASS_IMAGE_WIDTH - 120) / 2, h: 220 };
-  const pageBox = { x: upcomingBox.x + upcomingBox.w + 40, y: upcomingBox.y, w: upcomingBox.w, h: upcomingBox.h };
-
-  drawPanel(ctx, upcomingBox.x, upcomingBox.y, upcomingBox.w, upcomingBox.h);
-  drawPanel(ctx, pageBox.x, pageBox.y, pageBox.w, pageBox.h);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 24px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText('Upcoming Rewards', upcomingBox.x + 24, upcomingBox.y + 40);
-  ctx.fillText(formatLevelRange(pageStartLevel, pageEndLevel), pageBox.x + 24, pageBox.y + 40);
-
-  ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillStyle = '#d9e4ec';
-  const upcomingLineHeight = 32;
-  upcoming.forEach((reward, index) => {
-    const textY = upcomingBox.y + 80 + index * upcomingLineHeight;
-    ctx.fillText(`Lv. ${reward.level}`, upcomingBox.x + 24, textY);
-    ctx.fillStyle = '#8fb9d4';
-    ctx.font = '400 16px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillText(rewardLabelForImage(reward), upcomingBox.x + 120, textY);
-    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#d9e4ec';
-  });
-  if (upcoming.length === 0) {
-    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#8fb9d4';
-    ctx.fillText('All rewards claimed', upcomingBox.x + 24, upcomingBox.y + 96);
+  if (cards.length === 0) {
+    cards.push(createPlaceholderCard());
   }
 
-  const pageLineHeight = 32;
-  pageRewards.forEach((reward, index) => {
-    const textY = pageBox.y + 80 + index * pageLineHeight;
-    ctx.fillText(`Lv. ${reward.level}`, pageBox.x + 24, textY);
-    ctx.fillStyle = '#8fb9d4';
-    ctx.font = '400 16px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillText(rewardLabelForImage(reward), pageBox.x + 120, textY);
-    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#d9e4ec';
-  });
-  if (pageRewards.length === 0) {
-    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#8fb9d4';
-    ctx.fillText('No rewards on this page', pageBox.x + 24, pageBox.y + 96);
+  const subtitleParts = [`Tier ${currentLevel}`];
+  subtitleParts.push(`${formatNumber(currentPoints)} / ${formatNumber(TOTAL_POINTS_REQUIRED)} XP`);
+  if (currentLevel >= TOTAL_LEVELS && currentPoints >= TOTAL_POINTS_REQUIRED) {
+    subtitleParts.push('Season Complete');
   }
 
-  return canvas.toBuffer('image/png');
-}
+  const tickValues = cards
+    .filter((card) => !card.placeholder && Number.isFinite(card.xpReq))
+    .map((card) => card.xpReq);
 
-function drawRewardListCard(ctx, x, y, w, h, reward) {
-  drawPanel(ctx, x, y, w, h, { fill: 'rgba(10, 24, 34, 0.82)' });
-
-  const centerY = y + h / 2;
-  const badgeRadius = 34;
-  const badgeX = x + 60;
-
-  ctx.beginPath();
-  ctx.arc(badgeX, centerY, badgeRadius, 0, Math.PI * 2);
-  ctx.fillStyle = '#d01e2e';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 24px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(String(reward.level), badgeX, centerY + 9);
-
-  const iconBoxSize = 72;
-  const iconX = x + 120;
-  const iconY = centerY - iconBoxSize / 2;
-  drawPanel(ctx, iconX, iconY, iconBoxSize, iconBoxSize, { fill: 'rgba(255,255,255,0.06)' });
-
-  const iconEmoji = rewardEmojiForImage(reward);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 48px "Noto Sans", "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(iconEmoji, iconX + iconBoxSize / 2, centerY + 2);
-
-  const textX = iconX + iconBoxSize + 32;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 26px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText(`Level ${reward.level}`, textX, centerY - 6);
-
-  ctx.fillStyle = '#8fb9d4';
-  ctx.font = '500 22px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText(rewardLabelForImage(reward), textX, centerY + 30);
-}
-
-function renderBattlePassRewardPage(rewards, pageIndex, totalPages) {
-  const canvas = createCanvas(REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
-  const ctx = canvas.getContext('2d');
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, REWARD_IMAGE_HEIGHT);
-  gradient.addColorStop(0, '#06141f');
-  gradient.addColorStop(1, '#0e2a3b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
-
-  const startLevel = rewards[0]?.level ?? pageIndex * REWARD_PAGE_SIZE + 1;
-  const endLevel = rewards[rewards.length - 1]?.level ?? startLevel + rewards.length - 1;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 38px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('Christmas Battle Pass Rewards', REWARD_IMAGE_MARGIN, 70);
-
-  ctx.font = '600 24px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillStyle = '#b7c9d6';
-  ctx.fillText(formatLevelRange(startLevel, endLevel), REWARD_IMAGE_MARGIN, 112);
-
-  ctx.textAlign = 'right';
-  ctx.fillText(`Page ${pageIndex + 1} / ${totalPages}`, REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN, 112);
-  ctx.textAlign = 'left';
-
-  const listStartY = 150;
-  const cardWidth = REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN * 2;
-
-  rewards.forEach((reward, index) => {
-    const y = listStartY + index * (REWARD_CARD_HEIGHT + REWARD_CARD_GAP);
-    drawRewardListCard(ctx, REWARD_IMAGE_MARGIN, y, cardWidth, REWARD_CARD_HEIGHT, reward);
+  return renderCardTrackImage({
+    title: 'Christmas Battle Pass',
+    subtitle: subtitleParts.join(' • '),
+    cards,
+    currentXP: currentPoints,
+    totalXP: TOTAL_POINTS_REQUIRED,
+    tickValues,
   });
-
-  return canvas.toBuffer('image/png');
 }
 
-function renderBattlePassRewardImage(pageIndex) {
+function renderBattlePassRewardImage(pageIndex, currentXP) {
   const rewards = getBattlePassRewards();
   if (rewards.length === 0) return null;
   const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
@@ -520,7 +697,28 @@ function renderBattlePassRewardImage(pageIndex) {
     safeIndex * REWARD_PAGE_SIZE,
     safeIndex * REWARD_PAGE_SIZE + REWARD_PAGE_SIZE,
   );
-  const buffer = renderBattlePassRewardPage(slice, safeIndex, totalPages);
+
+  const cards = slice.map(createCardFromReward);
+  if (cards.length === 0) {
+    cards.push(createPlaceholderCard('No Rewards'));
+  }
+
+  const startLevel = slice[0]?.level ?? safeIndex * REWARD_PAGE_SIZE + 1;
+  const endLevel = slice[slice.length - 1]?.level ?? Math.min(startLevel + REWARD_PAGE_SIZE - 1, TOTAL_LEVELS);
+
+  const tickValues = cards
+    .filter((card) => !card.placeholder && Number.isFinite(card.xpReq))
+    .map((card) => card.xpReq);
+
+  const buffer = renderCardTrackImage({
+    title: 'Reward Preview',
+    subtitle: formatLevelRange(startLevel, endLevel),
+    cards,
+    currentXP: clamp(currentXP || 0, 0, TOTAL_POINTS_REQUIRED),
+    totalXP: TOTAL_POINTS_REQUIRED,
+    tickValues,
+  });
+
   const name = `battle-pass-rewards-${String(safeIndex + 1).padStart(2, '0')}.png`;
   return { buffer, name, totalPages, pageIndex: safeIndex };
 }
@@ -1363,7 +1561,7 @@ async function buildBattlePassContainer(state) {
     const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
     attachments.push(summaryAttachment);
 
-    const rewardImage = renderBattlePassRewardImage(state.rewardPage);
+    const rewardImage = renderBattlePassRewardImage(state.rewardPage, state.currentPoints);
     const gallery = new MediaGalleryBuilder();
 
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
