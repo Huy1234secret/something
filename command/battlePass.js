@@ -1289,6 +1289,7 @@ async function buildBattlePassContainer(state) {
   state.canClaimReward100 = canClaimReward100(state.userId);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   const attachments = [];
+  const MAX_GALLERY_ATTACHMENTS = 10;
   try {
     const summaryBuffer = renderBattlePassSummaryImage(state);
     const summaryName = BATTLE_PASS_SUMMARY_IMAGE_NAME;
@@ -1300,7 +1301,8 @@ async function buildBattlePassContainer(state) {
 
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
 
-    rewardBuffers.forEach((buffer, index) => {
+    const availableSlots = Math.max(0, MAX_GALLERY_ATTACHMENTS - attachments.length);
+    rewardBuffers.slice(0, availableSlots).forEach((buffer, index) => {
       const name = `battle-pass-rewards-${String(index + 1).padStart(2, '0')}.png`;
       const attachment = new AttachmentBuilder(buffer, { name });
       attachments.push(attachment);
