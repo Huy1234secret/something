@@ -33,13 +33,17 @@ function buildLevelPointData() {
   const perLevel = [0];
   const thresholds = [0];
   let total = 0;
+  const step = TOTAL_LEVELS > 1
+    ? (MAX_POINTS_PER_LEVEL - MIN_POINTS_PER_LEVEL) / (TOTAL_LEVELS - 1)
+    : 0;
   for (let level = 1; level <= TOTAL_LEVELS; level++) {
-    const progress = TOTAL_LEVELS > 1 ? (level - 1) / (TOTAL_LEVELS - 1) : 0;
-    const requirement = Math.round(
-      MIN_POINTS_PER_LEVEL + progress * (MAX_POINTS_PER_LEVEL - MIN_POINTS_PER_LEVEL),
-    );
-    perLevel[level] = requirement;
-    total += requirement;
+    let requirement = MIN_POINTS_PER_LEVEL + step * (level - 1);
+    if (level === TOTAL_LEVELS) {
+      requirement = MAX_POINTS_PER_LEVEL;
+    }
+    const roundedRequirement = Math.round(requirement);
+    perLevel[level] = roundedRequirement;
+    total += roundedRequirement;
     thresholds[level] = total;
   }
   return { perLevel, thresholds, total };
@@ -75,12 +79,6 @@ const SUMMARY_CARD_WIDTH = Math.floor(
 const SUMMARY_CARD_HEIGHT = 260;
 const BATTLE_PASS_SUMMARY_IMAGE_NAME = 'battle-pass.png';
 
-const REWARD_IMAGE_WIDTH = 1000;
-const REWARD_IMAGE_HEIGHT = 780;
-const REWARD_IMAGE_MARGIN = 40;
-const REWARD_CARD_HEIGHT = 100;
-const REWARD_CARD_GAP = 16;
-
 const QUEST_TYPES = {
   hourly: 'Hourly Quests',
   daily: 'Daily Quests',
@@ -102,7 +100,6 @@ const QUEST_ACTIONS = [
 ];
 
 const REWARD_PAGE_SIZE = 5;
-const TOTAL_REWARD_PAGES = Math.ceil(TOTAL_LEVELS / REWARD_PAGE_SIZE);
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
 const BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID = '1372572234949853367';
@@ -815,7 +812,15 @@ async function renderBattlePassSummaryImage(state) {
   const currentPoints = clamp(state.currentPoints || 0, 0, TOTAL_POINTS_REQUIRED);
   const rewards = getBattlePassRewards();
 
-  let startIndex = Math.max(0, currentLevel - 1);
+  const totalPages = Math.ceil(rewards.length / SUMMARY_CARD_COUNT);
+  const defaultPage = Math.min(
+    Math.floor((currentLevel - 1) / SUMMARY_CARD_COUNT),
+    Math.max(0, totalPages - 1),
+  );
+  const activePage = clamp(state.rewardPage ?? defaultPage, 0, Math.max(0, totalPages - 1));
+  state.rewardPage = activePage;
+
+  let startIndex = activePage * SUMMARY_CARD_COUNT;
   let upcomingRewards = rewards.slice(startIndex, startIndex + SUMMARY_CARD_COUNT);
   if (upcomingRewards.length === 0 && rewards.length > 0) {
     startIndex = Math.max(0, rewards.length - SUMMARY_CARD_COUNT);
@@ -911,105 +916,6 @@ async function renderBattlePassSummaryImage(state) {
   );
 
   return canvas.toBuffer('image/png');
-}
-
-function formatLevelRange(start, end) {
-  return start === end ? `Level ${start}` : `Levels ${start}-${end}`;
-}
-
-function drawRewardListCard(ctx, x, y, w, h, reward) {
-  drawPanel(ctx, x, y, w, h, { fill: 'rgba(10, 24, 34, 0.82)' });
-
-  const centerY = y + h / 2;
-  const badgeRadius = 34;
-  const badgeX = x + 60;
-
-  ctx.beginPath();
-  ctx.arc(badgeX, centerY, badgeRadius, 0, Math.PI * 2);
-  ctx.fillStyle = '#d01e2e';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 24px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(String(reward.level), badgeX, centerY + 9);
-
-  const iconBoxSize = 72;
-  const iconX = x + 120;
-  const iconY = centerY - iconBoxSize / 2;
-  drawPanel(ctx, iconX, iconY, iconBoxSize, iconBoxSize, { fill: 'rgba(255,255,255,0.06)' });
-
-  const iconEmoji = rewardEmojiForImage(reward);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 48px "Noto Sans", "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(iconEmoji, iconX + iconBoxSize / 2, centerY + 2);
-
-  const textX = iconX + iconBoxSize + 32;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 26px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText(`Level ${reward.level}`, textX, centerY - 6);
-
-  ctx.fillStyle = '#8fb9d4';
-  ctx.font = '500 22px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillText(rewardLabelForImage(reward), textX, centerY + 30);
-}
-
-function renderBattlePassRewardPage(rewards, pageIndex, totalPages) {
-  const canvas = createCanvas(REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
-  const ctx = canvas.getContext('2d');
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, REWARD_IMAGE_HEIGHT);
-  gradient.addColorStop(0, '#06141f');
-  gradient.addColorStop(1, '#0e2a3b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
-
-  const startLevel = rewards[0]?.level ?? pageIndex * REWARD_PAGE_SIZE + 1;
-  const endLevel = rewards[rewards.length - 1]?.level ?? startLevel + rewards.length - 1;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 38px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('Christmas Battle Pass Rewards', REWARD_IMAGE_MARGIN, 70);
-
-  ctx.font = '600 24px "Noto Sans", "Segoe UI", sans-serif';
-  ctx.fillStyle = '#b7c9d6';
-  ctx.fillText(formatLevelRange(startLevel, endLevel), REWARD_IMAGE_MARGIN, 112);
-
-  ctx.textAlign = 'right';
-  ctx.fillText(`Page ${pageIndex + 1} / ${totalPages}`, REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN, 112);
-  ctx.textAlign = 'left';
-
-  const listStartY = 150;
-  const cardWidth = REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN * 2;
-
-  rewards.forEach((reward, index) => {
-    const y = listStartY + index * (REWARD_CARD_HEIGHT + REWARD_CARD_GAP);
-    drawRewardListCard(ctx, REWARD_IMAGE_MARGIN, y, cardWidth, REWARD_CARD_HEIGHT, reward);
-  });
-
-  return canvas.toBuffer('image/png');
-}
-
-function renderBattlePassRewardImage(pageIndex) {
-  const rewards = getBattlePassRewards();
-  if (rewards.length === 0) return null;
-  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
-  const safeIndex = clamp(pageIndex, 0, Math.max(0, totalPages - 1));
-  const slice = rewards.slice(
-    safeIndex * REWARD_PAGE_SIZE,
-    safeIndex * REWARD_PAGE_SIZE + REWARD_PAGE_SIZE,
-  );
-  const buffer = renderBattlePassRewardPage(slice, safeIndex, totalPages);
-  const name = `battle-pass-rewards-${String(safeIndex + 1).padStart(2, '0')}.png`;
-  return { buffer, name, totalPages, pageIndex: safeIndex };
 }
 
 function randomInt(min, max) {
@@ -1831,18 +1737,22 @@ function buildQuestContainer(state, type) {
   return container;
 }
 function buildRewardPageSelect(state) {
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  const activePage = clamp(state.rewardPage ?? 0, 0, Math.max(0, totalPages - 1));
   const select = new StringSelectMenuBuilder()
     .setCustomId('bp:page')
-    .setPlaceholder('Page');
-  for (let i = 0; i < TOTAL_REWARD_PAGES; i++) {
+    .setPlaceholder('Level Range');
+  for (let i = 0; i < totalPages; i++) {
     const startLevel = i * REWARD_PAGE_SIZE + 1;
     const endLevel = Math.min((i + 1) * REWARD_PAGE_SIZE, TOTAL_LEVELS);
     const option = new StringSelectMenuOptionBuilder()
       .setLabel(`${startLevel} - ${endLevel}`)
       .setValue(String(i))
-      .setDefault(i === state.rewardPage);
+      .setDefault(i === activePage);
     select.addOptions(option);
   }
+  state.rewardPage = activePage;
   return select;
 }
 
@@ -1863,25 +1773,13 @@ async function buildBattlePassContainer(state) {
     console.warn('Failed to render battle pass image:', error.message);
   }
 
-  try {
-    const rewardImage = renderBattlePassRewardImage(state.rewardPage ?? 0);
-    if (rewardImage) {
-      const rewardAttachment = new AttachmentBuilder(rewardImage.buffer, { name: rewardImage.name });
-      attachments.push(rewardAttachment);
-      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${rewardImage.name}`));
-      state.rewardPage = rewardImage.pageIndex;
-      hasMedia = true;
-    }
-  } catch (error) {
-    console.warn('Failed to render battle pass rewards image:', error.message);
-  }
-
   if (hasMedia) {
     container.addMediaGalleryComponents(gallery);
     container.addSeparatorComponents(new SeparatorBuilder());
   }
 
-  if (TOTAL_REWARD_PAGES > 0) {
+  const rewardCount = getBattlePassRewards().length;
+  if (rewardCount > 0) {
     const select = buildRewardPageSelect(state);
     container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
     container.addSeparatorComponents(new SeparatorBuilder());
