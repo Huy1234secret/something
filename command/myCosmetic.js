@@ -50,6 +50,9 @@ function buildContainer(user, stats, state = {}) {
   if (equipped.includes('GoldRing')) {
     perks.push('-# +10% Total coin earn');
   }
+  if (equipped.includes('ElfHat')) {
+    perks.push('-# +100% Coin earn');
+  }
   const perkText = perks.join('\n') || '-# None';
 
   const slotSelect = new StringSelectMenuBuilder()

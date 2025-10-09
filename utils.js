@@ -248,6 +248,7 @@ function applyCoinBoost(stats, amount) {
   let percent = 0;
   if (slots.includes('ArcsOfResurgence')) percent += 7.77;
   if (slots.includes('GoldRing')) percent += 0.1;
+  if (slots.includes('ElfHat')) percent += 1;
   if (stats && stats.chat_mastery_level >= 70) {
     percent += (stats.level || 0) * 0.1;
   }

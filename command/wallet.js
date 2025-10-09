@@ -13,22 +13,29 @@ const {
   ButtonBuilder,
 } = require('@discordjs/builders');
 const { formatNumber, normalizeInventory, applyComponentEmoji } = require('../utils');
+const { isChristmasEventActive } = require('../events');
 const { ITEMS } = require('../items');
 
 async function sendWallet(user, send, { userStats, saveData }) {
-  const stats = userStats[user.id] || { coins: 0, diamonds: 0, deluxe_coins: 0 };
+  const stats = userStats[user.id] || {
+    coins: 0,
+    diamonds: 0,
+    deluxe_coins: 0,
+    snowflakes: 0,
+  };
   normalizeInventory(stats);
   userStats[user.id] = stats;
   if (saveData) saveData();
   const coins = stats.coins || 0;
   const diamonds = stats.diamonds || 0;
   const deluxe = stats.deluxe_coins || 0;
+  const snowflakes = stats.snowflakes || 0;
   const inventory = stats.inventory || [];
   const inventoryValue = inventory.reduce(
     (sum, item) => sum + (item.value || 0) * (item.amount || 0),
     0,
   );
-  const totalValue = coins + diamonds + deluxe + inventoryValue;
+  const totalValue = coins + diamonds + deluxe + snowflakes + inventoryValue;
 
   const headerSection = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
@@ -38,8 +45,19 @@ async function sendWallet(user, send, { userStats, saveData }) {
       ),
     );
 
+  const balanceLines = [
+    `> <:CRCoin:1405595571141480570> Coin: ${formatNumber(coins)}`,
+    `> <:CRDiamond:1405595593069432912> Diamond: ${formatNumber(diamonds)}`,
+    `> <:CRDeluxeCoin:1405595587780280382> Deluxe Coin: ${formatNumber(deluxe)}`,
+  ];
+  if (isChristmasEventActive()) {
+    balanceLines.push(
+      `> <:CRSnowflake:1425751780683153448> Snowflake: ${formatNumber(snowflakes)}`,
+    );
+  }
+
   const balancesText = new TextDisplayBuilder().setContent(
-    `> <:CRCoin:1405595571141480570> Coin: ${formatNumber(coins)}\n> <:CRDiamond:1405595593069432912> Diamond: ${formatNumber(diamonds)}\n> <:CRDeluxeCoin:1405595587780280382> Deluxe Coin: ${formatNumber(deluxe)}`,
+    balanceLines.join('\n'),
   );
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
