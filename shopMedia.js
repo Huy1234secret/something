@@ -129,6 +129,16 @@ function rarityOutline(ctx, x, y, w, h, rarity, radius = 18, width = 6) {
     g.addColorStop(0.85, '#4b0082');
     g.addColorStop(1, '#8b00ff');
     ctx.strokeStyle = g;
+  } else if (rarity === 'godly') {
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#9500ff');
+    g.addColorStop(1, '#00a2ff');
+    ctx.strokeStyle = g;
+  } else if (rarity === 'mythical') {
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#ff4d4d');
+    g.addColorStop(1, '#7f0000');
+    ctx.strokeStyle = g;
   } else {
     ctx.strokeStyle = RARITY_COLORS[rarity] || RARITY_COLORS.common;
   }
@@ -172,7 +182,7 @@ async function card(ctx, x, y, w, h, item = {}, coinImg) {
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 22;
   ctx.shadowOffsetY = 8;
-  ctx.fillStyle = '#182235';
+  ctx.fillStyle = 'transparent';
   rrect(ctx, x, y, w, h, 18);
   ctx.fill();
   ctx.restore();
