@@ -1283,7 +1283,7 @@ function formatQuestHeader(type) {
 function buildQuestContainer(state, type) {
   if (state.questsDisabled) {
     const container = new ContainerBuilder().setAccentColor(0xd01e2e);
-    const lines = ['### Quests Disabled', 'You have claimed the level 100 reward. Quests are no longer available.'];
+    const lines = ['### Quests Disabled', 'You have reached Tier 100. Quests are no longer available.'];
     if (state.level100Claim?.stage?.label) {
       lines.push(`-# Reward claimed: ${state.level100Claim.stage.label}.`);
     }
@@ -1435,7 +1435,8 @@ function createBattlePassState(userId) {
     Math.floor((info.level - 1) / REWARD_PAGE_SIZE),
     Math.max(0, totalPages - 1),
   );
-  const questsDisabled = hasClaimedLevel100Reward(userId);
+  const questsDisabled = info.level >= TOTAL_LEVELS;
+  const claimedReward = hasClaimedLevel100Reward(userId);
   return {
     userId,
     view: 'battle-pass',
@@ -1445,7 +1446,7 @@ function createBattlePassState(userId) {
     currentPoints: info.points,
     currentLevel: info.level,
     questsDisabled,
-    level100Claim: questsDisabled ? getUserReward100Claim(userId) : null,
+    level100Claim: claimedReward ? getUserReward100Claim(userId) : null,
   };
 }
 
@@ -1533,7 +1534,7 @@ async function handleSlashCommand(interaction) {
 async function handleQuestReroll(interaction, state, type) {
   if (state.questsDisabled) {
     await interaction.reply({
-      content: 'Battle pass quests are disabled after claiming the level 100 reward.',
+      content: 'Battle pass quests are disabled after reaching Tier 100.',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -1552,7 +1553,7 @@ async function handleQuestReroll(interaction, state, type) {
 async function handleQuestConfirm(interaction, state, type) {
   if (state.questsDisabled) {
     await interaction.update({
-      content: 'Battle pass quests are disabled after claiming the level 100 reward.',
+      content: 'Battle pass quests are disabled after reaching Tier 100.',
       components: [],
     });
     return;
