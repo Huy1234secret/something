@@ -115,6 +115,35 @@ function addInventoryItem(stats, itemId, amount) {
   else if (base) stats.inventory.push({ ...base, amount });
 }
 
+async function resolveUserTarget(rawTarget, resources) {
+  if (!rawTarget) return null;
+  if (typeof rawTarget === 'object') {
+    if (typeof rawTarget.bot === 'boolean' && typeof rawTarget.id === 'string') {
+      return rawTarget;
+    }
+    if (rawTarget.user && typeof rawTarget.user.bot === 'boolean') {
+      return rawTarget.user;
+    }
+    if (typeof rawTarget.id === 'string') {
+      rawTarget = rawTarget.id;
+    } else {
+      return null;
+    }
+  }
+  if (typeof rawTarget !== 'string') return null;
+  const mentionMatch = rawTarget.match(/^<@!?([0-9]+)>$/);
+  let userId = mentionMatch ? mentionMatch[1] : rawTarget.trim();
+  if (userId.startsWith('@')) userId = userId.slice(1);
+  if (!/^[0-9]+$/.test(userId)) return null;
+  const client = resources.client;
+  if (!client) return null;
+  try {
+    return await client.users.fetch(userId);
+  } catch {
+    return null;
+  }
+}
+
 function updateSummary(summary, key, label, amount, emoji) {
   if (!summary.has(key)) summary.set(key, { label, amount: 0, emoji: emoji || '' });
   const entry = summary.get(key);
@@ -929,10 +958,14 @@ const ITEM_USE_HANDLERS = {
 const USEABLE_ITEM_IDS = new Set([...Object.keys(ITEM_USE_HANDLERS), 'BanHammer']);
 
 async function handleUseItem(user, itemId, amount, send, resources, options = {}) {
+  const normalizedOptions = { ...options };
+  if (Object.prototype.hasOwnProperty.call(normalizedOptions, 'target')) {
+    normalizedOptions.target = await resolveUserTarget(normalizedOptions.target, resources);
+  }
   let result;
   const handler = ITEM_USE_HANDLERS[itemId];
   if (handler) {
-    result = await handler(user, amount, resources, options);
+    result = await handler(user, amount, resources, normalizedOptions);
   } else if (AREA_BY_LURE[itemId]) {
     result = {
       error: `${WARNING} You can now activate hunting lures from the hunt equipment menu.`,
