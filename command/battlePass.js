@@ -18,6 +18,7 @@ const {
 const { createCanvas } = require('canvas');
 const { formatNumber } = require('../utils');
 const { isChristmasEventActive } = require('../events');
+const { loadEmojiImage } = require('../imageCache');
 
 const TOTAL_LEVELS = 100;
 const POINTS_PER_LEVEL = 100;
@@ -309,6 +310,37 @@ function drawPanel(ctx, x, y, w, h, { fill = 'rgba(17, 31, 43, 0.8)', stroke = '
   }
 }
 
+function drawAutoSizedText(
+  ctx,
+  text,
+  {
+    x,
+    y,
+    maxWidth,
+    baseSize,
+    minSize = 12,
+    fontWeight = 'bold',
+    fontFamily = 'Sans',
+    fillStyle = '#1f2a33',
+    textAlign = 'center',
+  },
+) {
+  if (!text) return;
+  let size = baseSize;
+  while (size > minSize) {
+    const font = `${fontWeight ? `${fontWeight} ` : ''}${size}px ${fontFamily}`;
+    ctx.font = font;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 1;
+  }
+  const font = `${fontWeight ? `${fontWeight} ` : ''}${Math.max(size, minSize)}px ${fontFamily}`;
+  ctx.font = font;
+  ctx.fillStyle = fillStyle;
+  ctx.textAlign = textAlign;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y);
+}
+
 function roundRect(ctx, x, y, w, h, r = 18) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -482,7 +514,7 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
     label ??
     `Progress: ${formatNumber(Math.round(Math.max(0, current)))} / ${formatNumber(Math.round(Math.max(0, total)))}`;
   ctx.font = 'bold 22px Sans';
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#1fb668';
   ctx.textAlign = 'center';
   ctx.fillText(`${display} XP`, x + w / 2, y - 12);
   ctx.textAlign = 'left';
@@ -523,37 +555,104 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
   const boxH = 110;
   const boxX = x + 18;
   const boxY = y + 86;
+
+  ctx.save();
   roundRect(ctx, boxX, boxY, boxW, boxH, 14);
-  ctx.setLineDash([8, 8]);
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#c6d1d8';
-  ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
 
   if (!card.placeholder) {
-    ctx.save();
-    ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
+    if (card.emojiImage) {
+      const { width, height } = card.emojiImage;
+      const maxW = boxW - 24;
+      const maxH = boxH - 24;
+      const scale = Math.min(maxW / width, maxH / height, 1);
+      const drawW = width * scale;
+      const drawH = height * scale;
+      const drawX = boxX + (boxW - drawW) / 2;
+      const drawY = boxY + (boxH - drawH) / 2;
+      ctx.drawImage(card.emojiImage, drawX, drawY, drawW, drawH);
+    } else if (card.emoji) {
+      ctx.fillStyle = '#1f2a33';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      let size = 68;
+      const maxW = boxW - 24;
+      const maxH = boxH - 24;
+      while (size > 28) {
+        const font = `600 ${size}px "Noto Sans", "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+        ctx.font = font;
+        const metrics = ctx.measureText(card.emoji);
+        const textHeight =
+          (metrics.actualBoundingBoxAscent || 0) + (metrics.actualBoundingBoxDescent || 0) || size;
+        if (metrics.width <= maxW && textHeight <= maxH) {
+          break;
+        }
+        size -= 4;
+      }
+      const font = `600 ${Math.max(size, 28)}px "Noto Sans", "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+      ctx.font = font;
+      ctx.fillText(card.emoji, boxX + boxW / 2, boxY + boxH / 2 + 4);
+    } else {
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = '#9fb3bf';
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 6; i++) {
+        ctx.save();
+        ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
+        ctx.rotate((Math.PI / 3) * i);
+        ctx.beginPath();
+        ctx.moveTo(0, -22);
+        ctx.lineTo(0, 22);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+  } else {
     ctx.globalAlpha = 0.28;
     ctx.strokeStyle = '#9fb3bf';
     ctx.lineWidth = 3;
     for (let i = 0; i < 6; i++) {
-      ctx.rotate(Math.PI / 3);
+      ctx.save();
+      ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
+      ctx.rotate((Math.PI / 3) * i);
       ctx.beginPath();
       ctx.moveTo(0, -22);
       ctx.lineTo(0, 22);
       ctx.stroke();
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
-    ctx.restore();
   }
 
-  ctx.fillStyle = '#1f2a33';
-  ctx.font = 'bold 18px Sans';
-  ctx.textAlign = 'center';
-  ctx.fillText(card.name, x + SUMMARY_CARD_WIDTH / 2, y + 220);
-  ctx.fillStyle = '#5b6b76';
-  ctx.font = '16px Sans';
-  ctx.fillText(card.amount ?? '', x + SUMMARY_CARD_WIDTH / 2, y + 244);
+  ctx.restore();
+
+  ctx.setLineDash([8, 8]);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#c6d1d8';
+  roundRect(ctx, boxX, boxY, boxW, boxH, 14);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const textX = x + SUMMARY_CARD_WIDTH / 2;
+  const maxTextWidth = SUMMARY_CARD_WIDTH - 48;
+  drawAutoSizedText(ctx, card.name, {
+    x: textX,
+    y: y + 220,
+    maxWidth: maxTextWidth,
+    baseSize: 20,
+    fillStyle: '#1f2a33',
+  });
+  drawAutoSizedText(ctx, card.amount ?? '', {
+    x: textX,
+    y: y + 244,
+    maxWidth: maxTextWidth,
+    baseSize: 16,
+    fontWeight: '600',
+    fillStyle: '#5b6b76',
+  });
 }
 
 function drawTitle(ctx, currentLevel, currentPoints, cards) {
@@ -639,26 +738,27 @@ function formatCardReward(reward) {
   if (!reward) {
     return { name: 'Stay Frosty!', amount: 'More soon…', placeholder: true };
   }
+  const emoji = rewardEmojiForImage(reward);
   if (reward.type === 'coins') {
-    return { name: 'Coins', amount: formatNumber(reward.amount || 0) };
+    return { name: 'Coins', amount: formatNumber(reward.amount || 0), emoji };
   }
   if (reward.type === 'diamonds') {
-    return { name: 'Diamonds', amount: formatNumber(reward.amount || 0) };
+    return { name: 'Diamonds', amount: formatNumber(reward.amount || 0), emoji };
   }
   if (reward.type === 'deluxeCoins') {
-    return { name: 'Deluxe Coins', amount: formatNumber(reward.amount || 0) };
+    return { name: 'Deluxe Coins', amount: formatNumber(reward.amount || 0), emoji };
   }
   if (reward.type === 'snowflakes') {
-    return { name: 'Snowflakes', amount: formatNumber(reward.amount || 0) };
+    return { name: 'Snowflakes', amount: formatNumber(reward.amount || 0), emoji };
   }
   const baseName = reward.name || 'Reward';
-  if (reward.amount && reward.amount > 1) {
-    return { name: baseName, amount: `x${formatNumber(reward.amount)}` };
+  if (reward.amount != null) {
+    return { name: baseName, amount: `x${formatNumber(reward.amount)}`, emoji };
   }
-  return { name: baseName, amount: '' };
+  return { name: baseName, amount: 'x1', emoji };
 }
 
-function renderBattlePassSummaryImage(state) {
+async function renderBattlePassSummaryImage(state) {
   const canvas = createCanvas(BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
   const ctx = canvas.getContext('2d');
 
@@ -686,6 +786,7 @@ function renderBattlePassSummaryImage(state) {
       name: details.name,
       amount: details.amount,
       placeholder: details.placeholder,
+      emoji: details.emoji,
     };
   });
 
@@ -698,9 +799,25 @@ function renderBattlePassSummaryImage(state) {
         name: 'Stay Frosty!',
         amount: 'Rewards incoming',
         placeholder: true,
+        emoji: null,
       },
     ];
   }
+
+  await Promise.all(
+    cards.map(async card => {
+      if (!card.placeholder && card.emoji) {
+        try {
+          const image = await loadEmojiImage(card.emoji);
+          if (image) {
+            card.emojiImage = image;
+          }
+        } catch (error) {
+          console.warn('Failed to load battle pass emoji:', error.message);
+        }
+      }
+    }),
+  );
 
   const firstLevel = cards[0].num;
   const lastLevel = cards[cards.length - 1].num;
@@ -1667,27 +1784,17 @@ function buildRewardPageSelect(state) {
 
 async function buildBattlePassContainer(state) {
   await ensureRewardClaimed(state);
-  const rewards = getBattlePassRewards();
-  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
-  state.rewardPage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   const attachments = [];
   try {
-    const summaryBuffer = renderBattlePassSummaryImage(state);
+    const summaryBuffer = await renderBattlePassSummaryImage(state);
     const summaryName = BATTLE_PASS_SUMMARY_IMAGE_NAME;
     const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
     attachments.push(summaryAttachment);
 
-    const rewardImage = renderBattlePassRewardImage(state.rewardPage);
     const gallery = new MediaGalleryBuilder();
 
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
-
-    if (rewardImage) {
-      const attachment = new AttachmentBuilder(rewardImage.buffer, { name: rewardImage.name });
-      attachments.push(attachment);
-      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${rewardImage.name}`));
-    }
 
     container.addMediaGalleryComponents(gallery);
     container.addSeparatorComponents(new SeparatorBuilder());
@@ -1711,9 +1818,6 @@ async function buildBattlePassContainer(state) {
   }
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(rewardLines.join('\n')));
   container.addSeparatorComponents(new SeparatorBuilder());
-
-  const rewardRow = new ActionRowBuilder().addComponents(buildRewardPageSelect(state));
-  container.addActionRowComponents(rewardRow);
 
   const questButton = new ButtonBuilder()
     .setCustomId('bp:quests')
