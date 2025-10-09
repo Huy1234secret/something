@@ -153,7 +153,7 @@ function drawGingerbread(ctx, x, y, scale = 1) {
   ctx.restore();
 }
 
-function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
+function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
   // Track
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
@@ -183,8 +183,22 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
-  ctx.fillText(`Progress: ${current} / ${total} XP`, x + w / 2, y - 12);
+  const text = label ?? (total > 0 ? `Progress: ${current} / ${total} XP` : `Progress: ${current} XP`);
+  ctx.fillText(text, x + w / 2, y - 12);
   ctx.textAlign = 'left';
+}
+
+function findNextTierRequirement(items, currentXP) {
+  let cumulative = 0;
+  for (const item of items) {
+    const req = Math.max(0, item.xpReq || 0);
+    cumulative += req;
+    if (currentXP <= cumulative) {
+      return cumulative;
+    }
+  }
+
+  return Math.max(currentXP, cumulative);
 }
 
 function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
@@ -346,8 +360,13 @@ async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
   const pbY = rowY + CARD_H + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(items, pbX, pbW);
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks);
+  const { ticks } = layoutTickPositions(items, pbX, pbW);
+  const nextRequirement = findNextTierRequirement(items, currentXP);
+  const clampedProgress = nextRequirement > 0 ? Math.min(currentXP, nextRequirement) : 0;
+  const label = nextRequirement > 0
+    ? `Progress: ${currentXP} / ${nextRequirement} XP`
+    : `Progress: ${currentXP} XP`;
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, clampedProgress, nextRequirement, ticks, label);
 
   return canvas.toBuffer('image/png');
 }
