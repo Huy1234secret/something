@@ -512,11 +512,11 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
 
   const display =
     label ??
-    `Progress: ${formatNumber(Math.round(Math.max(0, current)))} / ${formatNumber(Math.round(Math.max(0, total)))}`;
+    `Progress: ${formatNumber(Math.round(Math.max(0, current)))} / ${formatNumber(Math.round(Math.max(0, total)))} XP`;
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#1fb668';
   ctx.textAlign = 'center';
-  ctx.fillText(`${display} XP`, x + w / 2, y - 12);
+  ctx.fillText(display, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -722,14 +722,19 @@ function drawBackground(ctx) {
   drawSnowOverlay(ctx, 180);
 }
 
-function layoutTickPositions(items, x, w) {
-  const total = items.reduce((sum, item) => sum + Math.max(0, item.xpReq || 0), 0);
+function layoutTickPositions(items, x, w, totalOverride = null) {
+  const total =
+    totalOverride != null
+      ? Math.max(0, totalOverride)
+      : items.reduce((sum, item) => sum + Math.max(0, item.xpReq || 0), 0);
   if (total <= 0) return { ticks: [], totalXP: 0 };
   const ticks = [];
   let acc = 0;
   items.forEach(item => {
     acc += Math.max(0, item.xpReq || 0);
-    ticks.push(x + Math.round((acc / total) * w));
+    const clamped = Math.min(acc, total);
+    const pct = total === 0 ? 0 : clamped / total;
+    ticks.push(x + Math.round(pct * w));
   });
   return { ticks, totalXP: total };
 }
@@ -840,11 +845,16 @@ async function renderBattlePassSummaryImage(state) {
   const pbY = rowY + SUMMARY_CARD_HEIGHT + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(cards, pbX, pbW);
-  const label = totalXP > 0
-    ? `Progress: ${formatNumber(relativeProgress)} / ${formatNumber(totalXP)}`
+  const nextTierRequirementRaw = Math.max(0, cards[0]?.xpReq || 0);
+  const nextTierRequirement = nextTierRequirementRaw || POINTS_PER_LEVEL;
+  const progressToNextTier = nextTierRequirementRaw
+    ? clamp(currentPoints - rangeStart, 0, nextTierRequirementRaw)
+    : 0;
+  const label = nextTierRequirement > 0
+    ? `Progress: ${formatNumber(progressToNextTier)} / ${formatNumber(nextTierRequirement)} XP`
     : 'Progress';
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, relativeProgress, totalXP, ticks, label);
+  const { ticks } = layoutTickPositions(cards, pbX, pbW, nextTierRequirement);
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progressToNextTier, nextTierRequirement, ticks, label);
 
   ctx.font = 'bold 18px Sans';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
