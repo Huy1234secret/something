@@ -130,16 +130,20 @@ const STAR_FRUIT_IMAGES = [
 ];
 const STAR_FRUIT_DEAD = 'https://i.ibb.co/rf41mBrR/Star-Fruit-death.png';
 
-const FARM_ACTION_XP = 10;
-const CROP_XP_BASE = 100;
-const CROP_RARITY_MULTIPLIER = {
-  Common: 1,
-  Rare: 1.5,
-  Epic: 2,
-  Legendary: 3.5,
-  Mythical: 5,
-  Godly: 10,
-  Secret: 25,
+const FARM_WATER_XP = 20;
+const CROP_XP_REWARDS = {
+  Sheaf: 50,
+  WheatSeed: 25,
+  Potato: 200,
+  PotatoSeed: 100,
+  WhiteCabbage: 500,
+  WhiteCabbageSeed: 250,
+  Pumpkin: 1000,
+  PumpkinSeed: 500,
+  Melon: 2500,
+  MelonSeed: 1250,
+  StarFruit: 5000,
+  StarFruitSeed: 2500,
 };
 
 const FARM_DROP_TABLE = [
@@ -729,13 +733,7 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
-      if (plantable.length > 0) {
-        await resources.addFarmMasteryXp(
-          interaction.user,
-          plantable.length * FARM_ACTION_XP,
-          resources.client,
-        );
-      }
+      // Planting no longer grants farm mastery XP.
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = 'Planted!';
       if (occupied.length) {
@@ -831,10 +829,11 @@ function setup(client, resources) {
             let seedEntry = inv.find(i => i.id === data.seedItem.id);
             if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
             else inv.push({ ...data.seedItem, amount: seeds });
+            const seedXp = CROP_XP_REWARDS[data.seedItem.id] || 0;
+            totalHarvestXp += seeds * seedXp;
           }
-          const rarity = data.harvestItem.rarity || 'Common';
-          const multiplier = CROP_RARITY_MULTIPLIER[rarity] || 1;
-          totalHarvestXp += crop * CROP_XP_BASE * multiplier;
+          const cropXp = CROP_XP_REWARDS[data.harvestItem.id] || 0;
+          totalHarvestXp += crop * cropXp;
           harvestedAny = true;
           if (farmLevel >= 40 && Math.random() < FARM_REPLANT_CHANCE) {
             farm[id] = {
@@ -967,7 +966,7 @@ function setup(client, resources) {
       if (plots.length > 0) {
         await resources.addFarmMasteryXp(
           interaction.user,
-          plots.length * FARM_ACTION_XP,
+          plots.length * FARM_WATER_XP,
           resources.client,
         );
       }
