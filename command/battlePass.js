@@ -1068,16 +1068,16 @@ function createBattlePassState(userId) {
   };
 }
 
-function buildRerollPrompt(type) {
+function buildRerollPrompt(type, messageId) {
   const label = QUEST_TYPES[type] || 'quests';
   const cost = QUEST_REROLL_COST[type] || 0;
   const content = `Are you sure you want to reroll the ${label}?\n-# Cost ${formatNumber(cost)} Deluxe Coins ${REROLL_COST_EMOJI}`;
   const yesButton = new ButtonBuilder()
-    .setCustomId(`bp:confirm:${type}`)
+    .setCustomId(`bp:confirm:${messageId}:${type}`)
     .setLabel('Yes')
     .setStyle(ButtonStyle.Success);
   const noButton = new ButtonBuilder()
-    .setCustomId('bp:cancel')
+    .setCustomId(`bp:cancel:${messageId}`)
     .setLabel('No')
     .setStyle(ButtonStyle.Secondary);
   const row = new ActionRowBuilder().addComponents(yesButton, noButton);
@@ -1137,7 +1137,7 @@ async function handleQuestReroll(interaction, state, type) {
     });
     return;
   }
-  const prompt = buildRerollPrompt(type);
+  const prompt = buildRerollPrompt(type, state.messageId);
   await interaction.reply(prompt);
 }
 
@@ -1179,8 +1179,22 @@ function setup(client) {
       }
 
       if (interaction.isButton()) {
-        const state = getStateFromInteraction(interaction);
-        if (!state) return;
+        const [root, action, ...params] = parseCustomId(interaction.customId);
+        if (root !== 'bp') return;
+
+        let state = getStateFromInteraction(interaction);
+        if (!state && (action === 'confirm' || action === 'cancel')) {
+          const [messageId] = params;
+          if (messageId) {
+            state = states.get(messageId) || null;
+          }
+        }
+        if (!state) {
+          if (action === 'confirm' || action === 'cancel') {
+            await interaction.update({ content: 'This battle pass prompt has expired.', components: [] });
+          }
+          return;
+        }
         if (!isOwner(interaction, state)) {
           await interaction.reply({
             content: 'Only the original adventurer can use these battle pass controls.',
@@ -1188,9 +1202,6 @@ function setup(client) {
           });
           return;
         }
-
-        const [root, action, extra] = parseCustomId(interaction.customId);
-        if (root !== 'bp') return;
 
         if (!isBattlePassActive()) {
           await interaction.reply({
@@ -1212,11 +1223,13 @@ function setup(client) {
           return;
         }
         if (action === 'reroll') {
-          await handleQuestReroll(interaction, state, extra);
+          const [type] = params;
+          await handleQuestReroll(interaction, state, type);
           return;
         }
         if (action === 'confirm') {
-          await handleQuestConfirm(interaction, state, extra);
+          const [, type] = params;
+          await handleQuestConfirm(interaction, state, type);
           return;
         }
         if (action === 'cancel') {
