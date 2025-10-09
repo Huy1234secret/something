@@ -1274,13 +1274,10 @@ async function handleClaimReward(interaction, state) {
   const stage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
   const data = getBattlePassData();
   if (
-    stage.type === 'deluxeCoins' &&
-    data.reward100.claims.some(
-      entry => entry && entry.userId === interaction.user.id && entry.stage === stage.key,
-    )
+    data.reward100.claims.some(entry => entry && entry.userId === interaction.user.id)
   ) {
     await interaction.reply({
-      content: 'You have already claimed the current level 100 reward.',
+      content: 'You have already claimed a level 100 reward for this event.',
       flags: MessageFlags.Ephemeral,
     });
     return;
