@@ -510,13 +510,15 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
     ctx.stroke();
   });
 
+  const hasCustomLabel = label != null;
   const display =
     label ??
     `Progress: ${formatNumber(Math.round(Math.max(0, current)))} / ${formatNumber(Math.round(Math.max(0, total)))}`;
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#1fb668';
   ctx.textAlign = 'center';
-  ctx.fillText(`${display} XP`, x + w / 2, y - 12);
+  const suffix = hasCustomLabel ? '' : ' XP';
+  ctx.fillText(`${display}${suffix}`, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -821,9 +823,12 @@ async function renderBattlePassSummaryImage(state) {
 
   const firstLevel = cards[0].num;
   const lastLevel = cards[cards.length - 1].num;
-  const rangeStart = pointsForLevel(firstLevel - 1);
-  const totalRangeXP = cards.reduce((sum, card) => sum + Math.max(0, card.xpReq || 0), 0);
-  const relativeProgress = clamp(currentPoints - rangeStart, 0, totalRangeXP);
+  const prevThreshold = pointsForLevel(currentLevel - 1);
+  const nextThreshold = pointsForLevel(currentLevel);
+  const tierRequirement = Math.max(0, nextThreshold - prevThreshold);
+  const tierProgress = tierRequirement > 0
+    ? clamp(currentPoints - prevThreshold, 0, tierRequirement)
+    : 0;
 
   drawBackground(ctx);
   drawTitle(ctx, currentLevel, currentPoints, cards);
@@ -840,11 +845,14 @@ async function renderBattlePassSummaryImage(state) {
   const pbY = rowY + SUMMARY_CARD_HEIGHT + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(cards, pbX, pbW);
-  const label = totalXP > 0
-    ? `Progress: ${formatNumber(relativeProgress)} / ${formatNumber(totalXP)}`
-    : 'Progress';
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, relativeProgress, totalXP, ticks, label);
+  const { ticks } = layoutTickPositions(cards, pbX, pbW);
+  const hasTierRequirement = tierRequirement > 0;
+  const label = hasTierRequirement
+    ? `${formatNumber(tierProgress)} / ${formatNumber(tierRequirement)}`
+    : 'Max Tier';
+  const barTotal = hasTierRequirement ? tierRequirement : 1;
+  const barProgress = hasTierRequirement ? tierProgress : barTotal;
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, barProgress, barTotal, ticks, label);
 
   ctx.font = 'bold 18px Sans';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -971,17 +979,12 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function randomProgress(required, allowCompletion = true) {
-  if (allowCompletion && Math.random() < 0.25) return required;
-  if (required <= 1) return allowCompletion ? 0 : 0;
-  return clamp(randomInt(0, required - 1), 0, required);
+function randomProgress() {
+  return 0;
 }
 
-function randomDecimalProgress(required, allowCompletion = true, precision = 1) {
-  if (allowCompletion && Math.random() < 0.25) return required;
-  const value = Math.random() * required;
-  const factor = 10 ** precision;
-  return Math.min(required, Math.round(value * factor) / factor);
+function randomDecimalProgress() {
+  return 0;
 }
 
 function questFormatterNumber(value) {
@@ -1676,19 +1679,6 @@ function getQuestResetTime(type, now = new Date()) {
   return nextSunday;
 }
 
-function formatCountdown(target) {
-  const diff = Math.max(0, target.getTime() - Date.now());
-  const seconds = Math.floor(diff / 1000);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const parts = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-  if (hours === 0) parts.push(`${secs}s`);
-  return `in ${parts.join(' ')}`;
-}
-
 function buildProgressBar(progress, total, size = 12) {
   if (total <= 0) return '[────────────]';
   const pct = clamp(progress / total, 0, 1);
@@ -1709,7 +1699,10 @@ function formatQuestLine(quest) {
 }
 
 function formatQuestHeader(type) {
-  return `## ${QUEST_TYPES[type] || 'Quests'}\n* Quests reroll ${formatCountdown(getQuestResetTime(type))}`;
+  const resetTime = getQuestResetTime(type);
+  const timestamp = Math.floor(resetTime.getTime() / 1000);
+  const countdown = Number.isFinite(timestamp) ? `<t:${timestamp}:R>` : 'soon';
+  return `## ${QUEST_TYPES[type] || 'Quests'}\n* Quests reroll ${countdown}`;
 }
 
 function buildQuestContainer(state, type) {
@@ -1927,8 +1920,16 @@ function isOwner(interaction, state) {
 }
 
 function getStateFromInteraction(interaction) {
-  if (!interaction.message) return null;
-  return states.get(interaction.message.id) || null;
+  if (interaction.message) {
+    const state = states.get(interaction.message.id);
+    if (state) return state;
+  }
+  if (interaction.user) {
+    for (const state of states.values()) {
+      if (state.userId === interaction.user.id) return state;
+    }
+  }
+  return null;
 }
 
 async function handleSlashCommand(interaction) {
