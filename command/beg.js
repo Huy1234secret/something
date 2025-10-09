@@ -6,7 +6,14 @@ const {
   ContainerBuilder,
   TextDisplayBuilder,
 } = require('@discordjs/builders');
-const { formatNumber, normalizeInventory, applyCoinBoost } = require('../utils');
+const {
+  formatNumber,
+  normalizeInventory,
+  applyCoinBoost,
+  getCooldownMultiplier,
+  isSnowballed,
+  computeActionSuccessChance,
+} = require('../utils');
 const { ITEMS } = require('../items');
 
 const NAMES = [
