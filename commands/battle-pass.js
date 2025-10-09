@@ -153,7 +153,7 @@ function drawGingerbread(ctx, x, y, scale = 1) {
   ctx.restore();
 }
 
-function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
+function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
   // Track
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
@@ -183,7 +183,10 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
-  ctx.fillText(`Progress: ${current} / ${total} XP`, x + w / 2, y - 12);
+  const display =
+    label ??
+    `Progress: ${Math.max(0, Math.round(current))} / ${Math.max(0, Math.round(total))} XP`;
+  ctx.fillText(display, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -312,17 +315,45 @@ function drawBackground(ctx) {
   drawSnowOverlay(ctx, 180);
 }
 
-function layoutTickPositions(items, x, w) {
+function layoutTickPositions(items, x, w, totalOverride = null) {
   // returns x positions along the progress bar for each item threshold
-  const total = items.reduce((a, b) => a + b.xpReq, 0);
+  const total =
+    totalOverride != null
+      ? Math.max(0, totalOverride)
+      : items.reduce((a, b) => a + Math.max(0, b.xpReq || 0), 0);
   let acc = 0;
   const ticks = [];
+  if (total <= 0) {
+    return { ticks, totalXP: 0 };
+  }
   for (let i = 0; i < items.length; i++) {
-    acc += items[i].xpReq;
-    const pct = total === 0 ? 0 : acc / total;
+    acc += Math.max(0, items[i].xpReq || 0);
+    const clamped = Math.min(acc, total);
+    const pct = total === 0 ? 0 : clamped / total;
     ticks.push(x + Math.round(w * pct));
   }
   return { ticks, totalXP: total };
+}
+
+function resolveNextTierProgress(items, current) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { progress: 0, requirement: 0 };
+  }
+  let accumulated = 0;
+  for (let i = 0; i < items.length; i++) {
+    const requirement = Math.max(0, items[i].xpReq || 0);
+    const nextThreshold = accumulated + requirement;
+    if (requirement > 0 && current < nextThreshold) {
+      const progress = Math.max(0, current - accumulated);
+      return { progress: Math.min(progress, requirement), requirement };
+    }
+    accumulated = nextThreshold;
+  }
+  const lastRequirement = Math.max(0, items[items.length - 1].xpReq || 0);
+  if (lastRequirement <= 0) {
+    return { progress: 0, requirement: 0 };
+  }
+  return { progress: lastRequirement, requirement: lastRequirement };
 }
 
 async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
@@ -346,8 +377,13 @@ async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
   const pbY = rowY + CARD_H + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(items, pbX, pbW);
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks);
+  const { progress, requirement } = resolveNextTierProgress(items, currentXP);
+  const { ticks } = layoutTickPositions(items, pbX, pbW, requirement);
+  const label =
+    requirement > 0
+      ? `Progress: ${Math.round(progress)} / ${Math.round(requirement)} XP`
+      : 'Progress: Max Tier';
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progress, requirement, ticks, label);
 
   return canvas.toBuffer('image/png');
 }
