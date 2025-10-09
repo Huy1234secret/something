@@ -23,6 +23,20 @@ const {
 
 const skinMessageState = new Map();
 
+function resolveEmoji(raw, guild) {
+  if (!raw || typeof raw !== 'string' || !guild) return raw || '';
+  const match = raw.match(/^<a?:([\w~]+):(\d+)>$/);
+  if (!match) return raw;
+  const [, name, id] = match;
+  const byId = guild.emojis.resolve(id);
+  if (byId) return byId.toString();
+  const byName = guild.emojis.cache.find(emoji =>
+    emoji.name && emoji.name.toLowerCase() === name.toLowerCase(),
+  );
+  if (byName) return byName.toString();
+  return raw;
+}
+
 function getSkinState(stats, itemId) {
   const store = stats.item_skins && typeof stats.item_skins === 'object'
     ? stats.item_skins
@@ -31,17 +45,23 @@ function getSkinState(stats, itemId) {
   return store[itemId];
 }
 
-function buildSkinContainer(user, stats, itemId) {
+function buildSkinContainer(user, stats, itemId, guild) {
   const itemDefs = listSkinnableItems();
   const baseDef = itemDefs.find(def => def.id === itemId);
   const skins = getSkinsForItem(itemId);
   const ownedCount = getOwnedSkinCount(stats, itemId);
   const state = getSkinState(stats, itemId);
   const baseName = baseDef ? baseDef.name : itemId;
-  const baseEmoji = baseDef ? baseDef.emoji : '';
-  const display = getItemDisplay(stats, { id: itemId, name: baseName, emoji: baseEmoji }, baseName, baseEmoji);
+  const baseEmoji = baseDef ? resolveEmoji(baseDef.emoji, guild) : '';
+  const display = getItemDisplay(
+    stats,
+    { id: itemId, name: baseName, emoji: baseEmoji },
+    baseName,
+    baseEmoji,
+  );
+  const displayEmoji = resolveEmoji(display.emoji, guild);
 
-  const header = `${user}’s Skins\n* You owned ${ownedCount} / ${skins.length} skin for ${display.name} ${display.emoji}`;
+  const header = `${user}’s Skins\n* You owned ${ownedCount} / ${skins.length} skin for ${display.name} ${displayEmoji}`;
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
@@ -57,7 +77,8 @@ function buildSkinContainer(user, stats, itemId) {
   }
 
   ownedSkins.forEach(skin => {
-    const rarityEmoji = SKIN_RARITY_EMOJIS[skin.rarity] || '';
+    const rarityEmoji = resolveEmoji(SKIN_RARITY_EMOJIS[skin.rarity] || '', guild);
+    const skinEmoji = resolveEmoji(skin.emoji, guild);
     const equipped = state.equipped === skin.id;
     const button = new ButtonBuilder()
       .setCustomId(`skin-toggle:${itemId}:${skin.id}`)
@@ -67,7 +88,7 @@ function buildSkinContainer(user, stats, itemId) {
     container
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `### ${skin.emoji} ${skin.name} ${rarityEmoji}`,
+          `### ${skinEmoji} ${skin.name} ${rarityEmoji}`,
         ),
         new TextDisplayBuilder().setContent(`-# ${skin.description}`),
       )
@@ -81,7 +102,7 @@ function buildSkinContainer(user, stats, itemId) {
 async function sendSkinView(interaction, itemId, resources) {
   const stats = resources.userStats[interaction.user.id] || { inventory: [] };
   resources.userStats[interaction.user.id] = stats;
-  const container = buildSkinContainer(interaction.user, stats, itemId);
+  const container = buildSkinContainer(interaction.user, stats, itemId, interaction.guild);
   const message = await interaction.editReply({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
@@ -109,7 +130,11 @@ function setup(client, resources) {
       const focused = interaction.options.getFocused().toLowerCase();
       const options = listSkinnableItems()
         .filter(def => def.name.toLowerCase().includes(focused))
-        .map(def => ({ name: `${def.emoji || ''} ${def.name}`.trim(), value: def.id }));
+        .map(def => {
+          const emoji = resolveEmoji(def.emoji || '', interaction.guild);
+          const name = [emoji, def.name].filter(Boolean).join(' ').trim();
+          return { name: name || def.name, value: def.id };
+        });
       await interaction.respond(options.slice(0, 25));
     } catch (error) {
       if (error.code !== 10062) console.error(error);
@@ -154,7 +179,7 @@ function setup(client, resources) {
       if (skinState.equipped === skinId) unequipSkin(stats, itemId);
       else equipSkin(stats, itemId, skinId);
       resources.saveData();
-      const container = buildSkinContainer(interaction.user, stats, itemId);
+      const container = buildSkinContainer(interaction.user, stats, itemId, interaction.guild);
       await interaction.update({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
