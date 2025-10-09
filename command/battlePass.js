@@ -68,6 +68,7 @@ const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
 const REWARD_PAGE_SIZE = 5;
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
+const BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID = '1372572234949853367';
 
 const REWARD100_STAGES = [
   { key: '30', label: '$30 Gift Card', type: 'special', announcement: true },
@@ -75,6 +76,12 @@ const REWARD100_STAGES = [
   { key: '10', label: '$10 Gift Card', type: 'special', announcement: true },
   { key: 'deluxe', label: '1000 Deluxe Coins', type: 'deluxeCoins', amount: 1000, announcement: false },
 ];
+
+const REWARD100_STAGE_TITLES = {
+  '30': 'First Tier 100 Adventurer!',
+  '20': 'Second Tier 100 Adventurer!',
+  '10': 'Third Tier 100 Adventurer!',
+};
 
 const BASE_REWARDS = [
   { level: 1, type: 'coins', amount: 10000 },
@@ -219,6 +226,23 @@ function getBattlePassRewards() {
   if (battlePassRewards.length === 0) refreshRewards();
   return battlePassRewards;
 }
+
+function createEmptyQuestSet() {
+  return { hourly: [], daily: [], weekly: [] };
+}
+
+function hasClaimedLevel100Reward(userId) {
+  const data = getBattlePassData();
+  return data.reward100.claims.some(entry => entry && entry.userId === userId);
+}
+
+function getUserReward100Claim(userId) {
+  const data = getBattlePassData();
+  const entry = data.reward100.claims.find(record => record && record.userId === userId);
+  if (!entry) return null;
+  const stage = REWARD100_STAGES.find(stageInfo => stageInfo.key === entry.stage) || null;
+  return { ...entry, stage };
+}
 function pointsForLevel(level) {
   if (level <= 0) return 0;
   return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
@@ -242,6 +266,17 @@ function rewardLabelForImage(reward) {
   }
   const qty = reward.amount > 1 ? `x${formatNumber(reward.amount)} ` : '';
   return `${qty}${reward.name}`.trim();
+}
+
+function rewardEmojiForImage(reward) {
+  if (reward.emoji) return reward.emoji;
+  if (reward.type === 'coins') return COIN_EMOJI;
+  if (reward.type === 'diamonds') return DIAMOND_EMOJI;
+  if (reward.type === 'deluxeCoins') return DELUXE_COIN_EMOJI;
+  if (reward.type === 'snowflakes') return SNOWFLAKE_EMOJI;
+  if (reward.name && /Gift Card/i.test(reward.name)) return '🎁';
+  if (reward.type === 'special' && reward.name) return '🎁';
+  return '⭐';
 }
 
 function drawRoundedRect(ctx, x, y, w, h, radius = 18) {
@@ -415,8 +450,21 @@ function drawRewardListCard(ctx, x, y, w, h, reward) {
   ctx.textAlign = 'center';
   ctx.fillText(String(reward.level), badgeX, centerY + 9);
 
-  const textX = x + 120;
+  const iconBoxSize = 72;
+  const iconX = x + 120;
+  const iconY = centerY - iconBoxSize / 2;
+  drawPanel(ctx, iconX, iconY, iconBoxSize, iconBoxSize, { fill: 'rgba(255,255,255,0.06)' });
+
+  const iconEmoji = rewardEmojiForImage(reward);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 48px "Noto Sans", "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(iconEmoji, iconX + iconBoxSize / 2, centerY + 2);
+
+  const textX = iconX + iconBoxSize + 32;
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffffff';
   ctx.font = '600 26px "Noto Sans", "Segoe UI", sans-serif';
   ctx.fillText(`Level ${reward.level}`, textX, centerY - 6);
@@ -463,16 +511,18 @@ function renderBattlePassRewardPage(rewards, pageIndex, totalPages) {
   return canvas.toBuffer('image/png');
 }
 
-function renderBattlePassRewardImages() {
+function renderBattlePassRewardImage(pageIndex) {
   const rewards = getBattlePassRewards();
-  if (rewards.length === 0) return [];
+  if (rewards.length === 0) return null;
   const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
-  const buffers = [];
-  for (let i = 0; i < totalPages; i++) {
-    const slice = rewards.slice(i * REWARD_PAGE_SIZE, i * REWARD_PAGE_SIZE + REWARD_PAGE_SIZE);
-    buffers.push(renderBattlePassRewardPage(slice, i, totalPages));
-  }
-  return buffers;
+  const safeIndex = clamp(pageIndex, 0, Math.max(0, totalPages - 1));
+  const slice = rewards.slice(
+    safeIndex * REWARD_PAGE_SIZE,
+    safeIndex * REWARD_PAGE_SIZE + REWARD_PAGE_SIZE,
+  );
+  const buffer = renderBattlePassRewardPage(slice, safeIndex, totalPages);
+  const name = `battle-pass-rewards-${String(safeIndex + 1).padStart(2, '0')}.png`;
+  return { buffer, name, totalPages, pageIndex: safeIndex };
 }
 
 function randomInt(min, max) {
@@ -1231,6 +1281,21 @@ function formatQuestHeader(type) {
 }
 
 function buildQuestContainer(state, type) {
+  if (state.questsDisabled) {
+    const container = new ContainerBuilder().setAccentColor(0xd01e2e);
+    const lines = ['### Quests Disabled', 'You have claimed the level 100 reward. Quests are no longer available.'];
+    if (state.level100Claim?.stage?.label) {
+      lines.push(`-# Reward claimed: ${state.level100Claim.stage.label}.`);
+    }
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+    const backButton = new ButtonBuilder()
+      .setCustomId('bp:back')
+      .setLabel('Back')
+      .setStyle(ButtonStyle.Secondary);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(backButton));
+    return container;
+  }
+
   const container = new ContainerBuilder().setAccentColor(0xffffff);
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatQuestHeader(type)));
   container.addSeparatorComponents(new SeparatorBuilder());
@@ -1286,7 +1351,10 @@ function buildRewardPageSelect(state) {
 }
 
 async function buildBattlePassContainer(state) {
-  state.canClaimReward100 = canClaimReward100(state.userId);
+  await ensureRewardClaimed(state);
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  state.rewardPage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   const attachments = [];
   try {
@@ -1295,36 +1363,48 @@ async function buildBattlePassContainer(state) {
     const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
     attachments.push(summaryAttachment);
 
-    const rewardBuffers = renderBattlePassRewardImages();
+    const rewardImage = renderBattlePassRewardImage(state.rewardPage);
     const gallery = new MediaGalleryBuilder();
 
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
 
-    rewardBuffers.forEach((buffer, index) => {
-      const name = `battle-pass-rewards-${String(index + 1).padStart(2, '0')}.png`;
-      const attachment = new AttachmentBuilder(buffer, { name });
+    if (rewardImage) {
+      const attachment = new AttachmentBuilder(rewardImage.buffer, { name: rewardImage.name });
       attachments.push(attachment);
-      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${name}`));
-    });
+      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${rewardImage.name}`));
+    }
 
     container.addMediaGalleryComponents(gallery);
     container.addSeparatorComponents(new SeparatorBuilder());
   } catch (error) {
     console.warn('Failed to render battle pass image:', error.message);
   }
+  const rewardLines = ['### Level 100 Reward'];
+  if (state.level100Claim?.stage) {
+    rewardLines.push(`You claimed the ${state.level100Claim.stage.label}.`);
+    if (state.rewardClaimNotice) {
+      rewardLines.push(state.rewardClaimNotice);
+    }
+    if (
+      state.nextRewardStage &&
+      state.nextRewardStage.key !== state.level100Claim.stage.key
+    ) {
+      rewardLines.push(`-# The reward is now ${state.nextRewardStage.label}.`);
+    }
+  } else if (state.nextRewardStage) {
+    rewardLines.push(`Reach level 100 to claim the ${state.nextRewardStage.label}.`);
+  }
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(rewardLines.join('\n')));
+  container.addSeparatorComponents(new SeparatorBuilder());
+
   const rewardRow = new ActionRowBuilder().addComponents(buildRewardPageSelect(state));
   container.addActionRowComponents(rewardRow);
 
-  const claimButton = new ButtonBuilder()
-    .setCustomId('bp:claim100')
-    .setLabel('Claim Lv. 100 Reward')
-    .setStyle(ButtonStyle.Success)
-    .setDisabled(!state.canClaimReward100);
   const questButton = new ButtonBuilder()
     .setCustomId('bp:quests')
     .setLabel('Quests')
     .setStyle(ButtonStyle.Primary);
-  container.addActionRowComponents(new ActionRowBuilder().addComponents(claimButton, questButton));
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(questButton));
   return { container, attachments };
 }
 
@@ -1346,12 +1426,6 @@ function resolveBattlePassInfo(stats) {
   return { level, points };
 }
 
-function canClaimReward100(userId) {
-  const stats = resourcesRef?.userStats?.[userId];
-  const info = resolveBattlePassInfo(stats);
-  return info.level >= TOTAL_LEVELS;
-}
-
 function createBattlePassState(userId) {
   const stats = resourcesRef?.userStats?.[userId];
   const info = resolveBattlePassInfo(stats);
@@ -1361,15 +1435,17 @@ function createBattlePassState(userId) {
     Math.floor((info.level - 1) / REWARD_PAGE_SIZE),
     Math.max(0, totalPages - 1),
   );
+  const questsDisabled = hasClaimedLevel100Reward(userId);
   return {
     userId,
     view: 'battle-pass',
     rewardPage: Math.max(0, rewardPage),
     activeQuestType: 'hourly',
-    quests: generateAllQuests(),
+    quests: questsDisabled ? createEmptyQuestSet() : generateAllQuests(),
     currentPoints: info.points,
     currentLevel: info.level,
-    canClaimReward100: canClaimReward100(userId),
+    questsDisabled,
+    level100Claim: questsDisabled ? getUserReward100Claim(userId) : null,
   };
 }
 
@@ -1390,6 +1466,7 @@ function buildRerollPrompt(type) {
 }
 async function renderState(state) {
   if (state.view === 'quests') {
+    await ensureRewardClaimed(state);
     return {
       components: [buildQuestContainer(state, state.activeQuestType)],
       attachments: [],
@@ -1454,6 +1531,13 @@ async function handleSlashCommand(interaction) {
 }
 
 async function handleQuestReroll(interaction, state, type) {
+  if (state.questsDisabled) {
+    await interaction.reply({
+      content: 'Battle pass quests are disabled after claiming the level 100 reward.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
   if (!QUEST_TYPES[type]) {
     await interaction.reply({
       content: 'Unknown quest type to reroll.',
@@ -1466,6 +1550,13 @@ async function handleQuestReroll(interaction, state, type) {
 }
 
 async function handleQuestConfirm(interaction, state, type) {
+  if (state.questsDisabled) {
+    await interaction.update({
+      content: 'Battle pass quests are disabled after claiming the level 100 reward.',
+      components: [],
+    });
+    return;
+  }
   if (!QUEST_TYPES[type]) {
     await interaction.update({ content: 'Unknown quest type.', components: [] });
     return;
@@ -1485,84 +1576,130 @@ async function handleQuestCancel(interaction) {
   await interaction.update({ content: 'Reroll cancelled.', components: [] });
 }
 
-async function handleClaimReward(interaction, state) {
-  const stats = resourcesRef?.userStats?.[state.userId];
-  if (!stats) {
-    await interaction.reply({
-      content: 'Battle pass progress not found for this adventurer.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const info = resolveBattlePassInfo(stats);
-  if (info.level < TOTAL_LEVELS) {
-    await interaction.reply({
-      content: 'You must reach level 100 in the battle pass before claiming this reward.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
-
-  const stageIndex = getReward100Stage();
-  const stage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
+function claimReward100ForUser(userId) {
   const data = getBattlePassData();
-  if (
-    stage.type === 'deluxeCoins' &&
-    data.reward100.claims.some(
-      entry => entry && entry.userId === interaction.user.id && entry.stage === stage.key,
-    )
-  ) {
-    await interaction.reply({
-      content: 'You have already claimed the current level 100 reward.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
+  const stageIndex = getReward100Stage();
+  const currentStage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
+  const stats = resourcesRef?.userStats?.[userId];
+  const info = resolveBattlePassInfo(stats);
+  if (!stats) {
+    return { claimed: false, reason: 'noStats', nextStage: currentStage, info };
   }
-  const claimRecord = {
-    userId: interaction.user.id,
-    stage: stage.key,
-    timestamp: Date.now(),
-  };
+
+  if (info.level < TOTAL_LEVELS) {
+    return { claimed: false, reason: 'notEligible', nextStage: currentStage, info };
+  }
+
+  if (hasClaimedLevel100Reward(userId)) {
+    const claim = getUserReward100Claim(userId);
+    return {
+      claimed: false,
+      alreadyClaimed: true,
+      claim,
+      nextStage: currentStage,
+      info,
+    };
+  }
+
+  const stage = currentStage;
+  const claimRecord = { userId, stage: stage.key, timestamp: Date.now() };
   data.reward100.claims.push(claimRecord);
 
-  let response;
+  let message;
   if (stage.type === 'deluxeCoins') {
     stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
     stats.deluxe_coins += stage.amount;
-    response = `You received ${formatNumber(stage.amount)} Deluxe Coins ${DELUXE_COIN_EMOJI}!`;
+    message = `You received ${formatNumber(stage.amount)} Deluxe Coins ${DELUXE_COIN_EMOJI}!`;
   } else {
-    response = `You claimed the ${stage.label}! A staff member will contact you soon.`;
+    message = `You claimed the ${stage.label}! A staff member will contact you soon.`;
     data.reward100.stage = Math.min(stageIndex + 1, REWARD100_STAGES.length - 1);
   }
 
-  resourcesRef.userStats[state.userId] = stats;
+  resourcesRef.userStats[userId] = stats;
   refreshRewards();
-  const rewards = getBattlePassRewards();
-  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
-  state.rewardPage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
-  state.canClaimReward100 = canClaimReward100(state.userId);
   resourcesRef.saveData();
 
-  await updateMainMessage(interaction.client, state);
-  await interaction.reply({ content: response, flags: MessageFlags.Ephemeral });
+  const nextStage = REWARD100_STAGES[Math.min(getReward100Stage(), REWARD100_STAGES.length - 1)];
 
-  if (stage.announcement) {
-    const nextStageIndex = getReward100Stage();
-    const nextStage = REWARD100_STAGES[Math.min(nextStageIndex, REWARD100_STAGES.length - 1)];
-    const lines = [
-      '### Level 100 Reward Claimed!',
-      `${interaction.user} claimed the ${stage.label}.`,
-      `-# The reward is now ${nextStage.label}.`,
-    ];
-    const container = new ContainerBuilder()
-      .setAccentColor(0xd01e2e)
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
-    if (interaction.channel && typeof interaction.channel.send === 'function') {
-      interaction.channel
-        .send({ components: [container], flags: MessageFlags.IsComponentsV2 })
-        .catch(() => {});
+  return {
+    claimed: true,
+    stage,
+    nextStage,
+    message,
+    info: resolveBattlePassInfo(stats),
+    claim: { ...claimRecord, stage },
+  };
+}
+
+async function sendRewardAnnouncement(userId, stage, nextStage) {
+  if (!stage?.announcement) return;
+  const client = resourcesRef?.client;
+  if (!client) return;
+  let channel;
+  try {
+    channel = await client.channels.fetch(BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID);
+  } catch (error) {
+    return;
+  }
+  if (!channel || typeof channel.send !== 'function') return;
+
+  const title = REWARD100_STAGE_TITLES[stage.key] || 'Tier 100 Milestone!';
+  const lines = [
+    `### ${title}`,
+    `<@${userId}> reached Tier 100 and claimed the ${stage.label}.`,
+  ];
+  if (nextStage && nextStage.key !== stage.key) {
+    lines.push(`-# The reward is now ${nextStage.label}.`);
+  }
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0xd01e2e)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+
+  await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
+}
+
+async function ensureRewardClaimed(state) {
+  if (state.rewardClaimEvaluated) return;
+  state.rewardClaimEvaluated = true;
+
+  const result = claimReward100ForUser(state.userId);
+  if (result.claimed) {
+    state.level100Claim = result.claim;
+    state.rewardClaimNotice = result.message;
+    state.nextRewardStage = result.nextStage;
+    state.questsDisabled = true;
+    state.quests = createEmptyQuestSet();
+    state.currentLevel = result.info.level;
+    state.currentPoints = result.info.points;
+
+    const rewards = getBattlePassRewards();
+    const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+    state.rewardPage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
+
+    await sendRewardAnnouncement(state.userId, result.stage, result.nextStage);
+  } else {
+    state.level100Claim = getUserReward100Claim(state.userId);
+    if (state.level100Claim) {
+      state.questsDisabled = true;
+      state.quests = createEmptyQuestSet();
+      if (!state.rewardClaimNotice && state.level100Claim.stage) {
+        if (
+          state.level100Claim.stage.type === 'deluxeCoins' &&
+          Number.isFinite(state.level100Claim.stage.amount)
+        ) {
+          state.rewardClaimNotice = `You received ${formatNumber(state.level100Claim.stage.amount)} Deluxe Coins ${DELUXE_COIN_EMOJI}!`;
+        } else {
+          state.rewardClaimNotice = `You claimed the ${state.level100Claim.stage.label}! A staff member will contact you soon.`;
+        }
+      }
     }
+    state.nextRewardStage = result.nextStage;
+  }
+
+  if (!state.nextRewardStage) {
+    const stageIndex = getReward100Stage();
+    state.nextRewardStage = REWARD100_STAGES[Math.min(stageIndex, REWARD100_STAGES.length - 1)];
   }
 }
 
@@ -1630,10 +1767,6 @@ function setup(client, resources) {
         }
         if (action === 'cancel') {
           await handleQuestCancel(interaction);
-          return;
-        }
-        if (action === 'claim100') {
-          await handleClaimReward(interaction, state);
           return;
         }
       }
