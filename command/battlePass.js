@@ -43,7 +43,13 @@ const CHRISTMAS_BATTLE_PASS_GIFT_EMOJI = '<:ITChristmasBattlePassGift:1425752835
 
 const BATTLE_PASS_IMAGE_WIDTH = 900;
 const BATTLE_PASS_IMAGE_HEIGHT = 520;
-const BATTLE_PASS_IMAGE_NAME = 'battle-pass.png';
+const BATTLE_PASS_SUMMARY_IMAGE_NAME = 'battle-pass.png';
+
+const REWARD_IMAGE_WIDTH = 1000;
+const REWARD_IMAGE_HEIGHT = 780;
+const REWARD_IMAGE_MARGIN = 40;
+const REWARD_CARD_HEIGHT = 100;
+const REWARD_CARD_GAP = 16;
 
 const QUEST_TYPES = {
   hourly: 'Hourly Quests',
@@ -278,7 +284,7 @@ function formatLevelRange(start, end) {
   return start === end ? `Level ${start}` : `Levels ${start}-${end}`;
 }
 
-function renderBattlePassImage(state) {
+function renderBattlePassSummaryImage(state) {
   const canvas = createCanvas(BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
   const ctx = canvas.getContext('2d');
 
@@ -387,6 +393,86 @@ function renderBattlePassImage(state) {
   }
 
   return canvas.toBuffer('image/png');
+}
+
+function drawRewardListCard(ctx, x, y, w, h, reward) {
+  drawPanel(ctx, x, y, w, h, { fill: 'rgba(10, 24, 34, 0.82)' });
+
+  const centerY = y + h / 2;
+  const badgeRadius = 34;
+  const badgeX = x + 60;
+
+  ctx.beginPath();
+  ctx.arc(badgeX, centerY, badgeRadius, 0, Math.PI * 2);
+  ctx.fillStyle = '#d01e2e';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 24px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(String(reward.level), badgeX, centerY + 9);
+
+  const textX = x + 120;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 26px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillText(`Level ${reward.level}`, textX, centerY - 6);
+
+  ctx.fillStyle = '#8fb9d4';
+  ctx.font = '500 22px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillText(rewardLabelForImage(reward), textX, centerY + 30);
+}
+
+function renderBattlePassRewardPage(rewards, pageIndex, totalPages) {
+  const canvas = createCanvas(REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, REWARD_IMAGE_HEIGHT);
+  gradient.addColorStop(0, '#06141f');
+  gradient.addColorStop(1, '#0e2a3b');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, REWARD_IMAGE_WIDTH, REWARD_IMAGE_HEIGHT);
+
+  const startLevel = rewards[0]?.level ?? pageIndex * REWARD_PAGE_SIZE + 1;
+  const endLevel = rewards[rewards.length - 1]?.level ?? startLevel + rewards.length - 1;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 38px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Christmas Battle Pass Rewards', REWARD_IMAGE_MARGIN, 70);
+
+  ctx.font = '600 24px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillStyle = '#b7c9d6';
+  ctx.fillText(formatLevelRange(startLevel, endLevel), REWARD_IMAGE_MARGIN, 112);
+
+  ctx.textAlign = 'right';
+  ctx.fillText(`Page ${pageIndex + 1} / ${totalPages}`, REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN, 112);
+  ctx.textAlign = 'left';
+
+  const listStartY = 150;
+  const cardWidth = REWARD_IMAGE_WIDTH - REWARD_IMAGE_MARGIN * 2;
+
+  rewards.forEach((reward, index) => {
+    const y = listStartY + index * (REWARD_CARD_HEIGHT + REWARD_CARD_GAP);
+    drawRewardListCard(ctx, REWARD_IMAGE_MARGIN, y, cardWidth, REWARD_CARD_HEIGHT, reward);
+  });
+
+  return canvas.toBuffer('image/png');
+}
+
+function renderBattlePassRewardImages() {
+  const rewards = getBattlePassRewards();
+  if (rewards.length === 0) return [];
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  const buffers = [];
+  for (let i = 0; i < totalPages; i++) {
+    const slice = rewards.slice(i * REWARD_PAGE_SIZE, i * REWARD_PAGE_SIZE + REWARD_PAGE_SIZE);
+    buffers.push(renderBattlePassRewardPage(slice, i, totalPages));
+  }
+  return buffers;
 }
 
 function randomInt(min, max) {
@@ -1202,15 +1288,26 @@ function buildRewardPageSelect(state) {
 async function buildBattlePassContainer(state) {
   state.canClaimReward100 = canClaimReward100(state.userId);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
-  let attachment = null;
+  const attachments = [];
   try {
-    const buffer = renderBattlePassImage(state);
-    attachment = new AttachmentBuilder(buffer, { name: BATTLE_PASS_IMAGE_NAME });
-    container.addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(`attachment://${BATTLE_PASS_IMAGE_NAME}`),
-      ),
-    );
+    const summaryBuffer = renderBattlePassSummaryImage(state);
+    const summaryName = BATTLE_PASS_SUMMARY_IMAGE_NAME;
+    const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
+    attachments.push(summaryAttachment);
+
+    const rewardBuffers = renderBattlePassRewardImages();
+    const gallery = new MediaGalleryBuilder();
+
+    gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
+
+    rewardBuffers.forEach((buffer, index) => {
+      const name = `battle-pass-rewards-${String(index + 1).padStart(2, '0')}.png`;
+      const attachment = new AttachmentBuilder(buffer, { name });
+      attachments.push(attachment);
+      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${name}`));
+    });
+
+    container.addMediaGalleryComponents(gallery);
     container.addSeparatorComponents(new SeparatorBuilder());
   } catch (error) {
     console.warn('Failed to render battle pass image:', error.message);
@@ -1228,7 +1325,7 @@ async function buildBattlePassContainer(state) {
     .setLabel('Quests')
     .setStyle(ButtonStyle.Primary);
   container.addActionRowComponents(new ActionRowBuilder().addComponents(claimButton, questButton));
-  return { container, attachment };
+  return { container, attachments };
 }
 
 function resolveBattlePassInfo(stats) {
@@ -1298,10 +1395,10 @@ async function renderState(state) {
       attachments: [],
     };
   }
-  const { container, attachment } = await buildBattlePassContainer(state);
+  const { container, attachments } = await buildBattlePassContainer(state);
   const response = { components: [container] };
-  if (attachment) {
-    response.files = [attachment];
+  if (attachments.length > 0) {
+    response.files = attachments;
   } else {
     response.attachments = [];
   }
