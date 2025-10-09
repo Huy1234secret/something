@@ -1,758 +1,1271 @@
 const {
   SlashCommandBuilder,
-  AttachmentBuilder,
   MessageFlags,
+  ButtonStyle,
 } = require('discord.js');
 const {
   ContainerBuilder,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
+  SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
 } = require('@discordjs/builders');
-const { createCanvas } = require('canvas');
-const { randomInt } = require('crypto');
+const { formatNumber } = require('../utils');
 
-const BP_WIDTH = 1400;
-const BP_HEIGHT = 420;
-const MARGIN = 24;
-const CARD_COUNT = 5;
-const CARD_GAP = 18;
-const CARD_W = Math.floor((BP_WIDTH - MARGIN * 2 - CARD_GAP * (CARD_COUNT - 1)) / CARD_COUNT);
-const CARD_H = 260;
+const TOTAL_LEVELS = 100;
+const POINTS_PER_LEVEL = 100;
+const TOTAL_POINTS_REQUIRED = TOTAL_LEVELS * POINTS_PER_LEVEL;
 
-const numberFormatter = new Intl.NumberFormat('en-US');
+const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
+const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
+const DELUXE_COIN_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
+const COOKIE_EMOJI = '<:ITCookie:1425137805616484403>';
+const MILK_EMOJI = '<:ITCupofMilk:1425137379525525735>';
+const CANDY_CANE_EMOJI = '<:ITCandyCane:1425138309893587088>';
+const SNOWBALL_EMOJI = '<:ITSnowBall:1425138786123124858>';
+const GINGERBREAD_EMOJI = '<:ITGingerbreadMan:1425135669025570826>';
+const GOOD_LIST_EMOJI = '<:ITGoodList:1425139683947581492>';
+const NAUGHTY_LIST_EMOJI = '<:ITNaughtyList:1425140373839155310>';
+const HOLLY_JOLLY_RIFLE_EMOJI = '<:SKHollyJollyRifleTier1:1425339099119747183>';
+const HOLLY_JOLLY_SHOVEL_EMOJI = '<:SKHollyJollyShovel:1425339068413116447>';
+const HOLLY_JOLLY_WATERING_CAN_EMOJI = '<:SKHollyJollyWateringCan:1425340137084030986>';
+const FROSTLIGHT_GARDEN_EMOJI = '<:SKFrostlightGarden:1425344951994159124>';
+const ELF_HAT_EMOJI = '🧝‍♂️';
+const BATTLE_PASS_GIFT_EMOJI = '🎁';
 
-const ITEM_POOL = [
-  {
-    name: 'Coin Pouch',
-    icon: 'coin',
-    amount: () => `${formatNumber(randomRange(10000, 60000))} Coins`,
-  },
-  {
-    name: 'Diamond Cache',
-    icon: 'diamond',
-    amount: () => `x${formatNumber(randomRange(2, 8))} Diamonds`,
-  },
-  {
-    name: 'Deluxe Coin Vault',
-    icon: 'deluxeCoin',
-    amount: () => `x${formatNumber(randomRange(1, 3))} Deluxe Coins`,
-  },
-  {
-    name: 'Candy Cane Bundle',
-    icon: 'candyCane',
-    amount: () => `x${formatNumber(randomRange(5, 14))}`,
-  },
-  {
-    name: 'Gingerbread Crate',
-    icon: 'gingerbread',
-    amount: () => `x${formatNumber(randomRange(4, 9))}`,
-  },
-  {
-    name: 'Snowball Stockpile',
-    icon: 'snowball',
-    amount: () => `x${formatNumber(randomRange(8, 22))}`,
-  },
-  {
-    name: 'Festive Gift Box',
-    icon: 'gift',
-    amount: () => `x${formatNumber(randomRange(1, 4))}`,
-  },
-  {
-    name: 'Holiday Potion',
-    icon: 'potion',
-    amount: () => `x${formatNumber(randomRange(1, 3))}`,
-  },
-  {
-    name: 'Winter Ticket',
-    icon: 'ticket',
-    amount: () => `x${formatNumber(randomRange(1, 2))}`,
-  },
-  {
-    name: 'North Star Charm',
-    icon: 'star',
-    amount: () => `x${formatNumber(randomRange(2, 6))}`,
-  },
+const QUEST_TYPES = {
+  hourly: 'Hourly Quests',
+  daily: 'Daily Quests',
+  weekly: 'Weekly Quests',
+};
+
+const QUEST_REROLL_COST = {
+  hourly: 10,
+  daily: 240,
+  weekly: 1680,
+};
+
+const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
+
+const states = new Map();
+
+const BATTLE_PASS_REWARDS = [
+  { level: 1, type: 'coins', amount: 10000 },
+  { level: 2, type: 'item', name: 'Cookie', amount: 1, emoji: COOKIE_EMOJI },
+  { level: 3, type: 'diamonds', amount: 5 },
+  { level: 4, type: 'item', name: 'Battle Pass Gift', amount: 1, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 5, type: 'item', name: 'Snow Ball', amount: 1, emoji: SNOWBALL_EMOJI },
+  { level: 6, type: 'coins', amount: 15000 },
+  { level: 7, type: 'item', name: 'Cup of Milk', amount: 1, emoji: MILK_EMOJI },
+  { level: 8, type: 'item', name: 'Candy Cane', amount: 1, emoji: CANDY_CANE_EMOJI },
+  { level: 9, type: 'diamonds', amount: 10 },
+  { level: 10, type: 'item', name: 'Holly Jolly Rifle Tier 1', amount: 1, emoji: HOLLY_JOLLY_RIFLE_EMOJI },
+  { level: 11, type: 'deluxeCoins', amount: 1 },
+  { level: 12, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
+  { level: 13, type: 'coins', amount: 20000 },
+  { level: 14, type: 'item', name: 'Elf Hat', amount: 1, emoji: ELF_HAT_EMOJI },
+  { level: 15, type: 'item', name: 'Cup of Milk', amount: 2, emoji: MILK_EMOJI },
+  { level: 16, type: 'item', name: 'Holly Jolly Shovel', amount: 1, emoji: HOLLY_JOLLY_SHOVEL_EMOJI },
+  { level: 17, type: 'diamonds', amount: 20 },
+  { level: 18, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
+  { level: 19, type: 'item', name: 'Frostlight Garden', amount: 1, emoji: FROSTLIGHT_GARDEN_EMOJI },
+  { level: 20, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 21, type: 'deluxeCoins', amount: 2 },
+  { level: 22, type: 'item', name: 'Holly Jolly Watering Can', amount: 1, emoji: HOLLY_JOLLY_WATERING_CAN_EMOJI },
+  { level: 23, type: 'item', name: 'Battle Pass Gift', amount: 2, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 24, type: 'coins', amount: 50000 },
+  { level: 25, type: 'item', name: 'Cookie', amount: 3, emoji: COOKIE_EMOJI },
+  { level: 26, type: 'diamonds', amount: 25 },
+  { level: 27, type: 'coins', amount: 60000 },
+  { level: 28, type: 'item', name: 'Cup of Milk', amount: 2, emoji: MILK_EMOJI },
+  { level: 29, type: 'item', name: 'Snow Ball', amount: 2, emoji: SNOWBALL_EMOJI },
+  { level: 30, type: 'item', name: 'Candy Cane', amount: 2, emoji: CANDY_CANE_EMOJI },
+  { level: 31, type: 'deluxeCoins', amount: 2 },
+  { level: 32, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
+  { level: 33, type: 'coins', amount: 70000 },
+  { level: 34, type: 'diamonds', amount: 30 },
+  { level: 35, type: 'item', name: 'Battle Pass Gift', amount: 2, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 36, type: 'item', name: 'Cup of Milk', amount: 3, emoji: MILK_EMOJI },
+  { level: 37, type: 'coins', amount: 80000 },
+  { level: 38, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 39, type: 'item', name: 'Snow Ball', amount: 3, emoji: SNOWBALL_EMOJI },
+  { level: 40, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
+  { level: 41, type: 'coins', amount: 90000 },
+  { level: 42, type: 'diamonds', amount: 35 },
+  { level: 43, type: 'item', name: 'Candy Cane', amount: 3, emoji: CANDY_CANE_EMOJI },
+  { level: 44, type: 'coins', amount: 110000 },
+  { level: 45, type: 'deluxeCoins', amount: 3 },
+  { level: 46, type: 'item', name: 'Battle Pass Gift', amount: 3, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 47, type: 'item', name: 'Cup of Milk', amount: 3, emoji: MILK_EMOJI },
+  { level: 48, type: 'item', name: 'Good List', amount: 1, emoji: GOOD_LIST_EMOJI },
+  { level: 49, type: 'diamonds', amount: 40 },
+  { level: 50, type: 'coins', amount: 130000 },
+  { level: 51, type: 'item', name: 'Cookie', amount: 5, emoji: COOKIE_EMOJI },
+  { level: 52, type: 'item', name: 'Snow Ball', amount: 3, emoji: SNOWBALL_EMOJI },
+  { level: 53, type: 'diamonds', amount: 45 },
+  { level: 54, type: 'item', name: 'Candy Cane', amount: 4, emoji: CANDY_CANE_EMOJI },
+  { level: 55, type: 'deluxeCoins', amount: 3 },
+  { level: 56, type: 'coins', amount: 150000 },
+  { level: 57, type: 'item', name: 'Cup of Milk', amount: 4, emoji: MILK_EMOJI },
+  { level: 58, type: 'item', name: 'Gingerbread Man', amount: 1, emoji: GINGERBREAD_EMOJI },
+  { level: 59, type: 'diamonds', amount: 50 },
+  { level: 60, type: 'item', name: 'Battle Pass Gift', amount: 3, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 61, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
+  { level: 62, type: 'coins', amount: 180000 },
+  { level: 63, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 64, type: 'item', name: 'Snow Ball', amount: 4, emoji: SNOWBALL_EMOJI },
+  { level: 65, type: 'diamonds', amount: 55 },
+  { level: 66, type: 'item', name: 'Cup of Milk', amount: 4, emoji: MILK_EMOJI },
+  { level: 67, type: 'item', name: 'Candy Cane', amount: 4, emoji: CANDY_CANE_EMOJI },
+  { level: 68, type: 'coins', amount: 210000 },
+  { level: 69, type: 'deluxeCoins', amount: 4 },
+  { level: 70, type: 'item', name: 'Battle Pass Gift', amount: 4, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 71, type: 'item', name: 'Cookie', amount: 6, emoji: COOKIE_EMOJI },
+  { level: 72, type: 'diamonds', amount: 60 },
+  { level: 73, type: 'item', name: 'Cup of Milk', amount: 5, emoji: MILK_EMOJI },
+  { level: 74, type: 'coins', amount: 240000 },
+  { level: 75, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
+  { level: 76, type: 'item', name: 'Snow Ball', amount: 5, emoji: SNOWBALL_EMOJI },
+  { level: 77, type: 'diamonds', amount: 65 },
+  { level: 78, type: 'item', name: 'Candy Cane', amount: 5, emoji: CANDY_CANE_EMOJI },
+  { level: 79, type: 'deluxeCoins', amount: 4 },
+  { level: 80, type: 'coins', amount: 280000 },
+  { level: 81, type: 'item', name: 'Gingerbread Man', amount: 2, emoji: GINGERBREAD_EMOJI },
+  { level: 82, type: 'diamonds', amount: 70 },
+  { level: 83, type: 'item', name: 'Cup of Milk', amount: 5, emoji: MILK_EMOJI },
+  { level: 84, type: 'item', name: 'Battle Pass Gift', amount: 4, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 85, type: 'item', name: 'Good List', amount: 2, emoji: GOOD_LIST_EMOJI },
+  { level: 86, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 87, type: 'item', name: 'Snow Ball', amount: 6, emoji: SNOWBALL_EMOJI },
+  { level: 88, type: 'coins', amount: 330000 },
+  { level: 89, type: 'diamonds', amount: 75 },
+  { level: 90, type: 'item', name: 'Candy Cane', amount: 6, emoji: CANDY_CANE_EMOJI },
+  { level: 91, type: 'deluxeCoins', amount: 5 },
+  { level: 92, type: 'item', name: 'Cup of Milk', amount: 6, emoji: MILK_EMOJI },
+  { level: 93, type: 'diamonds', amount: 80 },
+  { level: 94, type: 'coins', amount: 400000 },
+  { level: 95, type: 'item', name: 'Battle Pass Gift', amount: 5, emoji: BATTLE_PASS_GIFT_EMOJI },
+  { level: 96, type: 'item', name: 'Good List', amount: 3, emoji: GOOD_LIST_EMOJI },
+  { level: 97, type: 'item', name: 'Naughty List', amount: 1, emoji: NAUGHTY_LIST_EMOJI },
+  { level: 98, type: 'item', name: 'Gingerbread Man', amount: 2, emoji: GINGERBREAD_EMOJI },
+  { level: 99, type: 'diamonds', amount: 100 },
+  { level: 100, type: 'item', name: '$30 Gift Card', amount: 1, emoji: '' },
 ];
-
-function formatNumber(value) {
-  return numberFormatter.format(value);
+function pointsForLevel(level) {
+  if (level <= 0) return 0;
+  return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
 }
 
-function randomRange(min, max) {
-  if (max <= min) return min;
-  return randomInt(max - min + 1) + min;
+function describeReward(reward) {
+  const prefix = `Lv. ${reward.level}`;
+  if (reward.type === 'coins') {
+    return `${prefix} — ${COIN_EMOJI} ${formatNumber(reward.amount)} Coins`;
+  }
+  if (reward.type === 'diamonds') {
+    return `${prefix} — ${DIAMOND_EMOJI} ${formatNumber(reward.amount)} Diamonds`;
+  }
+  if (reward.type === 'deluxeCoins') {
+    return `${prefix} — ${DELUXE_COIN_EMOJI} ${formatNumber(reward.amount)} Deluxe Coins`;
+  }
+  if (reward.name === '$30 Gift Card') {
+    return `${prefix} — $30 Gift Card`;
+  }
+  const qty = reward.amount > 1 ? `x${formatNumber(reward.amount)} ` : '';
+  const emoji = reward.emoji ? `${reward.emoji} ` : '';
+  return `${prefix} — ${emoji}${qty}${reward.name}`.trim();
 }
 
-function roundRect(ctx, x, y, w, h, r = 18) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function dropShadow(
-  ctx,
-  fn,
-  { blur = 20, color = 'rgba(0,0,0,0.25)', offsetX = 0, offsetY = 6 } = {},
-) {
-  const prev = {
-    shadowBlur: ctx.shadowBlur,
-    shadowColor: ctx.shadowColor,
-    shadowOffsetX: ctx.shadowOffsetX,
-    shadowOffsetY: ctx.shadowOffsetY,
+function interpolateReward(value, minValue, maxValue, minReward, maxReward) {
+  if (maxValue === minValue) return minReward;
+  const ratio = (value - minValue) / (maxValue - minValue);
+  return Math.round(minReward + ratio * (maxReward - minReward));
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function randomProgress(required, allowCompletion = true) {
+  if (allowCompletion && Math.random() < 0.25) return required;
+  if (required <= 1) return allowCompletion ? 0 : 0;
+  return clamp(randomInt(0, required - 1), 0, required);
+}
+
+function randomDecimalProgress(required, allowCompletion = true, precision = 1) {
+  if (allowCompletion && Math.random() < 0.25) return required;
+  const value = Math.random() * required;
+  const factor = 10 ** precision;
+  return Math.min(required, Math.round(value * factor) / factor);
+}
+
+function questFormatterNumber(value) {
+  return formatNumber(Math.round(value));
+}
+
+function questFormatterHours(value) {
+  return `${value.toFixed(1)}h`;
+}
+
+function questFormatterXP(value) {
+  return `${formatNumber(Math.round(value))}`;
+}
+const QUEST_BUILDERS = {
+  hourly: [
+    () => {
+      const required = randomInt(50, 150);
+      const points = interpolateReward(required, 50, 150, 50, 150);
+      const progress = randomProgress(required);
+      return {
+        description: `Send ${formatNumber(required)} messages`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(20, 40);
+      const points = interpolateReward(required, 20, 40, 50, 100);
+      const progress = randomProgress(required);
+      return {
+        description: `${action} ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(10, 20);
+      const points = interpolateReward(required, 10, 20, 50, 100);
+      const progress = randomProgress(required);
+      return {
+        description: `Successfully ${action.toLowerCase()} ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(10, 20);
+      const points = interpolateReward(required, 10, 20, 50, 100);
+      const progress = randomProgress(required);
+      return {
+        description: `Fail ${action.toLowerCase()} attempts ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(1000, 10000);
+      const points = interpolateReward(required, 1000, 10000, 10, 100);
+      const progress = randomProgress(required);
+      return {
+        description: `Earn ${formatNumber(required)} coins`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(3, 5);
+      const points = interpolateReward(required, 3, 5, 30, 50);
+      const progress = randomProgress(required);
+      return {
+        description: `Rob ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 1;
+      const progress = randomProgress(required);
+      return {
+        description: 'Successfully rob 1 time',
+        required,
+        progress,
+        points: 100,
+        formatter: questFormatterNumber,
+      };
+    },
+  ],
+  daily: [
+    () => {
+      const required = randomInt(200, 400);
+      const points = interpolateReward(required, 200, 400, 200, 400);
+      const progress = randomProgress(required);
+      return {
+        description: `Send ${formatNumber(required)} messages`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(50, 100);
+      const points = interpolateReward(required, 50, 100, 125, 250);
+      const progress = randomProgress(required);
+      return {
+        description: `${action} ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(30, 60);
+      const points = interpolateReward(required, 30, 60, 150, 300);
+      const progress = randomProgress(required);
+      return {
+        description: `Successfully ${action.toLowerCase()} ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = randomInt(30, 60);
+      const points = interpolateReward(required, 30, 60, 150, 300);
+      const progress = randomProgress(required);
+      return {
+        description: `Fail ${action.toLowerCase()} attempts ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(10000, 100000);
+      const points = interpolateReward(required, 10000, 100000, 100, 1000);
+      const progress = randomProgress(required);
+      return {
+        description: `Earn ${formatNumber(required)} coins`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(10, 20);
+      const points = interpolateReward(required, 10, 20, 100, 200);
+      const progress = randomProgress(required);
+      return {
+        description: `Rob ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(2, 4);
+      const points = interpolateReward(required, 2, 4, 200, 400);
+      const progress = randomProgress(required);
+      return {
+        description: `Successfully rob ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(5, 10);
+      const points = interpolateReward(required, 5, 10, 100, 200);
+      const progress = randomProgress(required);
+      return {
+        description: `Fail robbing ${formatNumber(required)} times`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 1;
+      const progress = randomProgress(required);
+      return {
+        description: 'Die from hunting once',
+        required,
+        progress,
+        points: 1500,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 1;
+      const progress = randomProgress(required);
+      return {
+        description: 'Die from robbing once',
+        required,
+        progress,
+        points: 800,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(5000, 50000);
+      const points = interpolateReward(required, 5000, 50000, 100, 1000);
+      const progress = randomProgress(required);
+      return {
+        description: `Lose ${formatNumber(required)} coins`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = Math.round((Math.random() * 6 + 2) * 10) / 10;
+      const points = interpolateReward(required, 2, 8, 200, 800);
+      const progress = randomDecimalProgress(required);
+      return {
+        description: `Stay in voice chat for ${required.toFixed(1)} hours total`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterHours,
+      };
+    },
+    () => {
+      const required = randomInt(10000, 50000);
+      const points = interpolateReward(required, 10000, 50000, 100, 500);
+      const progress = randomProgress(required);
+      return {
+        description: `Earn ${formatNumber(required)} chat XP`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterXP,
+      };
+    },
+    () => {
+      const required = randomInt(20, 40);
+      const points = interpolateReward(required, 20, 40, 400, 800);
+      const progress = randomProgress(required);
+      return {
+        description: `Harvest ${formatNumber(required)} sheafs`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(10, 20);
+      const points = interpolateReward(required, 10, 20, 400, 800);
+      const progress = randomProgress(required);
+      return {
+        description: `Harvest ${formatNumber(required)} potatoes`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(4, 8);
+      const points = interpolateReward(required, 4, 8, 400, 800);
+      const progress = randomProgress(required);
+      return {
+        description: `Harvest ${formatNumber(required)} white cabbages`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = randomInt(2, 4);
+      const points = interpolateReward(required, 2, 4, 400, 800);
+      const progress = randomProgress(required);
+      return {
+        description: `Harvest ${formatNumber(required)} pumpkins`,
+        required,
+        progress,
+        points,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 50;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 50 Common animals',
+        required,
+        progress,
+        points: 100,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 35;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 35 Rare animals',
+        required,
+        progress,
+        points: 200,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 25;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 25 Epic animals',
+        required,
+        progress,
+        points: 400,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 10;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 10 Legendary animals',
+        required,
+        progress,
+        points: 1000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 5;
+      const progress = randomProgress(required);
+      return {
+        description: 'Dig up 5 items',
+        required,
+        progress,
+        points: 500,
+        formatter: questFormatterNumber,
+      };
+    },
+  ],
+  weekly: [
+    () => {
+      const required = 1000;
+      const progress = randomProgress(required);
+      return {
+        description: 'Send 1000 messages',
+        required,
+        progress,
+        points: 4000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = 400;
+      const progress = randomProgress(required);
+      return {
+        description: `${action} 400 times`,
+        required,
+        progress,
+        points: 8000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = 200;
+      const progress = randomProgress(required);
+      return {
+        description: `Successfully ${action.toLowerCase()} 200 times`,
+        required,
+        progress,
+        points: 15000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
+      const required = 200;
+      const progress = randomProgress(required);
+      return {
+        description: `Fail ${action.toLowerCase()} attempts 200 times`,
+        required,
+        progress,
+        points: 15000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 500000;
+      const progress = randomProgress(required);
+      return {
+        description: 'Earn 500k coins',
+        required,
+        progress,
+        points: 10000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 200;
+      const progress = randomProgress(required);
+      return {
+        description: 'Rob 200 times',
+        required,
+        progress,
+        points: 5000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 50;
+      const progress = randomProgress(required);
+      return {
+        description: 'Successfully rob 50 times',
+        required,
+        progress,
+        points: 9000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 150;
+      const progress = randomProgress(required);
+      return {
+        description: 'Fail robbing 150 times',
+        required,
+        progress,
+        points: 5000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 20;
+      const progress = randomProgress(required);
+      return {
+        description: 'Die from hunting 20 times',
+        required,
+        progress,
+        points: 15000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 50;
+      const progress = randomProgress(required);
+      return {
+        description: 'Die from robbing 50 times',
+        required,
+        progress,
+        points: 15000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 100000;
+      const progress = randomProgress(required);
+      return {
+        description: 'Lose 100k coins',
+        required,
+        progress,
+        points: 5000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 72;
+      const progress = randomDecimalProgress(required);
+      return {
+        description: 'Stay in voice chat for 3 days total',
+        required,
+        progress,
+        points: 9000,
+        formatter: questFormatterHours,
+      };
+    },
+    () => {
+      const required = 200000;
+      const progress = randomProgress(required);
+      return {
+        description: 'Earn 200k chat XP',
+        required,
+        progress,
+        points: 10000,
+        formatter: questFormatterXP,
+      };
+    },
+    () => {
+      const required = 200;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 200 sheafs',
+        required,
+        progress,
+        points: 10000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 100;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 100 potatoes',
+        required,
+        progress,
+        points: 12500,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 50;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 50 white cabbages',
+        required,
+        progress,
+        points: 15000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 40;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 40 pumpkins',
+        required,
+        progress,
+        points: 20000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 20;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 20 melons',
+        required,
+        progress,
+        points: 30000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 10;
+      const progress = randomProgress(required);
+      return {
+        description: 'Harvest 10 star fruits',
+        required,
+        progress,
+        points: 50000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 300;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 300 Common animals',
+        required,
+        progress,
+        points: 5000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 200;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 200 Rare animals',
+        required,
+        progress,
+        points: 6000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 100;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 100 Epic animals',
+        required,
+        progress,
+        points: 7500,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 50;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 50 Legendary animals',
+        required,
+        progress,
+        points: 9000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 20;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 20 Mythical animals',
+        required,
+        progress,
+        points: 14500,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 5;
+      const progress = randomProgress(required);
+      return {
+        description: 'Hunt 5 Godly animals',
+        required,
+        progress,
+        points: 20000,
+        formatter: questFormatterNumber,
+      };
+    },
+    () => {
+      const required = 100;
+      const progress = randomProgress(required);
+      return {
+        description: 'Dig up 100 items',
+        required,
+        progress,
+        points: 10000,
+        formatter: questFormatterNumber,
+      };
+    },
+  ],
+};
+function generateQuests(type) {
+  const builders = QUEST_BUILDERS[type] || [];
+  const available = builders.slice();
+  const quests = [];
+  while (quests.length < 3 && available.length > 0) {
+    const index = randomInt(0, available.length - 1);
+    const builder = available.splice(index, 1)[0];
+    quests.push(builder());
+  }
+  return quests;
+}
+
+function generateAllQuests() {
+  return {
+    hourly: generateQuests('hourly'),
+    daily: generateQuests('daily'),
+    weekly: generateQuests('weekly'),
   };
-  ctx.shadowBlur = blur;
-  ctx.shadowColor = color;
-  ctx.shadowOffsetX = offsetX;
-  ctx.shadowOffsetY = offsetY;
-  fn();
-  ctx.shadowBlur = prev.shadowBlur;
-  ctx.shadowColor = prev.shadowColor;
-  ctx.shadowOffsetX = prev.shadowOffsetX;
-  ctx.shadowOffsetY = prev.shadowOffsetY;
 }
 
-function drawSnowOverlay(ctx, count = 160) {
-  for (let i = 0; i < count; i++) {
-    const x = Math.random() * BP_WIDTH;
-    const y = Math.random() * BP_HEIGHT;
-    const r = Math.random() * 2.2 + 0.6;
-    ctx.globalAlpha = Math.random() * 0.7 + 0.3;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
+function isBattlePassActive(now = new Date()) {
+  const year = now.getFullYear();
+  const seasonStart = new Date(year, 11, 1, 0, 0, 0, 0);
+  return now >= seasonStart;
+}
+
+function getQuestResetTime(type, now = new Date()) {
+  const current = new Date(now);
+  if (type === 'hourly') {
+    const next = new Date(current);
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    return next;
   }
-  ctx.globalAlpha = 1;
-}
-
-function drawCandyCaneBorder(ctx) {
-  const stripeH = 14;
-  for (let x = 0; x < BP_WIDTH; x += 28) {
-    ctx.fillStyle = '#d01e2e';
-    ctx.fillRect(x, 0, 20, stripeH);
-    ctx.fillRect(x + 10, BP_HEIGHT - stripeH, 20, stripeH);
+  if (type === 'daily') {
+    return new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1, 0, 0, 0, 0);
   }
+  const startOfDay = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+  const day = startOfDay.getDay();
+  const daysUntilSunday = (7 - day) % 7;
+  const nextSunday = new Date(startOfDay);
+  nextSunday.setDate(nextSunday.getDate() + daysUntilSunday);
+  nextSunday.setHours(24, 0, 0, 0);
+  if (nextSunday <= current) {
+    nextSunday.setDate(nextSunday.getDate() + 7);
+  }
+  return nextSunday;
 }
 
-function drawSnowman(ctx, x, y, scale = 1) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
-
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, 0, 26, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(0, -34, 20, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.arc(-6, -40, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(6, -40, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ff7f27';
-  ctx.beginPath();
-  ctx.moveTo(0, -34);
-  ctx.lineTo(20, -30);
-  ctx.lineTo(0, -28);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#222';
-  ctx.fillRect(-16, -62, 32, 6);
-  ctx.fillRect(-12, -80, 24, 18);
-
-  ctx.fillStyle = '#222';
-  [-14, -3, 8].forEach(yy => {
-    ctx.beginPath();
-    ctx.arc(0, yy, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.fillStyle = '#d01e2e';
-  ctx.fillRect(-16, -28, 32, 6);
-  ctx.fillRect(10, -28, 6, 18);
-
-  ctx.restore();
+function formatCountdown(target) {
+  const diff = Math.max(0, target.getTime() - Date.now());
+  const seconds = Math.floor(diff / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+  if (hours === 0) parts.push(`${secs}s`);
+  return `in ${parts.join(' ')}`;
 }
 
-function drawGingerbread(ctx, x, y, scale = 1) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
-
-  ctx.fillStyle = '#b06a3b';
-  ctx.beginPath();
-  ctx.arc(0, -24, 14, 0, Math.PI * 2);
-  ctx.fill();
-  roundRect(ctx, -12, -16, 24, 32, 8);
-  ctx.fill();
-  roundRect(ctx, -26, -10, 14, 8, 4);
-  ctx.fill();
-  roundRect(ctx, 12, -10, 14, 8, 4);
-  ctx.fill();
-  roundRect(ctx, -12, 14, 10, 16, 4);
-  ctx.fill();
-  roundRect(ctx, 2, 14, 10, 16, 4);
-  ctx.fill();
-
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, -22, 6, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(-5, -26, 1.7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(5, -26, 1.7, 0, Math.PI * 2);
-  ctx.fill();
-  [-2, 6].forEach(yy => {
-    ctx.beginPath();
-    ctx.arc(0, yy, 2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.restore();
+function buildProgressBar(progress, total, size = 12) {
+  if (total <= 0) return '[────────────]';
+  const pct = clamp(progress / total, 0, 1);
+  const filled = Math.round(pct * size);
+  const bar = '█'.repeat(filled) + '░'.repeat(size - filled);
+  return `[${bar}]`;
 }
 
-function drawCoinIcon(ctx, cx, cy, radius, deluxe = false) {
-  const grad = ctx.createRadialGradient(
-    cx - radius * 0.4,
-    cy - radius * 0.6,
-    radius * 0.1,
-    cx,
-    cy,
-    radius,
-  );
-  grad.addColorStop(0, '#ffe89c');
-  grad.addColorStop(1, '#f0c04d');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.lineWidth = radius * 0.18;
-  ctx.strokeStyle = deluxe ? '#f6f4d2' : '#d79b33';
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
-  ctx.lineWidth = radius * 0.12;
-  ctx.strokeStyle = deluxe ? '#f8f2b7' : '#e2b554';
-  ctx.stroke();
-  if (deluxe) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.fillStyle = '#fff7c0';
-    ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
-      const inner = radius * 0.25;
-      const outer = radius * 0.55;
-      ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
-      const next = angle + Math.PI / 5;
-      ctx.lineTo(Math.cos(next) * inner, Math.sin(next) * inner);
+function formatQuestLine(quest) {
+  const completed = quest.required > 0 && quest.progress >= quest.required;
+  const status = completed ? `✅ ${quest.description}` : `${quest.description} ⬜`;
+  const reward = `${formatNumber(quest.points)} Pts`;
+  const progressBar = buildProgressBar(quest.progress, quest.required);
+  const formatter = quest.formatter || questFormatterNumber;
+  const progressValue = formatter(quest.progress);
+  const requiredValue = formatter(quest.required);
+  return `### ${status} - ${reward}\n${progressBar} ${progressValue} / ${requiredValue}`;
+}
+
+function formatQuestHeader(type) {
+  return `## ${QUEST_TYPES[type] || 'Quests'}\n* Quests reroll ${formatCountdown(getQuestResetTime(type))}`;
+}
+
+function buildQuestContainer(state, type) {
+  const container = new ContainerBuilder().setAccentColor(0xffffff);
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatQuestHeader(type)));
+  container.addSeparatorComponents(new SeparatorBuilder());
+
+  const quests = state.quests[type] || [];
+  quests.forEach((quest, index) => {
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatQuestLine(quest)));
+    if (index < quests.length - 1) {
+      container.addSeparatorComponents(new SeparatorBuilder());
     }
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-function drawDiamondIcon(ctx, cx, cy, size) {
-  const half = size / 2;
-  const grad = ctx.createLinearGradient(cx, cy - half, cx, cy + half);
-  grad.addColorStop(0, '#b8f1ff');
-  grad.addColorStop(1, '#3ab0ff');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - half);
-  ctx.lineTo(cx - half * 0.8, cy);
-  ctx.lineTo(cx, cy + half);
-  ctx.lineTo(cx + half * 0.8, cy);
-  ctx.closePath();
-  ctx.fill();
-  ctx.lineWidth = size * 0.08;
-  ctx.strokeStyle = '#2c89d6';
-  ctx.stroke();
-}
-
-function drawGiftIcon(ctx, cx, cy, size) {
-  const half = size / 2;
-  const corner = size * 0.18;
-  ctx.save();
-  ctx.fillStyle = '#d01e2e';
-  roundRect(ctx, cx - half, cy - half, size, size, corner);
-  ctx.fill();
-  ctx.fillStyle = '#f6f2f0';
-  ctx.fillRect(cx - size * 0.1, cy - half, size * 0.2, size);
-  ctx.fillRect(cx - half, cy - size * 0.1, size, size * 0.2);
-  ctx.restore();
-}
-
-function drawPotionIcon(ctx, cx, cy, size) {
-  ctx.save();
-  const neck = size * 0.35;
-  const body = size * 0.65;
-  ctx.beginPath();
-  ctx.moveTo(cx - neck / 2, cy - body / 2);
-  ctx.lineTo(cx - neck / 2, cy - body * 0.2);
-  ctx.bezierCurveTo(
-    cx - neck / 2,
-    cy + body * 0.35,
-    cx - size / 2,
-    cy + body * 0.4,
-    cx,
-    cy + body * 0.6,
-  );
-  ctx.bezierCurveTo(
-    cx + size / 2,
-    cy + body * 0.4,
-    cx + neck / 2,
-    cy + body * 0.35,
-    cx + neck / 2,
-    cy - body * 0.2,
-  );
-  ctx.lineTo(cx + neck / 2, cy - body / 2);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(125, 215, 255, 0.9)';
-  ctx.fill();
-  ctx.lineWidth = size * 0.06;
-  ctx.strokeStyle = '#6bb8f8';
-  ctx.stroke();
-  ctx.fillStyle = '#f5f0f9';
-  ctx.fillRect(cx - neck / 2, cy - body * 0.7, neck, body * 0.18);
-  ctx.restore();
-}
-
-function drawTicketIcon(ctx, cx, cy, size) {
-  const w = size * 1.1;
-  const h = size * 0.55;
-  const radius = h * 0.45;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx - w / 2 + radius, cy - h / 2);
-  ctx.lineTo(cx + w / 2 - radius, cy - h / 2);
-  ctx.quadraticCurveTo(cx + w / 2, cy - h / 2, cx + w / 2, cy - h / 2 + radius);
-  ctx.lineTo(cx + w / 2, cy + h / 2 - radius);
-  ctx.quadraticCurveTo(cx + w / 2, cy + h / 2, cx + w / 2 - radius, cy + h / 2);
-  ctx.lineTo(cx - w / 2 + radius, cy + h / 2);
-  ctx.quadraticCurveTo(cx - w / 2, cy + h / 2, cx - w / 2, cy + h / 2 - radius);
-  ctx.lineTo(cx - w / 2, cy - h / 2 + radius);
-  ctx.quadraticCurveTo(cx - w / 2, cy - h / 2, cx - w / 2 + radius, cy - h / 2);
-  ctx.closePath();
-  ctx.fillStyle = '#f7d56d';
-  ctx.fill();
-  ctx.lineWidth = size * 0.06;
-  ctx.strokeStyle = '#d6a23d';
-  ctx.stroke();
-  ctx.setLineDash([size * 0.12, size * 0.12]);
-  ctx.lineDashOffset = size * 0.04;
-  ctx.lineWidth = size * 0.04;
-  ctx.strokeStyle = 'rgba(210, 150, 40, 0.8)';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - h / 2 + radius * 0.6);
-  ctx.lineTo(cx, cy + h / 2 - radius * 0.6);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
-function drawStarIcon(ctx, cx, cy, size) {
-  const spikes = 5;
-  const outerRadius = size / 2;
-  const innerRadius = outerRadius * 0.45;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - outerRadius);
-  for (let i = 0; i < spikes; i++) {
-    const outerAngle = (i * 2 * Math.PI) / spikes - Math.PI / 2;
-    const innerAngle = outerAngle + Math.PI / spikes;
-    ctx.lineTo(cx + Math.cos(outerAngle) * outerRadius, cy + Math.sin(outerAngle) * outerRadius);
-    ctx.lineTo(cx + Math.cos(innerAngle) * innerRadius, cy + Math.sin(innerAngle) * innerRadius);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#ffd27f';
-  ctx.fill();
-  ctx.lineWidth = size * 0.08;
-  ctx.strokeStyle = '#e6ae4f';
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawSnowballIcon(ctx, cx, cy, radius) {
-  const grad = ctx.createRadialGradient(
-    cx - radius * 0.4,
-    cy - radius * 0.4,
-    radius * 0.2,
-    cx,
-    cy,
-    radius,
-  );
-  grad.addColorStop(0, '#ffffff');
-  grad.addColorStop(1, '#d5e6ff');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#b7c9e4';
-  ctx.lineWidth = radius * 0.08;
-  ctx.stroke();
-}
-
-function drawCandyCaneIcon(ctx, cx, cy, size) {
-  const radius = size * 0.5;
-  ctx.save();
-  ctx.lineWidth = size * 0.22;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#f8f8f8';
-  ctx.beginPath();
-  ctx.arc(cx, cy - radius * 0.1, radius, Math.PI, Math.PI * 1.5);
-  ctx.lineTo(cx + radius, cy + radius * 0.8);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#d01e2e';
-  ctx.lineWidth = size * 0.12;
-  for (let t = 0; t < 6; t++) {
-    const angleStart = Math.PI + (t * Math.PI) / 8;
-    const angleEnd = angleStart + Math.PI / 8;
-    ctx.beginPath();
-    ctx.arc(cx, cy - radius * 0.1, radius - size * 0.05, angleStart, angleEnd);
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.moveTo(cx + radius * 0.1, cy + radius * 0.1);
-  ctx.lineTo(cx + radius * 0.75, cy + radius * 0.9);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawItemIcon(ctx, card, boxX, boxY, boxW, boxH) {
-  const cx = boxX + boxW / 2;
-  const cy = boxY + boxH / 2;
-  const size = Math.min(boxW, boxH) * 0.65;
-  switch (card.icon) {
-    case 'coin':
-      drawCoinIcon(ctx, cx, cy, size * 0.35, false);
-      break;
-    case 'deluxeCoin':
-      drawCoinIcon(ctx, cx, cy, size * 0.35, true);
-      break;
-    case 'diamond':
-      drawDiamondIcon(ctx, cx, cy, size * 0.9);
-      break;
-    case 'gift':
-      drawGiftIcon(ctx, cx, cy, size * 0.85);
-      break;
-    case 'potion':
-      drawPotionIcon(ctx, cx, cy, size * 0.9);
-      break;
-    case 'ticket':
-      drawTicketIcon(ctx, cx, cy, size * 0.9);
-      break;
-    case 'star':
-      drawStarIcon(ctx, cx, cy, size * 0.9);
-      break;
-    case 'snowball':
-      drawSnowballIcon(ctx, cx, cy, size * 0.4);
-      break;
-    case 'candyCane':
-      drawCandyCaneIcon(ctx, cx, cy, size * 0.7);
-      break;
-    case 'gingerbread':
-      drawGingerbread(ctx, cx, cy + size * 0.1, size * 0.02);
-      break;
-    default:
-      break;
-  }
-}
-
-function fitText(ctx, text, maxWidth, baseSize, fontWeight = 'bold') {
-  let size = baseSize;
-  while (size > 12) {
-    ctx.font = `${fontWeight} ${size}px Sans`;
-    if (ctx.measureText(text).width <= maxWidth) return `${fontWeight} ${size}px Sans`;
-    size -= 1;
-  }
-  return `${fontWeight} 12px Sans`;
-}
-
-function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], nextThreshold = null) {
-  roundRect(ctx, x, y, w, h, h / 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fill();
-
-  const pct = Math.max(0, Math.min(1, total === 0 ? 0 : current / total));
-  const fillW = Math.max(h, Math.round(w * pct));
-  roundRect(ctx, x, y, fillW, h, h / 2);
-  const grad = ctx.createLinearGradient(x, y, x + w, y);
-  grad.addColorStop(0, '#2ad67b');
-  grad.addColorStop(1, '#20b35b');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  tickXs.forEach(tx => {
-    ctx.beginPath();
-    ctx.moveTo(tx, y - 6);
-    ctx.lineTo(tx, y + h + 6);
-    ctx.stroke();
   });
 
-  ctx.font = 'bold 22px Sans';
-  ctx.fillStyle = '#2ad67b';
-  ctx.textAlign = 'center';
-  const target = nextThreshold != null ? nextThreshold : total;
-  const label =
-    target > 0
-      ? `Progress: ${formatNumber(Math.min(current, target))} / ${formatNumber(target)} XP`
-      : 'All rewards unlocked';
-  ctx.fillText(label, x + w / 2, y - 12);
-  ctx.textAlign = 'left';
-}
-
-function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
-  const accent = card.unlocked ? '#2ad67b' : themeAccent;
-  dropShadow(ctx, () => {
-    roundRect(ctx, x, y, CARD_W, CARD_H, 20);
-    const g = ctx.createLinearGradient(0, y, 0, y + CARD_H);
-    g.addColorStop(0, 'rgba(255,255,255,0.96)');
-    g.addColorStop(1, 'rgba(239,246,247,0.95)');
-    ctx.fillStyle = g;
-    ctx.fill();
-  });
-
-  if (card.unlocked) {
-    ctx.save();
-    roundRect(ctx, x, y, CARD_W, CARD_H, 20);
-    ctx.clip();
-    const overlay = ctx.createLinearGradient(0, y, 0, y + CARD_H);
-    overlay.addColorStop(0, 'rgba(42,214,123,0.28)');
-    overlay.addColorStop(1, 'rgba(32,179,91,0.16)');
-    ctx.fillStyle = overlay;
-    ctx.fillRect(x, y, CARD_W, CARD_H);
-    ctx.restore();
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('bp:questType')
+    .setPlaceholder('Quest types');
+  for (const [key, label] of Object.entries(QUEST_TYPES)) {
+    select.addOptions(new StringSelectMenuOptionBuilder().setLabel(label).setValue(key));
   }
 
-  const badgeR = 20;
-  const bx = x + 18;
-  const by = y + 18;
-  ctx.beginPath();
-  ctx.arc(bx + badgeR, by + badgeR, badgeR, 0, Math.PI * 2);
-  ctx.fillStyle = accent;
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#fff';
-  ctx.stroke();
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 20px Sans';
-  ctx.textAlign = 'center';
-  ctx.fillText(String(card.num), bx + badgeR, by + badgeR + 7);
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
 
-  const xpText = `Unlock @ ${formatNumber(card.threshold)} XP`;
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#9aa4aa';
-  ctx.font = 'bold 16px Sans';
-  ctx.fillText(xpText, x + 18, y + 76);
+  const rerollButton = new ButtonBuilder()
+    .setCustomId(`bp:reroll:${type}`)
+    .setLabel('Reroll Quests')
+    .setStyle(ButtonStyle.Primary);
+  const backButton = new ButtonBuilder()
+    .setCustomId('bp:back')
+    .setLabel('Back')
+    .setStyle(ButtonStyle.Secondary);
 
-  if (card.unlocked) {
-    const pillW = 100;
-    const pillH = 28;
-    const px = x + CARD_W - pillW - 18;
-    const py = y + 32;
-    roundRect(ctx, px, py, pillW, pillH, pillH / 2);
-    ctx.fillStyle = 'rgba(42,214,123,0.15)';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = accent;
-    ctx.stroke();
-    ctx.fillStyle = accent;
-    ctx.font = 'bold 14px Sans';
-    ctx.textAlign = 'center';
-    ctx.fillText('Unlocked', px + pillW / 2, py + 19);
-    ctx.textAlign = 'left';
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(rerollButton, backButton));
+  return container;
+}
+function formatBattlePassSummary(state) {
+  const currentLevel = state.currentLevel;
+  const totalPoints = state.currentPoints;
+  const totalLine = `${formatNumber(totalPoints)} / ${formatNumber(TOTAL_POINTS_REQUIRED)} Pts total`;
+  if (currentLevel >= TOTAL_LEVELS) {
+    return `## Christmas Battle Pass\n-# Level ${TOTAL_LEVELS} • ${totalLine}\n-# All rewards unlocked`;
   }
-
-  const boxW = CARD_W - 36;
-  const boxH = 110;
-  const boxX = x + 18;
-  const boxY = y + 90;
-  ctx.save();
-  roundRect(ctx, boxX, boxY, boxW, boxH, 14);
-  ctx.fillStyle = 'rgba(250,252,255,0.9)';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = card.unlocked ? 'rgba(42,214,123,0.6)' : '#c6d1d8';
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.save();
-  drawItemIcon(ctx, card, boxX, boxY, boxW, boxH);
-  ctx.restore();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#1f2a33';
-  ctx.font = fitText(ctx, card.name, CARD_W - 48, 20);
-  ctx.fillText(card.name, x + CARD_W / 2, y + 220);
-  ctx.fillStyle = '#5b6b76';
-  ctx.font = fitText(ctx, card.amount, CARD_W - 48, 16, 'normal');
-  ctx.fillText(card.amount, x + CARD_W / 2, y + 244);
-  ctx.textAlign = 'left';
+  const prevThreshold = pointsForLevel(currentLevel - 1);
+  const nextThreshold = pointsForLevel(currentLevel);
+  const progress = totalPoints - prevThreshold;
+  const needed = nextThreshold - prevThreshold;
+  return `## Christmas Battle Pass\n-# Level ${currentLevel} • ${totalLine}\n-# Progress to next: ${formatNumber(progress)} / ${formatNumber(needed)} Pts`;
 }
 
-function drawTitle(ctx) {}
-
-function drawBackground(ctx) {
-  const bg = ctx.createLinearGradient(0, 0, 0, BP_HEIGHT);
-  bg.addColorStop(0, '#0b2e20');
-  bg.addColorStop(0.5, '#0f3d2a');
-  bg.addColorStop(1, '#12402a');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, BP_WIDTH, BP_HEIGHT);
-
-  drawCandyCaneBorder(ctx);
-
-  const vignette = ctx.createRadialGradient(
-    BP_WIDTH / 2,
-    BP_HEIGHT / 2,
-    Math.min(BP_WIDTH, BP_HEIGHT) / 6,
-    BP_WIDTH / 2,
-    BP_HEIGHT / 2,
-    BP_WIDTH / 1.1,
-  );
-  vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, BP_WIDTH, BP_HEIGHT);
-
-  ctx.fillStyle = '#eaf5ff';
-  roundRect(ctx, -10, BP_HEIGHT - 80, BP_WIDTH + 20, 120, 40);
-  ctx.fill();
-
-  drawSnowman(ctx, BP_WIDTH - 90, BP_HEIGHT - 90, 1.2);
-  drawGingerbread(ctx, 80, BP_HEIGHT - 90, 1.2);
-
-  drawSnowOverlay(ctx, 180);
-}
-
-function drawFooter(ctx) {}
-
-function layoutTickPositions(items, x, w) {
-  if (items.length === 0) return { ticks: [], totalXP: 0 };
-  const total = items[items.length - 1].threshold;
-  const ticks = items.map(item => {
-    const pct = total === 0 ? 0 : item.threshold / total;
-    return x + Math.round(w * pct);
-  });
-  return { ticks, totalXP: total };
-}
-
-async function renderBattlePass(items, currentXP, totalXP) {
-  const canvas = createCanvas(BP_WIDTH, BP_HEIGHT);
-  const ctx = canvas.getContext('2d');
-  ctx.textBaseline = 'alphabetic';
-
-  drawBackground(ctx);
-  drawTitle(ctx);
-
-  const rowY = 100;
-  let x = MARGIN;
-  for (let i = 0; i < items.length; i++) {
-    drawCard(ctx, x, rowY, items[i]);
-    x += CARD_W + CARD_GAP;
+function formatUpcomingRewards(state) {
+  const startIndex = Math.max(0, state.currentLevel - 1);
+  const upcoming = BATTLE_PASS_REWARDS.slice(startIndex, startIndex + 5);
+  if (upcoming.length === 0) {
+    return '### Upcoming Rewards\n-# All rewards claimed';
   }
-
-  const pbX = MARGIN;
-  const pbW = BP_WIDTH - MARGIN * 2;
-  const pbY = rowY + CARD_H + 40;
-  const pbH = 22;
-  const { ticks } = layoutTickPositions(items, pbX, pbW);
-  const nextReward = items.find(item => item.threshold > currentXP) || null;
-  const nextThreshold = nextReward ? nextReward.threshold : null;
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks, nextThreshold);
-
-  drawFooter(ctx);
-
-  return canvas.toBuffer('image/png');
+  const lines = upcoming.map(reward => `-# ${describeReward(reward)}`);
+  return `### Upcoming Rewards\n${lines.join('\n')}`;
 }
 
-function generateBattlePassData() {
-  const available = [...ITEM_POOL];
-  const items = [];
-  let threshold = randomRange(140, 240);
-  for (let i = 0; i < CARD_COUNT; i++) {
-    if (available.length === 0) break;
-    const index = randomInt(available.length);
-    const base = available.splice(index, 1)[0];
-    const card = {
-      num: i + 1,
-      name: base.name,
-      amount: base.amount(),
-      icon: base.icon,
-      threshold,
-      unlocked: false,
-    };
-    items.push(card);
-    threshold += randomRange(160, 340);
+function formatRewardPage(state) {
+  const pageSize = 10;
+  const start = state.rewardPage * pageSize;
+  const end = start + pageSize;
+  const slice = BATTLE_PASS_REWARDS.slice(start, end);
+  const startLevel = start + 1;
+  const endLevel = Math.min(end, TOTAL_LEVELS);
+  if (slice.length === 0) {
+    return `### Levels ${startLevel}-${endLevel}\n-# No rewards on this page`;
   }
-  const totalXP = items.length ? items[items.length - 1].threshold : 0;
-  const minXP = totalXP > 0 ? Math.floor(totalXP * 0.2) : 0;
-  const currentXP = totalXP > 0 ? randomRange(minXP, totalXP) : 0;
-  items.forEach(card => {
-    card.unlocked = currentXP >= card.threshold;
-  });
-  return { items, currentXP, totalXP };
+  const lines = slice.map(reward => `-# ${describeReward(reward)}`);
+  return `### Levels ${startLevel}-${endLevel}\n${lines.join('\n')}`;
 }
 
-function buildContainer() {
-  return new ContainerBuilder()
-    .setAccentColor(0xffffff)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        '## Seasonal Battle Pass\n-# Seasonal rewards preview\n-# Rewards & XP refresh on every use',
-      ),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL('attachment://battle-pass.png'),
-      ),
+function buildRewardPageSelect(state) {
+  const pageSize = 10;
+  const totalPages = Math.ceil(BATTLE_PASS_REWARDS.length / pageSize);
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('bp:page')
+    .setPlaceholder('Jump to reward levels');
+  for (let i = 0; i < totalPages; i++) {
+    const start = i * pageSize + 1;
+    const end = Math.min((i + 1) * pageSize, TOTAL_LEVELS);
+    select.addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(`Levels ${start}-${end}`)
+        .setValue(String(i))
+        .setDefault(i === state.rewardPage),
     );
+  }
+  return select;
+}
+
+function buildBattlePassContainer(state) {
+  const container = new ContainerBuilder().setAccentColor(0xd01e2e);
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatBattlePassSummary(state)));
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatUpcomingRewards(state)));
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatRewardPage(state)));
+
+  const rewardRow = new ActionRowBuilder().addComponents(buildRewardPageSelect(state));
+  container.addActionRowComponents(rewardRow);
+
+  const questButton = new ButtonBuilder()
+    .setCustomId('bp:quests')
+    .setLabel('Quests')
+    .setStyle(ButtonStyle.Primary);
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(questButton));
+  return container;
+}
+
+function createBattlePassState(userId) {
+  const currentPoints = randomInt(0, TOTAL_POINTS_REQUIRED);
+  const currentLevel = Math.min(TOTAL_LEVELS, Math.floor(currentPoints / POINTS_PER_LEVEL) + 1);
+  const rewardPage = Math.min(Math.floor((currentLevel - 1) / 10), Math.ceil(TOTAL_LEVELS / 10) - 1);
+  return {
+    userId,
+    view: 'battle-pass',
+    rewardPage: Math.max(0, rewardPage),
+    activeQuestType: 'hourly',
+    quests: generateAllQuests(),
+    currentPoints,
+    currentLevel,
+  };
+}
+
+function buildRerollPrompt(type) {
+  const label = QUEST_TYPES[type] || 'quests';
+  const cost = QUEST_REROLL_COST[type] || 0;
+  const content = `Are you sure you want to reroll the ${label}?\n-# Cost ${formatNumber(cost)} Deluxe Coins ${REROLL_COST_EMOJI}`;
+  const yesButton = new ButtonBuilder()
+    .setCustomId(`bp:confirm:${type}`)
+    .setLabel('Yes')
+    .setStyle(ButtonStyle.Success);
+  const noButton = new ButtonBuilder()
+    .setCustomId('bp:cancel')
+    .setLabel('No')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder().addComponents(yesButton, noButton);
+  return { content, components: [row], flags: MessageFlags.Ephemeral };
+}
+function renderState(state) {
+  if (state.view === 'quests') {
+    return [buildQuestContainer(state, state.activeQuestType)];
+  }
+  return [buildBattlePassContainer(state)];
+}
+
+async function updateMainMessage(client, state) {
+  if (!state.channelId || !state.messageId) return;
+  try {
+    const channel = await client.channels.fetch(state.channelId);
+    if (!channel || typeof channel.isTextBased !== 'function' || !channel.isTextBased()) return;
+    const message = await channel.messages.fetch(state.messageId);
+    await message.edit({ components: renderState(state) });
+  } catch (err) {
+    console.warn('Failed to update battle pass message:', err.message);
+  }
+}
+
+function isOwner(interaction, state) {
+  return interaction.user && interaction.user.id === state.userId;
+}
+
+function getStateFromInteraction(interaction) {
+  if (!interaction.message) return null;
+  return states.get(interaction.message.id) || null;
+}
+
+async function handleSlashCommand(interaction) {
+  if (!isBattlePassActive()) {
+    await interaction.reply({
+      content: 'The Christmas battle pass unlocks on December 1st at 00:00. Please check back then!',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
+  const state = createBattlePassState(interaction.user.id);
+  const components = renderState(state);
+  const message = await interaction.editReply({ components, flags: MessageFlags.IsComponentsV2 });
+  state.messageId = message.id;
+  state.channelId = message.channelId;
+  states.set(message.id, state);
+}
+
+async function handleQuestReroll(interaction, state, type) {
+  if (!QUEST_TYPES[type]) {
+    await interaction.reply({
+      content: 'Unknown quest type to reroll.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const prompt = buildRerollPrompt(type);
+  await interaction.reply(prompt);
+}
+
+async function handleQuestConfirm(interaction, state, type) {
+  if (!QUEST_TYPES[type]) {
+    await interaction.update({ content: 'Unknown quest type.', components: [] });
+    return;
+  }
+  state.quests[type] = generateQuests(type);
+  if (state.activeQuestType === type) {
+    state.view = 'quests';
+  }
+  await updateMainMessage(interaction.client, state);
+  await interaction.update({
+    content: `${QUEST_TYPES[type]} rerolled!`,
+    components: [],
+  });
+}
+
+async function handleQuestCancel(interaction) {
+  await interaction.update({ content: 'Reroll cancelled.', components: [] });
+}
+
+function parseCustomId(id) {
+  return id.split(':');
 }
 
 function setup(client) {
   const command = new SlashCommandBuilder()
     .setName('battle-pass')
-    .setDescription('Generate a randomized Christmas battle pass preview.');
+    .setDescription('View the Christmas battle pass rewards and quests.');
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
     try {
-      if (!interaction.isChatInputCommand() || interaction.commandName !== 'battle-pass') {
+      if (interaction.isChatInputCommand() && interaction.commandName === 'battle-pass') {
+        await handleSlashCommand(interaction);
         return;
       }
-      await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
-      const { items, currentXP, totalXP } = generateBattlePassData();
-      const buffer = await renderBattlePass(items, currentXP, totalXP);
-      const attachment = new AttachmentBuilder(buffer, { name: 'battle-pass.png' });
-      const container = buildContainer();
-      await interaction.editReply({
-        files: [attachment],
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-      });
+
+      if (interaction.isButton()) {
+        const state = getStateFromInteraction(interaction);
+        if (!state) return;
+        if (!isOwner(interaction, state)) {
+          await interaction.reply({
+            content: 'Only the original adventurer can use these battle pass controls.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        const [root, action, extra] = parseCustomId(interaction.customId);
+        if (root !== 'bp') return;
+
+        if (!isBattlePassActive()) {
+          await interaction.reply({
+            content: 'The Christmas battle pass is currently inactive.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (action === 'quests') {
+          state.view = 'quests';
+          if (!state.activeQuestType) state.activeQuestType = 'hourly';
+          await interaction.update({ components: renderState(state) });
+          return;
+        }
+        if (action === 'back') {
+          state.view = 'battle-pass';
+          await interaction.update({ components: renderState(state) });
+          return;
+        }
+        if (action === 'reroll') {
+          await handleQuestReroll(interaction, state, extra);
+          return;
+        }
+        if (action === 'confirm') {
+          await handleQuestConfirm(interaction, state, extra);
+          return;
+        }
+        if (action === 'cancel') {
+          await handleQuestCancel(interaction);
+          return;
+        }
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        const state = getStateFromInteraction(interaction);
+        if (!state) return;
+        if (!isOwner(interaction, state)) {
+          await interaction.reply({
+            content: 'Only the original adventurer can use these battle pass controls.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        const [root, action] = parseCustomId(interaction.customId);
+        if (root !== 'bp') return;
+        if (!isBattlePassActive()) {
+          await interaction.reply({
+            content: 'The Christmas battle pass is currently inactive.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (action === 'page') {
+          const value = interaction.values[0];
+          const page = Number(value);
+          if (!Number.isNaN(page)) {
+            state.rewardPage = clamp(page, 0, Math.ceil(BATTLE_PASS_REWARDS.length / 10) - 1);
+          }
+          state.view = 'battle-pass';
+          await interaction.update({ components: renderState(state) });
+          return;
+        }
+        if (action === 'questType') {
+          const value = interaction.values[0];
+          if (QUEST_TYPES[value]) {
+            state.activeQuestType = value;
+          }
+          state.view = 'quests';
+          await interaction.update({ components: renderState(state) });
+          return;
+        }
+      }
     } catch (error) {
       if (error.code !== 10062) console.error(error);
     }
