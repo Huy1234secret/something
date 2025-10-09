@@ -1,3 +1,5 @@
+// Discord v14 + node-canvas Christmas Battle Pass image generator
+
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createCanvas } = require('canvas');
 
@@ -12,11 +14,11 @@ const CARD_H = 260;
 
 const DEMO_ITEMS = [
   // You can edit these
-  { num: 1, xpReq: 100, rewards: [{ label: 'Candy Cane', amount: 'x5' }] },
-  { num: 2, xpReq: 250, rewards: [{ label: 'Snowflake Dust', amount: 'x3' }] },
-  { num: 3, xpReq: 450, rewards: [{ label: 'Ginger Snap', amount: 'x10' }] },
-  { num: 4, xpReq: 700, rewards: [{ label: 'Elf Ticket', amount: 'x1' }] },
-  { num: 5, xpReq: 1000, rewards: [{ label: 'Holiday Chest', amount: 'x1' }] },
+  { num: 1, xpReq: 100, name: 'Candy Cane', amount: 'x5' },
+  { num: 2, xpReq: 250, name: 'Snowflake Dust', amount: 'x3' },
+  { num: 3, xpReq: 450, name: 'Ginger Snap', amount: 'x10' },
+  { num: 4, xpReq: 700, name: 'Elf Ticket', amount: 'x1' },
+  { num: 5, xpReq: 1000, name: 'Holiday Chest', amount: 'x1' },
 ];
 
 // Simulate current progress (edit this or make it dynamic from your DB)
@@ -88,7 +90,7 @@ function drawSnowman(ctx, x, y, scale = 1) {
   // Eyes
   ctx.fillStyle = '#222';
   ctx.beginPath(); ctx.arc(-6, -40, 2.4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc( 6, -40, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6, -40, 2.4, 0, Math.PI * 2); ctx.fill();
 
   // Carrot nose
   ctx.fillStyle = '#ff7f27';
@@ -106,7 +108,7 @@ function drawSnowman(ctx, x, y, scale = 1) {
 
   // Buttons
   ctx.fillStyle = '#222';
-  [ -14, -3, 8 ].forEach((yy) => {
+  [-14, -3, 8].forEach((yy) => {
     ctx.beginPath(); ctx.arc(0, yy, 2.2, 0, Math.PI * 2); ctx.fill();
   });
 
@@ -130,27 +132,29 @@ function drawGingerbread(ctx, x, y, scale = 1) {
   roundRect(ctx, -12, -16, 24, 32, 8); ctx.fill();
   // Arms
   roundRect(ctx, -26, -10, 14, 8, 4); ctx.fill();
-  roundRect(ctx, 12, -10, 14, 8, 4);  ctx.fill();
+  roundRect(ctx, 12, -10, 14, 8, 4); ctx.fill();
   // Legs
   roundRect(ctx, -12, 14, 10, 16, 4); ctx.fill();
-  roundRect(ctx, 2, 14, 10, 16, 4);   ctx.fill();
+  roundRect(ctx, 2, 14, 10, 16, 4); ctx.fill();
 
   // Icing
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, -22, 6, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+
   ctx.fillStyle = '#fff';
-  // Smile
-  ctx.beginPath(); ctx.arc(0, -22, 6, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
   // Eyes
   ctx.beginPath(); ctx.arc(-5, -26, 1.7, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc( 5, -26, 1.7, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5, -26, 1.7, 0, Math.PI * 2); ctx.fill();
   // Buttons
-  [ -2, 6 ].forEach((yy) => {
+  [-2, 6].forEach((yy) => {
     ctx.beginPath(); ctx.arc(0, yy, 2, 0, Math.PI * 2); ctx.fill();
   });
 
   ctx.restore();
 }
 
-function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], thresholds = []) {
+function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = []) {
   // Track
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
@@ -169,7 +173,7 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], threshold
   // Ticks (per-card XP)
   ctx.lineWidth = 2;
   ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  tickXs.forEach(tx => {
+  tickXs.forEach((tx) => {
     ctx.beginPath();
     ctx.moveTo(tx, y - 6);
     ctx.lineTo(tx, y + h + 6);
@@ -177,11 +181,10 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], threshold
   });
 
   // Label
-  const nextTierTotal = thresholds.find((threshold) => current < threshold) ?? total;
   ctx.font = 'bold 22px Sans';
-  ctx.fillStyle = '#2ad67b';
+  ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
-  ctx.fillText(`${current} / ${nextTierTotal}`, x + w / 2, y - 12);
+  ctx.fillText(`Progress: ${current} / ${total} XP`, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -199,7 +202,8 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
 
   // Number badge
   const badgeR = 20;
-  const bx = x + 18, by = y + 18;
+  const bx = x + 18;
+  const by = y + 18;
   ctx.beginPath(); ctx.arc(bx + badgeR, by + badgeR, badgeR, 0, Math.PI * 2);
   ctx.fillStyle = themeAccent; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -214,7 +218,7 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
   ctx.textAlign = 'left';
   ctx.fillText(`${card.xpReq} XP`, x + 18, y + 70);
 
-  // Item list container
+  // Item placeholder (dashed box)
   const boxW = CARD_W - 36;
   const boxH = 110;
   const boxX = x + 18;
@@ -229,7 +233,7 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
   // Placeholder icon (snowflake-ish star)
   ctx.save();
   ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
-  ctx.globalAlpha = 0.18;
+  ctx.globalAlpha = 0.28;
   ctx.strokeStyle = '#9fb3bf';
   ctx.lineWidth = 3;
   for (let i = 0; i < 6; i++) {
@@ -239,9 +243,10 @@ function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
     ctx.lineTo(0, 22);
     ctx.stroke();
   }
+  ctx.globalAlpha = 1;
   ctx.restore();
 
-  // Rewards list
+  // Item name + amount (supports optional rewards array)
   const rewards = Array.isArray(card.rewards) && card.rewards.length > 0
     ? card.rewards
     : [{ label: card.name, amount: card.amount }];
@@ -279,7 +284,10 @@ function drawTitle(ctx) {
   const sub = 'Seasonal Track • 1 Row • 5 Cards';
 
   // Ribbon
-  const rx = MARGIN, ry = 18, rw = BP_WIDTH - MARGIN * 2, rh = 56;
+  const rx = MARGIN;
+  const ry = 18;
+  const rw = BP_WIDTH - MARGIN * 2;
+  const rh = 56;
   dropShadow(ctx, () => {
     roundRect(ctx, rx, ry, rw, rh, 14);
     const g = ctx.createLinearGradient(rx, ry, rx + rw, ry);
@@ -312,7 +320,14 @@ function drawBackground(ctx) {
   drawCandyCaneBorder(ctx);
 
   // Soft vignette
-  const vignette = ctx.createRadialGradient(BP_WIDTH/2, BP_HEIGHT/2, Math.min(BP_WIDTH, BP_HEIGHT)/6, BP_WIDTH/2, BP_HEIGHT/2, BP_WIDTH/1.1);
+  const vignette = ctx.createRadialGradient(
+    BP_WIDTH / 2,
+    BP_HEIGHT / 2,
+    Math.min(BP_WIDTH, BP_HEIGHT) / 6,
+    BP_WIDTH / 2,
+    BP_HEIGHT / 2,
+    BP_WIDTH / 1.1,
+  );
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
   vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vignette;
@@ -336,14 +351,12 @@ function layoutTickPositions(items, x, w) {
   const total = items.reduce((a, b) => a + b.xpReq, 0);
   let acc = 0;
   const ticks = [];
-  const thresholds = [];
   for (let i = 0; i < items.length; i++) {
     acc += items[i].xpReq;
     const pct = total === 0 ? 0 : acc / total;
     ticks.push(x + Math.round(w * pct));
-    thresholds.push(acc);
   }
-  return { ticks, thresholds, totalXP: total };
+  return { ticks, totalXP: total };
 }
 
 async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
@@ -367,8 +380,8 @@ async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
   const pbY = rowY + CARD_H + 40;
   const pbH = 22;
 
-  const { ticks, thresholds, totalXP } = layoutTickPositions(items, pbX, pbW);
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks, thresholds);
+  const { ticks, totalXP } = layoutTickPositions(items, pbX, pbW);
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks);
 
   return canvas.toBuffer('image/png');
 }
