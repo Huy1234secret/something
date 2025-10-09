@@ -312,17 +312,41 @@ function drawBackground(ctx) {
   drawSnowOverlay(ctx, 180);
 }
 
-function layoutTickPositions(items, x, w) {
+function layoutTickPositions(items, x, w, scaleTotal) {
   // returns x positions along the progress bar for each item threshold
-  const total = items.reduce((a, b) => a + b.xpReq, 0);
+  const total = items.reduce((a, b) => a + Math.max(0, b.xpReq || 0), 0);
+  const effectiveTotal = Number.isFinite(scaleTotal) && scaleTotal > 0 ? scaleTotal : total;
+  if (effectiveTotal <= 0) return { ticks: [], totalXP: total };
   let acc = 0;
   const ticks = [];
   for (let i = 0; i < items.length; i++) {
-    acc += items[i].xpReq;
-    const pct = total === 0 ? 0 : acc / total;
+    acc += Math.max(0, items[i].xpReq || 0);
+    const pct = Math.max(0, Math.min(1, acc / effectiveTotal));
     ticks.push(x + Math.round(w * pct));
   }
   return { ticks, totalXP: total };
+}
+
+function resolveNextTierProgress(items, currentXP) {
+  let previousRequirement = 0;
+  let previousGap = 0;
+  for (let i = 0; i < items.length; i++) {
+    const requirement = Math.max(previousRequirement, Math.max(0, items[i].xpReq || 0));
+    const gap = Math.max(0, requirement - previousRequirement);
+    if (currentXP < requirement) {
+      const required = Math.max(1, gap);
+      const progress = Math.max(0, Math.min(currentXP - previousRequirement, required));
+      return { current: progress, required, nextThreshold: requirement };
+    }
+    previousRequirement = requirement;
+    previousGap = gap;
+  }
+  const required = Math.max(1, previousGap);
+  return {
+    current: required,
+    required,
+    nextThreshold: previousRequirement,
+  };
 }
 
 async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
@@ -346,8 +370,9 @@ async function renderBattlePass(items = DEMO_ITEMS, currentXP = CURRENT_XP) {
   const pbY = rowY + CARD_H + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(items, pbX, pbW);
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, currentXP, totalXP, ticks);
+  const progress = resolveNextTierProgress(items, currentXP);
+  const { ticks } = layoutTickPositions(items, pbX, pbW, progress.nextThreshold);
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progress.current, progress.required, ticks);
 
   return canvas.toBuffer('image/png');
 }

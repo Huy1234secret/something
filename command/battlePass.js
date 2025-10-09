@@ -722,14 +722,16 @@ function drawBackground(ctx) {
   drawSnowOverlay(ctx, 180);
 }
 
-function layoutTickPositions(items, x, w) {
+function layoutTickPositions(items, x, w, scaleTotal) {
   const total = items.reduce((sum, item) => sum + Math.max(0, item.xpReq || 0), 0);
-  if (total <= 0) return { ticks: [], totalXP: 0 };
+  const effectiveTotal = Number.isFinite(scaleTotal) && scaleTotal > 0 ? scaleTotal : total;
+  if (effectiveTotal <= 0) return { ticks: [], totalXP: total };
   const ticks = [];
   let acc = 0;
   items.forEach(item => {
     acc += Math.max(0, item.xpReq || 0);
-    ticks.push(x + Math.round((acc / total) * w));
+    const pct = clamp(acc / effectiveTotal, 0, 1);
+    ticks.push(x + Math.round(pct * w));
   });
   return { ticks, totalXP: total };
 }
@@ -821,9 +823,11 @@ async function renderBattlePassSummaryImage(state) {
 
   const firstLevel = cards[0].num;
   const lastLevel = cards[cards.length - 1].num;
-  const rangeStart = pointsForLevel(firstLevel - 1);
-  const totalRangeXP = cards.reduce((sum, card) => sum + Math.max(0, card.xpReq || 0), 0);
-  const relativeProgress = clamp(currentPoints - rangeStart, 0, totalRangeXP);
+  const prevThreshold = pointsForLevel(currentLevel - 1);
+  const nextLevel = Math.min(currentLevel + 1, TOTAL_LEVELS);
+  const nextThreshold = pointsForLevel(nextLevel);
+  const nextTierRequired = Math.max(0, nextThreshold - prevThreshold);
+  const progressWithinTier = clamp(currentPoints - prevThreshold, 0, nextTierRequired);
 
   drawBackground(ctx);
   drawTitle(ctx, currentLevel, currentPoints, cards);
@@ -840,11 +844,11 @@ async function renderBattlePassSummaryImage(state) {
   const pbY = rowY + SUMMARY_CARD_HEIGHT + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(cards, pbX, pbW);
-  const label = totalXP > 0
-    ? `Progress: ${formatNumber(relativeProgress)} / ${formatNumber(totalXP)}`
+  const { ticks } = layoutTickPositions(cards, pbX, pbW, nextTierRequired);
+  const label = nextTierRequired > 0
+    ? `Progress: ${formatNumber(progressWithinTier)} / ${formatNumber(nextTierRequired)}`
     : 'Progress';
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, relativeProgress, totalXP, ticks, label);
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progressWithinTier, nextTierRequired, ticks, label);
 
   ctx.font = 'bold 18px Sans';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
