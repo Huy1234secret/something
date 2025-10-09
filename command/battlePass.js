@@ -21,8 +21,29 @@ const { isChristmasEventActive } = require('../events');
 const { loadEmojiImage } = require('../imageCache');
 
 const TOTAL_LEVELS = 100;
-const POINTS_PER_LEVEL = 100;
-const TOTAL_POINTS_REQUIRED = TOTAL_LEVELS * POINTS_PER_LEVEL;
+const MIN_POINTS_PER_LEVEL = 100;
+const MAX_POINTS_PER_LEVEL = 5000;
+
+const LEVEL_POINT_DATA = buildLevelPointData();
+const POINTS_REQUIRED_PER_LEVEL = LEVEL_POINT_DATA.perLevel;
+const LEVEL_POINT_THRESHOLDS = LEVEL_POINT_DATA.thresholds;
+const TOTAL_POINTS_REQUIRED = LEVEL_POINT_DATA.total;
+
+function buildLevelPointData() {
+  const perLevel = [0];
+  const thresholds = [0];
+  let total = 0;
+  for (let level = 1; level <= TOTAL_LEVELS; level++) {
+    const progress = TOTAL_LEVELS > 1 ? (level - 1) / (TOTAL_LEVELS - 1) : 0;
+    const requirement = Math.round(
+      MIN_POINTS_PER_LEVEL + progress * (MAX_POINTS_PER_LEVEL - MIN_POINTS_PER_LEVEL),
+    );
+    perLevel[level] = requirement;
+    total += requirement;
+    thresholds[level] = total;
+  }
+  return { perLevel, thresholds, total };
+}
 
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
@@ -252,9 +273,28 @@ function getUserReward100Claim(userId) {
   const stage = REWARD100_STAGES.find(stageInfo => stageInfo.key === entry.stage) || null;
   return { ...entry, stage };
 }
+
+function pointsRequiredForLevel(level) {
+  if (level <= 0) return 0;
+  const cappedLevel = Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(level)));
+  return POINTS_REQUIRED_PER_LEVEL[cappedLevel] ?? 0;
+}
+
 function pointsForLevel(level) {
   if (level <= 0) return 0;
-  return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
+  const cappedLevel = Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(level)));
+  return LEVEL_POINT_THRESHOLDS[cappedLevel] ?? 0;
+}
+
+function levelForPoints(points) {
+  if (!Number.isFinite(points) || points <= 0) return 1;
+  const clampedPoints = Math.min(Math.floor(points), TOTAL_POINTS_REQUIRED);
+  for (let level = 1; level <= TOTAL_LEVELS; level++) {
+    if (clampedPoints < LEVEL_POINT_THRESHOLDS[level]) {
+      return level;
+    }
+  }
+  return TOTAL_LEVELS;
 }
 
 function rewardLabelForImage(reward) {
@@ -796,7 +836,7 @@ async function renderBattlePassSummaryImage(state) {
     cards = [
       {
         num: currentLevel,
-        xpReq: POINTS_PER_LEVEL,
+        xpReq: pointsRequiredForLevel(currentLevel),
         xpText: `Lv. ${currentLevel}`,
         name: 'Stay Frosty!',
         amount: 'Rewards incoming',
@@ -1829,12 +1869,16 @@ function resolveBattlePassInfo(stats) {
     .filter(Number.isFinite);
   let level = levelCandidates.length ? levelCandidates[levelCandidates.length - 1] : null;
   let points = pointsCandidates.length ? pointsCandidates[pointsCandidates.length - 1] : null;
-  if (level == null && points != null) level = Math.floor(points / POINTS_PER_LEVEL) + 1;
-  if (points == null && level != null) points = (level - 1) * POINTS_PER_LEVEL;
+  const hasLevelFromStats = levelCandidates.length > 0;
+  if (level == null && points != null) level = levelForPoints(points);
+  if (points == null && level != null) points = pointsForLevel(level - 1);
   level = Number.isFinite(level) ? Math.floor(level) : 1;
   level = Math.max(1, Math.min(TOTAL_LEVELS, level));
-  points = Number.isFinite(points) ? Math.floor(points) : (level - 1) * POINTS_PER_LEVEL;
+  points = Number.isFinite(points) ? Math.floor(points) : pointsForLevel(level - 1);
   points = Math.max(0, Math.min(TOTAL_POINTS_REQUIRED, points));
+  if (!hasLevelFromStats) {
+    level = levelForPoints(points);
+  }
   return { level, points };
 }
 
