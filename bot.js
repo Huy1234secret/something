@@ -38,6 +38,7 @@ const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
 const battlePassCommand = require('./command/battlePass');
+const purgeMessageCommand = require('./command/purgeMessage');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -583,6 +584,7 @@ client.on = function(event, listener) {
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
     battlePassCommand.setup(client, resources);
+    purgeMessageCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
