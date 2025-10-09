@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder,
   MessageFlags,
   ButtonStyle,
+  AttachmentBuilder,
 } = require('discord.js');
 const {
   ContainerBuilder,
@@ -11,7 +12,10 @@ const {
   ButtonBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
 } = require('@discordjs/builders');
+const { createCanvas } = require('canvas');
 const { formatNumber } = require('../utils');
 const { isChristmasEventActive } = require('../events');
 
@@ -36,6 +40,10 @@ const FROSTLIGHT_GARDEN_EMOJI = '<:SKFrostlightGarden:1425344951994159124>';
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 const ELF_HAT_EMOJI = '<:ITElfHat:1425752757112934440>';
 const CHRISTMAS_BATTLE_PASS_GIFT_EMOJI = '<:ITChristmasBattlePassGift:1425752835261337690>';
+
+const BATTLE_PASS_IMAGE_WIDTH = 900;
+const BATTLE_PASS_IMAGE_HEIGHT = 520;
+const BATTLE_PASS_IMAGE_NAME = 'battle-pass.png';
 
 const QUEST_TYPES = {
   hourly: 'Hourly Quests',
@@ -210,26 +218,175 @@ function pointsForLevel(level) {
   return Math.min(TOTAL_POINTS_REQUIRED, level * POINTS_PER_LEVEL);
 }
 
-function describeReward(reward) {
-  const prefix = `Lv. ${reward.level}`;
+function rewardLabelForImage(reward) {
   if (reward.type === 'coins') {
-    return `${prefix} — ${COIN_EMOJI} ${formatNumber(reward.amount)} Coins`;
+    return `${formatNumber(reward.amount)} Coins`;
   }
   if (reward.type === 'diamonds') {
-    return `${prefix} — ${DIAMOND_EMOJI} ${formatNumber(reward.amount)} Diamonds`;
+    return `${formatNumber(reward.amount)} Diamonds`;
   }
   if (reward.type === 'deluxeCoins') {
-    return `${prefix} — ${DELUXE_COIN_EMOJI} ${formatNumber(reward.amount)} Deluxe Coins`;
+    return `${formatNumber(reward.amount)} Deluxe Coins`;
   }
   if (reward.type === 'snowflakes') {
-    return `${prefix} — ${SNOWFLAKE_EMOJI} ${formatNumber(reward.amount)} Snowflakes`;
+    return `${formatNumber(reward.amount)} Snowflakes`;
   }
   if (reward.name && /Gift Card/.test(reward.name)) {
-    return `${prefix} — ${reward.name}`;
+    return reward.name;
   }
   const qty = reward.amount > 1 ? `x${formatNumber(reward.amount)} ` : '';
-  const emoji = reward.emoji ? `${reward.emoji} ` : '';
-  return `${prefix} — ${emoji}${qty}${reward.name}`.trim();
+  return `${qty}${reward.name}`.trim();
+}
+
+function drawRoundedRect(ctx, x, y, w, h, radius = 18) {
+  const r = Math.min(radius, Math.min(w, h) / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawPanel(ctx, x, y, w, h, { fill = 'rgba(17, 31, 43, 0.8)', stroke = 'rgba(255,255,255,0.08)' } = {}) {
+  drawRoundedRect(ctx, x, y, w, h, 26);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawProgressBarImage(ctx, x, y, w, h, progress, total) {
+  drawRoundedRect(ctx, x, y, w, h, h / 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.fill();
+  const pct = total <= 0 ? 1 : clamp(progress / total, 0, 1);
+  const fillWidth = Math.max(h, Math.round(w * pct));
+  drawRoundedRect(ctx, x, y, fillWidth, h, h / 2);
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0, '#2ad67b');
+  grad.addColorStop(1, '#20b35b');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function formatLevelRange(start, end) {
+  return start === end ? `Level ${start}` : `Levels ${start}-${end}`;
+}
+
+function renderBattlePassImage(state) {
+  const canvas = createCanvas(BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, BATTLE_PASS_IMAGE_HEIGHT);
+  gradient.addColorStop(0, '#06141f');
+  gradient.addColorStop(1, '#0e2a3b');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, BATTLE_PASS_IMAGE_WIDTH, BATTLE_PASS_IMAGE_HEIGHT);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 0; i < BATTLE_PASS_IMAGE_WIDTH; i += 40) {
+    ctx.fillRect(i, 0, 2, BATTLE_PASS_IMAGE_HEIGHT);
+  }
+
+  ctx.font = '700 36px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.fillText('Christmas Battle Pass', 40, 60);
+
+  const rewards = getBattlePassRewards();
+  const currentLevel = Math.min(state.currentLevel || 1, TOTAL_LEVELS);
+  const totalPoints = clamp(state.currentPoints || 0, 0, TOTAL_POINTS_REQUIRED);
+  const totalLine = `${formatNumber(totalPoints)} / ${formatNumber(TOTAL_POINTS_REQUIRED)} pts`;
+
+  const summaryBox = { x: 40, y: 80, w: BATTLE_PASS_IMAGE_WIDTH - 80, h: 150 };
+  drawPanel(ctx, summaryBox.x, summaryBox.y, summaryBox.w, summaryBox.h, {
+    fill: 'rgba(10, 24, 34, 0.82)',
+  });
+
+  ctx.fillStyle = '#b7c9d6';
+  ctx.font = '600 20px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillText(`Level ${currentLevel}`, summaryBox.x + 24, summaryBox.y + 46);
+  ctx.fillText(`Total Progress: ${totalLine}`, summaryBox.x + 24, summaryBox.y + 80);
+
+  if (currentLevel >= TOTAL_LEVELS) {
+    ctx.fillStyle = '#2ad67b';
+    ctx.font = '600 22px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillText('All rewards unlocked!', summaryBox.x + 24, summaryBox.y + 120);
+  } else {
+    const prevThreshold = pointsForLevel(currentLevel - 1);
+    const nextThreshold = pointsForLevel(currentLevel);
+    const progress = totalPoints - prevThreshold;
+    const needed = nextThreshold - prevThreshold;
+    const barX = summaryBox.x + 24;
+    const barY = summaryBox.y + summaryBox.h - 50;
+    const barW = summaryBox.w - 48;
+    const barH = 26;
+    drawProgressBarImage(ctx, barX, barY, barW, barH, progress, needed);
+    ctx.fillStyle = '#dff8e8';
+    ctx.font = '600 18px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${formatNumber(progress)} / ${formatNumber(needed)} pts to next level`, barX + barW / 2, barY - 12);
+    ctx.textAlign = 'left';
+  }
+
+  const upcomingStart = Math.max(0, currentLevel - 1);
+  const upcoming = rewards.slice(upcomingStart, upcomingStart + 5);
+  const pageStart = state.rewardPage * REWARD_PAGE_SIZE;
+  const pageRewards = rewards.slice(pageStart, pageStart + REWARD_PAGE_SIZE);
+  const pageStartLevel = pageRewards[0]?.level ?? pageStart + 1;
+  const pageEndLevel = pageRewards[pageRewards.length - 1]?.level ?? Math.min(pageStartLevel + REWARD_PAGE_SIZE - 1, TOTAL_LEVELS);
+
+  const upcomingBox = { x: 40, y: summaryBox.y + summaryBox.h + 24, w: (BATTLE_PASS_IMAGE_WIDTH - 120) / 2, h: 220 };
+  const pageBox = { x: upcomingBox.x + upcomingBox.w + 40, y: upcomingBox.y, w: upcomingBox.w, h: upcomingBox.h };
+
+  drawPanel(ctx, upcomingBox.x, upcomingBox.y, upcomingBox.w, upcomingBox.h);
+  drawPanel(ctx, pageBox.x, pageBox.y, pageBox.w, pageBox.h);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 24px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillText('Upcoming Rewards', upcomingBox.x + 24, upcomingBox.y + 40);
+  ctx.fillText(formatLevelRange(pageStartLevel, pageEndLevel), pageBox.x + 24, pageBox.y + 40);
+
+  ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
+  ctx.fillStyle = '#d9e4ec';
+  const upcomingLineHeight = 32;
+  upcoming.forEach((reward, index) => {
+    const textY = upcomingBox.y + 80 + index * upcomingLineHeight;
+    ctx.fillText(`Lv. ${reward.level}`, upcomingBox.x + 24, textY);
+    ctx.fillStyle = '#8fb9d4';
+    ctx.font = '400 16px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillText(rewardLabelForImage(reward), upcomingBox.x + 120, textY);
+    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#d9e4ec';
+  });
+  if (upcoming.length === 0) {
+    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#8fb9d4';
+    ctx.fillText('All rewards claimed', upcomingBox.x + 24, upcomingBox.y + 96);
+  }
+
+  const pageLineHeight = 32;
+  pageRewards.forEach((reward, index) => {
+    const textY = pageBox.y + 80 + index * pageLineHeight;
+    ctx.fillText(`Lv. ${reward.level}`, pageBox.x + 24, textY);
+    ctx.fillStyle = '#8fb9d4';
+    ctx.font = '400 16px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillText(rewardLabelForImage(reward), pageBox.x + 120, textY);
+    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#d9e4ec';
+  });
+  if (pageRewards.length === 0) {
+    ctx.font = '500 18px "Noto Sans", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#8fb9d4';
+    ctx.fillText('No rewards on this page', pageBox.x + 24, pageBox.y + 96);
+  }
+
+  return canvas.toBuffer('image/png');
 }
 
 function randomInt(min, max) {
@@ -277,7 +434,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 50, 150, 50, 150);
       const progress = randomProgress(required);
       return {
-        description: `Send ${formatNumber(required)} messages`,
+        description: `Send ${formatNumber(required)} messages in the server`,
         required,
         progress,
         points,
@@ -285,12 +442,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(20, 40);
       const points = interpolateReward(required, 20, 40, 50, 100);
       const progress = randomProgress(required);
       return {
-        description: `${action} ${formatNumber(required)} times`,
+        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -298,12 +454,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(10, 20);
       const points = interpolateReward(required, 10, 20, 50, 100);
       const progress = randomProgress(required);
       return {
-        description: `Successfully ${action.toLowerCase()} ${formatNumber(required)} times`,
+        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -311,12 +466,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(10, 20);
       const points = interpolateReward(required, 10, 20, 50, 100);
       const progress = randomProgress(required);
       return {
-        description: `Fail ${action.toLowerCase()} attempts ${formatNumber(required)} times`,
+        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -328,7 +482,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 1000, 10000, 10, 100);
       const progress = randomProgress(required);
       return {
-        description: `Earn ${formatNumber(required)} coins`,
+        description: `Earn ${formatNumber(required)} coins for your wallet`,
         required,
         progress,
         points,
@@ -351,7 +505,7 @@ const QUEST_BUILDERS = {
       const required = 1;
       const progress = randomProgress(required);
       return {
-        description: 'Successfully rob 1 time',
+        description: 'Successfully rob once',
         required,
         progress,
         points: 100,
@@ -365,7 +519,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 200, 400, 200, 400);
       const progress = randomProgress(required);
       return {
-        description: `Send ${formatNumber(required)} messages`,
+        description: `Send ${formatNumber(required)} messages in the server`,
         required,
         progress,
         points,
@@ -373,12 +527,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(50, 100);
       const points = interpolateReward(required, 50, 100, 125, 250);
       const progress = randomProgress(required);
       return {
-        description: `${action} ${formatNumber(required)} times`,
+        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -386,12 +539,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(30, 60);
       const points = interpolateReward(required, 30, 60, 150, 300);
       const progress = randomProgress(required);
       return {
-        description: `Successfully ${action.toLowerCase()} ${formatNumber(required)} times`,
+        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -399,12 +551,11 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = randomInt(30, 60);
       const points = interpolateReward(required, 30, 60, 150, 300);
       const progress = randomProgress(required);
       return {
-        description: `Fail ${action.toLowerCase()} attempts ${formatNumber(required)} times`,
+        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
         required,
         progress,
         points,
@@ -416,7 +567,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 10000, 100000, 100, 1000);
       const progress = randomProgress(required);
       return {
-        description: `Earn ${formatNumber(required)} coins`,
+        description: `Earn ${formatNumber(required)} coins for your wallet`,
         required,
         progress,
         points,
@@ -486,7 +637,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 5000, 50000, 100, 1000);
       const progress = randomProgress(required);
       return {
-        description: `Lose ${formatNumber(required)} coins`,
+        description: `Lose ${formatNumber(required)} coins from your wallet`,
         required,
         progress,
         points,
@@ -498,7 +649,7 @@ const QUEST_BUILDERS = {
       const points = interpolateReward(required, 2, 8, 200, 800);
       const progress = randomDecimalProgress(required);
       return {
-        description: `Stay in voice chat for ${required.toFixed(1)} hours total`,
+        description: `Stay in voice chat for ${required.toFixed(1)}h total`,
         required,
         progress,
         points,
@@ -569,7 +720,7 @@ const QUEST_BUILDERS = {
       const required = 50;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 50 Common animals',
+        description: `Hunt ${formatNumber(required)} common animals`,
         required,
         progress,
         points: 100,
@@ -580,7 +731,7 @@ const QUEST_BUILDERS = {
       const required = 35;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 35 Rare animals',
+        description: `Hunt ${formatNumber(required)} rare animals`,
         required,
         progress,
         points: 200,
@@ -591,7 +742,7 @@ const QUEST_BUILDERS = {
       const required = 25;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 25 Epic animals',
+        description: `Hunt ${formatNumber(required)} epic animals`,
         required,
         progress,
         points: 400,
@@ -602,7 +753,7 @@ const QUEST_BUILDERS = {
       const required = 10;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 10 Legendary animals',
+        description: `Hunt ${formatNumber(required)} legendary animals`,
         required,
         progress,
         points: 1000,
@@ -626,7 +777,7 @@ const QUEST_BUILDERS = {
       const required = 1000;
       const progress = randomProgress(required);
       return {
-        description: 'Send 1000 messages',
+        description: `Send ${formatNumber(required)} messages in the server`,
         required,
         progress,
         points: 4000,
@@ -634,11 +785,10 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = 400;
       const progress = randomProgress(required);
       return {
-        description: `${action} 400 times`,
+        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
         required,
         progress,
         points: 8000,
@@ -646,11 +796,10 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = 200;
       const progress = randomProgress(required);
       return {
-        description: `Successfully ${action.toLowerCase()} 200 times`,
+        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
         required,
         progress,
         points: 15000,
@@ -658,11 +807,10 @@ const QUEST_BUILDERS = {
       };
     },
     () => {
-      const action = ['Hunt', 'Dig', 'Beg'][randomInt(0, 2)];
       const required = 200;
       const progress = randomProgress(required);
       return {
-        description: `Fail ${action.toLowerCase()} attempts 200 times`,
+        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
         required,
         progress,
         points: 15000,
@@ -673,7 +821,7 @@ const QUEST_BUILDERS = {
       const required = 500000;
       const progress = randomProgress(required);
       return {
-        description: 'Earn 500k coins',
+        description: `Earn ${formatNumber(required)} coins for your wallet`,
         required,
         progress,
         points: 10000,
@@ -684,7 +832,7 @@ const QUEST_BUILDERS = {
       const required = 200;
       const progress = randomProgress(required);
       return {
-        description: 'Rob 200 times',
+        description: `Rob ${formatNumber(required)} times`,
         required,
         progress,
         points: 5000,
@@ -695,7 +843,7 @@ const QUEST_BUILDERS = {
       const required = 50;
       const progress = randomProgress(required);
       return {
-        description: 'Successfully rob 50 times',
+        description: `Successfully rob ${formatNumber(required)} times`,
         required,
         progress,
         points: 9000,
@@ -706,7 +854,7 @@ const QUEST_BUILDERS = {
       const required = 150;
       const progress = randomProgress(required);
       return {
-        description: 'Fail robbing 150 times',
+        description: `Fail robbing ${formatNumber(required)} times`,
         required,
         progress,
         points: 5000,
@@ -739,7 +887,7 @@ const QUEST_BUILDERS = {
       const required = 100000;
       const progress = randomProgress(required);
       return {
-        description: 'Lose 100k coins',
+        description: `Lose ${formatNumber(required)} coins from your wallet`,
         required,
         progress,
         points: 5000,
@@ -750,7 +898,7 @@ const QUEST_BUILDERS = {
       const required = 72;
       const progress = randomDecimalProgress(required);
       return {
-        description: 'Stay in voice chat for 3 days total',
+        description: `Stay in voice chat for ${required.toFixed(1)}h total`,
         required,
         progress,
         points: 9000,
@@ -783,7 +931,7 @@ const QUEST_BUILDERS = {
       const required = 100;
       const progress = randomProgress(required);
       return {
-        description: 'Harvest 100 potatoes',
+        description: `Harvest ${formatNumber(required)} potatoes`,
         required,
         progress,
         points: 12500,
@@ -794,7 +942,7 @@ const QUEST_BUILDERS = {
       const required = 50;
       const progress = randomProgress(required);
       return {
-        description: 'Harvest 50 white cabbages',
+        description: `Harvest ${formatNumber(required)} white cabbages`,
         required,
         progress,
         points: 15000,
@@ -805,7 +953,7 @@ const QUEST_BUILDERS = {
       const required = 40;
       const progress = randomProgress(required);
       return {
-        description: 'Harvest 40 pumpkins',
+        description: `Harvest ${formatNumber(required)} pumpkins`,
         required,
         progress,
         points: 20000,
@@ -816,7 +964,7 @@ const QUEST_BUILDERS = {
       const required = 20;
       const progress = randomProgress(required);
       return {
-        description: 'Harvest 20 melons',
+        description: `Harvest ${formatNumber(required)} melons`,
         required,
         progress,
         points: 30000,
@@ -827,7 +975,7 @@ const QUEST_BUILDERS = {
       const required = 10;
       const progress = randomProgress(required);
       return {
-        description: 'Harvest 10 star fruits',
+        description: `Harvest ${formatNumber(required)} star fruits`,
         required,
         progress,
         points: 50000,
@@ -838,7 +986,7 @@ const QUEST_BUILDERS = {
       const required = 300;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 300 Common animals',
+        description: `Hunt ${formatNumber(required)} common animals`,
         required,
         progress,
         points: 5000,
@@ -849,7 +997,7 @@ const QUEST_BUILDERS = {
       const required = 200;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 200 Rare animals',
+        description: `Hunt ${formatNumber(required)} rare animals`,
         required,
         progress,
         points: 6000,
@@ -860,7 +1008,7 @@ const QUEST_BUILDERS = {
       const required = 100;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 100 Epic animals',
+        description: `Hunt ${formatNumber(required)} epic animals`,
         required,
         progress,
         points: 7500,
@@ -871,7 +1019,7 @@ const QUEST_BUILDERS = {
       const required = 50;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 50 Legendary animals',
+        description: `Hunt ${formatNumber(required)} legendary animals`,
         required,
         progress,
         points: 9000,
@@ -882,7 +1030,7 @@ const QUEST_BUILDERS = {
       const required = 20;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 20 Mythical animals',
+        description: `Hunt ${formatNumber(required)} mythical animals`,
         required,
         progress,
         points: 14500,
@@ -893,7 +1041,7 @@ const QUEST_BUILDERS = {
       const required = 5;
       const progress = randomProgress(required);
       return {
-        description: 'Hunt 5 Godly animals',
+        description: `Hunt ${formatNumber(required)} godly animals`,
         required,
         progress,
         points: 20000,
@@ -1030,45 +1178,6 @@ function buildQuestContainer(state, type) {
   container.addActionRowComponents(new ActionRowBuilder().addComponents(rerollButton, backButton));
   return container;
 }
-function formatBattlePassSummary(state) {
-  const currentLevel = state.currentLevel;
-  const totalPoints = state.currentPoints;
-  const totalLine = `${formatNumber(totalPoints)} / ${formatNumber(TOTAL_POINTS_REQUIRED)} Pts total`;
-  if (currentLevel >= TOTAL_LEVELS) {
-    return `## Christmas Battle Pass\n-# Level ${TOTAL_LEVELS} • ${totalLine}\n-# All rewards unlocked`;
-  }
-  const prevThreshold = pointsForLevel(currentLevel - 1);
-  const nextThreshold = pointsForLevel(currentLevel);
-  const progress = totalPoints - prevThreshold;
-  const needed = nextThreshold - prevThreshold;
-  return `## Christmas Battle Pass\n-# Level ${currentLevel} • ${totalLine}\n-# Progress to next: ${formatNumber(progress)} / ${formatNumber(needed)} Pts`;
-}
-
-function formatUpcomingRewards(state) {
-  const rewards = getBattlePassRewards();
-  const startIndex = Math.max(0, state.currentLevel - 1);
-  const upcoming = rewards.slice(startIndex, startIndex + 5);
-  if (upcoming.length === 0) {
-    return '### Upcoming Rewards\n-# All rewards claimed';
-  }
-  const lines = upcoming.map(reward => `-# ${describeReward(reward)}`);
-  return `### Upcoming Rewards\n${lines.join('\n')}`;
-}
-
-function formatRewardPage(state) {
-  const rewards = getBattlePassRewards();
-  const start = state.rewardPage * REWARD_PAGE_SIZE;
-  const end = start + REWARD_PAGE_SIZE;
-  const slice = rewards.slice(start, end);
-  const startLevel = slice.length > 0 ? slice[0].level : start + 1;
-  const endLevel = slice.length > 0 ? slice[slice.length - 1].level : Math.min(startLevel + REWARD_PAGE_SIZE - 1, TOTAL_LEVELS);
-  if (slice.length === 0) {
-    return `### Levels ${startLevel}-${endLevel}\n-# No rewards on this page`;
-  }
-  const lines = slice.map(reward => `-# ${describeReward(reward)}`);
-  return `### Levels ${startLevel}-${endLevel}\n${lines.join('\n')}`;
-}
-
 function buildRewardPageSelect(state) {
   const rewards = getBattlePassRewards();
   const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
@@ -1090,15 +1199,22 @@ function buildRewardPageSelect(state) {
   return select;
 }
 
-function buildBattlePassContainer(state) {
+async function buildBattlePassContainer(state) {
   state.canClaimReward100 = canClaimReward100(state.userId);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatBattlePassSummary(state)));
-  container.addSeparatorComponents(new SeparatorBuilder());
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatUpcomingRewards(state)));
-  container.addSeparatorComponents(new SeparatorBuilder());
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatRewardPage(state)));
-
+  let attachment = null;
+  try {
+    const buffer = renderBattlePassImage(state);
+    attachment = new AttachmentBuilder(buffer, { name: BATTLE_PASS_IMAGE_NAME });
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder().setURL(`attachment://${BATTLE_PASS_IMAGE_NAME}`),
+      ),
+    );
+    container.addSeparatorComponents(new SeparatorBuilder());
+  } catch (error) {
+    console.warn('Failed to render battle pass image:', error.message);
+  }
   const rewardRow = new ActionRowBuilder().addComponents(buildRewardPageSelect(state));
   container.addActionRowComponents(rewardRow);
 
@@ -1112,7 +1228,7 @@ function buildBattlePassContainer(state) {
     .setLabel('Quests')
     .setStyle(ButtonStyle.Primary);
   container.addActionRowComponents(new ActionRowBuilder().addComponents(claimButton, questButton));
-  return container;
+  return { container, attachment };
 }
 
 function resolveBattlePassInfo(stats) {
@@ -1175,11 +1291,21 @@ function buildRerollPrompt(type) {
   const row = new ActionRowBuilder().addComponents(yesButton, noButton);
   return { content, components: [row], flags: MessageFlags.Ephemeral };
 }
-function renderState(state) {
+async function renderState(state) {
   if (state.view === 'quests') {
-    return [buildQuestContainer(state, state.activeQuestType)];
+    return {
+      components: [buildQuestContainer(state, state.activeQuestType)],
+      attachments: [],
+    };
   }
-  return [buildBattlePassContainer(state)];
+  const { container, attachment } = await buildBattlePassContainer(state);
+  const response = { components: [container] };
+  if (attachment) {
+    response.files = [attachment];
+  } else {
+    response.attachments = [];
+  }
+  return response;
 }
 
 async function updateMainMessage(client, state) {
@@ -1188,7 +1314,8 @@ async function updateMainMessage(client, state) {
     const channel = await client.channels.fetch(state.channelId);
     if (!channel || typeof channel.isTextBased !== 'function' || !channel.isTextBased()) return;
     const message = await channel.messages.fetch(state.messageId);
-    await message.edit({ components: renderState(state) });
+    const view = await renderState(state);
+    await message.edit(view);
   } catch (err) {
     console.warn('Failed to update battle pass message:', err.message);
   }
@@ -1222,8 +1349,8 @@ async function handleSlashCommand(interaction) {
 
   await interaction.deferReply({ flags: MessageFlags.IsComponentsV2 });
   const state = createBattlePassState(interaction.user.id);
-  const components = renderState(state);
-  const message = await interaction.editReply({ components, flags: MessageFlags.IsComponentsV2 });
+  const view = await renderState(state);
+  const message = await interaction.editReply({ ...view, flags: MessageFlags.IsComponentsV2 });
   state.messageId = message.id;
   state.channelId = message.channelId;
   states.set(message.id, state);
@@ -1386,12 +1513,14 @@ function setup(client, resources) {
         if (action === 'quests') {
           state.view = 'quests';
           if (!state.activeQuestType) state.activeQuestType = 'hourly';
-          await interaction.update({ components: renderState(state) });
+          const view = await renderState(state);
+          await interaction.update(view);
           return;
         }
         if (action === 'back') {
           state.view = 'battle-pass';
-          await interaction.update({ components: renderState(state) });
+          const view = await renderState(state);
+          await interaction.update(view);
           return;
         }
         if (action === 'reroll') {
@@ -1441,7 +1570,8 @@ function setup(client, resources) {
             state.rewardPage = clamp(page, 0, Math.max(0, totalPages - 1));
           }
           state.view = 'battle-pass';
-          await interaction.update({ components: renderState(state) });
+          const view = await renderState(state);
+          await interaction.update(view);
           return;
         }
         if (action === 'questType') {
@@ -1450,7 +1580,8 @@ function setup(client, resources) {
             state.activeQuestType = value;
           }
           state.view = 'quests';
-          await interaction.update({ components: renderState(state) });
+          const view = await renderState(state);
+          await interaction.update(view);
           return;
         }
       }
