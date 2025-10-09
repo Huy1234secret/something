@@ -23,6 +23,7 @@ const { loadEmojiImage } = require('../imageCache');
 const TOTAL_LEVELS = 100;
 const MIN_POINTS_PER_LEVEL = 100;
 const MAX_POINTS_PER_LEVEL = 5000;
+const POINT_ROUNDING_STEP = 25;
 
 const LEVEL_POINT_DATA = buildLevelPointData();
 const POINTS_REQUIRED_PER_LEVEL = LEVEL_POINT_DATA.perLevel;
@@ -35,8 +36,12 @@ function buildLevelPointData() {
   let total = 0;
   for (let level = 1; level <= TOTAL_LEVELS; level++) {
     const progress = TOTAL_LEVELS > 1 ? (level - 1) / (TOTAL_LEVELS - 1) : 0;
-    const requirement = Math.round(
-      MIN_POINTS_PER_LEVEL + progress * (MAX_POINTS_PER_LEVEL - MIN_POINTS_PER_LEVEL),
+    const baseRequirement =
+      MIN_POINTS_PER_LEVEL + progress * (MAX_POINTS_PER_LEVEL - MIN_POINTS_PER_LEVEL);
+    const roundedRequirement = Math.round(baseRequirement / POINT_ROUNDING_STEP) * POINT_ROUNDING_STEP;
+    const requirement = Math.max(
+      MIN_POINTS_PER_LEVEL,
+      Math.min(MAX_POINTS_PER_LEVEL, roundedRequirement),
     );
     perLevel[level] = requirement;
     total += requirement;
@@ -1819,20 +1824,35 @@ async function buildBattlePassContainer(state) {
   await ensureRewardClaimed(state);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   const attachments = [];
+  const gallery = new MediaGalleryBuilder();
+  let hasGalleryItems = false;
   try {
     const summaryBuffer = await renderBattlePassSummaryImage(state);
     const summaryName = BATTLE_PASS_SUMMARY_IMAGE_NAME;
     const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
     attachments.push(summaryAttachment);
-
-    const gallery = new MediaGalleryBuilder();
-
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
-
-    container.addMediaGalleryComponents(gallery);
-    container.addSeparatorComponents(new SeparatorBuilder());
+    hasGalleryItems = true;
   } catch (error) {
     console.warn('Failed to render battle pass image:', error.message);
+  }
+
+  try {
+    const rewardImage = renderBattlePassRewardImage(state.rewardPage);
+    if (rewardImage) {
+      const rewardAttachment = new AttachmentBuilder(rewardImage.buffer, { name: rewardImage.name });
+      attachments.push(rewardAttachment);
+      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${rewardImage.name}`));
+      hasGalleryItems = true;
+      state.rewardPage = rewardImage.pageIndex;
+    }
+  } catch (error) {
+    console.warn('Failed to render battle pass rewards image:', error.message);
+  }
+
+  if (hasGalleryItems) {
+    container.addMediaGalleryComponents(gallery);
+    container.addSeparatorComponents(new SeparatorBuilder());
   }
   const rewardLines = ['### Level 100 Reward'];
   if (state.level100Claim?.stage) {
@@ -1851,6 +1871,33 @@ async function buildBattlePassContainer(state) {
   }
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(rewardLines.join('\n')));
   container.addSeparatorComponents(new SeparatorBuilder());
+
+  const rewards = getBattlePassRewards();
+  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
+  const safePage = clamp(state.rewardPage, 0, Math.max(0, totalPages - 1));
+  state.rewardPage = safePage;
+  const startIndex = safePage * REWARD_PAGE_SIZE;
+  const pageRewards = rewards.slice(startIndex, startIndex + REWARD_PAGE_SIZE);
+  const startLevel = pageRewards[0]?.level ?? startIndex + 1;
+  const endLevel = pageRewards[pageRewards.length - 1]?.level ?? startLevel;
+  const pageLines = [`### Tier ${startLevel} - ${endLevel}`];
+  if (pageRewards.length === 0) {
+    pageLines.push('Rewards coming soon.');
+  } else {
+    pageRewards.forEach(reward => {
+      const emoji = rewardEmojiForImage(reward);
+      const label = rewardLabelForImage(reward);
+      pageLines.push(`${emoji} Lv. ${reward.level}: ${label}`);
+    });
+  }
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(pageLines.join('\n')));
+  container.addSeparatorComponents(new SeparatorBuilder());
+
+  if (totalPages > 0) {
+    const pageSelect = buildRewardPageSelect(state);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(pageSelect));
+    container.addSeparatorComponents(new SeparatorBuilder());
+  }
 
   const questButton = new ButtonBuilder()
     .setCustomId('bp:quests')
