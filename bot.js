@@ -44,6 +44,7 @@ const { setupErrorHandling } = require('./errorHandler');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'user_data.json');
+const OLD_DATA_FILE = path.join(__dirname, 'user_data.json');
 const DATA_TEMPLATE = path.join(__dirname, 'user_data.template.json');
 const MAX_BACKUPS = 5;
 
@@ -58,9 +59,31 @@ function createDefaultData() {
   };
 }
 
+function migrateLegacyDataFile() {
+  if (!fs.existsSync(OLD_DATA_FILE)) return false;
+  try {
+    fs.renameSync(OLD_DATA_FILE, DATA_FILE);
+    return true;
+  } catch (err) {
+    try {
+      fs.copyFileSync(OLD_DATA_FILE, DATA_FILE);
+      try {
+        fs.unlinkSync(OLD_DATA_FILE);
+      } catch (unlinkErr) {
+        console.warn('Failed to remove legacy user data file after copy:', unlinkErr.message);
+      }
+      return true;
+    } catch (copyErr) {
+      console.warn('Failed to migrate existing user data:', copyErr.message);
+    }
+  }
+  return false;
+}
+
 function ensureDataStorage() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (fs.existsSync(DATA_FILE)) return;
+  if (migrateLegacyDataFile()) return;
   if (fs.existsSync(DATA_TEMPLATE)) {
     fs.copyFileSync(DATA_TEMPLATE, DATA_FILE);
     return;
