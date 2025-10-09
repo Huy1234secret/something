@@ -219,20 +219,22 @@ function banHammerEmbed(user, targetId) {
     );
 }
 
-function xpSodaEmbed(user, used, amountLeft, expiresAt) {
+function xpSodaEmbed(actor, target, used, amountLeft, expiresAt) {
   const btn = new ButtonBuilder()
     .setCustomId('xpsoda-left')
     .setLabel(`You have ×${amountLeft} XP Soda left!`)
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(true);
   applyComponentEmoji(btn, ITEMS.XPSoda.emoji);
+  const description =
+    target.id === actor.id
+      ? `Hey ${target}, you have used **×${used} XP Soda ${ITEMS.XPSoda.emoji}**, your XP will be doubled for <t:${Math.floor(expiresAt / 1000)}:R>!`
+      : `Hey ${target}, ${actor} used **×${used} XP Soda ${ITEMS.XPSoda.emoji}** on you! Your XP will be doubled for <t:${Math.floor(expiresAt / 1000)}:R>.`;
   return new ContainerBuilder()
     .setAccentColor(RARITY_COLORS[ITEMS.XPSoda.rarity])
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent('## XP BOOSTED'),
-      new TextDisplayBuilder().setContent(
-        `Hey ${user}, you have used **×${used} XP Soda ${ITEMS.XPSoda.emoji}**, your XP will be doubled for <t:${Math.floor(expiresAt / 1000)}:R>!`
-      )
+      new TextDisplayBuilder().setContent(description),
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(new ActionRowBuilder().addComponents(btn));
@@ -348,7 +350,8 @@ function useLandmine(user, resources) {
   return { component: landmineEmbed(user, remaining, expires) };
 }
 
-function useXPSoda(user, amount, resources) {
+function useXPSoda(user, amount, resources, options = {}) {
+  const target = options.target || user;
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
   normalizeInventory(stats);
@@ -361,12 +364,14 @@ function useXPSoda(user, amount, resources) {
   const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
-  const base = Math.max(Date.now(), stats.xp_boost_until || 0);
+  const targetStats = resources.userStats[target.id] || {};
+  const base = Math.max(Date.now(), targetStats.xp_boost_until || 0);
   const expires = base + 6 * 60 * 60 * 1000 * amount;
-  stats.xp_boost_until = expires;
+  targetStats.xp_boost_until = expires;
   resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
   resources.saveData();
-  return { component: xpSodaEmbed(user, amount, remaining, expires) };
+  return { component: xpSodaEmbed(user, target, amount, remaining, expires) };
 }
 
 function useChristmasBattlePassGift(user, amount, resources) {
@@ -491,7 +496,8 @@ function useBanHammer(user, targetId, resources) {
   return { component: banHammerEmbed(user, targetId) };
 }
 
-async function useCandyCane(user, amount, resources) {
+async function useCandyCane(user, amount, resources, options = {}) {
+  const target = options.target || user;
   const item = ITEMS.CandyCane;
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
@@ -504,10 +510,12 @@ async function useCandyCane(user, amount, resources) {
   const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
-  ensureChatStats(stats);
-  const prevLevel = stats.level;
-  const prevTotalXp = stats.total_xp;
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  ensureChatStats(targetStats);
+  const prevLevel = targetStats.level;
+  const prevTotalXp = targetStats.total_xp;
   resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
 
   const INSTANT_LEVEL_CHANCE = 0.02;
   let instantLevels = 0;
@@ -519,12 +527,12 @@ async function useCandyCane(user, amount, resources) {
 
   const xpGain = 2500 * xpConsumptions;
   if (xpGain > 0) {
-    await resources.addXp(user, xpGain, resources.client);
+    await resources.addXp(target, xpGain, resources.client);
   }
 
   let bonusLevels = 0;
   let boostRestored = false;
-  let activeStats = resources.userStats[user.id] || stats;
+  let activeStats = resources.userStats[target.id] || targetStats;
   ensureChatStats(activeStats);
   for (let i = 0; i < instantLevels; i += 1) {
     if (activeStats.level >= MAX_LEVEL) break;
@@ -532,8 +540,8 @@ async function useCandyCane(user, amount, resources) {
     const originalBoost = activeStats.xp_boost_until;
     const boostActive = originalBoost && originalBoost > Date.now();
     if (boostActive) activeStats.xp_boost_until = 0;
-    await resources.addXp(user, needed, resources.client);
-    activeStats = resources.userStats[user.id] || activeStats;
+    await resources.addXp(target, needed, resources.client);
+    activeStats = resources.userStats[target.id] || activeStats;
     if (boostActive) {
       activeStats.xp_boost_until = originalBoost;
       boostRestored = true;
@@ -543,11 +551,15 @@ async function useCandyCane(user, amount, resources) {
   }
   if (boostRestored) resources.saveData();
 
-  const updated = resources.userStats[user.id] || activeStats;
+  const updated = resources.userStats[target.id] || activeStats;
   const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
   const levelsGained = (updated.level || 0) - prevLevel;
+  const actionLine =
+    target.id === user.id
+      ? `${user} munched ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`
+      : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
-    `${user} munched ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    actionLine,
     `-# XP gained: ${formatNumber(totalXpGained)}`,
     `-# Levels gained: ${levelsGained}`,
   ];
@@ -563,7 +575,8 @@ async function useCandyCane(user, amount, resources) {
   return { component: container };
 }
 
-async function useCookie(user, amount, resources) {
+async function useCookie(user, amount, resources, options = {}) {
+  const target = options.target || user;
   const item = ITEMS.Cookie;
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
@@ -576,19 +589,25 @@ async function useCookie(user, amount, resources) {
   const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
-  ensureChatStats(stats);
-  const prevLevel = stats.level;
-  const prevTotalXp = stats.total_xp;
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  ensureChatStats(targetStats);
+  const prevLevel = targetStats.level;
+  const prevTotalXp = targetStats.total_xp;
   resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
 
   const xpGain = 100 * amount;
-  await resources.addXp(user, xpGain, resources.client);
+  await resources.addXp(target, xpGain, resources.client);
 
-  const updated = resources.userStats[user.id] || stats;
+  const updated = resources.userStats[target.id] || targetStats;
   const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
   const levelsGained = (updated.level || 0) - prevLevel;
+  const actionLine =
+    target.id === user.id
+      ? `${user} enjoyed ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`
+      : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
-    `${user} enjoyed ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    actionLine,
     `-# XP gained: ${formatNumber(totalXpGained)}`,
     `-# Levels gained: ${levelsGained}`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
@@ -601,7 +620,8 @@ async function useCookie(user, amount, resources) {
   return { component: container };
 }
 
-function useCupOfMilk(user, amount, resources) {
+function useCupOfMilk(user, amount, resources, options = {}) {
+  const target = options.target || user;
   const item = ITEMS.CupOfMilk;
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
@@ -616,14 +636,20 @@ function useCupOfMilk(user, amount, resources) {
   normalizeInventory(stats);
 
   const durationMs = 30 * 60 * 1000;
-  addCooldownBuff(stats, 0.1 * amount, durationMs);
+  const targetStats = resources.userStats[target.id] || {};
+  addCooldownBuff(targetStats, 0.1 * amount, durationMs);
   resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
   resources.saveData();
 
-  const reduction = Math.max(0, 1 - getCooldownMultiplier(stats));
+  const reduction = Math.max(0, 1 - getCooldownMultiplier(targetStats));
   const expiresAt = Date.now() + durationMs;
+  const actionLine =
+    target.id === user.id
+      ? `${user} drank ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`
+      : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
-    `${user} drank ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    actionLine,
     `-# Cooldown reduction now: ${(reduction * 100).toFixed(1)}%`,
     `-# Buff expires <t:${Math.floor(expiresAt / 1000)}:R>`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
@@ -636,7 +662,8 @@ function useCupOfMilk(user, amount, resources) {
   return { component: container };
 }
 
-async function useGingerbreadMan(user, amount, resources) {
+async function useGingerbreadMan(user, amount, resources, options = {}) {
+  const target = options.target || user;
   const item = ITEMS.GingerbreadMan;
   const stats = resources.userStats[user.id] || { inventory: [] };
   stats.inventory = stats.inventory || [];
@@ -649,10 +676,12 @@ async function useGingerbreadMan(user, amount, resources) {
   const remaining = entry.amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
-  ensureChatStats(stats);
-  const prevLevel = stats.level;
-  const prevTotalXp = stats.total_xp;
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  ensureChatStats(targetStats);
+  const prevLevel = targetStats.level;
+  const prevTotalXp = targetStats.total_xp;
   resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
 
   let totalLevels = 0;
   let surgeActivations = 0;
@@ -665,7 +694,7 @@ async function useGingerbreadMan(user, amount, resources) {
   }
 
   let boostRestored = false;
-  let activeStats = resources.userStats[user.id] || stats;
+  let activeStats = resources.userStats[target.id] || targetStats;
   ensureChatStats(activeStats);
   for (let i = 0; i < totalLevels; i += 1) {
     if (activeStats.level >= MAX_LEVEL) break;
@@ -673,8 +702,8 @@ async function useGingerbreadMan(user, amount, resources) {
     const originalBoost = activeStats.xp_boost_until;
     const boostActive = originalBoost && originalBoost > Date.now();
     if (boostActive) activeStats.xp_boost_until = 0;
-    await resources.addXp(user, needed, resources.client);
-    activeStats = resources.userStats[user.id] || activeStats;
+    await resources.addXp(target, needed, resources.client);
+    activeStats = resources.userStats[target.id] || activeStats;
     if (boostActive) {
       activeStats.xp_boost_until = originalBoost;
       boostRestored = true;
@@ -683,11 +712,15 @@ async function useGingerbreadMan(user, amount, resources) {
   }
   if (boostRestored) resources.saveData();
 
-  const updated = resources.userStats[user.id] || activeStats;
+  const updated = resources.userStats[target.id] || activeStats;
   const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
   const levelsGained = (updated.level || 0) - prevLevel;
+  const actionLine =
+    target.id === user.id
+      ? `${user} devoured ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`
+      : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
-    `${user} devoured ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    actionLine,
     `-# XP gained: ${formatNumber(totalXpGained)}`,
     `-# Levels gained: ${levelsGained}`,
   ];
@@ -864,7 +897,8 @@ async function useNaughtyList(user, amount, resources, options = {}) {
 const ITEM_USE_HANDLERS = {
   Padlock: (user, amount, resources) => usePadlock(user, resources),
   Landmine: (user, amount, resources) => useLandmine(user, resources),
-  XPSoda: (user, amount, resources) => useXPSoda(user, amount, resources),
+  XPSoda: (user, amount, resources, options) =>
+    useXPSoda(user, amount, resources, options),
   DiamondBag: (user, amount, resources) =>
     useDiamondItem(user, 'DiamondBag', amount, 10000, resources),
   DiamondCrate: (user, amount, resources) =>
@@ -1118,7 +1152,11 @@ function setup(client, resources) {
         .setAutocomplete(true),
     )
     .addIntegerOption(opt => opt.setName('amount').setDescription('Amount').setMinValue(1))
-    .addUserOption(opt => opt.setName('target').setDescription('Target user'));
+    .addUserOption(opt =>
+      opt
+        .setName('user')
+        .setDescription('User to apply the item to (defaults to yourself)'),
+    );
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
@@ -1155,7 +1193,7 @@ function setup(client, resources) {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
       const itemId = interaction.options.getString('item');
       const amount = interaction.options.getInteger('amount') || 1;
-      const target = interaction.options.getUser('target') || null;
+      const target = interaction.options.getUser('user') || null;
       if (itemId === 'BanHammer') {
         const modal = new ModalBuilder()
           .setCustomId(`banhammer-modal-${interaction.user.id}`)
