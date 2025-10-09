@@ -102,6 +102,7 @@ const QUEST_ACTIONS = [
 ];
 
 const REWARD_PAGE_SIZE = 5;
+const TOTAL_REWARD_PAGES = Math.ceil(TOTAL_LEVELS / REWARD_PAGE_SIZE);
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
 const BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID = '1372572234949853367';
@@ -1830,22 +1831,17 @@ function buildQuestContainer(state, type) {
   return container;
 }
 function buildRewardPageSelect(state) {
-  const rewards = getBattlePassRewards();
-  const totalPages = Math.ceil(rewards.length / REWARD_PAGE_SIZE);
   const select = new StringSelectMenuBuilder()
     .setCustomId('bp:page')
     .setPlaceholder('Page');
-  for (let i = 0; i < totalPages; i++) {
-    const startIndex = i * REWARD_PAGE_SIZE;
-    const slice = rewards.slice(startIndex, startIndex + REWARD_PAGE_SIZE);
-    const startLevel = slice.length > 0 ? slice[0].level : startIndex + 1;
-    const endLevel = slice.length > 0 ? slice[slice.length - 1].level : startLevel + REWARD_PAGE_SIZE - 1;
-    select.addOptions(
-      new StringSelectMenuOptionBuilder()
-        .setLabel(`${startLevel} - ${endLevel}`)
-        .setValue(String(i))
-        .setDefault(i === state.rewardPage),
-    );
+  for (let i = 0; i < TOTAL_REWARD_PAGES; i++) {
+    const startLevel = i * REWARD_PAGE_SIZE + 1;
+    const endLevel = Math.min((i + 1) * REWARD_PAGE_SIZE, TOTAL_LEVELS);
+    const option = new StringSelectMenuOptionBuilder()
+      .setLabel(`${startLevel} - ${endLevel}`)
+      .setValue(String(i))
+      .setDefault(i === state.rewardPage);
+    select.addOptions(option);
   }
   return select;
 }
@@ -1854,20 +1850,41 @@ async function buildBattlePassContainer(state) {
   await ensureRewardClaimed(state);
   const container = new ContainerBuilder().setAccentColor(0xd01e2e);
   const attachments = [];
+  const gallery = new MediaGalleryBuilder();
+  let hasMedia = false;
   try {
     const summaryBuffer = await renderBattlePassSummaryImage(state);
     const summaryName = BATTLE_PASS_SUMMARY_IMAGE_NAME;
     const summaryAttachment = new AttachmentBuilder(summaryBuffer, { name: summaryName });
     attachments.push(summaryAttachment);
-
-    const gallery = new MediaGalleryBuilder();
-
     gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${summaryName}`));
-
-    container.addMediaGalleryComponents(gallery);
-    container.addSeparatorComponents(new SeparatorBuilder());
+    hasMedia = true;
   } catch (error) {
     console.warn('Failed to render battle pass image:', error.message);
+  }
+
+  try {
+    const rewardImage = renderBattlePassRewardImage(state.rewardPage ?? 0);
+    if (rewardImage) {
+      const rewardAttachment = new AttachmentBuilder(rewardImage.buffer, { name: rewardImage.name });
+      attachments.push(rewardAttachment);
+      gallery.addItems(new MediaGalleryItemBuilder().setURL(`attachment://${rewardImage.name}`));
+      state.rewardPage = rewardImage.pageIndex;
+      hasMedia = true;
+    }
+  } catch (error) {
+    console.warn('Failed to render battle pass rewards image:', error.message);
+  }
+
+  if (hasMedia) {
+    container.addMediaGalleryComponents(gallery);
+    container.addSeparatorComponents(new SeparatorBuilder());
+  }
+
+  if (TOTAL_REWARD_PAGES > 0) {
+    const select = buildRewardPageSelect(state);
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+    container.addSeparatorComponents(new SeparatorBuilder());
   }
   const rewardLines = ['### Level 100 Reward'];
   if (state.level100Claim?.stage) {
