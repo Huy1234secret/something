@@ -286,24 +286,28 @@ function useBanHammer(user, targetId, resources) {
   return { component: banHammerEmbed(user, targetId) };
 }
 
+const ITEM_USE_HANDLERS = {
+  Padlock: (user, amount, resources) => usePadlock(user, resources),
+  Landmine: (user, amount, resources) => useLandmine(user, resources),
+  XPSoda: (user, amount, resources) => useXPSoda(user, amount, resources),
+  DiamondBag: (user, amount, resources) =>
+    useDiamondItem(user, 'DiamondBag', amount, 10000, resources),
+  DiamondCrate: (user, amount, resources) =>
+    useDiamondItem(user, 'DiamondCrate', amount, 135000, resources),
+  DiamondChest: (user, amount, resources) =>
+    useDiamondItem(user, 'DiamondChest', amount, 980000, resources),
+  BulletBox: (user, amount, resources) => useBulletBox(user, amount, resources),
+  AnimalDetector: (user, amount, resources) =>
+    useAnimalDetector(user, amount, resources),
+};
+
+const USEABLE_ITEM_IDS = new Set([...Object.keys(ITEM_USE_HANDLERS), 'BanHammer']);
+
 async function handleUseItem(user, itemId, amount, send, resources) {
   let result;
-  if (itemId === 'Padlock') {
-    result = usePadlock(user, resources);
-  } else if (itemId === 'Landmine') {
-    result = useLandmine(user, resources);
-  } else if (itemId === 'XPSoda') {
-    result = useXPSoda(user, amount, resources);
-  } else if (itemId === 'DiamondBag') {
-    result = useDiamondItem(user, 'DiamondBag', amount, 10000, resources);
-  } else if (itemId === 'DiamondCrate') {
-    result = useDiamondItem(user, 'DiamondCrate', amount, 135000, resources);
-  } else if (itemId === 'DiamondChest') {
-    result = useDiamondItem(user, 'DiamondChest', amount, 980000, resources);
-  } else if (itemId === 'BulletBox') {
-    result = useBulletBox(user, amount, resources);
-  } else if (itemId === 'AnimalDetector') {
-    result = useAnimalDetector(user, amount, resources);
+  const handler = ITEM_USE_HANDLERS[itemId];
+  if (handler) {
+    result = await handler(user, amount, resources);
   } else if (AREA_BY_LURE[itemId]) {
     result = {
       error: `${WARNING} You can now activate hunting lures from the hunt equipment menu.`,
@@ -533,8 +537,20 @@ function setup(client, resources) {
       normalizeInventory(stats);
       const focused = interaction.options.getFocused().toLowerCase();
       const choices = stats.inventory
+        .filter(entry => entry.amount > 0 && USEABLE_ITEM_IDS.has(entry.id))
         .map(entry => ITEMS[entry.id])
-        .filter(item => item && item.useable && item.name.toLowerCase().includes(focused))
+        .filter(item => {
+          if (!item || !USEABLE_ITEM_IDS.has(item.id)) return false;
+          if (!focused) return true;
+          const name = item.name ? item.name.toLowerCase() : '';
+          const id = item.id ? item.id.toLowerCase() : '';
+          return name.includes(focused) || id.includes(focused);
+        })
+        .sort((a, b) => {
+          const aName = a.name || a.id || '';
+          const bName = b.name || b.id || '';
+          return aName.localeCompare(bName);
+        })
         .map(item => ({ name: item.name, value: item.id }));
       await interaction.respond(choices.slice(0, 25));
     } catch (error) {

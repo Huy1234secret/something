@@ -12,13 +12,13 @@ function setup(client, resources) {
     .addUserOption(o =>
       o.setName('user').setDescription('Target user').setRequired(true),
     )
-    .addStringOption(o => {
-      o.setName('item').setDescription('Item ID').setRequired(true);
-      Object.values(ITEMS)
-        .slice(0, 25)
-        .forEach(i => o.addChoices({ name: i.name, value: i.id }));
-      return o;
-    })
+    .addStringOption(o =>
+      o
+        .setName('item')
+        .setDescription('Item ID')
+        .setRequired(true)
+        .setAutocomplete(true),
+    )
     .addIntegerOption(o =>
       o
         .setName('amount')
@@ -26,6 +26,31 @@ function setup(client, resources) {
         .setRequired(true),
     );
   client.application.commands.create(command);
+
+  client.on('interactionCreate', async interaction => {
+    try {
+      if (!interaction.isAutocomplete() || interaction.commandName !== 'add-item') return;
+      const focused = interaction.options.getFocused().toLowerCase();
+      const choices = Object.values(ITEMS)
+        .filter(item => !item.types || !item.types.includes('Skin'))
+        .filter(item => {
+          if (!focused) return true;
+          const name = item.name ? item.name.toLowerCase() : '';
+          const id = item.id ? item.id.toLowerCase() : '';
+          return name.includes(focused) || id.includes(focused);
+        })
+        .sort((a, b) => {
+          const aName = a.name || a.id || '';
+          const bName = b.name || b.id || '';
+          return aName.localeCompare(bName);
+        })
+        .slice(0, 25)
+        .map(item => ({ name: item.name, value: item.id }));
+      await interaction.respond(choices);
+    } catch (error) {
+      if (error.code !== 10062) console.error(error);
+    }
+  });
 
   client.on('interactionCreate', async interaction => {
     try {
