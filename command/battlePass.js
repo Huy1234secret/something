@@ -510,14 +510,24 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
     ctx.stroke();
   });
 
-  const display =
-    label ??
-    `Progress: ${formatNumber(Math.round(Math.max(0, current)))} / ${formatNumber(Math.round(Math.max(0, total)))}`;
+  const safeCurrent = Math.round(Math.max(0, current));
+  const safeTotal = Math.round(Math.max(0, total));
+  const display = label ?? `Progress: ${formatNumber(safeCurrent)} / ${formatNumber(safeTotal)} XP`;
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#1fb668';
   ctx.textAlign = 'center';
-  ctx.fillText(`${display} XP`, x + w / 2, y - 12);
+  ctx.fillText(display, x + w / 2, y - 12);
   ctx.textAlign = 'left';
+}
+
+function getNextTierRequirementFromPoints(points) {
+  const safePoints = clamp(Math.floor(points ?? 0), 0, TOTAL_POINTS_REQUIRED);
+  if (safePoints >= TOTAL_POINTS_REQUIRED) {
+    return TOTAL_POINTS_REQUIRED;
+  }
+  const completedLevels = Math.floor(safePoints / POINTS_PER_LEVEL);
+  const nextRequirement = (completedLevels + 1) * POINTS_PER_LEVEL;
+  return clamp(nextRequirement, POINTS_PER_LEVEL, TOTAL_POINTS_REQUIRED);
 }
 
 function drawCard(ctx, x, y, card, themeAccent = '#d01e2e') {
@@ -821,10 +831,6 @@ async function renderBattlePassSummaryImage(state) {
 
   const firstLevel = cards[0].num;
   const lastLevel = cards[cards.length - 1].num;
-  const rangeStart = pointsForLevel(firstLevel - 1);
-  const totalRangeXP = cards.reduce((sum, card) => sum + Math.max(0, card.xpReq || 0), 0);
-  const relativeProgress = clamp(currentPoints - rangeStart, 0, totalRangeXP);
-
   drawBackground(ctx);
   drawTitle(ctx, currentLevel, currentPoints, cards);
 
@@ -840,11 +846,12 @@ async function renderBattlePassSummaryImage(state) {
   const pbY = rowY + SUMMARY_CARD_HEIGHT + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(cards, pbX, pbW);
-  const label = totalXP > 0
-    ? `Progress: ${formatNumber(relativeProgress)} / ${formatNumber(totalXP)}`
-    : 'Progress';
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, relativeProgress, totalXP, ticks, label);
+  const { ticks } = layoutTickPositions(cards, pbX, pbW);
+  const safePoints = clamp(Math.floor(currentPoints), 0, TOTAL_POINTS_REQUIRED);
+  const nextRequirement = getNextTierRequirementFromPoints(safePoints);
+  const progressForBar = nextRequirement > 0 ? Math.min(safePoints, nextRequirement) : 0;
+  const label = `Progress: ${formatNumber(progressForBar)} / ${formatNumber(nextRequirement)} XP`;
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progressForBar, nextRequirement, ticks, label);
 
   ctx.font = 'bold 18px Sans';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
