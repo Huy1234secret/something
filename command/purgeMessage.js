@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   MessageFlags,
+  Collection,
 } = require('discord.js');
 const {
   TextDisplayBuilder,
@@ -63,11 +64,14 @@ function setup(client) {
       let deletedCount = 0;
       if (user) {
         const fetched = await channel.messages.fetch({ limit: 100 });
-        const matching = Array.from(
-          fetched.filter(message => message.author.id === user.id).values(),
-        ).slice(0, amount);
+        const matching = fetched.filter(message => message.author.id === user.id);
+        const toDelete = new Collection();
+        for (const [id, message] of matching) {
+          if (toDelete.size >= amount) break;
+          toDelete.set(id, message);
+        }
 
-        if (!matching.length) {
+        if (!toDelete.size) {
           await interaction.editReply({
             components: [
               createContainer(
@@ -80,7 +84,7 @@ function setup(client) {
         }
 
         const deleted = await channel
-          .bulkDelete(matching, true)
+          .bulkDelete(toDelete, true)
           .catch(() => null);
         if (!deleted) {
           await interaction.editReply({
