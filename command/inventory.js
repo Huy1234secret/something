@@ -108,14 +108,13 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
       })),
     );
 
-  const controlsSection = new SectionBuilder().addActionRowComponents(
-    new ActionRowBuilder().addComponents(pageSelect),
-    new ActionRowBuilder().addComponents(typeSelect),
-  );
-
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(headerSection, listSection, controlsSection);
+    .addSectionComponents(headerSection, listSection)
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(pageSelect),
+      new ActionRowBuilder().addComponents(typeSelect),
+    );
 
   const message = await send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   inventoryStates.set(message.id, { userId: user.id, page, types });

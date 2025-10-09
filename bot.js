@@ -770,13 +770,17 @@ client.on('messageCreate', async message => {
     } else if (lowerAfter.startsWith('use ')) {
       const args = afterPrefix.split(/\s+/).slice(1);
       const itemId = args[0];
-      const amount = parseInt(args[1], 10) || 1;
+      let amount = parseInt(args[1], 10);
+      if (Number.isNaN(amount)) amount = parseInt(args[2], 10);
+      if (Number.isNaN(amount) || amount <= 0) amount = 1;
+      const target = message.mentions.users.first() || null;
       await useItemCommand.handleUseItem(
         message.author,
         itemId,
         amount,
         message.channel.send.bind(message.channel),
         resources,
+        { target },
       );
     } else if (lowerAfter.startsWith('rob')) {
       const args = afterPrefix.split(/\s+/).slice(1);

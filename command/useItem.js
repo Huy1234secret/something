@@ -18,7 +18,16 @@ const {
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
-const { formatNumber, normalizeInventory, setSafeTimeout, applyComponentEmoji } = require('../utils');
+const {
+  formatNumber,
+  normalizeInventory,
+  setSafeTimeout,
+  applyComponentEmoji,
+  addCooldownBuff,
+  getCooldownMultiplier,
+  hasGoodList,
+  hasNaughtyList,
+} = require('../utils');
 
 const WARNING = '<:SBWarning:1404101025849147432>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
@@ -64,6 +73,8 @@ const RARITY_COLORS = {
   Secret: 0x000000,
 };
 
+const MAX_LEVEL = 9999;
+
 const AREA_BY_LURE = Object.fromEntries(
   Object.entries(HUNT_LURES).map(([areaKey, data]) => [data.itemId, areaKey]),
 );
@@ -108,6 +119,39 @@ function updateSummary(summary, key, label, amount, emoji) {
   const entry = summary.get(key);
   entry.amount += amount;
   if (emoji && !entry.emoji) entry.emoji = emoji;
+}
+
+function ensureChatStats(stats) {
+  stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
+  stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
+  stats.total_xp = Number.isFinite(stats.total_xp) ? stats.total_xp : 0;
+  stats.chat_mastery_level = Number.isFinite(stats.chat_mastery_level)
+    ? stats.chat_mastery_level
+    : 0;
+  stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
+    ? stats.chat_mastery_xp
+    : 0;
+  stats.xp_boost_until = Number.isFinite(stats.xp_boost_until)
+    ? stats.xp_boost_until
+    : 0;
+  if (stats.xp_boost_until && stats.xp_boost_until <= Date.now()) {
+    stats.xp_boost_until = 0;
+  }
+}
+
+function getRarityColor(item) {
+  return RARITY_COLORS[item?.rarity] || 0xffffff;
+}
+
+function buildItemContainer(title, lines, accent) {
+  return new ContainerBuilder()
+    .setAccentColor(accent ?? 0xffffff)
+    .addSectionComponents(
+      new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(title),
+        new TextDisplayBuilder().setContent(lines.join('\n')),
+      ),
+    );
 }
 
 function padlockEmbed(user, amountLeft, expiresAt) {
@@ -446,6 +490,376 @@ function useBanHammer(user, targetId, resources) {
   return { component: banHammerEmbed(user, targetId) };
 }
 
+async function useCandyCane(user, amount, resources) {
+  const item = ITEMS.CandyCane;
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  ensureChatStats(stats);
+  const prevLevel = stats.level;
+  const prevTotalXp = stats.total_xp;
+  resources.userStats[user.id] = stats;
+
+  const INSTANT_LEVEL_CHANCE = 0.02;
+  let instantLevels = 0;
+  let xpConsumptions = 0;
+  for (let i = 0; i < amount; i += 1) {
+    if (Math.random() < INSTANT_LEVEL_CHANCE) instantLevels += 1;
+    else xpConsumptions += 1;
+  }
+
+  const xpGain = 2500 * xpConsumptions;
+  if (xpGain > 0) {
+    await resources.addXp(user, xpGain, resources.client);
+  }
+
+  let bonusLevels = 0;
+  let boostRestored = false;
+  let activeStats = resources.userStats[user.id] || stats;
+  ensureChatStats(activeStats);
+  for (let i = 0; i < instantLevels; i += 1) {
+    if (activeStats.level >= MAX_LEVEL) break;
+    const needed = Math.max(1, resources.xpNeeded(activeStats.level) - activeStats.xp);
+    const originalBoost = activeStats.xp_boost_until;
+    const boostActive = originalBoost && originalBoost > Date.now();
+    if (boostActive) activeStats.xp_boost_until = 0;
+    await resources.addXp(user, needed, resources.client);
+    activeStats = resources.userStats[user.id] || activeStats;
+    if (boostActive) {
+      activeStats.xp_boost_until = originalBoost;
+      boostRestored = true;
+    }
+    ensureChatStats(activeStats);
+    bonusLevels += 1;
+  }
+  if (boostRestored) resources.saveData();
+
+  const updated = resources.userStats[user.id] || activeStats;
+  const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
+  const levelsGained = (updated.level || 0) - prevLevel;
+  const lines = [
+    `${user} munched ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# Levels gained: ${levelsGained}`,
+  ];
+  if (bonusLevels > 0) {
+    lines.push(`-# ${bonusLevels} instant level skip${bonusLevels > 1 ? 's' : ''} triggered!`);
+  }
+  lines.push(`-# Remaining: ${formatNumber(Math.max(remaining, 0))}`);
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useCookie(user, amount, resources) {
+  const item = ITEMS.Cookie;
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  ensureChatStats(stats);
+  const prevLevel = stats.level;
+  const prevTotalXp = stats.total_xp;
+  resources.userStats[user.id] = stats;
+
+  const xpGain = 100 * amount;
+  await resources.addXp(user, xpGain, resources.client);
+
+  const updated = resources.userStats[user.id] || stats;
+  const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
+  const levelsGained = (updated.level || 0) - prevLevel;
+  const lines = [
+    `${user} enjoyed ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# Levels gained: ${levelsGained}`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+function useCupOfMilk(user, amount, resources) {
+  const item = ITEMS.CupOfMilk;
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+
+  const durationMs = 30 * 60 * 1000;
+  addCooldownBuff(stats, 0.1 * amount, durationMs);
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+
+  const reduction = Math.max(0, 1 - getCooldownMultiplier(stats));
+  const expiresAt = Date.now() + durationMs;
+  const lines = [
+    `${user} drank ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    `-# Cooldown reduction now: ${(reduction * 100).toFixed(1)}%`,
+    `-# Buff expires <t:${Math.floor(expiresAt / 1000)}:R>`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useGingerbreadMan(user, amount, resources) {
+  const item = ITEMS.GingerbreadMan;
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  ensureChatStats(stats);
+  const prevLevel = stats.level;
+  const prevTotalXp = stats.total_xp;
+  resources.userStats[user.id] = stats;
+
+  let totalLevels = 0;
+  let surgeActivations = 0;
+  for (let i = 0; i < amount; i += 1) {
+    totalLevels += 1;
+    if (Math.random() < 0.05) {
+      totalLevels += 9;
+      surgeActivations += 1;
+    }
+  }
+
+  let boostRestored = false;
+  let activeStats = resources.userStats[user.id] || stats;
+  ensureChatStats(activeStats);
+  for (let i = 0; i < totalLevels; i += 1) {
+    if (activeStats.level >= MAX_LEVEL) break;
+    const needed = Math.max(1, resources.xpNeeded(activeStats.level) - activeStats.xp);
+    const originalBoost = activeStats.xp_boost_until;
+    const boostActive = originalBoost && originalBoost > Date.now();
+    if (boostActive) activeStats.xp_boost_until = 0;
+    await resources.addXp(user, needed, resources.client);
+    activeStats = resources.userStats[user.id] || activeStats;
+    if (boostActive) {
+      activeStats.xp_boost_until = originalBoost;
+      boostRestored = true;
+    }
+    ensureChatStats(activeStats);
+  }
+  if (boostRestored) resources.saveData();
+
+  const updated = resources.userStats[user.id] || activeStats;
+  const totalXpGained = (updated.total_xp || 0) - prevTotalXp;
+  const levelsGained = (updated.level || 0) - prevLevel;
+  const lines = [
+    `${user} devoured ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}.`,
+    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# Levels gained: ${levelsGained}`,
+  ];
+  if (surgeActivations > 0) {
+    lines.push(`-# Sugar rush triggered ${surgeActivations} time${surgeActivations > 1 ? 's' : ''}!`);
+  }
+  lines.push(`-# Remaining: ${formatNumber(Math.max(remaining, 0))}`);
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useSnowBall(user, amount, resources, options = {}) {
+  const { target } = options;
+  const item = ITEMS.SnowBall;
+  if (!target) {
+    return { error: `${WARNING} You must select a target to throw a ${item.name}.` };
+  }
+  if (target.bot) {
+    return { error: `${WARNING} You cannot throw a ${item.name} at a bot.` };
+  }
+  if (target.id === user.id) {
+    return { error: `${WARNING} You cannot throw a ${item.name} at yourself.` };
+  }
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  const now = Date.now();
+  const base = Math.max(targetStats.snowball_fail_until || 0, now);
+  targetStats.snowball_fail_until = base + amount * 30 * 1000;
+
+  resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
+  resources.saveData();
+
+  const expiresTs = Math.floor(targetStats.snowball_fail_until / 1000);
+  const lines = [
+    `${user} pelted ${target} with ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''}!`,
+    `-# Their hunts, digs, and begs will fail until <t:${expiresTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useGoodList(user, amount, resources, options = {}) {
+  const target = options.target || user;
+  const item = ITEMS.GoodList;
+  if (amount !== 1) {
+    return { error: `${WARNING} You can only use one ${item.name} at a time.` };
+  }
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < 1) {
+    return { error: `${WARNING} You need at least 1 ${item.name} to use.` };
+  }
+  const now = Date.now();
+  if (stats.good_list_cd_until && stats.good_list_cd_until > now) {
+    return {
+      error: `${WARNING} You can use another ${item.name} <t:${Math.floor(
+        stats.good_list_cd_until / 1000,
+      )}:R>.`,
+    };
+  }
+  entry.amount -= 1;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  const base = hasGoodList(targetStats) ? targetStats.good_list_until : now;
+  targetStats.good_list_until = base + 24 * 60 * 60 * 1000;
+  stats.good_list_cd_until = now + 30 * 60 * 60 * 1000;
+
+  resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
+  resources.saveData();
+
+  const expiresTs = Math.floor(targetStats.good_list_until / 1000);
+  const cdTs = Math.floor(stats.good_list_cd_until / 1000);
+  const lines = [
+    `${user} blessed ${target} with the ${item.name}!`,
+    `-# Luck boost active until <t:${expiresTs}:R>.`,
+    `-# You can use another ${item.name} <t:${cdTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useNaughtyList(user, amount, resources, options = {}) {
+  const { target } = options;
+  const item = ITEMS.NaughtyList;
+  if (amount !== 1) {
+    return { error: `${WARNING} You can only use one ${item.name} at a time.` };
+  }
+  if (!target) {
+    return { error: `${WARNING} You must select a target to use the ${item.name}.` };
+  }
+  if (target.bot) {
+    return { error: `${WARNING} You cannot use the ${item.name} on a bot.` };
+  }
+  if (target.id === user.id) {
+    return { error: `${WARNING} You cannot put yourself on the ${item.name}.` };
+  }
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === item.id);
+  if (!entry || entry.amount < 1) {
+    return { error: `${WARNING} You need at least 1 ${item.name} to use.` };
+  }
+  const now = Date.now();
+  if (stats.naughty_list_cd_until && stats.naughty_list_cd_until > now) {
+    return {
+      error: `${WARNING} You can use another ${item.name} <t:${Math.floor(
+        stats.naughty_list_cd_until / 1000,
+      )}:R>.`,
+    };
+  }
+  entry.amount -= 1;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+
+  const targetStats = resources.userStats[target.id] || { inventory: [] };
+  const base = hasNaughtyList(targetStats) ? targetStats.naughty_list_until : now;
+  targetStats.naughty_list_until = base + 24 * 60 * 60 * 1000;
+  stats.naughty_list_cd_until = now + 30 * 60 * 60 * 1000;
+
+  resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
+  resources.saveData();
+
+  const expiresTs = Math.floor(targetStats.naughty_list_until / 1000);
+  const cdTs = Math.floor(stats.naughty_list_cd_until / 1000);
+  const lines = [
+    `${user} condemned ${target} to the ${item.name}!`,
+    `-# Their boosts, luck, and harvest speed are crushed until <t:${expiresTs}:R>.`,
+    `-# You can use another ${item.name} <t:${cdTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
 const ITEM_USE_HANDLERS = {
   Padlock: (user, amount, resources) => usePadlock(user, resources),
   Landmine: (user, amount, resources) => useLandmine(user, resources),
@@ -461,15 +875,29 @@ const ITEM_USE_HANDLERS = {
     useAnimalDetector(user, amount, resources),
   ChristmasBattlePassGift: (user, amount, resources) =>
     useChristmasBattlePassGift(user, amount, resources),
+  CandyCane: (user, amount, resources, options) =>
+    useCandyCane(user, amount, resources, options),
+  Cookie: (user, amount, resources, options) =>
+    useCookie(user, amount, resources, options),
+  CupOfMilk: (user, amount, resources, options) =>
+    useCupOfMilk(user, amount, resources, options),
+  GingerbreadMan: (user, amount, resources, options) =>
+    useGingerbreadMan(user, amount, resources, options),
+  SnowBall: (user, amount, resources, options) =>
+    useSnowBall(user, amount, resources, options),
+  GoodList: (user, amount, resources, options) =>
+    useGoodList(user, amount, resources, options),
+  NaughtyList: (user, amount, resources, options) =>
+    useNaughtyList(user, amount, resources, options),
 };
 
 const USEABLE_ITEM_IDS = new Set([...Object.keys(ITEM_USE_HANDLERS), 'BanHammer']);
 
-async function handleUseItem(user, itemId, amount, send, resources) {
+async function handleUseItem(user, itemId, amount, send, resources, options = {}) {
   let result;
   const handler = ITEM_USE_HANDLERS[itemId];
   if (handler) {
-    result = await handler(user, amount, resources);
+    result = await handler(user, amount, resources, options);
   } else if (AREA_BY_LURE[itemId]) {
     result = {
       error: `${WARNING} You can now activate hunting lures from the hunt equipment menu.`,
@@ -688,7 +1116,8 @@ function setup(client, resources) {
         .setRequired(true)
         .setAutocomplete(true),
     )
-    .addIntegerOption(opt => opt.setName('amount').setDescription('Amount').setMinValue(1));
+    .addIntegerOption(opt => opt.setName('amount').setDescription('Amount').setMinValue(1))
+    .addUserOption(opt => opt.setName('target').setDescription('Target user'));
   client.application.commands.create(command);
 
   client.on('interactionCreate', async interaction => {
@@ -725,6 +1154,7 @@ function setup(client, resources) {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'use-item') return;
       const itemId = interaction.options.getString('item');
       const amount = interaction.options.getInteger('amount') || 1;
+      const target = interaction.options.getUser('target') || null;
       if (itemId === 'BanHammer') {
         const modal = new ModalBuilder()
           .setCustomId(`banhammer-modal-${interaction.user.id}`)
@@ -737,7 +1167,14 @@ function setup(client, resources) {
         await interaction.showModal(modal);
         return;
       }
-      await handleUseItem(interaction.user, itemId, amount, interaction.reply.bind(interaction), resources);
+      await handleUseItem(
+        interaction.user,
+        itemId,
+        amount,
+        interaction.reply.bind(interaction),
+        resources,
+        { target },
+      );
     } catch (error) {
       if (error.code !== 10062) console.error(error);
     }
