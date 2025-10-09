@@ -53,6 +53,8 @@ const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
 
 const REWARD_PAGE_SIZE = 5;
 
+const SERVER_OWNER_USER_ID = '902736357766594611';
+
 const REWARD100_STAGES = [
   { key: '30', label: '$30 Gift Card', type: 'special', announcement: true },
   { key: '20', label: '$20 Gift Card', type: 'special', announcement: true },
@@ -1192,8 +1194,15 @@ async function updateMainMessage(client, state) {
   }
 }
 
+function isPrivilegedUser(userId) {
+  return userId === SERVER_OWNER_USER_ID;
+}
+
 function isOwner(interaction, state) {
-  return interaction.user && interaction.user.id === state.userId;
+  return (
+    interaction.user &&
+    (interaction.user.id === state.userId || isPrivilegedUser(interaction.user.id))
+  );
 }
 
 function getStateFromInteraction(interaction) {
@@ -1202,7 +1211,8 @@ function getStateFromInteraction(interaction) {
 }
 
 async function handleSlashCommand(interaction) {
-  if (!isBattlePassActive()) {
+  const privileged = isPrivilegedUser(interaction.user?.id);
+  if (!isBattlePassActive() && !privileged) {
     await interaction.reply({
       content: 'The Christmas battle pass unlocks on December 1st at 00:00. Please check back then!',
       flags: MessageFlags.Ephemeral,
@@ -1365,7 +1375,7 @@ function setup(client, resources) {
         const [root, action, extra] = parseCustomId(interaction.customId);
         if (root !== 'bp') return;
 
-        if (!isBattlePassActive()) {
+        if (!isBattlePassActive() && !isPrivilegedUser(interaction.user?.id)) {
           await interaction.reply({
             content: 'The Christmas battle pass is currently inactive.',
             flags: MessageFlags.Ephemeral,
@@ -1415,7 +1425,7 @@ function setup(client, resources) {
 
         const [root, action] = parseCustomId(interaction.customId);
         if (root !== 'bp') return;
-        if (!isBattlePassActive()) {
+        if (!isBattlePassActive() && !isPrivilegedUser(interaction.user?.id)) {
           await interaction.reply({
             content: 'The Christmas battle pass is currently inactive.',
             flags: MessageFlags.Ephemeral,
