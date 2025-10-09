@@ -49,7 +49,7 @@ const CHRISTMAS_GIFT_REWARDS = [
   { weight: 5, type: 'item', id: 'CupOfMilk', min: 1, max: 5 },
   { weight: 5, type: 'item', id: 'Cookie', min: 5, max: 15 },
   { weight: 3, type: 'item', id: 'GingerbreadMan', min: 1, max: 5 },
-  { weight: 8, type: 'item', id: 'SnowBall', min: 10, max: 25 },
+  { weight: 7.5, type: 'item', id: 'SnowBall', min: 10, max: 25 },
   { weight: 5, type: 'item', id: 'CandyCane', min: 3, max: 10 },
   { weight: 1, type: 'deluxeCoins', min: 1, max: 50, label: 'Deluxe Coin' },
   { weight: 1, type: 'item', id: 'StarFruitSeed', min: 1, max: 2 },
@@ -61,6 +61,7 @@ const CHRISTMAS_GIFT_REWARDS = [
   { weight: 5, type: 'lure', min: 5, max: 5 },
   { weight: 2, type: 'item', id: 'AnimalDetector', min: 1, max: 2 },
   { weight: 3, type: 'item', id: 'XPSoda', min: 1, max: 3 },
+  { weight: 0.5, type: 'item', id: 'GoodList', min: 1, max: 1 },
 ];
 const RARITY_COLORS = {
   Common: 0xffffff,
