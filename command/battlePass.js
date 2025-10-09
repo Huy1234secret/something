@@ -103,6 +103,12 @@ const QUEST_REROLL_COST = {
 
 const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
 
+const QUEST_ACTIONS = [
+  { label: 'Hunt', base: 'hunt', gerund: 'hunting' },
+  { label: 'Dig', base: 'dig', gerund: 'digging' },
+  { label: 'Beg', base: 'beg', gerund: 'begging' },
+];
+
 const REWARD_PAGE_SIZE = 5;
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
@@ -1017,6 +1023,26 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function randomQuestAction() {
+  if (QUEST_ACTIONS.length === 0) {
+    return { label: 'Hunt', base: 'hunt', gerund: 'hunting' };
+  }
+  const index = randomInt(0, QUEST_ACTIONS.length - 1);
+  return QUEST_ACTIONS[index];
+}
+
+function describeActionTimes(action, required) {
+  return `${action.label} ${formatNumber(required)} times`;
+}
+
+function describeSuccessfulAction(action, required) {
+  return `Successfully ${action.base} ${formatNumber(required)} times`;
+}
+
+function describeFailedAction(action, required) {
+  return `Fail ${action.gerund} ${formatNumber(required)} times`;
+}
+
 function interpolateReward(value, minValue, maxValue, minReward, maxReward) {
   if (maxValue === minValue) return minReward;
   const ratio = (value - minValue) / (maxValue - minValue);
@@ -1064,8 +1090,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(20, 40);
       const points = interpolateReward(required, 20, 40, 50, 100);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
+        description: describeActionTimes(action, required),
         required,
         progress,
         points,
@@ -1076,8 +1103,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(10, 20);
       const points = interpolateReward(required, 10, 20, 50, 100);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
+        description: describeSuccessfulAction(action, required),
         required,
         progress,
         points,
@@ -1088,8 +1116,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(10, 20);
       const points = interpolateReward(required, 10, 20, 50, 100);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
+        description: describeFailedAction(action, required),
         required,
         progress,
         points,
@@ -1149,8 +1178,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(50, 100);
       const points = interpolateReward(required, 50, 100, 125, 250);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
+        description: describeActionTimes(action, required),
         required,
         progress,
         points,
@@ -1161,8 +1191,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(30, 60);
       const points = interpolateReward(required, 30, 60, 150, 300);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
+        description: describeSuccessfulAction(action, required),
         required,
         progress,
         points,
@@ -1173,8 +1204,9 @@ const QUEST_BUILDERS = {
       const required = randomInt(30, 60);
       const points = interpolateReward(required, 30, 60, 150, 300);
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
+        description: describeFailedAction(action, required),
         required,
         progress,
         points,
@@ -1406,8 +1438,9 @@ const QUEST_BUILDERS = {
     () => {
       const required = 400;
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Hunt / Dig / Beg ${formatNumber(required)} times`,
+        description: describeActionTimes(action, required),
         required,
         progress,
         points: 8000,
@@ -1417,8 +1450,9 @@ const QUEST_BUILDERS = {
     () => {
       const required = 200;
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Successfully hunt / dig / beg ${formatNumber(required)} times`,
+        description: describeSuccessfulAction(action, required),
         required,
         progress,
         points: 15000,
@@ -1428,8 +1462,9 @@ const QUEST_BUILDERS = {
     () => {
       const required = 200;
       const progress = randomProgress(required);
+      const action = randomQuestAction();
       return {
-        description: `Fail hunting / digging / begging ${formatNumber(required)} times`,
+        description: describeFailedAction(action, required),
         required,
         progress,
         points: 15000,
@@ -2072,13 +2107,40 @@ async function handleQuestConfirm(interaction, state, type) {
     await interaction.update({ content: 'Unknown quest type.', components: [] });
     return;
   }
+  const cost = QUEST_REROLL_COST[type] || 0;
+  const statsMap = resourcesRef?.userStats;
+  const userId = state.userId;
+  const stats = statsMap?.[userId];
+  const deluxeBalanceRaw = Number(stats?.deluxe_coins);
+  const deluxeBalance = Number.isFinite(deluxeBalanceRaw) ? deluxeBalanceRaw : 0;
+  if (deluxeBalance < cost) {
+    const missing = cost - deluxeBalance;
+    await interaction.update({
+      content: `You need ${formatNumber(missing)} more Deluxe Coins ${REROLL_COST_EMOJI} to reroll the ${
+        QUEST_TYPES[type]
+      }.`,
+      components: [],
+    });
+    return;
+  }
+  let mutableStats = stats;
+  if (!mutableStats) {
+    mutableStats = {};
+    if (statsMap) {
+      statsMap[userId] = mutableStats;
+    }
+  }
+  mutableStats.deluxe_coins = deluxeBalance - cost;
+  if (resourcesRef?.saveData) {
+    resourcesRef.saveData();
+  }
   state.quests[type] = generateQuests(type);
   if (state.activeQuestType === type) {
     state.view = 'quests';
   }
   await updateMainMessage(interaction.client, state);
   await interaction.update({
-    content: `${QUEST_TYPES[type]} rerolled!`,
+    content: `${QUEST_TYPES[type]} rerolled for ${formatNumber(cost)} Deluxe Coins ${REROLL_COST_EMOJI}!`,
     components: [],
   });
 }
