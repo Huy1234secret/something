@@ -516,7 +516,8 @@ function drawProgressBar(ctx, x, y, w, h, current, total, tickXs = [], label) {
   ctx.font = 'bold 22px Sans';
   ctx.fillStyle = '#1fb668';
   ctx.textAlign = 'center';
-  ctx.fillText(`${display} XP`, x + w / 2, y - 12);
+  const text = label == null ? `${display} XP` : display;
+  ctx.fillText(text, x + w / 2, y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -821,9 +822,13 @@ async function renderBattlePassSummaryImage(state) {
 
   const firstLevel = cards[0].num;
   const lastLevel = cards[cards.length - 1].num;
-  const rangeStart = pointsForLevel(firstLevel - 1);
-  const totalRangeXP = cards.reduce((sum, card) => sum + Math.max(0, card.xpReq || 0), 0);
-  const relativeProgress = clamp(currentPoints - rangeStart, 0, totalRangeXP);
+
+  const previousThreshold = pointsForLevel(currentLevel - 1);
+  const nextThreshold = pointsForLevel(currentLevel);
+  let nextTierRequirement = Math.max(0, nextThreshold - previousThreshold);
+  let progressToNextTier = nextTierRequirement > 0
+    ? clamp(currentPoints - previousThreshold, 0, nextTierRequirement)
+    : 0;
 
   drawBackground(ctx);
   drawTitle(ctx, currentLevel, currentPoints, cards);
@@ -840,11 +845,15 @@ async function renderBattlePassSummaryImage(state) {
   const pbY = rowY + SUMMARY_CARD_HEIGHT + 40;
   const pbH = 22;
 
-  const { ticks, totalXP } = layoutTickPositions(cards, pbX, pbW);
-  const label = totalXP > 0
-    ? `Progress: ${formatNumber(relativeProgress)} / ${formatNumber(totalXP)}`
-    : 'Progress';
-  drawProgressBar(ctx, pbX, pbY, pbW, pbH, relativeProgress, totalXP, ticks, label);
+  let label;
+  if (nextTierRequirement <= 0) {
+    nextTierRequirement = 1;
+    progressToNextTier = 1;
+    label = 'Max Tier';
+  } else {
+    label = `${formatNumber(progressToNextTier)} / ${formatNumber(nextTierRequirement)}`;
+  }
+  drawProgressBar(ctx, pbX, pbY, pbW, pbH, progressToNextTier, nextTierRequirement, [], label);
 
   ctx.font = 'bold 18px Sans';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -971,17 +980,12 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function randomProgress(required, allowCompletion = true) {
-  if (allowCompletion && Math.random() < 0.25) return required;
-  if (required <= 1) return allowCompletion ? 0 : 0;
-  return clamp(randomInt(0, required - 1), 0, required);
+function randomProgress() {
+  return 0;
 }
 
-function randomDecimalProgress(required, allowCompletion = true, precision = 1) {
-  if (allowCompletion && Math.random() < 0.25) return required;
-  const value = Math.random() * required;
-  const factor = 10 ** precision;
-  return Math.min(required, Math.round(value * factor) / factor);
+function randomDecimalProgress() {
+  return 0;
 }
 
 function questFormatterNumber(value) {
@@ -1677,16 +1681,11 @@ function getQuestResetTime(type, now = new Date()) {
 }
 
 function formatCountdown(target) {
-  const diff = Math.max(0, target.getTime() - Date.now());
-  const seconds = Math.floor(diff / 1000);
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const parts = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-  if (hours === 0) parts.push(`${secs}s`);
-  return `in ${parts.join(' ')}`;
+  if (!(target instanceof Date) || Number.isNaN(target.getTime())) {
+    return 'soon';
+  }
+  const timestamp = Math.floor(Math.max(target.getTime(), Date.now()) / 1000);
+  return `<t:${timestamp}:R>`;
 }
 
 function buildProgressBar(progress, total, size = 12) {
@@ -1869,16 +1868,17 @@ function createBattlePassState(userId) {
   };
 }
 
-function buildRerollPrompt(type) {
+function buildRerollPrompt(type, stateId) {
   const label = QUEST_TYPES[type] || 'quests';
   const cost = QUEST_REROLL_COST[type] || 0;
   const content = `Are you sure you want to reroll the ${label}?\n-# Cost ${formatNumber(cost)} Deluxe Coins ${REROLL_COST_EMOJI}`;
+  const stateKey = stateId || 'none';
   const yesButton = new ButtonBuilder()
-    .setCustomId(`bp:confirm:${type}`)
+    .setCustomId(`bp:confirm:${type}:${stateKey}`)
     .setLabel('Yes')
     .setStyle(ButtonStyle.Success);
   const noButton = new ButtonBuilder()
-    .setCustomId('bp:cancel')
+    .setCustomId(`bp:cancel:${stateKey}`)
     .setLabel('No')
     .setStyle(ButtonStyle.Secondary);
   const row = new ActionRowBuilder().addComponents(yesButton, noButton);
@@ -1965,7 +1965,8 @@ async function handleQuestReroll(interaction, state, type) {
     });
     return;
   }
-  const prompt = buildRerollPrompt(type);
+  const stateId = state.messageId || interaction.message?.id || 'none';
+  const prompt = buildRerollPrompt(type, stateId);
   await interaction.reply(prompt);
 }
 
@@ -2143,18 +2144,26 @@ function setup(client, resources) {
       }
 
       if (interaction.isButton()) {
-        const state = getStateFromInteraction(interaction);
-        if (!state) return;
-        if (!isOwner(interaction, state)) {
+        const [root, action, ...args] = parseCustomId(interaction.customId);
+        if (root !== 'bp') return;
+
+        let state = getStateFromInteraction(interaction);
+        const stateIdFromArgs =
+          action === 'confirm' ? args[1] : action === 'cancel' ? args[0] : null;
+        if (!state && stateIdFromArgs && stateIdFromArgs !== 'none') {
+          state = states.get(stateIdFromArgs) || null;
+        }
+        if (state && stateIdFromArgs && stateIdFromArgs !== 'none') {
+          state.messageId = stateIdFromArgs;
+        }
+
+        if (state && !isOwner(interaction, state)) {
           await interaction.reply({
             content: 'Only the original adventurer can use these battle pass controls.',
             flags: MessageFlags.Ephemeral,
           });
           return;
         }
-
-        const [root, action, extra] = parseCustomId(interaction.customId);
-        if (root !== 'bp') return;
 
         if (!isBattlePassActive() && !isPrivilegedUser(interaction.user?.id)) {
           await interaction.reply({
@@ -2164,25 +2173,35 @@ function setup(client, resources) {
           return;
         }
 
-        if (action === 'quests') {
+        if (!state && action !== 'cancel') {
+          await interaction.reply({
+            content: 'This battle pass session has expired. Please use /battle-pass again.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (action === 'quests' && state) {
           state.view = 'quests';
           if (!state.activeQuestType) state.activeQuestType = 'hourly';
           const view = await renderState(state);
           await interaction.update(view);
           return;
         }
-        if (action === 'back') {
+        if (action === 'back' && state) {
           state.view = 'battle-pass';
           const view = await renderState(state);
           await interaction.update(view);
           return;
         }
-        if (action === 'reroll') {
-          await handleQuestReroll(interaction, state, extra);
+        if (action === 'reroll' && state) {
+          const type = args[0];
+          await handleQuestReroll(interaction, state, type);
           return;
         }
-        if (action === 'confirm') {
-          await handleQuestConfirm(interaction, state, extra);
+        if (action === 'confirm' && state) {
+          const type = args[0];
+          await handleQuestConfirm(interaction, state, type);
           return;
         }
         if (action === 'cancel') {
