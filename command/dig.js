@@ -25,6 +25,8 @@ const {
   getCooldownMultiplier,
   computeActionSuccessChance,
   isSnowballed,
+  scaleChanceWithLuck,
+  getLuckAdjustedWeight,
 } = require('../utils');
 const { getItemDisplay } = require('../skins');
 
@@ -77,13 +79,17 @@ const DIG_XP_MULTIPLIER = {
 
 const digStates = new Map();
 
-function getRandomDigItem() {
-  const total = DIG_ITEMS.reduce((sum, it) => sum + (it.chance || 0), 0);
+function getRandomDigItem(stats) {
+  const weighted = DIG_ITEMS.map(it => ({
+    item: it,
+    chance: getLuckAdjustedWeight(it.chance || 0, it.rarity, stats),
+  })).filter(entry => entry.chance > 0);
+  const total = weighted.reduce((sum, entry) => sum + entry.chance, 0);
   const r = Math.random() * total;
   let acc = 0;
-  for (const it of DIG_ITEMS) {
-    acc += it.chance || 0;
-    if (r < acc) return it;
+  for (const entry of weighted) {
+    acc += entry.chance;
+    if (r < acc) return entry.item;
   }
   return null;
 }
@@ -297,8 +303,9 @@ async function handleDig(interaction, resources, stats) {
     stats.dig_success = (stats.dig_success || 0) + 1;
     let extra = '';
     let foundItem = null;
-    if (Math.random() < 0.15) {
-      const item = getRandomDigItem();
+    const itemDropChance = scaleChanceWithLuck(0.15, stats, { max: 0.5 });
+    if (Math.random() < itemDropChance) {
+      const item = getRandomDigItem(stats);
       if (item) {
         foundItem = item;
         if (!stats.dig_discover) stats.dig_discover = [];

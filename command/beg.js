@@ -13,6 +13,9 @@ const {
   getCooldownMultiplier,
   isSnowballed,
   computeActionSuccessChance,
+  scaleChanceWithLuck,
+  getLuckBonus,
+  DEFAULT_LUCK_RARITY_WEIGHTS,
 } = require('../utils');
 const { ITEMS } = require('../items');
 
@@ -120,9 +123,14 @@ const RARITY_ORDER = [
   ['Common', 1],
 ];
 
-function getRandomItem() {
+function getRandomItem(stats) {
+  const luckBonus = Math.max(0, getLuckBonus(stats));
   for (const [rarity, chance] of RARITY_ORDER) {
-    if (Math.random() < chance) {
+    const rarityWeight = DEFAULT_LUCK_RARITY_WEIGHTS[rarity] || 0;
+    const multiplier = 1 + luckBonus * rarityWeight;
+    const cap = chance >= 1 ? 1 : 0.95;
+    const adjustedChance = Math.min(cap, chance * multiplier);
+    if (Math.random() < adjustedChance) {
       const items = Object.values(ITEMS).filter(i => i.rarity === rarity);
       if (items.length === 0) continue;
       return items[Math.floor(Math.random() * items.length)];
@@ -172,7 +180,8 @@ async function sendBeg(user, send, resources) {
     let xp;
     let itemGiven = false;
     let diamondGiven = false;
-    if (Math.random() < 0.001) {
+    const diamondChance = scaleChanceWithLuck(0.001, stats, { max: 0.02 });
+    if (Math.random() < diamondChance) {
       let amount = Math.floor(Math.random() * 10) + 1;
       if (Math.random() < 1 / 1000) amount = 100;
       stats.diamonds = (stats.diamonds || 0) + amount;
@@ -185,8 +194,9 @@ async function sendBeg(user, send, resources) {
       currencyLine = `-# You got **${formatNumber(amount)} Coins ${COIN_EMOJI}!**`;
     }
     let itemPart = '';
-    if (Math.random() < 0.05) {
-      const item = getRandomItem();
+    const itemDropChance = scaleChanceWithLuck(0.05, stats, { max: 0.35 });
+    if (Math.random() < itemDropChance) {
+      const item = getRandomItem(stats);
       if (item) {
         itemGiven = true;
         stats.inventory = stats.inventory || [];

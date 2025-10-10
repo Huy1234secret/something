@@ -32,6 +32,9 @@ const {
   getCooldownMultiplier,
   computeActionSuccessChance,
   isSnowballed,
+  scaleChanceWithLuck,
+  getLuckAdjustedWeight,
+  getLuckBonus,
 } = require('../utils');
 const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
@@ -43,6 +46,18 @@ for (const item of Object.values(ITEMS)) {
   if (!ITEMS_BY_RARITY[rarity]) ITEMS_BY_RARITY[rarity] = [];
   ITEMS_BY_RARITY[rarity].push(item);
 }
+
+const HUNT_LUCK_WEIGHTS = {
+  Common: 0,
+  Uncommon: 0.25,
+  Rare: 0.35,
+  Epic: 0.55,
+  Legendary: 0.85,
+  Mythical: 1.1,
+  Godly: 1.35,
+  Prismatic: 1.55,
+  Secret: 1.8,
+};
 
 const FAIL_MESSAGES = [
   'The animals spotted you first and vanished into the trees',
@@ -407,6 +422,7 @@ function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
   const candidates = ANIMALS.map(a => {
     let chance = (a.chances[areaKey] || [0, 0, 0])[tier - 1] || 0;
     if (!allowSecret && a.rarity === 'Secret') chance = 0;
+    chance = getLuckAdjustedWeight(chance, a.rarity, stats, HUNT_LUCK_WEIGHTS);
     if (luckBoost && a.rarity !== 'Common') chance *= 2;
     if (lureActive && RARE_RARITIES.has(a.rarity)) chance *= 2;
     return { animal: a, chance };
@@ -601,35 +617,44 @@ async function handleHunt(interaction, resources, stats) {
     }
 
     let duplicated = false;
-    if (addedEntry && masteryLevel >= 70 && Math.random() < 0.1) {
-      addedEntry.amount += 1;
-      duplicated = true;
+    if (addedEntry && masteryLevel >= 70) {
+      const duplicateChance = scaleChanceWithLuck(0.1, stats, { max: 0.35 });
+      if (Math.random() < duplicateChance) {
+        addedEntry.amount += 1;
+        duplicated = true;
+      }
     }
 
     let bonusItemText = '';
-    if (masteryLevel >= 50 && Math.random() < 0.1) {
-      const rarityRoll = Math.random() * 100;
-      let rarityKey;
-      if (rarityRoll < 60) rarityKey = 'common';
-      else if (rarityRoll < 90) rarityKey = 'rare';
-      else if (rarityRoll < 97) rarityKey = 'epic';
-      else if (rarityRoll < 99.5) rarityKey = 'legendary';
-      else if (rarityRoll < 99.95) rarityKey = 'mythical';
-      else rarityKey = 'godly';
-      const pool = ITEMS_BY_RARITY[rarityKey] || [];
-      if (pool.length) {
-        const reward = pool[Math.floor(Math.random() * pool.length)];
-        const invList = stats.inventory || [];
-        const existingReward = invList.find(i => i.id === reward.id);
-        const needsSlot = !existingReward;
-        const willExceedBonus =
-          needsSlot && getInventoryCount(stats) + 1 > MAX_ITEMS;
-        if (!initialFull && !willExceedBonus) {
-          if (existingReward) existingReward.amount += 1;
-          else invList.push({ ...reward, amount: 1 });
-          bonusItemText = `-# Bonus drop: ${reward.emoji || ''} ${reward.name}`;
-        } else if (!initialFull) {
-          alertInventoryFull(interaction, user, stats, 1);
+    if (masteryLevel >= 50) {
+      const bonusDropChance = scaleChanceWithLuck(0.1, stats, { max: 0.45 });
+      if (Math.random() < bonusDropChance) {
+        const luckBonus = Math.max(0, getLuckBonus(stats));
+        const rarityRoll = Math.random() * 100;
+        const rarityShift = Math.min(45, luckBonus * 20);
+        const adjustedRoll = Math.max(0, rarityRoll - rarityShift);
+        let rarityKey;
+        if (adjustedRoll < 60) rarityKey = 'common';
+        else if (adjustedRoll < 90) rarityKey = 'rare';
+        else if (adjustedRoll < 97) rarityKey = 'epic';
+        else if (adjustedRoll < 99.5) rarityKey = 'legendary';
+        else if (adjustedRoll < 99.95) rarityKey = 'mythical';
+        else rarityKey = 'godly';
+        const pool = ITEMS_BY_RARITY[rarityKey] || [];
+        if (pool.length) {
+          const reward = pool[Math.floor(Math.random() * pool.length)];
+          const invList = stats.inventory || [];
+          const existingReward = invList.find(i => i.id === reward.id);
+          const needsSlot = !existingReward;
+          const willExceedBonus =
+            needsSlot && getInventoryCount(stats) + 1 > MAX_ITEMS;
+          if (!initialFull && !willExceedBonus) {
+            if (existingReward) existingReward.amount += 1;
+            else invList.push({ ...reward, amount: 1 });
+            bonusItemText = `-# Bonus drop: ${reward.emoji || ''} ${reward.name}`;
+          } else if (!initialFull) {
+            alertInventoryFull(interaction, user, stats, 1);
+          }
         }
       }
     }
