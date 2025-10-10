@@ -61,6 +61,11 @@ function createDefaultData() {
         stage: 0,
         claims: [],
       },
+      announcements: {
+        startAnnouncementTimestamp: 0,
+        countdownTargetTimestamp: 0,
+        countdownMessageId: null,
+      },
     },
   };
 }
@@ -117,7 +122,14 @@ const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 let shop = { stock: {}, nextRestock: 0 };
-let battlePassData = { reward100: { stage: 0, claims: [] } };
+let battlePassData = {
+  reward100: { stage: 0, claims: [] },
+  announcements: {
+    startAnnouncementTimestamp: 0,
+    countdownTargetTimestamp: 0,
+    countdownMessageId: null,
+  },
+};
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -175,7 +187,41 @@ function loadData() {
     commandBans = data.command_bans || {};
     cshMessageId = data.csh_message_id || null;
     shop = data.shop || { stock: {}, nextRestock: 0 };
-    battlePassData = data.battle_pass || { reward100: { stage: 0, claims: [] } };
+    battlePassData = data.battle_pass || {
+      reward100: { stage: 0, claims: [] },
+      announcements: {
+        startAnnouncementTimestamp: 0,
+        countdownTargetTimestamp: 0,
+        countdownMessageId: null,
+      },
+    };
+    if (!battlePassData.reward100) {
+      battlePassData.reward100 = { stage: 0, claims: [] };
+    }
+    if (!Array.isArray(battlePassData.reward100.claims)) {
+      battlePassData.reward100.claims = [];
+    }
+    if (!battlePassData.announcements) {
+      battlePassData.announcements = {
+        startAnnouncementTimestamp: 0,
+        countdownTargetTimestamp: 0,
+        countdownMessageId: null,
+      };
+    } else {
+      const announcements = battlePassData.announcements;
+      if (!Number.isFinite(announcements.startAnnouncementTimestamp)) {
+        announcements.startAnnouncementTimestamp = 0;
+      }
+      if (!Number.isFinite(announcements.countdownTargetTimestamp)) {
+        announcements.countdownTargetTimestamp = 0;
+      }
+      if (
+        announcements.countdownMessageId !== null &&
+        typeof announcements.countdownMessageId !== 'string'
+      ) {
+        announcements.countdownMessageId = String(announcements.countdownMessageId);
+      }
+    }
   } catch (err) {
     console.error('Failed to load user data, restoring defaults:', err.message);
     userStats = {};
