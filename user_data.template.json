@@ -12,6 +12,11 @@
     "reward100": {
       "stage": 0,
       "claims": []
+    },
+    "announcements": {
+      "startAnnouncementTimestamp": 0,
+      "countdownTargetTimestamp": 0,
+      "countdownMessageId": null
     }
   }
 }

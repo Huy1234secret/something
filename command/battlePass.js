@@ -103,6 +103,12 @@ const REWARD_PAGE_SIZE = 5;
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
 const BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID = '1372572234949853367';
+const BATTLE_PASS_COMMAND_MENTION = '</battle-pass:1425004266749427775>';
+
+const ANNOUNCEMENT_COLOR = 0x00ffff;
+const COUNTDOWN_COLOR = 0xffffff;
+const ANNOUNCEMENT_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const COUNTDOWN_WINDOW_MS = 1000 * 60 * 60 * 24 * 180;
 
 const REWARD100_STAGES = [
   { key: '30', label: '$30 Gift Card', type: 'special', announcement: true },
@@ -222,6 +228,10 @@ const BASE_REWARDS = [
 let resourcesRef = null;
 let battlePassRewards = [];
 const states = new Map();
+let announcementWatcherStarted = false;
+let announcementCheckRunning = false;
+let announcementChannel = null;
+let lastAnnouncementChannelFetchFailure = 0;
 
 function getBattlePassData() {
   if (!resourcesRef || !resourcesRef.battlePassData) {
@@ -259,6 +269,188 @@ function refreshRewards() {
 function getBattlePassRewards() {
   if (battlePassRewards.length === 0) refreshRewards();
   return battlePassRewards;
+}
+
+function getChristmasEventStartDate(year) {
+  return new Date(Date.UTC(year, 11, 1, -7, 0, 0, 0));
+}
+
+function getChristmasEventEndDate(year) {
+  return new Date(Date.UTC(year, 11, 31, 17, 0, 0, 0));
+}
+
+function getAnnouncementState() {
+  const data = getBattlePassData();
+  if (!data.announcements) {
+    data.announcements = {
+      startAnnouncementTimestamp: 0,
+      countdownTargetTimestamp: 0,
+      countdownMessageId: null,
+    };
+  }
+  return data.announcements;
+}
+
+async function getAnnouncementChannel() {
+  if (!resourcesRef?.client) return null;
+  if (announcementChannel && typeof announcementChannel.send === 'function') {
+    return announcementChannel;
+  }
+
+  const now = Date.now();
+  if (now - lastAnnouncementChannelFetchFailure < ANNOUNCEMENT_POLL_INTERVAL_MS) {
+    return null;
+  }
+
+  try {
+    const channel = await resourcesRef.client.channels.fetch(BATTLE_PASS_ANNOUNCEMENT_CHANNEL_ID);
+    if (channel && typeof channel.send === 'function') {
+      announcementChannel = channel;
+      lastAnnouncementChannelFetchFailure = 0;
+      return announcementChannel;
+    }
+    if (!lastAnnouncementChannelFetchFailure) {
+      console.warn('Battle pass announcement channel is not text-based.');
+    }
+  } catch (error) {
+    if (!lastAnnouncementChannelFetchFailure) {
+      console.warn('Failed to fetch battle pass announcement channel:', error.message);
+    }
+    lastAnnouncementChannelFetchFailure = now;
+    return null;
+  }
+
+  lastAnnouncementChannelFetchFailure = now;
+  return null;
+}
+
+async function sendChristmasStartAnnouncement(channel, year) {
+  const endDate = getChristmasEventEndDate(year);
+  const endTimestamp = Math.floor(endDate.getTime() / 1000);
+  const firstMessageLines = [
+    '## 🎄Christmas Battle Pass has started! 🎄',
+    "* Contain 100 tiers with 100 rewards. Especially at tier 100 there's a 30$ giftcard waiting for a person to claim.",
+    '* In this battle pass we have 3 grand prizes: 30$, 20$ and 10$',
+    '* You have in just 31 days to complete',
+    `-# Begin the grind in ${BATTLE_PASS_COMMAND_MENTION}`,
+  ];
+  const secondMessageLines = [`* Battle pass ends <t:${endTimestamp}:R>`];
+
+  const container = new ContainerBuilder()
+    .setAccentColor(ANNOUNCEMENT_COLOR)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(firstMessageLines.join('\n')))
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(secondMessageLines.join('\n')));
+
+  try {
+    await channel.send({
+      content: '@here',
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    return true;
+  } catch (error) {
+    console.warn('Failed to send Christmas battle pass start announcement:', error.message);
+    announcementChannel = null;
+  }
+
+  return false;
+}
+
+async function sendChristmasCountdownAnnouncement(channel, year, startDate) {
+  const startTimestamp = Math.floor(startDate.getTime() / 1000);
+  const lines = [
+    `## 🎁 Christmas Battle Pass ${year} 🎁`,
+    `* Start <t:${startTimestamp}:R>`,
+    '-# with 3 grand prizes if you grind hard enough',
+  ];
+
+  const container = new ContainerBuilder()
+    .setAccentColor(COUNTDOWN_COLOR)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
+
+  try {
+    await channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    return true;
+  } catch (error) {
+    console.warn('Failed to send Christmas battle pass countdown announcement:', error.message);
+    announcementChannel = null;
+  }
+
+  return false;
+}
+
+async function processBattlePassAnnouncements() {
+  const channel = await getAnnouncementChannel();
+  if (!channel) return;
+
+  const now = new Date();
+  const announcements = getAnnouncementState();
+  const currentYear = now.getFullYear();
+  const startThisYear = getChristmasEventStartDate(currentYear);
+  let dirty = false;
+
+  if (now >= startThisYear && announcements.startAnnouncementTimestamp < startThisYear.getTime()) {
+    const sent = await sendChristmasStartAnnouncement(channel, currentYear);
+    if (sent) {
+      announcements.startAnnouncementTimestamp = startThisYear.getTime();
+      dirty = true;
+    }
+  }
+
+  if (
+    now < startThisYear &&
+    startThisYear.getTime() - now.getTime() <= COUNTDOWN_WINDOW_MS &&
+    announcements.countdownTargetTimestamp < startThisYear.getTime()
+  ) {
+    const sent = await sendChristmasCountdownAnnouncement(channel, currentYear, startThisYear);
+    if (sent) {
+      announcements.countdownTargetTimestamp = startThisYear.getTime();
+      dirty = true;
+    }
+  }
+
+  if (now >= startThisYear) {
+    const nextYear = currentYear + 1;
+    const nextStart = getChristmasEventStartDate(nextYear);
+    if (
+      nextStart.getTime() - now.getTime() <= COUNTDOWN_WINDOW_MS &&
+      announcements.countdownTargetTimestamp < nextStart.getTime()
+    ) {
+      const sent = await sendChristmasCountdownAnnouncement(channel, nextYear, nextStart);
+      if (sent) {
+        announcements.countdownTargetTimestamp = nextStart.getTime();
+        dirty = true;
+      }
+    }
+  }
+
+  if (dirty && resourcesRef?.saveData) {
+    resourcesRef.saveData();
+  }
+}
+
+function startAnnouncementWatcher() {
+  if (announcementWatcherStarted) return;
+  announcementWatcherStarted = true;
+
+  const run = async () => {
+    if (announcementCheckRunning) return;
+    announcementCheckRunning = true;
+    try {
+      await processBattlePassAnnouncements();
+    } catch (error) {
+      console.error('Failed to process battle pass announcements:', error);
+    } finally {
+      announcementCheckRunning = false;
+    }
+  };
+
+  run();
+  setInterval(run, ANNOUNCEMENT_POLL_INTERVAL_MS);
 }
 
 function createEmptyQuestSet() {
@@ -1930,7 +2122,7 @@ async function handleSlashCommand(interaction) {
   const privileged = isPrivilegedUser(interaction.user?.id);
   if (!isBattlePassActive() && !privileged) {
     await interaction.reply({
-      content: 'The Christmas battle pass unlocks on December 1st at 00:00. Please check back then!',
+      content: 'The Christmas battle pass unlocks on December 1st at 00:00 (UTC+7). Please check back then!',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -2152,6 +2344,7 @@ function parseCustomId(id) {
 function setup(client, resources) {
   resourcesRef = resources;
   refreshRewards();
+  startAnnouncementWatcher();
   const command = new SlashCommandBuilder()
     .setName('battle-pass')
     .setDescription('View the Christmas battle pass rewards and quests.');
