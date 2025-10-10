@@ -52,6 +52,18 @@ const {
   ButtonBuilder,
 } = require('@discordjs/builders');
 
+const DEFAULT_LUCK_RARITY_WEIGHTS = {
+  Common: 0,
+  Uncommon: 0.15,
+  Rare: 0.25,
+  Epic: 0.45,
+  Legendary: 0.7,
+  Mythical: 0.95,
+  Godly: 1.15,
+  Prismatic: 1.35,
+  Secret: 1.6,
+};
+
 function parseAmount(str) {
   const match = String(str).trim().match(/^(-?\d+(?:\.\d+)?)([a-zA-Z]{1,2})?$/);
   if (!match) return NaN;
@@ -131,9 +143,61 @@ function getCooldownMultiplier(stats) {
 }
 
 function getLuckBonus(stats) {
+  if (!stats) return 0;
   let bonus = 0;
+  const now = Date.now();
+
+  const candidates = [
+    'luck_bonus',
+    'luckBonus',
+    'luck_boost',
+    'luckBoost',
+    'luck_percent',
+    'luckPercent',
+  ];
+  for (const key of candidates) {
+    const value = stats[key];
+    if (Number.isFinite(value)) bonus += value;
+  }
+
+  if (Array.isArray(stats.luck_bonuses)) {
+    stats.luck_bonuses = stats.luck_bonuses.filter(
+      entry => entry && entry.expiresAt > now && Number.isFinite(entry.amount),
+    );
+    for (const entry of stats.luck_bonuses) bonus += entry.amount;
+  }
+
   if (hasGoodList(stats)) bonus += 1;
-  return bonus;
+
+  if (Number.isFinite(stats.luckMultiplier)) {
+    bonus += Math.max(0, stats.luckMultiplier - 1);
+  }
+
+  return Math.max(0, bonus);
+}
+
+function getLuckMultiplier(stats) {
+  return 1 + Math.max(0, getLuckBonus(stats));
+}
+
+function scaleChanceWithLuck(baseChance, stats, { min = 0, max = 1, power = 1 } = {}) {
+  const normalizedBase = Math.max(0, baseChance);
+  const safeMax = Math.max(min, max);
+  const luckBonus = Math.max(0, getLuckBonus(stats));
+  if (luckBonus <= 0) {
+    return Math.min(safeMax, Math.max(min, normalizedBase));
+  }
+  const multiplier = Math.pow(1 + luckBonus, power);
+  const adjusted = normalizedBase * multiplier;
+  return Math.min(safeMax, Math.max(min, adjusted));
+}
+
+function getLuckAdjustedWeight(baseWeight, rarity, stats, weights = DEFAULT_LUCK_RARITY_WEIGHTS) {
+  if (!Number.isFinite(baseWeight) || baseWeight <= 0) return 0;
+  const weight = weights[rarity] || 0;
+  const luckBonus = Math.max(0, getLuckBonus(stats));
+  if (luckBonus <= 0 || weight <= 0) return baseWeight;
+  return baseWeight * (1 + luckBonus * weight);
 }
 
 function computeActionSuccessChance(base, stats, { deathChance = 0, min = 0.001, max = 0.99 } = {}) {
@@ -148,8 +212,9 @@ function computeActionSuccessChance(base, stats, { deathChance = 0, min = 0.001,
   }
 
   const limit = Math.max(0, 1 - deathChance);
-  let chance = Math.min(limit, base + getLuckBonus(stats));
-  chance = Math.min(max, Math.max(min, chance));
+  const cap = Math.min(limit, max);
+  let chance = scaleChanceWithLuck(base, stats, { min, max: cap });
+  chance = Math.min(limit, Math.max(min, chance));
   return { chance, forcedFail: false };
 }
 
@@ -286,4 +351,8 @@ module.exports = {
   hasNaughtyList,
   isSnowballed,
   getLuckBonus,
+  getLuckMultiplier,
+  scaleChanceWithLuck,
+  getLuckAdjustedWeight,
+  DEFAULT_LUCK_RARITY_WEIGHTS,
 };
