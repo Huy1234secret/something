@@ -366,4 +366,5 @@ module.exports = {
     const file = new AttachmentBuilder(buffer, { name: 'battle-pass.png' });
     await interaction.editReply({ files: [file] });
   },
+  renderBattlePass,
 };
