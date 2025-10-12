@@ -33,6 +33,24 @@ const UPGRADE_CONFIG = {
   },
 };
 
+function toComponentEmoji(emoji) {
+  if (!emoji) return null;
+  if (typeof emoji === 'string') {
+    const match = emoji.match(/^<(?:(a)?:)?([^:>]+):([0-9]+)>$/);
+    if (match) {
+      const [, animated, name, id] = match;
+      return {
+        id,
+        name,
+        animated: Boolean(animated),
+      };
+    }
+    return { name: emoji };
+  }
+  if (typeof emoji === 'object') return emoji;
+  return null;
+}
+
 function buildMainContainer() {
   const craftButton = new ButtonBuilder()
     .setCustomId('upgrade:craft')
@@ -81,10 +99,9 @@ function countItem(stats, itemId) {
 }
 
 function buildUpgradeSelect(stats) {
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(UPGRADE_SELECT_ID)
-    .setPlaceholder('Item List 1');
+  const select = new StringSelectMenuBuilder().setCustomId(UPGRADE_SELECT_ID);
 
+  let optionCount = 0;
   for (const itemId of Object.keys(UPGRADE_CONFIG)) {
     const item = ITEMS[itemId];
     if (!item) continue;
@@ -93,8 +110,19 @@ function buildUpgradeSelect(stats) {
       .setLabel(item.name)
       .setValue(itemId)
       .setDescription(`You have ${formatNumber(amount)}`);
-    if (item.emoji) option.setEmoji(item.emoji);
+    const emoji = toComponentEmoji(item.emoji);
+    if (emoji) option.setEmoji(emoji);
     select.addOptions(option);
+    optionCount += 1;
+  }
+
+  if (optionCount === 0) {
+    select
+      .setPlaceholder("Oops, you don't have any upgradeable items")
+      .setDisabled(true)
+      .addOptions(new StringSelectMenuOptionBuilder().setLabel('No items available').setValue('none'));
+  } else {
+    select.setPlaceholder('Select an item to upgrade');
   }
 
   return select;
