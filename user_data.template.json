@@ -4,6 +4,7 @@
   "timed_roles": [],
   "command_bans": {},
   "csh_message_id": null,
+  "upgrade_message_id": null,
   "shop": {
     "stock": {},
     "nextRestock": 0

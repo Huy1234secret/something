@@ -93,12 +93,6 @@ const QUEST_REROLL_COST = {
 
 const REROLL_COST_EMOJI = DELUXE_COIN_EMOJI;
 
-const QUEST_ACTIONS = [
-  { label: 'Hunt', base: 'hunt', gerund: 'hunting' },
-  { label: 'Dig', base: 'dig', gerund: 'digging' },
-  { label: 'Beg', base: 'beg', gerund: 'begging' },
-];
-
 const REWARD_PAGE_SIZE = 5;
 
 const SERVER_OWNER_USER_ID = '902736357766594611';
@@ -1114,32 +1108,6 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function randomQuestAction() {
-  if (QUEST_ACTIONS.length === 0) {
-    return { label: 'Hunt', base: 'hunt', gerund: 'hunting' };
-  }
-  const index = randomInt(0, QUEST_ACTIONS.length - 1);
-  return QUEST_ACTIONS[index];
-}
-
-function describeActionTimes(action, required) {
-  return `${action.label} ${formatNumber(required)} times`;
-}
-
-function describeSuccessfulAction(action, required) {
-  return `Successfully ${action.base} ${formatNumber(required)} times`;
-}
-
-function describeFailedAction(action, required) {
-  return `Fail ${action.gerund} ${formatNumber(required)} times`;
-}
-
-function interpolateReward(value, minValue, maxValue, minReward, maxReward) {
-  if (maxValue === minValue) return minReward;
-  const ratio = (value - minValue) / (maxValue - minValue);
-  return Math.round(minReward + ratio * (maxReward - minReward));
-}
-
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -1163,647 +1131,721 @@ function questFormatterHours(value) {
 function questFormatterXP(value) {
   return `${formatNumber(Math.round(value))}`;
 }
+
+function makeQuestBuilder({
+  getRequired,
+  getPoints,
+  buildDescription,
+  formatter = questFormatterNumber,
+  progressType = 'number',
+}) {
+  return () => {
+    const required =
+      typeof getRequired === 'function' ? getRequired() : getRequired;
+    const points = typeof getPoints === 'function' ? getPoints(required) : getPoints;
+    const progress =
+      progressType === 'decimal'
+        ? randomDecimalProgress(required)
+        : randomProgress(required);
+    return {
+      description:
+        typeof buildDescription === 'function'
+          ? buildDescription(required)
+          : buildDescription,
+      required,
+      progress,
+      points,
+      formatter,
+    };
+  };
+}
+
+function formatHoursValue(value) {
+  if (Number.isInteger(value)) return `${value}`;
+  return value.toFixed(2).replace(/\.0+$/, '').replace(/(\d)0+$/, '$1');
+}
+
 const QUEST_BUILDERS = {
   hourly: [
-    () => {
-      const required = randomInt(50, 150);
-      const points = interpolateReward(required, 50, 150, 50, 150);
-      const progress = randomProgress(required);
-      return {
-        description: `Send ${formatNumber(required)} messages in the server`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(20, 40);
-      const points = interpolateReward(required, 20, 40, 50, 100);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeActionTimes(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(10, 20);
-      const points = interpolateReward(required, 10, 20, 50, 100);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeSuccessfulAction(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(10, 20);
-      const points = interpolateReward(required, 10, 20, 50, 100);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeFailedAction(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(1000, 10000);
-      const points = interpolateReward(required, 1000, 10000, 10, 100);
-      const progress = randomProgress(required);
-      return {
-        description: `Earn ${formatNumber(required)} coins for your wallet`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(3, 5);
-      const points = interpolateReward(required, 3, 5, 30, 50);
-      const progress = randomProgress(required);
-      return {
-        description: `Rob ${formatNumber(required)} times`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 1;
-      const progress = randomProgress(required);
-      return {
-        description: 'Successfully rob once',
-        required,
-        progress,
-        points: 100,
-        formatter: questFormatterNumber,
-      };
-    },
+    makeQuestBuilder({
+      getRequired: () => randomInt(20, 100),
+      getPoints: () => randomInt(50, 250),
+      buildDescription: required =>
+        `Send ${formatNumber(required)} messages in the server`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 0.25,
+      getPoints: () => 250,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} hours straight`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => 0.5,
+      getPoints: () => 250,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} total hours`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(4000, 10000),
+      getPoints: () => randomInt(200, 500),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(2000, 4000),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /beg`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(2000, 4000),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /dig`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(2000, 4000),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /hunt`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(300, 500),
+      getPoints: () => randomInt(150, 250),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP in voice channel`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(200, 400),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through chatting`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(100_000, 200_000),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 2000,
+      getPoints: () => 200,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /rob`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100_000,
+      getPoints: () => 250,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /beg`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(100_000, 200_000),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling animals`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 12_000,
+      getPoints: () => 240,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling artifacts (/dig)`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 5000,
+      getPoints: () => 250,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from chatting`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(30, 50),
+      getPoints: () => randomInt(150, 250),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10, 20),
+      getPoints: () => randomInt(200, 400),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(1, 3),
+      getPoints: () => randomInt(200, 600),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(5, 10),
+      getPoints: () => randomInt(250, 500),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(3, 5),
+      getPoints: () => randomInt(300, 500),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(30, 50),
+      getPoints: () => randomInt(300, 500),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10, 20),
+      getPoints: () => randomInt(300, 600),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(1, 3),
+      getPoints: () => randomInt(200, 600),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1,
+      getPoints: () => 200,
+      buildDescription: required =>
+        `Rob ${formatNumber(required)} time`,
+    }),
   ],
   daily: [
-    () => {
-      const required = randomInt(200, 400);
-      const points = interpolateReward(required, 200, 400, 200, 400);
-      const progress = randomProgress(required);
-      return {
-        description: `Send ${formatNumber(required)} messages in the server`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(50, 100);
-      const points = interpolateReward(required, 50, 100, 125, 250);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeActionTimes(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(30, 60);
-      const points = interpolateReward(required, 30, 60, 150, 300);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeSuccessfulAction(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(30, 60);
-      const points = interpolateReward(required, 30, 60, 150, 300);
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeFailedAction(action, required),
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(10000, 100000);
-      const points = interpolateReward(required, 10000, 100000, 100, 1000);
-      const progress = randomProgress(required);
-      return {
-        description: `Earn ${formatNumber(required)} coins for your wallet`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(10, 20);
-      const points = interpolateReward(required, 10, 20, 100, 200);
-      const progress = randomProgress(required);
-      return {
-        description: `Rob ${formatNumber(required)} times`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(2, 4);
-      const points = interpolateReward(required, 2, 4, 200, 400);
-      const progress = randomProgress(required);
-      return {
-        description: `Successfully rob ${formatNumber(required)} times`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(5, 10);
-      const points = interpolateReward(required, 5, 10, 100, 200);
-      const progress = randomProgress(required);
-      return {
-        description: `Fail robbing ${formatNumber(required)} times`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 1;
-      const progress = randomProgress(required);
-      return {
-        description: 'Die from hunting once',
-        required,
-        progress,
-        points: 1500,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 1;
-      const progress = randomProgress(required);
-      return {
-        description: 'Die from robbing once',
-        required,
-        progress,
-        points: 800,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(5000, 50000);
-      const points = interpolateReward(required, 5000, 50000, 100, 1000);
-      const progress = randomProgress(required);
-      return {
-        description: `Lose ${formatNumber(required)} coins from your wallet`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = Math.round((Math.random() * 6 + 2) * 10) / 10;
-      const points = interpolateReward(required, 2, 8, 200, 800);
-      const progress = randomDecimalProgress(required);
-      return {
-        description: `Stay in voice chat for ${required.toFixed(1)}h total`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterHours,
-      };
-    },
-    () => {
-      const required = randomInt(10000, 50000);
-      const points = interpolateReward(required, 10000, 50000, 100, 500);
-      const progress = randomProgress(required);
-      return {
-        description: `Earn ${formatNumber(required)} chat XP`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterXP,
-      };
-    },
-    () => {
-      const required = randomInt(20, 40);
-      const points = interpolateReward(required, 20, 40, 400, 800);
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} sheafs`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(10, 20);
-      const points = interpolateReward(required, 10, 20, 400, 800);
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} potatoes`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(4, 8);
-      const points = interpolateReward(required, 4, 8, 400, 800);
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} white cabbages`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = randomInt(2, 4);
-      const points = interpolateReward(required, 2, 4, 400, 800);
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} pumpkins`,
-        required,
-        progress,
-        points,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 50;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} common animals`,
-        required,
-        progress,
-        points: 100,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 35;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} rare animals`,
-        required,
-        progress,
-        points: 200,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 25;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} epic animals`,
-        required,
-        progress,
-        points: 400,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 10;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} legendary animals`,
-        required,
-        progress,
-        points: 1000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 5;
-      const progress = randomProgress(required);
-      return {
-        description: 'Dig up 5 items',
-        required,
-        progress,
-        points: 500,
-        formatter: questFormatterNumber,
-      };
-    },
+    makeQuestBuilder({
+      getRequired: () => randomInt(200, 400),
+      getPoints: () => randomInt(500, 1000),
+      buildDescription: required =>
+        `Send ${formatNumber(required)} messages in the server`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 4,
+      getPoints: () => 800,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} hours straight`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => 8,
+      getPoints: () => 800,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} total hours`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(25_000, 50_000),
+      getPoints: () => randomInt(1250, 2500),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 5000,
+      getPoints: () => 800,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through voice chat`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10_000, 20_000),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /beg`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10_000, 20_000),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /dig`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10_000, 20_000),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /hunt`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(500, 1000),
+      getPoints: () => randomInt(500, 1000),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through chatting`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(1_000_000, 2_000_000),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 150_000,
+      getPoints: () => 1500,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /rob`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(300_000, 500_000),
+      getPoints: () => randomInt(750, 1250),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /beg`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(500_000, 900_000),
+      getPoints: () => randomInt(1000, 1800),
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling animals`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100_000,
+      getPoints: () => 1000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling crops`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100_000,
+      getPoints: () => 2000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling artifacts (/dig)`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 20_000,
+      getPoints: () => 2000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from chatting`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(200, 400),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(50, 100),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10, 30),
+      getPoints: () => randomInt(1000, 3000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(3, 5),
+      getPoints: () => randomInt(3000, 5000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Legendary Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1,
+      getPoints: () => 5000,
+      buildDescription: () => 'Collect 1 Mythical Item',
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(50, 100),
+      getPoints: () => randomInt(2000, 4000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10, 30),
+      getPoints: () => randomInt(3000, 5000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(1, 5),
+      getPoints: () => randomInt(4000, 6000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1,
+      getPoints: () => 8000,
+      buildDescription: () => 'Collect 1 Legendary Item in /dig',
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(50, 100),
+      getPoints: () => randomInt(1000, 2000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(25, 50),
+      getPoints: () => randomInt(2500, 5000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(10, 25),
+      getPoints: () => randomInt(3000, 7500),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => randomInt(3, 9),
+      getPoints: () => randomInt(3000, 9000),
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Legendary animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1,
+      getPoints: () => 12_500,
+      buildDescription: () => 'Collect 1 Mythical animal in /hunt',
+    }),
+    makeQuestBuilder({
+      getRequired: () => 18,
+      getPoints: () => 8400,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} crops in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 27,
+      getPoints: () => 7000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} sheafs in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 12,
+      getPoints: () => 10_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} potatoes in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 9,
+      getPoints: () => 12_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} white cabbages in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 9,
+      getPoints: () => 15_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} pumpkins in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 80,
+      getPoints: () => 8000,
+      buildDescription: required =>
+        `Water ${formatNumber(required)} plots in farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 30,
+      getPoints: () => 4000,
+      buildDescription: required =>
+        `Rob ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 15,
+      getPoints: () => 8000,
+      buildDescription: required =>
+        `Successfully rob ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 25,
+      getPoints: () => 6000,
+      buildDescription: required =>
+        `Fail robbing ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 30,
+      getPoints: () => 9000,
+      buildDescription: required =>
+        `Complete ${formatNumber(required)} Hourly quests`,
+    }),
   ],
   weekly: [
-    () => {
-      const required = 1000;
-      const progress = randomProgress(required);
-      return {
-        description: `Send ${formatNumber(required)} messages in the server`,
-        required,
-        progress,
-        points: 4000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 400;
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeActionTimes(action, required),
-        required,
-        progress,
-        points: 8000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 200;
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeSuccessfulAction(action, required),
-        required,
-        progress,
-        points: 15000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 200;
-      const progress = randomProgress(required);
-      const action = randomQuestAction();
-      return {
-        description: describeFailedAction(action, required),
-        required,
-        progress,
-        points: 15000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 500000;
-      const progress = randomProgress(required);
-      return {
-        description: `Earn ${formatNumber(required)} coins for your wallet`,
-        required,
-        progress,
-        points: 10000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 200;
-      const progress = randomProgress(required);
-      return {
-        description: `Rob ${formatNumber(required)} times`,
-        required,
-        progress,
-        points: 5000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 50;
-      const progress = randomProgress(required);
-      return {
-        description: `Successfully rob ${formatNumber(required)} times`,
-        required,
-        progress,
-        points: 9000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 150;
-      const progress = randomProgress(required);
-      return {
-        description: `Fail robbing ${formatNumber(required)} times`,
-        required,
-        progress,
-        points: 5000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 20;
-      const progress = randomProgress(required);
-      return {
-        description: 'Die from hunting 20 times',
-        required,
-        progress,
-        points: 15000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 50;
-      const progress = randomProgress(required);
-      return {
-        description: 'Die from robbing 50 times',
-        required,
-        progress,
-        points: 15000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 100000;
-      const progress = randomProgress(required);
-      return {
-        description: `Lose ${formatNumber(required)} coins from your wallet`,
-        required,
-        progress,
-        points: 5000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 72;
-      const progress = randomDecimalProgress(required);
-      return {
-        description: `Stay in voice chat for ${required.toFixed(1)}h total`,
-        required,
-        progress,
-        points: 9000,
-        formatter: questFormatterHours,
-      };
-    },
-    () => {
-      const required = 200000;
-      const progress = randomProgress(required);
-      return {
-        description: 'Earn 200k chat XP',
-        required,
-        progress,
-        points: 10000,
-        formatter: questFormatterXP,
-      };
-    },
-    () => {
-      const required = 200;
-      const progress = randomProgress(required);
-      return {
-        description: 'Harvest 200 sheafs',
-        required,
-        progress,
-        points: 10000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 100;
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} potatoes`,
-        required,
-        progress,
-        points: 12500,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 50;
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} white cabbages`,
-        required,
-        progress,
-        points: 15000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 40;
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} pumpkins`,
-        required,
-        progress,
-        points: 20000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 20;
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} melons`,
-        required,
-        progress,
-        points: 30000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 10;
-      const progress = randomProgress(required);
-      return {
-        description: `Harvest ${formatNumber(required)} star fruits`,
-        required,
-        progress,
-        points: 50000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 300;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} common animals`,
-        required,
-        progress,
-        points: 5000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 200;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} rare animals`,
-        required,
-        progress,
-        points: 6000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 100;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} epic animals`,
-        required,
-        progress,
-        points: 7500,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 50;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} legendary animals`,
-        required,
-        progress,
-        points: 9000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 20;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} mythical animals`,
-        required,
-        progress,
-        points: 14500,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 5;
-      const progress = randomProgress(required);
-      return {
-        description: `Hunt ${formatNumber(required)} godly animals`,
-        required,
-        progress,
-        points: 20000,
-        formatter: questFormatterNumber,
-      };
-    },
-    () => {
-      const required = 100;
-      const progress = randomProgress(required);
-      return {
-        description: 'Dig up 100 items',
-        required,
-        progress,
-        points: 10000,
-        formatter: questFormatterNumber,
-      };
-    },
+    makeQuestBuilder({
+      getRequired: () => 2000,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Send ${formatNumber(required)} messages in the server`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 24,
+      getPoints: () => 24_000,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} hours straight`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => 72,
+      getPoints: () => 36_000,
+      buildDescription: required =>
+        `Stay in voice for ${formatHoursValue(required)} total hours`,
+      formatter: questFormatterHours,
+      progressType: 'decimal',
+    }),
+    makeQuestBuilder({
+      getRequired: () => 300_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 35_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through voice chat`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 60_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /beg`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 60_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /dig`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 60_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through /hunt`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 10_000,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} Chat XP through chatting`,
+      formatter: questFormatterXP,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 10_000_000,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1_000_000,
+      getPoints: () => 15_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /rob`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 2_500_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from /beg`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 5_000_000,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling animals`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1_000_000,
+      getPoints: () => 35_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling crops`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1_000_000,
+      getPoints: () => 25_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from selling artifacts (/dig)`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 200_000,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Earn ${formatNumber(required)} coins from chatting`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 1000,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 500,
+      getPoints: () => 25_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 200,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Legendary Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 40,
+      getPoints: () => 60_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Mythical Items`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 300,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 150,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 75,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 25,
+      getPoints: () => 50_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Legendary Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 10,
+      getPoints: () => 60_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Mythical Items in /dig`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 700,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Common animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 400,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Rare animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 200,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Epic animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100,
+      getPoints: () => 50_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Legendary animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 25,
+      getPoints: () => 60_000,
+      buildDescription: required =>
+        `Collect ${formatNumber(required)} Mythical animals in /hunt`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 200,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} crops in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 120,
+      getPoints: () => 36_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} sheafs in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 50,
+      getPoints: () => 50_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} potatoes in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 36,
+      getPoints: () => 60_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} white cabbages in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 24,
+      getPoints: () => 70_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} pumpkins in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 12,
+      getPoints: () => 80_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} melons in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 9,
+      getPoints: () => 100_000,
+      buildDescription: required =>
+        `Harvest ${formatNumber(required)} star fruits in Farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 250,
+      getPoints: () => 25_000,
+      buildDescription: required =>
+        `Water ${formatNumber(required)} plots in farm`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 200,
+      getPoints: () => 20_000,
+      buildDescription: required =>
+        `Rob ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 50,
+      getPoints: () => 40_000,
+      buildDescription: required =>
+        `Successfully rob ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 100,
+      getPoints: () => 30_000,
+      buildDescription: required =>
+        `Fail robbing ${formatNumber(required)} times`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 48,
+      getPoints: () => 48_000,
+      buildDescription: required =>
+        `Complete ${formatNumber(required)} Hourly quests`,
+    }),
+    makeQuestBuilder({
+      getRequired: () => 6,
+      getPoints: () => 60_000,
+      buildDescription: required =>
+        `Complete ${formatNumber(required)} Daily quests`,
+    }),
   ],
 };
 function generateQuests(type) {

@@ -572,7 +572,10 @@ async function handleHunt(interaction, resources, stats) {
   }
 
   const baseCooldown = masteryLevel >= 90 ? 10000 : masteryLevel >= 40 ? 20000 : 30000;
-  const cooldownDuration = Math.round(baseCooldown * getCooldownMultiplier(stats));
+  let cooldownMultiplier = getCooldownMultiplier(stats);
+  if (stats.hunt_gun === 'HuntingRifleT2') cooldownMultiplier *= 0.9;
+  else if (stats.hunt_gun === 'HuntingRifleT3') cooldownMultiplier *= 0.75;
+  const cooldownDuration = Math.round(baseCooldown * cooldownMultiplier);
   const cooldown = Date.now() + cooldownDuration;
   stats.hunt_cd_until = cooldown;
   stats.hunt_total = (stats.hunt_total || 0) + 1;
