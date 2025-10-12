@@ -39,6 +39,7 @@ const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
 const battlePassCommand = require('./command/battlePass');
 const purgeMessageCommand = require('./command/purgeMessage');
+const upgradeFeature = require('./command/upgrade');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -55,6 +56,7 @@ function createDefaultData() {
     timed_roles: [],
     command_bans: {},
     csh_message_id: null,
+    upgrade_message_id: null,
     shop: { stock: {}, nextRestock: 0 },
     battle_pass: {
       reward100: {
@@ -115,6 +117,7 @@ let userCardSettings = {};
 let timedRoles = [];
 let commandBans = {};
 let cshMessageId = null;
+let upgradeMessageId = null;
 const defaultColor = [0,255,255];
 const defaultBackground = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg';
 const MAX_LEVEL = 9999;
@@ -186,6 +189,13 @@ function loadData() {
     timedRoles = data.timed_roles || [];
     commandBans = data.command_bans || {};
     cshMessageId = data.csh_message_id || null;
+    upgradeMessageId = data.upgrade_message_id || null;
+    if (
+      upgradeMessageId !== null &&
+      typeof upgradeMessageId !== 'string'
+    ) {
+      upgradeMessageId = String(upgradeMessageId);
+    }
     shop = data.shop || { stock: {}, nextRestock: 0 };
     battlePassData = data.battle_pass || {
       reward100: { stage: 0, claims: [] },
@@ -229,6 +239,7 @@ function loadData() {
     timedRoles = [];
     commandBans = {};
     cshMessageId = null;
+    upgradeMessageId = null;
     shop = { stock: {}, nextRestock: 0 };
     battlePassData = { reward100: { stage: 0, claims: [] } };
     saveData();
@@ -247,6 +258,7 @@ function saveData() {
     timed_roles: timedRoles,
     command_bans: commandBans,
     csh_message_id: cshMessageId,
+    upgrade_message_id: upgradeMessageId,
     shop,
     battle_pass: battlePassData,
   };
@@ -547,6 +559,10 @@ const resources = {
   huntMasteryXpNeeded,
   addFarmMasteryXp,
   farmMasteryXpNeeded,
+  getUpgradeMessageId: () => upgradeMessageId,
+  setUpgradeMessageId: id => {
+    upgradeMessageId = id;
+  },
 };
 
 const client = new Client({
@@ -653,6 +669,7 @@ client.on = function(event, listener) {
     badgesCommand.setup(client, resources);
     battlePassCommand.setup(client, resources);
     purgeMessageCommand.setup(client, resources);
+    upgradeFeature.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
