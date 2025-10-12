@@ -16,6 +16,7 @@ const {
 const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { AREAS, AREA_BY_NAME, AREA_BY_KEY, HUNT_LURES, RARE_RARITIES } = require('../huntData');
+const { isChristmasEventActive } = require('../events');
 const {
   getBadgeById,
   getBadgeProgress,
@@ -39,6 +40,8 @@ const {
 const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
 const { getItemDisplay } = require('../skins');
+
+const AURORA_TUNDRA_KEY = 'AuroraTundra';
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -143,8 +146,29 @@ const LURE_ITEM_IDS = new Set(Object.values(HUNT_LURES).map(data => data.itemId)
 
 const MASTER_ZOOLOGIST_BADGE = getBadgeById('MasterZoologist');
 
-function getArea(name) {
-  return AREA_BY_NAME[name];
+function getAvailableAreas(now = new Date()) {
+  if (isChristmasEventActive(now)) return AREAS;
+  return AREAS.filter(area => area.key !== AURORA_TUNDRA_KEY);
+}
+
+function ensureValidHuntArea(stats, now = new Date()) {
+  if (!stats) return;
+  const availableAreas = getAvailableAreas(now);
+  if (!availableAreas.length) {
+    delete stats.hunt_area;
+    return;
+  }
+  if (!availableAreas.some(area => area.name === stats.hunt_area)) {
+    stats.hunt_area = availableAreas[0].name;
+  }
+}
+
+function getArea(name, now = new Date()) {
+  if (!name) return null;
+  const area = AREA_BY_NAME[name];
+  if (!area) return null;
+  if (area.key === AURORA_TUNDRA_KEY && !isChristmasEventActive(now)) return null;
+  return area;
 }
 
 function articleFor(word) {
@@ -159,10 +183,13 @@ function buildMainContainer(
   thumb,
   disableButtons = false,
 ) {
+  const now = new Date();
+  ensureValidHuntArea(stats, now);
+  const areas = getAvailableAreas(now);
   const select = new StringSelectMenuBuilder()
     .setCustomId('hunt-area')
     .setPlaceholder('Area');
-  for (const area of AREAS) {
+  for (const area of areas) {
     const opt = new StringSelectMenuOptionBuilder()
       .setLabel(area.name)
       .setValue(area.name);
@@ -269,6 +296,8 @@ function buildStatContainer(user, stats) {
 }
 
 function buildEquipmentContainer(user, stats) {
+  const now = new Date();
+  ensureValidHuntArea(stats, now);
   const backBtn = new ButtonBuilder()
     .setCustomId('hunt-back')
     .setLabel('Back')
@@ -353,7 +382,7 @@ function buildEquipmentContainer(user, stats) {
       ? getItemDisplay(stats, equippedGunItem, equippedGunItem.name, equippedGunItem.emoji)
       : { name: 'None', emoji: '' };
   const equippedBullet = ITEMS[stats.hunt_bullet] || { name: 'None', emoji: '' };
-  const areaInfo = AREA_BY_NAME[stats.hunt_area] || null;
+  const areaInfo = getArea(stats.hunt_area, now);
   const areaKey = areaInfo ? areaInfo.key : null;
   const activeLureState = areaKey && stats.hunt_lures ? stats.hunt_lures[areaKey] : null;
   const activeLureItem = activeLureState ? ITEMS[activeLureState.itemId] : null;
@@ -444,7 +473,9 @@ function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
 async function sendHunt(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   resources.userStats[user.id] = stats;
-  const areaObj = getArea(stats.hunt_area);
+  const now = new Date();
+  ensureValidHuntArea(stats, now);
+  const areaObj = getArea(stats.hunt_area, now);
   let text = areaObj
     ? `### ${user}, You will be hunting in ${areaObj.name}!`
     : `### ${user}, select an area before hunting!`;
@@ -471,7 +502,9 @@ async function sendHunt(user, send, resources, fetchReply) {
 
 async function handleHunt(interaction, resources, stats) {
   const { message, user } = interaction;
-  const areaObj = getArea(stats.hunt_area);
+  const now = new Date();
+  ensureValidHuntArea(stats, now);
+  const areaObj = getArea(stats.hunt_area, now);
   if (!areaObj) return;
   normalizeInventory(stats);
   const initialFull = alertInventoryFull(interaction, user, stats);
@@ -836,11 +869,20 @@ function setup(client, resources) {
         const state = huntStates.get(interaction.message.id);
         if (!state || state.userId !== interaction.user.id) return;
         const area = interaction.values[0];
+        const now = new Date();
+        const areaObj = getArea(area, now);
+        if (!areaObj) {
+          await interaction.reply({
+            content: '<:SBWarning:1404101025849147432> That area is not available right now.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
         const stats = resources.userStats[state.userId] || { inventory: [] };
-        stats.hunt_area = area;
+        stats.hunt_area = areaObj.name;
+        ensureValidHuntArea(stats, now);
         resources.userStats[state.userId] = stats;
         resources.saveData();
-        const areaObj = getArea(area);
         const text = `### ${interaction.user}, You will be hunting in ${areaObj.name}!`;
         const container = buildMainContainer(
           interaction.user,
@@ -866,7 +908,9 @@ function setup(client, resources) {
           });
           return;
         }
-        const areaObj = getArea(stats.hunt_area);
+        const now = new Date();
+        ensureValidHuntArea(stats, now);
+        const areaObj = getArea(stats.hunt_area, now);
         if (!areaObj) {
           await interaction.reply({
             content: 'Select an area before hunting.',
@@ -990,7 +1034,9 @@ function setup(client, resources) {
         const state = huntStates.get(interaction.message.id);
         if (!state || state.userId !== interaction.user.id) return;
         const stats = resources.userStats[state.userId] || {};
-        const areaObj = getArea(stats.hunt_area);
+        const now = new Date();
+        ensureValidHuntArea(stats, now);
+        const areaObj = getArea(stats.hunt_area, now);
         const text = areaObj
           ? `### ${interaction.user}, You will be hunting in ${areaObj.name}!`
           : `### ${interaction.user}, select an area before hunting!`;
