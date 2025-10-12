@@ -22,9 +22,11 @@ const {
 } = require('@discordjs/builders');
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
+const { renderChristmasShop } = require('../shopMediaChristmas');
 const { ITEMS } = require('../items');
 const { getItemDisplay } = require('../skins');
 const { ANIMAL_ITEMS } = require('../animals');
+const { isChristmasEventActive } = require('../events');
 const {
   normalizeInventory,
   getInventoryCount,
@@ -73,7 +75,89 @@ const OPTIONAL_COIN_ITEMS = [
   { id: 'VerdantLures', chance: 0.25, min: 10, max: 25 },
 ];
 
-const FARM_CROP_IDS = new Set(['Sheaf', 'Potato', 'WhiteCabbage', 'Pumpkin', 'Melon', 'StarFruit']);
+const CHRISTMAS_SHOP_SIZE = 3;
+const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
+
+const CHRISTMAS_SHOP_ITEM_POOL = [
+  { id: 'SnowBall', min: 10, max: 25, price: 300, weight: 26.9 },
+  { id: 'CupOfMilk', min: 5, max: 15, price: 800, weight: 15 },
+  { id: 'Cookie', min: 10, max: 20, price: 1500, weight: 17 },
+  { id: 'CandyCane', min: 5, max: 10, price: 10000, weight: 10 },
+  { id: 'GingerbreadMan', min: 1, max: 5, price: 25000, weight: 6 },
+  { id: 'GoodList', min: 1, max: 2, price: 6000, weight: 1 },
+  {
+    id: 'LuckyPotion',
+    min: 1,
+    max: 1,
+    price: 50000,
+    weight: 1,
+    info: '+100% Luck for 30 minutes.',
+  },
+  {
+    id: 'UltraLuckyPotion',
+    min: 1,
+    max: 1,
+    price: 180000,
+    weight: 0.1,
+    info: '+300% Luck & max success for 10 minutes.',
+  },
+  {
+    id: 'CoinPotion',
+    min: 1,
+    max: 1,
+    price: 65000,
+    weight: 4,
+    info: '+100% coins for 30 minutes.',
+  },
+  {
+    id: 'RobberBag',
+    min: 1,
+    max: 2,
+    price: 55000,
+    weight: 6,
+    info: 'Guarantees 25% loot for 10 robs.',
+  },
+  {
+    id: 'BoltCutter',
+    min: 1,
+    max: 2,
+    price: 60000,
+    weight: 3,
+    info: 'Breaks any padlock instantly.',
+  },
+  {
+    id: 'XPSoda',
+    min: 1,
+    max: 3,
+    price: 40000,
+    weight: 4,
+    info: 'Grants 6h of +100% XP.',
+  },
+  {
+    id: 'OrnamentBerrySeed',
+    min: 1,
+    max: 5,
+    price: 5000,
+    weight: 6,
+    info: 'Seasonal crop seed; grows into Ornament Berries.',
+  },
+];
+
+const CURRENCY_EMOJIS = {
+  coins: '<:CRCoin:1405595571141480570>',
+  deluxe_coins: '<:CRDeluxeCoin:1405595587780280382>',
+  snowflakes: SNOWFLAKE_EMOJI,
+};
+
+const FARM_CROP_IDS = new Set([
+  'Sheaf',
+  'Potato',
+  'WhiteCabbage',
+  'Pumpkin',
+  'Melon',
+  'StarFruit',
+  'OrnamentBerry',
+]);
 
 const shopStates = new Map();
 
@@ -135,6 +219,39 @@ function getItemsByIds(ids) {
   return ids.map(id => ITEMS[id]).filter(Boolean);
 }
 
+function findChristmasConfig(id) {
+  return CHRISTMAS_SHOP_ITEM_POOL.find(item => item.id === id);
+}
+
+function getChristmasItems(resources) {
+  const shop = resources.shop || {};
+  const ids = Array.isArray(shop.activeChristmasItemIds)
+    ? shop.activeChristmasItemIds
+    : [];
+  const stock = shop.christmasStock || {};
+  return ids
+    .map(id => {
+      const base = ITEMS[id];
+      if (!base) return null;
+      const entry = stock[id] || {};
+      const config = findChristmasConfig(id) || {};
+      const info = config.info || base.note || '';
+      return {
+        ...base,
+        price: entry.price ?? config.price ?? base.price ?? 0,
+        originalPrice: null,
+        stock: entry.amount ?? 0,
+        maxStock: entry.max ?? entry.amount ?? 0,
+        discount: 0,
+        locked: false,
+        lockedText: null,
+        currency: 'snowflakes',
+        info,
+      };
+    })
+    .filter(Boolean);
+}
+
 function getSeedRequirement(id) {
   const requirement = SEED_LEVEL_REQUIREMENTS[id];
   return Number.isFinite(requirement) ? requirement : null;
@@ -153,11 +270,51 @@ function getCoinItemIds(resources) {
 function getShopItems(type, resources) {
   if (type === 'coin') return getItemsByIds(getCoinItemIds(resources));
   if (type === 'deluxe') return getItemsByIds(DELUXE_ITEM_IDS);
+  if (type === 'christmas') return getChristmasItems(resources);
   return [];
 }
 
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function weightedSample(pool, size) {
+  const available = pool.slice().filter(item => (item.weight || 0) > 0);
+  const selected = [];
+  while (available.length > 0 && selected.length < size) {
+    const total = available.reduce((sum, item) => sum + (item.weight || 0), 0);
+    if (total <= 0) break;
+    let roll = Math.random() * total;
+    let index = 0;
+    for (; index < available.length; index += 1) {
+      roll -= available[index].weight || 0;
+      if (roll <= 0) break;
+    }
+    const choice = available.splice(Math.min(index, available.length - 1), 1)[0];
+    if (!choice) break;
+    selected.push(choice);
+  }
+  return selected;
+}
+
+function normalizeSellPrice(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number') return { min: value, max: value, currency: 'coins' };
+  if (Array.isArray(value) && value.length >= 2)
+    return { min: Number(value[0]) || 0, max: Number(value[1]) || 0, currency: 'coins' };
+  if (typeof value === 'object') {
+    const currency = value.currency || 'coins';
+    const base =
+      Number.isFinite(value.amount)
+        ? value.amount
+        : Number.isFinite(value.value)
+        ? value.value
+        : null;
+    const min = Number.isFinite(value.min) ? value.min : base ?? 0;
+    const max = Number.isFinite(value.max) ? value.max : base ?? min;
+    return { min, max, currency };
+  }
+  return null;
 }
 
 function getDiscount() {
@@ -246,6 +403,35 @@ function restockDeluxeShop(resources) {
   resources.saveData();
 }
 
+function restockChristmasShop(resources) {
+  resources.shop = resources.shop || {};
+  if (!isChristmasEventActive()) {
+    resources.shop.christmasStock = {};
+    resources.shop.activeChristmasItemIds = [];
+    resources.shop.nextChristmasRestock = 0;
+    resources.saveData();
+    return;
+  }
+  const chosen = weightedSample(CHRISTMAS_SHOP_ITEM_POOL, CHRISTMAS_SHOP_SIZE);
+  const stock = {};
+  const activeIds = [];
+  for (const choice of chosen) {
+    const amount = rand(choice.min, choice.max);
+    stock[choice.id] = {
+      amount,
+      max: amount,
+      price: choice.price,
+      discount: 0,
+      info: choice.info || '',
+    };
+    activeIds.push(choice.id);
+  }
+  resources.shop.christmasStock = stock;
+  resources.shop.activeChristmasItemIds = activeIds;
+  resources.shop.nextChristmasRestock = nextRestockHour();
+  resources.saveData();
+}
+
 function levenshtein(a, b) {
   const matrix = Array.from({ length: a.length + 1 }, () => []);
   for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
@@ -290,6 +476,7 @@ async function sendMarket(user, send, resources) {
   const sellable = (stats.inventory || []).filter(
     i => (ITEMS[i.id] || {}).sellPrice,
   );
+  const christmasActive = isChristmasEventActive();
   const select = new StringSelectMenuBuilder()
     .setCustomId('market-sell-select')
     .setPlaceholder('Item to sell');
@@ -325,20 +512,27 @@ async function sendMarket(user, send, resources) {
   const marketTypeOptions = [
     { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
     { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
-    {
-      label: 'Market',
-      value: 'market',
-      emoji: '<:SBMarket:1408156436789461165>',
-      default: true,
-    },
-  ].map(option => ({
+  ];
+  if (christmasActive)
+    marketTypeOptions.push({
+      label: 'Christmas Shop',
+      value: 'christmas',
+      emoji: SNOWFLAKE_EMOJI,
+    });
+  marketTypeOptions.push({
+    label: 'Market',
+    value: 'market',
+    emoji: '<:SBMarket:1408156436789461165>',
+    default: true,
+  });
+  const mappedOptions = marketTypeOptions.map(option => ({
     ...option,
     emoji: resolveComponentEmoji(option.emoji),
   }));
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
-    .addOptions(marketTypeOptions);
+    .addOptions(mappedOptions);
   const container = new ContainerBuilder()
     .setAccentColor(0x006400)
     .addTextDisplayComponents(
@@ -368,28 +562,53 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   if (state.type === 'market') {
     return sendMarket(user, send, resources);
   }
+  resources.shop = resources.shop || {};
+  const christmasActive = isChristmasEventActive();
+  if (!christmasActive && state.type === 'christmas') state.type = 'coin';
+  if (
+    !christmasActive &&
+    Array.isArray(resources.shop.activeChristmasItemIds) &&
+    resources.shop.activeChristmasItemIds.length
+  ) {
+    restockChristmasShop(resources);
+  }
+
   let stock = {};
   let restockTime = 0;
   const stats = resources.userStats[user.id] || {};
   const farmLevel = Number.isFinite(stats.farm_mastery_level)
     ? stats.farm_mastery_level
     : 0;
-  if (state.type === 'deluxe') {
-    if (
-      !resources.shop.nextDeluxeRestock ||
-      Date.now() >= resources.shop.nextDeluxeRestock
-    )
+  const now = Date.now();
+  const isDeluxe = state.type === 'deluxe';
+  const isChristmas = state.type === 'christmas';
+
+  if (isDeluxe) {
+    if (!resources.shop.nextDeluxeRestock || now >= resources.shop.nextDeluxeRestock)
       restockDeluxeShop(resources);
     stock = resources.shop.deluxeStock || {};
-    restockTime = resources.shop.nextDeluxeRestock || Date.now();
+    restockTime = resources.shop.nextDeluxeRestock || now;
+  } else if (isChristmas) {
+    const needsRestock =
+      !christmasActive ||
+      !resources.shop.nextChristmasRestock ||
+      now >= resources.shop.nextChristmasRestock ||
+      !(
+        Array.isArray(resources.shop.activeChristmasItemIds) &&
+        resources.shop.activeChristmasItemIds.length
+      );
+    if (needsRestock && christmasActive) restockChristmasShop(resources);
+    stock = resources.shop.christmasStock || {};
+    restockTime = resources.shop.nextChristmasRestock || now;
   } else {
-    if (!resources.shop.nextRestock || Date.now() >= resources.shop.nextRestock)
+    if (!resources.shop.nextRestock || now >= resources.shop.nextRestock)
       restockCoinShop(resources);
     stock = resources.shop.stock || {};
-    restockTime = resources.shop.nextRestock || Date.now();
+    restockTime = resources.shop.nextRestock || now;
   }
+
   const items = getShopItems(state.type, resources);
-  const perPage = 6;
+  const perPage = isChristmas ? CHRISTMAS_SHOP_SIZE : 6;
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   const page = Math.min(Math.max(state.page, 1), pages);
   const start = (page - 1) * perPage;
@@ -415,26 +634,45 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       discount: s.discount,
       locked,
       lockedText: locked ? `Farm Mastery Lv.${requiredLevel}` : null,
+      info: it.info || s.info || '',
+      currency: it.currency || (isDeluxe ? 'deluxe_coins' : 'coins'),
     };
   });
 
-  const buffer =
-    state.type === 'deluxe'
-      ? await renderDeluxeMedia(pageItems)
-      : await renderShopMedia(pageItems);
-  const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
+  let buffer;
+  let attachmentName = 'shop.png';
+  if (isDeluxe) buffer = await renderDeluxeMedia(pageItems);
+  else if (isChristmas) {
+    const renderItems = pageItems.map(item => ({
+      name: item.displayName || item.name,
+      price: item.price,
+      info: item.info || '',
+      stock: `${item.stock ?? 0}/${item.maxStock ?? 0}`,
+      img: item.displayEmoji || item.emoji,
+      currency: `${SNOWFLAKE_EMOJI} Snowflakes`,
+    }));
+    while (renderItems.length < CHRISTMAS_SHOP_SIZE) renderItems.push({});
+    buffer = await renderChristmasShop(renderItems);
+    attachmentName = 'christmas-shop.png';
+  } else buffer = await renderShopMedia(pageItems);
+  const attachment = new AttachmentBuilder(buffer, { name: attachmentName });
 
-  const title =
-    state.type === 'deluxe' ? "## Mr Luxury's Deluxe Shop" : "## Mr Someone's Shop";
+  const title = isDeluxe
+    ? "## Mr Luxury's Deluxe Shop"
+    : isChristmas
+      ? '## ❄️ Christmas Shop'
+      : "## Mr Someone's Shop";
 
-  const tagline =
-    state.type === 'deluxe' ? '-# Want to buy something BETTER?' : '-# Welcome!';
+  const tagline = isDeluxe
+    ? '-# Want to buy something BETTER?'
+    : isChristmas
+      ? '-# Spend your Snowflakes wisely!'
+      : '-# Welcome!';
   const restockTs = Math.floor(restockTime / 1000);
 
-  const thumbURL =
-    state.type === 'deluxe'
-      ? 'https://i.ibb.co/jkZ2mwfw/Luxury-idle.gif'
-      : 'https://i.ibb.co/KcX5DGwz/Someone-idle.gif';
+  const thumbURL = isDeluxe
+    ? 'https://i.ibb.co/jkZ2mwfw/Luxury-idle.gif'
+    : 'https://i.ibb.co/KcX5DGwz/Someone-idle.gif';
 
   const headerSection = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbURL))
@@ -446,26 +684,31 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     );
 
   const mediaGallery = new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL('attachment://shop.png'),
+    new MediaGalleryItemBuilder().setURL(`attachment://${attachmentName}`),
   );
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-page')
     .setPlaceholder('Page')
     .addOptions(Array.from({ length: pages }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })));
+  if (pages <= 1) pageSelect.setDisabled(true);
 
   const typeSelectOptions = [
-    { label: 'Coin Shop', value: 'coin', emoji: '<:CRCoin:1405595571141480570>' },
-    { label: 'Deluxe Shop', value: 'deluxe', emoji: '<:CRDeluxeCoin:1405595587780280382>' },
-    { label: 'Market', value: 'market', emoji: '<:SBMarket:1408156436789461165>' },
-  ].map(option => ({
-    ...option,
-    emoji: resolveComponentEmoji(option.emoji),
-  }));
+    { label: 'Coin Shop', value: 'coin', emoji: CURRENCY_EMOJIS.coins },
+    { label: 'Deluxe Shop', value: 'deluxe', emoji: CURRENCY_EMOJIS.deluxe_coins },
+  ];
+  if (christmasActive)
+    typeSelectOptions.push({ label: 'Christmas Shop', value: 'christmas', emoji: SNOWFLAKE_EMOJI });
+  typeSelectOptions.push({ label: 'Market', value: 'market', emoji: '<:SBMarket:1408156436789461165>' });
   const typeSelect = new StringSelectMenuBuilder()
     .setCustomId('shop-type')
     .setPlaceholder('Shop type')
-    .addOptions(typeSelectOptions);
+    .addOptions(
+      typeSelectOptions.map(option => ({
+        ...option,
+        emoji: resolveComponentEmoji(option.emoji),
+      })),
+    );
 
   const buttons = [];
   for (let i = 0; i < perPage; i++) {
@@ -631,7 +874,9 @@ function setup(client, resources) {
         if (!state || interaction.user.id !== state.userId) return;
         const index = parseInt(interaction.customId.split('-')[2], 10);
         const items = getShopItems(state.type, resources);
-        const start = (state.page - 1) * 6;
+        const perPage =
+          state.type === 'christmas' ? CHRISTMAS_SHOP_SIZE : 6;
+        const start = (state.page - 1) * perPage;
         const item = items[start + index];
         if (!item) {
           await interaction.reply({ content: 'Item not available.' });
@@ -649,10 +894,10 @@ function setup(client, resources) {
           });
           return;
         }
-        const store =
-          state.type === 'deluxe'
-            ? resources.shop.deluxeStock
-            : resources.shop.stock;
+        let store;
+        if (state.type === 'deluxe') store = resources.shop.deluxeStock;
+        else if (state.type === 'christmas') store = resources.shop.christmasStock;
+        else store = resources.shop.stock;
         const sInfo = (store || {})[item.id] || {};
         if (!sInfo.amount) {
           await interaction.reply({ content: 'Out of stock.', flags: MessageFlags.Ephemeral });
@@ -672,16 +917,21 @@ function setup(client, resources) {
         const amount = parseInt(amountStr, 10);
         const state = shopStates.get(interaction.message.id);
         if (!state || interaction.user.id !== state.userId) return;
-        const coinEmoji =
-          state.type === 'deluxe'
-            ? '<:CRDeluxeCoin:1405595587780280382>'
-            : '<:CRCoin:1405595571141480570>';
-        const currency = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
+        let currency = 'coins';
+        let coinEmoji = CURRENCY_EMOJIS.coins;
+        let store;
+        if (state.type === 'deluxe') {
+          currency = 'deluxe_coins';
+          coinEmoji = CURRENCY_EMOJIS.deluxe_coins;
+          store = resources.shop.deluxeStock;
+        } else if (state.type === 'christmas') {
+          currency = 'snowflakes';
+          coinEmoji = SNOWFLAKE_EMOJI;
+          store = resources.shop.christmasStock;
+        } else {
+          store = resources.shop.stock;
+        }
         const item = ITEMS[itemId];
-        const store =
-          state.type === 'deluxe'
-            ? resources.shop.deluxeStock
-            : resources.shop.stock;
         const sInfo = (store || {})[itemId] || {};
           if (!item || !sInfo.amount || sInfo.amount < amount) {
             await interaction.update({
@@ -716,12 +966,18 @@ function setup(client, resources) {
           ? Math.round(item.price * (1 - sInfo.discount))
           : item.price;
         const total = price * amount;
+        const currencyName =
+          currency === 'snowflakes'
+            ? 'Snowflakes'
+            : currency === 'deluxe_coins'
+            ? 'Deluxe Coins'
+            : 'coins';
           if ((stats[currency] || 0) < total) {
             const need = total - (stats[currency] || 0);
             await interaction.update({
               components: [
                 makeTextContainer(
-                  `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+                  `You don't have enough ${currencyName}. You need ${need} ${coinEmoji} more to purchase.`,
                 ),
               ],
               flags: MessageFlags.IsComponentsV2,
@@ -789,12 +1045,28 @@ function setup(client, resources) {
         await interaction.deferUpdate();
         await interaction.deleteReply().catch(() => {});
       } else if (interaction.customId.startsWith('market-confirm-')) {
-        const [, , messageId, itemId, amountStr, totalStr] = interaction.customId.split('-');
-        const amount = parseInt(amountStr, 10);
-        const total = parseInt(totalStr, 10);
-        const coinEmoji = '<:CRCoin:1405595571141480570>';
+        const parts = interaction.customId.split('-');
+        const messageId = parts[2];
+        const itemId = parts[3];
+        const amount = parseInt(parts[4], 10);
+        const total = parseInt(parts[5], 10);
+        const currencyKey = parts[6] || 'coins';
+        const currencyField =
+          currencyKey === 'snowflakes'
+            ? 'snowflakes'
+            : currencyKey === 'deluxe_coins'
+            ? 'deluxe_coins'
+            : 'coins';
+        const coinEmoji =
+          currencyField === 'snowflakes'
+            ? SNOWFLAKE_EMOJI
+            : currencyField === 'deluxe_coins'
+            ? CURRENCY_EMOJIS.deluxe_coins
+            : CURRENCY_EMOJIS.coins;
         const stats = resources.userStats[interaction.user.id] || {
           coins: 0,
+          deluxe_coins: 0,
+          snowflakes: 0,
           inventory: [],
         };
         normalizeInventory(stats);
@@ -809,16 +1081,23 @@ function setup(client, resources) {
         entry.amount -= amount;
         if (entry.amount <= 0)
           stats.inventory = stats.inventory.filter(i => i.id !== itemId);
-        const boosted = applyCoinBoost(stats, total);
-        stats.coins = (stats.coins || 0) + boosted;
+        let payout = total;
+        if (currencyField === 'coins') payout = applyCoinBoost(stats, total);
+        stats[currencyField] = (stats[currencyField] || 0) + payout;
         normalizeInventory(stats);
         resources.userStats[interaction.user.id] = stats;
         resources.saveData();
+        const currencyName =
+          currencyField === 'snowflakes'
+            ? 'Snowflakes'
+            : currencyField === 'deluxe_coins'
+            ? 'Deluxe Coins'
+            : 'coins';
         const container = new ContainerBuilder()
           .setAccentColor(0x00ff00)
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `Sold ×${amount} ${entry.name} ${entry.emoji} for ${boosted} ${coinEmoji}.`,
+              `Sold ×${amount} ${entry.name} ${entry.emoji} for ${payout} ${coinEmoji} (${currencyName}).`,
             ),
           );
         await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
@@ -843,7 +1122,9 @@ function setup(client, resources) {
             return;
           }
       const items = getShopItems(state.type, resources);
-      const start = (state.page - 1) * 6;
+      const perPage =
+        state.type === 'christmas' ? CHRISTMAS_SHOP_SIZE : 6;
+      const start = (state.page - 1) * perPage;
       const baseItem = items[start + index];
         if (!baseItem) {
           await interaction.reply({
@@ -868,10 +1149,10 @@ function setup(client, resources) {
         });
         return;
       }
-      const store =
-        state.type === 'deluxe'
-          ? resources.shop.deluxeStock
-          : resources.shop.stock;
+      let store;
+      if (state.type === 'deluxe') store = resources.shop.deluxeStock;
+      else if (state.type === 'christmas') store = resources.shop.christmasStock;
+      else store = resources.shop.stock;
       const sInfo = (store || {})[baseItem.id] || {};
         if (!sInfo.amount) {
           await interaction.reply({
@@ -905,17 +1186,27 @@ function setup(client, resources) {
         ? Math.round(baseItem.price * (1 - sInfo.discount))
         : baseItem.price;
       const total = price * amount;
-      const currencyField = state.type === 'deluxe' ? 'deluxe_coins' : 'coins';
-      const coinEmoji =
-        state.type === 'deluxe'
-          ? '<:CRDeluxeCoin:1405595587780280382>'
-          : '<:CRCoin:1405595571141480570>';
+      let currencyField = 'coins';
+      let coinEmoji = CURRENCY_EMOJIS.coins;
+      if (state.type === 'deluxe') {
+        currencyField = 'deluxe_coins';
+        coinEmoji = CURRENCY_EMOJIS.deluxe_coins;
+      } else if (state.type === 'christmas') {
+        currencyField = 'snowflakes';
+        coinEmoji = SNOWFLAKE_EMOJI;
+      }
+      const currencyName =
+        currencyField === 'snowflakes'
+          ? 'Snowflakes'
+          : currencyField === 'deluxe_coins'
+          ? 'Deluxe Coins'
+          : 'coins';
         if ((stats[currencyField] || 0) < total) {
           const need = total - (stats[currencyField] || 0);
           await interaction.reply({
             components: [
               makeTextContainer(
-                `You don't have enough coins. You need ${need} ${coinEmoji} more to purchase.`,
+                `You don't have enough ${currencyName}. You need ${need} ${coinEmoji} more to purchase.`,
               ),
             ],
             flags: MessageFlags.IsComponentsV2,
@@ -998,10 +1289,16 @@ function setup(client, resources) {
           return;
         }
       const item = ITEMS[itemId];
-      const sellPrice = item.sellPrice;
-      const [min, max] = Array.isArray(sellPrice)
-        ? sellPrice
-        : [sellPrice, sellPrice];
+      const sellInfo = normalizeSellPrice(item.sellPrice);
+      if (!sellInfo) {
+        await interaction.reply({
+          components: [makeTextContainer('Item not available.')],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const min = Math.max(0, sellInfo.min);
+      const max = Math.max(min, sellInfo.max);
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
       const statsLevel = Number.isFinite(stats.hunt_mastery_level)
         ? stats.hunt_mastery_level
@@ -1019,9 +1316,28 @@ function setup(client, resources) {
         if (farmLevel >= 80) bonus += 1.0;
         total = Math.floor(total * (1 + bonus));
       }
-      const coinEmoji = '<:CRCoin:1405595571141480570>';
+      const currencyField =
+        sellInfo.currency === 'snowflakes'
+          ? 'snowflakes'
+          : sellInfo.currency === 'deluxe_coins'
+          ? 'deluxe_coins'
+          : 'coins';
+      const coinEmoji =
+        currencyField === 'snowflakes'
+          ? SNOWFLAKE_EMOJI
+          : currencyField === 'deluxe_coins'
+          ? CURRENCY_EMOJIS.deluxe_coins
+          : CURRENCY_EMOJIS.coins;
+      const currencyName =
+        currencyField === 'snowflakes'
+          ? 'Snowflakes'
+          : currencyField === 'deluxe_coins'
+          ? 'Deluxe Coins'
+          : 'coins';
       const sellBtn = new ButtonBuilder()
-        .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
+        .setCustomId(
+          `market-confirm-${messageId}-${itemId}-${amount}-${total}-${currencyField}`,
+        )
         .setLabel('Sell')
         .setStyle(ButtonStyle.Danger);
       const cancelBtn = new ButtonBuilder()
@@ -1032,7 +1348,7 @@ function setup(client, resources) {
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `You are selling **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji}\n-# are you sure?`,
+            `You are selling **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji} (${currencyName})\n-# are you sure?`,
           ),
         )
         .addSeparatorComponents(new SeparatorBuilder())
@@ -1081,10 +1397,16 @@ function setup(client, resources) {
           return;
         }
       const item = ITEMS[itemId];
-      const sellPrice = item.sellPrice;
-      const [min, max] = Array.isArray(sellPrice)
-        ? sellPrice
-        : [sellPrice, sellPrice];
+      const sellInfo = normalizeSellPrice(item.sellPrice);
+      if (!sellInfo) {
+        await interaction.reply({
+          components: [makeTextContainer('Item not available.')],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+      const min = Math.max(0, sellInfo.min);
+      const max = Math.max(min, sellInfo.max);
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
       const statsLevel = Number.isFinite(stats.hunt_mastery_level)
         ? stats.hunt_mastery_level
@@ -1102,9 +1424,28 @@ function setup(client, resources) {
         if (farmLevel >= 80) bonus += 1.0;
         total = Math.floor(total * (1 + bonus));
       }
-      const coinEmoji = '<:CRCoin:1405595571141480570>';
+      const currencyField =
+        sellInfo.currency === 'snowflakes'
+          ? 'snowflakes'
+          : sellInfo.currency === 'deluxe_coins'
+          ? 'deluxe_coins'
+          : 'coins';
+      const coinEmoji =
+        currencyField === 'snowflakes'
+          ? SNOWFLAKE_EMOJI
+          : currencyField === 'deluxe_coins'
+          ? CURRENCY_EMOJIS.deluxe_coins
+          : CURRENCY_EMOJIS.coins;
+      const currencyName =
+        currencyField === 'snowflakes'
+          ? 'Snowflakes'
+          : currencyField === 'deluxe_coins'
+          ? 'Deluxe Coins'
+          : 'coins';
       const sellBtn = new ButtonBuilder()
-        .setCustomId(`market-confirm-${messageId}-${itemId}-${amount}-${total}`)
+        .setCustomId(
+          `market-confirm-${messageId}-${itemId}-${amount}-${total}-${currencyField}`,
+        )
         .setLabel('Sell')
         .setStyle(ButtonStyle.Danger);
       const cancelBtn = new ButtonBuilder()
@@ -1115,7 +1456,7 @@ function setup(client, resources) {
         .setAccentColor(0xffffff)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `You are selling **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji}\n-# are you sure?`,
+            `You are selling **×${amount} ${entry.name} ${entry.emoji}** for ${total} ${coinEmoji} (${currencyName})\n-# are you sure?`,
           ),
         )
         .addSeparatorComponents(new SeparatorBuilder())

@@ -104,6 +104,14 @@ async function executeRob(robber, target, send, resources) {
   }
   const robberStats = resources.userStats[robber.id] || { coins: 0 };
   const targetStats = resources.userStats[target.id] || { coins: 0 };
+  robberStats.robber_bag_charges = Number.isFinite(robberStats.robber_bag_charges)
+    ? robberStats.robber_bag_charges
+    : 0;
+  let robberBagActive = false;
+  if (robberStats.robber_bag_charges > 0) {
+    robberBagActive = true;
+    robberStats.robber_bag_charges = Math.max(0, robberStats.robber_bag_charges - 1);
+  }
   const now = Date.now();
   const targetProtected = targetStats.padlock_until && targetStats.padlock_until > now;
   if ((robberStats.coins || 0) < MIN_COINS) {
@@ -162,11 +170,14 @@ async function executeRob(robber, target, send, resources) {
     resources.userStats[target.id] = targetStats;
     resources.saveData();
     const arr = targetProtected ? PADLOCK_FAIL_MESSAGES : FAIL_MESSAGES;
-    const msg = arr[Math.floor(Math.random() * arr.length)]
+    let msg = arr[Math.floor(Math.random() * arr.length)]
       .replace(/\{usermention\}/g, `<@${robber.id}>`)
       .replace(/\{robbinguser\}/g, target.username)
       .replace(/\{amount\}/g, formatNumber(boosted))
       .replace(/coin/g, COIN_EMOJI);
+    if (robberBagActive) {
+      msg += `\n-# Robber Bag charges left: ${formatNumber(robberStats.robber_bag_charges)}`;
+    }
     await send({
       components: [buildEmbed(0xff0000, `Failed robbing ${target.username}`, msg)],
       flags: MessageFlags.IsComponentsV2,
@@ -198,6 +209,7 @@ async function executeRob(robber, target, send, resources) {
     percent = 100;
     title = 'You have robbed LITERALLY EVERYTHING AS YOU CAN! FR!';
   }
+  if (robberBagActive && percent < 25) percent = 25;
   let amount = Math.floor((targetStats.coins || 0) * percent / 100);
   if ((targetStats.coins || 0) < amount) amount = targetStats.coins || 0;
   targetStats.coins = (targetStats.coins || 0) - amount;
@@ -209,12 +221,16 @@ async function executeRob(robber, target, send, resources) {
   resources.userStats[target.id] = targetStats;
   resources.saveData();
 
+  let successDesc = `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(boosted)} ${COIN_EMOJI}`;
+  if (robberBagActive) {
+    successDesc += `\n-# Robber Bag charges left: ${formatNumber(robberStats.robber_bag_charges)}`;
+  }
   await send({
     components: [
       buildEmbed(
         0x00ff00,
         title,
-        `<@${robber.id}> You have successfully robbed ${target.username}, you earned ${formatNumber(boosted)} ${COIN_EMOJI}`,
+        successDesc,
         'https://i.ibb.co/q3mZ8N8T/ef097dbe-8f94-48b2-9a39-e7c8d4cc420b.png',
       ),
     ],
