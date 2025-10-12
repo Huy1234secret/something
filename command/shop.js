@@ -962,9 +962,21 @@ function setup(client, resources) {
           });
           return;
         }
+        const basePrice = Number.isFinite(sInfo.price)
+          ? sInfo.price
+          : Number.isFinite(item.price)
+          ? item.price
+          : null;
+        if (basePrice === null) {
+          await interaction.update({
+            components: [makeTextContainer('Item not available.')],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         const price = sInfo.discount
-          ? Math.round(item.price * (1 - sInfo.discount))
-          : item.price;
+          ? Math.round(basePrice * (1 - sInfo.discount))
+          : basePrice;
         const total = price * amount;
         const currencyName =
           currency === 'snowflakes'
