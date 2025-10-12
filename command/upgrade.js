@@ -101,11 +101,17 @@ function countItem(stats, itemId) {
 function buildUpgradeSelect(stats) {
   const select = new StringSelectMenuBuilder().setCustomId(UPGRADE_SELECT_ID);
 
-  let optionCount = 0;
-  for (const itemId of Object.keys(UPGRADE_CONFIG)) {
-    const item = ITEMS[itemId];
-    if (!item) continue;
-    const amount = countItem(stats, itemId);
+  const upgradeable = Object.entries(UPGRADE_CONFIG)
+    .filter(([, config]) => config && config.nextId)
+    .map(([itemId]) => {
+      const item = ITEMS[itemId];
+      const amount = countItem(stats, itemId);
+      return { itemId, item, amount };
+    })
+    .filter(entry => entry.item && entry.amount > 0);
+
+  const limited = upgradeable.slice(0, 25);
+  for (const { itemId, item, amount } of limited) {
     const option = new StringSelectMenuOptionBuilder()
       .setLabel(item.name)
       .setValue(itemId)
@@ -113,10 +119,9 @@ function buildUpgradeSelect(stats) {
     const emoji = toComponentEmoji(item.emoji);
     if (emoji) option.setEmoji(emoji);
     select.addOptions(option);
-    optionCount += 1;
   }
 
-  if (optionCount === 0) {
+  if (limited.length === 0) {
     select
       .setPlaceholder("Oops, you don't have any upgradeable items")
       .setDisabled(true)
