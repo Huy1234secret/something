@@ -7,7 +7,12 @@
   "upgrade_message_id": null,
   "shop": {
     "stock": {},
-    "nextRestock": 0
+    "nextRestock": 0,
+    "deluxeStock": {},
+    "nextDeluxeRestock": 0,
+    "christmasStock": {},
+    "activeChristmasItemIds": [],
+    "nextChristmasRestock": 0
   },
   "battle_pass": {
     "reward100": {

@@ -29,12 +29,17 @@ const {
   hasNaughtyList,
 } = require('../utils');
 const { getFarmBackgroundUrl, getItemDisplay, DEFAULT_FARM_BACKGROUND_URL } = require('../skins');
+const { isChristmasEventActive } = require('../events');
 
 const CANVAS_SIZE = 500;
 const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 const WATERED_PLOT = 'https://i.ibb.co/tpyMJL5G/Watered-plot.png';
 
 const WARNING = '<:SBWarning:1404101025849147432>';
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 const SEED_LEVEL_REQUIREMENTS = {
   WhiteCabbageSeed: 30,
@@ -130,6 +135,14 @@ const STAR_FRUIT_IMAGES = [
 ];
 const STAR_FRUIT_DEAD = 'https://i.ibb.co/rf41mBrR/Star-Fruit-death.png';
 
+const ORNAMENT_BERRY_IMAGES = [
+  'https://i.ibb.co/SDQCpRg5/Ornament-Berry-1.png',
+  'https://i.ibb.co/7dNsQbbB/Ornament-Berry-2.png',
+  'https://i.ibb.co/b5HGgF8B/Ornament-Berry-3.png',
+  'https://i.ibb.co/v69KhyrC/ORnament-Berry-4.png',
+  'https://i.ibb.co/Z6Bg2YD6/Ornament-Berry-5.png',
+];
+
 const FARM_WATER_XP = 20;
 const CROP_XP_REWARDS = {
   Sheaf: 50,
@@ -144,6 +157,8 @@ const CROP_XP_REWARDS = {
   MelonSeed: 1250,
   StarFruit: 5000,
   StarFruitSeed: 2500,
+  OrnamentBerry: 3000,
+  OrnamentBerrySeed: 1500,
 };
 
 const FARM_DROP_TABLE = [
@@ -171,6 +186,8 @@ const MELON_IMG_PROMISES = MELON_IMAGES.map(url => loadCachedImage(url));
 const MELON_DEAD_IMG = loadCachedImage(MELON_DEAD);
 const STAR_FRUIT_IMG_PROMISES = STAR_FRUIT_IMAGES.map(url => loadCachedImage(url));
 const STAR_FRUIT_DEAD_IMG = loadCachedImage(STAR_FRUIT_DEAD);
+const ORNAMENT_BERRY_IMG_PROMISES = ORNAMENT_BERRY_IMAGES.map(url => loadCachedImage(url));
+const ORNAMENT_BERRY_DEAD_IMG = ORNAMENT_BERRY_IMG_PROMISES[ORNAMENT_BERRY_IMG_PROMISES.length - 1];
 
 const ITEMS_BY_RARITY = {};
 for (const item of Object.values(ITEMS)) {
@@ -212,6 +229,9 @@ const STAR_FRUIT_STAGE_TIME = Math.max(
 );
 const STAR_FRUIT_DRY_DEATH_TIME = 8 * 60 * 60 * 1000; // 8h without water
 const STAR_FRUIT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
+const ORNAMENT_BERRY_STAGE_TIME = 6 * 60 * 60 * 1000; // 6h per stage
+const ORNAMENT_BERRY_GROW_TIME = ORNAMENT_BERRY_STAGE_TIME * (ORNAMENT_BERRY_IMAGES.length - 1);
+const ORNAMENT_BERRY_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 1d after grown
 const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
 
 const FARM_REPLANT_CHANCE = 0.15;
@@ -262,6 +282,18 @@ function isPlotWatered(plot) {
 
 function cleanupExpiredWater(farm) {
   Object.values(farm || {}).forEach(plot => isPlotWatered(plot));
+}
+
+function cleanupSeasonalPlants(farm) {
+  if (isChristmasEventActive()) return;
+  Object.values(farm || {}).forEach(plot => {
+    if (plot && plot.seedId === 'OrnamentBerrySeed') {
+      delete plot.seedId;
+      delete plot.plantedAt;
+      delete plot.watered;
+      delete plot.wateredExpires;
+    }
+  });
 }
 
 function getPlantData(seedId, stats = {}) {
@@ -413,6 +445,29 @@ function getPlantData(seedId, stats = {}) {
         if (roll < 0.02) seeds = 2;
         else if (roll < 0.47) seeds = 1;
         return { crop: 1, seeds };
+      },
+    };
+  }
+  if (seedId === 'OrnamentBerrySeed') {
+    if (!isChristmasEventActive()) return null;
+    const stages = Math.max(1, ORNAMENT_BERRY_IMAGES.length - 1);
+    const growTime = Math.round(
+      ORNAMENT_BERRY_GROW_TIME * growthMultiplier * penaltyMultiplier,
+    );
+    const stageTime = Math.max(1, Math.round(growTime / stages));
+    return {
+      images: ORNAMENT_BERRY_IMG_PROMISES,
+      deadImg: ORNAMENT_BERRY_DEAD_IMG,
+      growTime,
+      stageTime,
+      dryDeathTime: Infinity,
+      expireTime: ORNAMENT_BERRY_EXPIRE_TIME * penaltyMultiplier,
+      seedItem: ITEMS.OrnamentBerrySeed,
+      harvestItem: ITEMS.OrnamentBerry,
+      name: 'Ornament Berry',
+      harvest() {
+        const crop = randomInt(5, 10);
+        return { crop, seeds: 0 };
       },
     };
   }
@@ -584,6 +639,7 @@ async function sendFarmView(user, send, resources) {
   stats.farm = stats.farm || {};
   for (let i = 1; i <= 9; i++) if (!stats.farm[i]) stats.farm[i] = {};
   cleanupExpiredWater(stats.farm);
+  cleanupSeasonalPlants(stats.farm);
   resources.userStats[user.id] = stats;
 
   const buffer = await renderFarm(stats.farm, [], stats);
@@ -601,6 +657,7 @@ async function sendFarmView(user, send, resources) {
 
 async function updateFarmMessage(state, user, stats, resources) {
   cleanupExpiredWater(stats.farm);
+  cleanupSeasonalPlants(stats.farm);
   const buffer = await renderFarm(stats.farm, state.selected || [], stats);
   const attachment = new AttachmentBuilder(buffer, { name: 'farm.png' });
   const container = buildFarmContainer(user, state.selected || [], stats.farm, stats);
@@ -682,6 +739,17 @@ function setup(client, resources) {
       await interaction.deferUpdate({ flags: MessageFlags.IsComponentsV2 });
       const seedId = interaction.values[0];
       const stats = resources.userStats[state.userId] || { inventory: [], farm: {} };
+      if (seedId === 'OrnamentBerrySeed' && !isChristmasEventActive()) {
+        await interaction.editReply({
+          components: [
+            makeTextContainer(
+              `${WARNING} Ornament Berry seeds can only be planted during the Christmas event.`,
+            ),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
       const farmLevel = Number.isFinite(stats.farm_mastery_level)
         ? stats.farm_mastery_level
         : 0;

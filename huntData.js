@@ -23,6 +23,12 @@ const AREAS = [
     emoji: '<:SBArcticTundra:1410883429813452872>',
     image: 'https://i.ibb.co/21pKKfNN/Arctic-Tundra.png',
   },
+  {
+    name: 'Aurora Tundra',
+    key: 'AuroraTundra',
+    emoji: '<:SBAuroraTundra:1426949943561556121>',
+    image: 'https://i.ibb.co/twmxLZ3R/Aurora-Tundra.png',
+  },
 ];
 
 const AREA_BY_KEY = Object.fromEntries(AREAS.map(area => [area.key, area]));

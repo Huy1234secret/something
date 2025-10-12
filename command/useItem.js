@@ -403,6 +403,193 @@ function useXPSoda(user, amount, resources, options = {}) {
   return { component: xpSodaEmbed(user, target, amount, remaining, expires) };
 }
 
+function useCoinPotion(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'CoinPotion');
+  const item = ITEMS.CoinPotion;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  const now = Date.now();
+  const base = Math.max(now, stats.coin_boost_until || 0);
+  const duration = 30 * 60 * 1000;
+  stats.coin_boost_until = base + duration * amount;
+  stats.coin_boost_multiplier = 2;
+  stats.coin_boost_percent = 100;
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const expiresTs = Math.floor(stats.coin_boost_until / 1000);
+  const lines = [
+    `${user} drank ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
+    `-# Coin earnings boosted by 100% until <t:${expiresTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+function useLuckyPotion(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'LuckyPotion');
+  const item = ITEMS.LuckyPotion;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  const now = Date.now();
+  const duration = 30 * 60 * 1000;
+  const base = Math.max(now, (stats.luck_bonuses || [])
+    .filter(entry => entry && entry.source === 'LuckyPotion' && entry.expiresAt > now)
+    .reduce((max, entry) => Math.max(max, entry.expiresAt), 0));
+  const expires = base + duration * amount;
+  if (!Array.isArray(stats.luck_bonuses)) stats.luck_bonuses = [];
+  stats.luck_bonuses = stats.luck_bonuses.filter(
+    entry => entry && entry.source !== 'LuckyPotion',
+  );
+  stats.luck_bonuses.push({ amount: 1, expiresAt: expires, source: 'LuckyPotion' });
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const expiresTs = Math.floor(expires / 1000);
+  const lines = [
+    `${user} used ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
+    `-# Luck increased by 100% until <t:${expiresTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+function useUltraLuckyPotion(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'UltraLuckyPotion');
+  const item = ITEMS.UltraLuckyPotion;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  const now = Date.now();
+  const duration = 10 * 60 * 1000;
+  const base = Math.max(now, stats.force_success_until || 0);
+  const expires = base + duration * amount;
+  stats.force_success_until = expires;
+  if (!Array.isArray(stats.luck_bonuses)) stats.luck_bonuses = [];
+  stats.luck_bonuses = stats.luck_bonuses.filter(
+    entry => entry && entry.source !== 'UltraLuckyPotion',
+  );
+  stats.luck_bonuses.push({ amount: 3, expiresAt: expires, source: 'UltraLuckyPotion' });
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const expiresTs = Math.floor(expires / 1000);
+  const lines = [
+    `${user} unleashed the power of ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
+    `-# Luck increased by 300% and success chances are maxed until <t:${expiresTs}:R>.`,
+    `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+function useRobberBag(user, amount, resources) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'RobberBag');
+  const item = ITEMS.RobberBag;
+  if (!entry || entry.amount < amount) {
+    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
+  }
+  entry.amount -= amount;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  const charges = (stats.robber_bag_charges || 0) + amount * 10;
+  stats.robber_bag_charges = charges;
+  resources.userStats[user.id] = stats;
+  resources.saveData();
+  const lines = [
+    `${user} equipped a ${item.name} ${item.emoji}!`,
+    `-# Your next ${formatNumber(amount * 10)} /rob attempts will steal at least 25% on success.`,
+    `-# Charges remaining: ${formatNumber(charges)}`,
+    `-# Remaining bags: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${item.emoji} ${item.name}`,
+    lines,
+    getRarityColor(item),
+  );
+  return { component: container };
+}
+
+async function useBoltCutter(user, amount, resources, options = {}) {
+  if (amount !== 1) {
+    return { error: `${WARNING} You can only use one ${ITEMS.BoltCutter.name} at a time.` };
+  }
+  const target = options.target || user;
+  if (target.bot) {
+    return { error: `${WARNING} You cannot use the ${ITEMS.BoltCutter.name} on a bot.` };
+  }
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  stats.inventory = stats.inventory || [];
+  normalizeInventory(stats);
+  const entry = stats.inventory.find(i => i.id === 'BoltCutter');
+  if (!entry || entry.amount < 1) {
+    return { error: `${WARNING} You need at least 1 ${ITEMS.BoltCutter.name} to use.` };
+  }
+  const targetStats = resources.userStats[target.id] || {};
+  const now = Date.now();
+  if (!targetStats.padlock_until || targetStats.padlock_until <= now) {
+    return {
+      error: `${WARNING} ${target.id === user.id ? 'You do not' : `${target} does not`} have an active padlock to cut.`,
+    };
+  }
+  entry.amount -= 1;
+  const remaining = entry.amount;
+  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
+  normalizeInventory(stats);
+  targetStats.padlock_until = 0;
+  resources.userStats[user.id] = stats;
+  resources.userStats[target.id] = targetStats;
+  resources.saveData();
+  const subject = target.id === user.id ? 'your padlock' : `${target}'s padlock`;
+  const lines = [
+    `${user} sliced through ${subject} with a ${ITEMS.BoltCutter.name} ${ITEMS.BoltCutter.emoji}!`,
+    `-# Remaining cutters: ${formatNumber(Math.max(remaining, 0))}`,
+  ];
+  const container = buildItemContainer(
+    `### ${ITEMS.BoltCutter.emoji} ${ITEMS.BoltCutter.name}`,
+    lines,
+    getRarityColor(ITEMS.BoltCutter),
+  );
+  return { component: container };
+}
 function useChristmasBattlePassGift(user, amount, resources) {
   const stats =
     resources.userStats[user.id] || {
@@ -939,6 +1126,13 @@ const ITEM_USE_HANDLERS = {
     useAnimalDetector(user, amount, resources),
   ChristmasBattlePassGift: (user, amount, resources) =>
     useChristmasBattlePassGift(user, amount, resources),
+  CoinPotion: (user, amount, resources) => useCoinPotion(user, amount, resources),
+  LuckyPotion: (user, amount, resources) => useLuckyPotion(user, amount, resources),
+  UltraLuckyPotion: (user, amount, resources) =>
+    useUltraLuckyPotion(user, amount, resources),
+  RobberBag: (user, amount, resources) => useRobberBag(user, amount, resources),
+  BoltCutter: (user, amount, resources, options) =>
+    useBoltCutter(user, amount, resources, options),
   CandyCane: (user, amount, resources, options) =>
     useCandyCane(user, amount, resources, options),
   Cookie: (user, amount, resources, options) =>

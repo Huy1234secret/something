@@ -205,6 +205,15 @@ function computeActionSuccessChance(base, stats, { deathChance = 0, min = 0.001,
     return { chance: 0, forcedFail: true };
   }
 
+  const forceSuccess =
+    stats && stats.force_success_until && stats.force_success_until > Date.now();
+  if (forceSuccess) {
+    const limit = Math.max(0, 1 - deathChance);
+    const cap = Math.min(limit, max);
+    const clamped = Math.min(limit, Math.max(min, cap));
+    return { chance: clamped, forcedFail: false };
+  }
+
   if (hasNaughtyList(stats)) {
     const limit = Math.max(0, 1 - deathChance);
     const clamped = Math.min(Math.max(0.01, min), Math.max(min, Math.min(limit, 0.01)));
@@ -325,7 +334,15 @@ function applyCoinBoost(stats, amount) {
   if (hasNaughtyList(stats)) {
     percent *= 0.1;
   }
+  let boostMultiplier = 1;
+  if (stats && stats.coin_boost_until && stats.coin_boost_until > Date.now()) {
+    if (Number.isFinite(stats.coin_boost_multiplier))
+      boostMultiplier *= stats.coin_boost_multiplier;
+    else if (Number.isFinite(stats.coin_boost_percent))
+      boostMultiplier *= 1 + stats.coin_boost_percent / 100;
+  }
   let result = Math.floor(perk * (amount + amount * percent));
+  result = Math.floor(result * boostMultiplier);
   if (hasNaughtyList(stats)) {
     result = Math.floor(result * 0.5);
   }
