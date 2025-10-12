@@ -76,7 +76,13 @@ function buildCraftContainer() {
   const select = new StringSelectMenuBuilder()
     .setCustomId('upgrade:craft-select')
     .setPlaceholder(CRAFT_PLACEHOLDER)
-    .setDisabled(true);
+    .setDisabled(true)
+    .addOptions(
+      new StringSelectMenuOptionBuilder()
+        .setLabel('No recipes available')
+        .setValue('none')
+        .setDescription('Check back later!'),
+    );
 
   return [
     new ContainerBuilder()
