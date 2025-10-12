@@ -274,9 +274,14 @@ async function ensureUpgradeMessage(client, resources) {
 function setup(client, resources) {
   if (!client || !resources) return;
 
-  client.once('ready', () => {
+  const handleReady = () => {
     ensureUpgradeMessage(client, resources);
-  });
+  };
+
+  client.on('ready', handleReady);
+  if ((typeof client.isReady === 'function' && client.isReady()) || client.readyAt) {
+    handleReady();
+  }
 
   client.on('messageDelete', message => {
     try {
