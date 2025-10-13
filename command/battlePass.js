@@ -22,7 +22,7 @@ const { loadEmojiImage } = require('../imageCache');
 
 const TOTAL_LEVELS = 100;
 const MIN_POINTS_PER_LEVEL = 100;
-const MAX_POINTS_PER_LEVEL = 5000;
+const MAX_POINTS_PER_LEVEL = 10000;
 
 const LEVEL_POINT_DATA = buildLevelPointData();
 const POINTS_REQUIRED_PER_LEVEL = LEVEL_POINT_DATA.perLevel;
