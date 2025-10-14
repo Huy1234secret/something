@@ -28,6 +28,7 @@ const useItemCommand = require('./command/useItem');
 const robCommand = require('./command/rob');
 const addCurrencyCommand = require('./command/addCurrency');
 const addItemCommand = require('./command/addItem');
+const itemInfoCommand = require('./command/itemInfo');
 const farmViewCommand = require('./command/farmView');
 const huntCommand = require('./command/hunt');
 const digCommand = require('./command/dig');
@@ -655,6 +656,7 @@ client.on = function(event, listener) {
     inventoryCommand.setup(client, resources);
     shopCommand.setup(client, resources);
     useItemCommand.setup(client, resources);
+    itemInfoCommand.setup(client, resources);
     robCommand.setup(client, resources);
     addCurrencyCommand.setup(client, resources);
     addItemCommand.setup(client, resources);
