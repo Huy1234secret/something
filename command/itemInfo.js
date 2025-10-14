@@ -363,14 +363,23 @@ async function sendItemInfo(interaction, item, resources) {
   const accent = resolveAccentColor(item);
   const container = new ContainerBuilder().setAccentColor(accent);
   const thumbnailUrl = resolveThumbnailUrl(item);
-  const section = new SectionBuilder();
-  if (thumbnailUrl) section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnailUrl));
   const headerContent =
     item.rarity === 'Secret' && !totals.discovered
       ? buildSecretInfo(item)
       : buildKnownInfo(item, totals);
-  section.addTextDisplayComponents(new TextDisplayBuilder().setContent(headerContent));
-  container.addSectionComponents(section);
+  if (thumbnailUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbnailUrl))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(headerContent),
+        ),
+    );
+  } else {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(headerContent),
+    );
+  }
   container.addSeparatorComponents(new SeparatorBuilder());
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(buildObtainmentSection(item, totals)),

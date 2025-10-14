@@ -81,9 +81,7 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
       ),
     );
 
-  const listSection = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(listContent),
-  );
+  const listText = new TextDisplayBuilder().setContent(listContent);
 
   const pageSelect = new StringSelectMenuBuilder()
     .setCustomId('inventory-page')
@@ -110,7 +108,8 @@ async function sendInventory(user, send, { userStats, saveData }, state = { page
 
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(headerSection, listSection)
+    .addSectionComponents(headerSection)
+    .addTextDisplayComponents(listText)
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(pageSelect),
       new ActionRowBuilder().addComponents(typeSelect),
