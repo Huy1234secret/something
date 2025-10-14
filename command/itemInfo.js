@@ -60,6 +60,19 @@ const COIN_SHOP_SEED_LOOKUP = new Map(
   COIN_SHOP_SPECIAL_SEED_REPLACEMENTS.map(entry => [entry.id, entry]),
 );
 
+const ITEM_USAGE_BOOST_RULES = {
+  XPSoda: [{ percent: 100, search: /Doubles XP gains/i }],
+  CoinPotion: [{ percent: 100, search: /Doubles coin earnings/i }],
+  LuckyPotion: [
+    {
+      percent: 100,
+      search: /Increases luck/i,
+      cleanup: /\s+by\s+100%/i,
+    },
+  ],
+  UltraLuckyPotion: [{ percent: 300, search: /Massively boosts luck/i }],
+};
+
 function formatDisplayEmoji(rawEmoji) {
   if (!rawEmoji || typeof rawEmoji !== 'string') return '';
   const trimmed = rawEmoji.trim();
@@ -304,11 +317,44 @@ function buildOthersSection(item, totals) {
   return `## Others:\n* **Total Skins:** ${skinCount}`;
 }
 
+function applyUsageBoostRule(description, rule) {
+  if (!description || typeof description !== 'string') return description;
+  const percent = Number(rule?.percent);
+  if (!Number.isFinite(percent) || percent <= 0) return description;
+  if (description.includes(`[+${percent}%]`)) return description;
+  let updated = description;
+  const cleanup = rule.cleanup;
+  if (cleanup instanceof RegExp) {
+    updated = updated.replace(cleanup, '');
+  } else if (Array.isArray(cleanup)) {
+    for (const entry of cleanup) {
+      if (entry instanceof RegExp) updated = updated.replace(entry, '');
+    }
+  }
+  const search = rule.search;
+  if (!(search instanceof RegExp)) return updated.trim();
+  const match = updated.match(search);
+  if (!match || typeof match.index !== 'number') return updated.trim();
+  const insertionIndex = match.index + match[0].length;
+  const before = updated.slice(0, insertionIndex);
+  const after = updated.slice(insertionIndex);
+  const result = `${before} [+${percent}%]${after}`;
+  return result.replace(/ {2,}/g, ' ').replace(/ \n/g, '\n').trim();
+}
+
+function formatUsageDescription(item) {
+  const note = typeof item.note === 'string' ? item.note.trim() : '';
+  const description = note || 'Usage details unavailable.';
+  const rules = ITEM_USAGE_BOOST_RULES[item.id];
+  if (!rules) return description;
+  const ruleList = Array.isArray(rules) ? rules : [rules];
+  return ruleList.reduce((text, rule) => applyUsageBoostRule(text, rule), description);
+}
+
 function buildUsageSection(item, totals) {
   if (!item || !item.useable) return null;
   if (item.rarity === 'Secret' && !totals.discovered) return '## Usage: ?';
-  const note = typeof item.note === 'string' ? item.note.trim() : '';
-  const description = note || 'Usage details unavailable.';
+  const description = formatUsageDescription(item);
   return `## Usage:\n${description}`;
 }
 
