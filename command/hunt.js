@@ -828,16 +828,14 @@ async function checkMasterZoologistBadge(user, stats, resources, extraLines) {
       ),
     );
 
-  const rewardSection = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      `You have earned:\n${rewardLines.join('\n')}`,
-    ),
-  );
-
   const badgeContainer = new ContainerBuilder()
     .setAccentColor(0xffff00)
     .addSectionComponents(introSection)
-    .addSectionComponents(rewardSection);
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `You have earned:\n${rewardLines.join('\n')}`,
+      ),
+    );
   try {
     await user.send({ components: [badgeContainer], flags: MessageFlags.IsComponentsV2 });
   } catch {}

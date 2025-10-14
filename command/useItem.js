@@ -176,11 +176,9 @@ function getRarityColor(item) {
 function buildItemContainer(title, lines, accent) {
   return new ContainerBuilder()
     .setAccentColor(accent ?? 0xffffff)
-    .addSectionComponents(
-      new SectionBuilder().addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(title),
-        new TextDisplayBuilder().setContent(lines.join('\n')),
-      ),
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(title),
+      new TextDisplayBuilder().setContent(lines.join('\n')),
     );
 }
 
