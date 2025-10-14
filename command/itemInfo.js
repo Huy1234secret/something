@@ -260,10 +260,10 @@ async function sendItemInfo(interaction, item, resources) {
 }
 
 function createAutocompleteOption(item) {
-  const emoji = formatDisplayEmoji(item.emoji);
-  const prefix = emoji ? `${emoji} ` : '';
+  const labelSource = item.name || item.id || 'Unknown Item';
+  const label = String(labelSource).slice(0, 100);
   return {
-    name: `${prefix}${item.name}`.slice(0, 100),
+    name: label,
     value: item.id,
   };
 }
