@@ -304,6 +304,14 @@ function buildOthersSection(item, totals) {
   return `## Others:\n* **Total Skins:** ${skinCount}`;
 }
 
+function buildUsageSection(item, totals) {
+  if (!item || !item.useable) return null;
+  if (item.rarity === 'Secret' && !totals.discovered) return '## Usage: ?';
+  const note = typeof item.note === 'string' ? item.note.trim() : '';
+  const description = note || 'Usage details unavailable.';
+  return `## Usage:\n${description}`;
+}
+
 async function sendItemInfo(interaction, item, resources) {
   const totals = computeInventoryTotals(item.id, resources.userStats || {});
   const accent = resolveAccentColor(item);
@@ -321,6 +329,13 @@ async function sendItemInfo(interaction, item, resources) {
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(buildObtainmentSection(item, totals)),
   );
+  const usageSection = buildUsageSection(item, totals);
+  if (usageSection) {
+    container.addSeparatorComponents(new SeparatorBuilder());
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(usageSection),
+    );
+  }
   container.addSeparatorComponents(new SeparatorBuilder());
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(buildOthersSection(item, totals)),
