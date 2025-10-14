@@ -279,6 +279,7 @@ const ITEMS = {
     useable: true,
     types: ['Consumable', 'Container'],
     note: 'Open to receive five festive rewards.',
+    limitedEvent: 'Christmas Battle Pass 2025',
     image: 'https://i.ibb.co/WvPthnND/Battle-Pass-Gift.png',
     price: '',
     sellPrice: null,
