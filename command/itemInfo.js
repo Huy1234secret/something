@@ -36,6 +36,24 @@ const RARITY_COLORS = {
   Secret: 0x000000,
 };
 
+function formatDisplayEmoji(rawEmoji) {
+  if (!rawEmoji || typeof rawEmoji !== 'string') return '';
+  const trimmed = rawEmoji.trim();
+  if (!trimmed) return '';
+  const match = trimmed.match(/^<(a?):([^:>]+):(\d+)>$/);
+  if (match) {
+    const [, animated, name, id] = match;
+    const prefix = animated === 'a' ? 'a' : '';
+    return `<${prefix}:${name}:${id}>`;
+  }
+  return trimmed;
+}
+
+function applyItemHeadingEmoji(item) {
+  const emoji = formatDisplayEmoji(item?.emoji);
+  return emoji ? `${emoji} ${item.name}` : item.name;
+}
+
 const ALL_ITEMS = new Map();
 for (const item of Object.values(ITEMS)) {
   if (!item || !item.id) continue;
@@ -140,6 +158,18 @@ function formatChance(chance) {
   };
 }
 
+function getLimitedObtainmentEvent(item) {
+  if (!item) return null;
+  const direct = typeof item.limitedEvent === 'string' ? item.limitedEvent.trim() : '';
+  if (direct) return direct;
+  const nested =
+    item.obtainment && typeof item.obtainment.limitedEvent === 'string'
+      ? item.obtainment.limitedEvent.trim()
+      : '';
+  if (nested) return nested;
+  return null;
+}
+
 function buildDigObtainment(item) {
   const digInfo = DIG_ITEM_LOOKUP.get(item.id);
   if (!digInfo) return null;
@@ -155,35 +185,44 @@ function buildDigObtainment(item) {
   return 'Unearth this item by successfully using `/dig`. It uses a weighted loot roll, and higher luck increases the odds.';
 }
 
-function getObtainmentDescription(item) {
-  if (!item) return 'unknown';
-  const digDescription = buildDigObtainment(item);
-  if (digDescription) return digDescription;
-  if (Number.isFinite(item.price) && item.price > 0) {
-    return `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`;
+function getObtainmentDetails(item) {
+  if (!item) {
+    return { description: 'unknown', limitedEvent: null };
   }
-  return 'unknown';
+  const limitedEvent = getLimitedObtainmentEvent(item);
+  const digDescription = buildDigObtainment(item);
+  if (digDescription) return { description: digDescription, limitedEvent };
+  if (Number.isFinite(item.price) && item.price > 0) {
+    return {
+      description: `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`,
+      limitedEvent,
+    };
+  }
+  return { description: 'unknown', limitedEvent };
 }
 
 function buildKnownInfo(item, totals) {
-  const rarityEmoji = RARITY_EMOJIS[item.rarity] || '';
+  const rarityEmoji = formatDisplayEmoji(RARITY_EMOJIS[item.rarity]) || '';
+  const heading = applyItemHeadingEmoji(item);
   const types = item.types && item.types.length ? item.types.join(', ') : 'Unknown';
   const value = Number.isFinite(item.value) ? formatNumber(item.value) : '0';
   const exists = formatNumber(totals.total || 0);
   const sellable = Number.isFinite(item.sellPrice) && item.sellPrice > 0;
   const sellPrice = sellable ? `${formatNumber(item.sellPrice)} ${COIN_EMOJI}` : 'N/A';
-  return `## ${item.name}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ${types}\n* **Value:** ${value}\n* **Exists:** ${exists}\n* **Sell-Price:** ${sellPrice}`;
+  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ${types}\n* **Value:** ${value}\n* **Exists:** ${exists}\n* **Sell-Price:** ${sellPrice}`;
 }
 
 function buildSecretInfo(item) {
-  const rarityEmoji = RARITY_EMOJIS[item.rarity] || '';
-  return `## ${item.name}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ?\n* **Value:** ?\n* **Exists:** ?\n* **Sell-Price:** ?`;
+  const rarityEmoji = formatDisplayEmoji(RARITY_EMOJIS[item.rarity]) || '';
+  const heading = applyItemHeadingEmoji(item);
+  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ?\n* **Value:** ?\n* **Exists:** ?\n* **Sell-Price:** ?`;
 }
 
 function buildObtainmentSection(item, totals) {
   if (item.rarity === 'Secret' && !totals.discovered) return '## Obtainment: ?';
-  const description = getObtainmentDescription(item);
-  return `## Obtainment:\n${description}`;
+  const { description, limitedEvent } = getObtainmentDetails(item);
+  const suffix = limitedEvent ? ` **[LIMITED - ${limitedEvent}]**` : '';
+  return `## Obtainment:\n${description}${suffix}`;
 }
 
 function buildOthersSection(item, totals) {
@@ -221,7 +260,8 @@ async function sendItemInfo(interaction, item, resources) {
 }
 
 function createAutocompleteOption(item) {
-  const prefix = item.emoji ? `${item.emoji} ` : '';
+  const emoji = formatDisplayEmoji(item.emoji);
+  const prefix = emoji ? `${emoji} ` : '';
   return {
     name: `${prefix}${item.name}`.slice(0, 100),
     value: item.id,
