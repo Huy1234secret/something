@@ -36,6 +36,30 @@ const RARITY_COLORS = {
   Secret: 0x000000,
 };
 
+const COIN_SHOP_OPTIONAL_ITEMS = [
+  { id: 'XPSoda', chance: 0.35, min: 1, max: 3 },
+  { id: 'AnimalDetector', chance: 0.15, min: 1, max: 2 },
+  { id: 'MarshlightLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'SnowglassLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'SunprideLures', chance: 0.25, min: 10, max: 25 },
+  { id: 'VerdantLures', chance: 0.25, min: 10, max: 25 },
+];
+
+const COIN_SHOP_SPECIAL_SEED_REPLACEMENTS = [
+  { id: 'StarFruitSeed', chance: 0.2 },
+  { id: 'MelonSeed', chance: 0.4 },
+  { id: 'PumpkinSeed', chance: 0.55 },
+  { id: 'WhiteCabbageSeed', chance: 0.75 },
+];
+
+const COIN_SHOP_OPTIONAL_LOOKUP = new Map(
+  COIN_SHOP_OPTIONAL_ITEMS.map(entry => [entry.id, entry]),
+);
+
+const COIN_SHOP_SEED_LOOKUP = new Map(
+  COIN_SHOP_SPECIAL_SEED_REPLACEMENTS.map(entry => [entry.id, entry]),
+);
+
 function formatDisplayEmoji(rawEmoji) {
   if (!rawEmoji || typeof rawEmoji !== 'string') return '';
   const trimmed = rawEmoji.trim();
@@ -185,20 +209,68 @@ function buildDigObtainment(item) {
   return 'Unearth this item by successfully using `/dig`. It uses a weighted loot roll, and higher luck increases the odds.';
 }
 
+function buildCoinShopOptionalDetail(item) {
+  const optional = COIN_SHOP_OPTIONAL_LOOKUP.get(item.id);
+  if (!optional) return null;
+  const chanceInfo = formatChance(optional.chance);
+  let chanceLine;
+  if (chanceInfo && chanceInfo.percent) {
+    const ratioText = chanceInfo.ratio ? ` (~1 in ${chanceInfo.ratio})` : '';
+    chanceLine = `Each hourly coin shop rotation has a base ${chanceInfo.percent}% chance${ratioText} to stock this item.`;
+  } else {
+    chanceLine = 'Each hourly coin shop rotation uses weighted odds to decide if this item appears.';
+  }
+  const min = Number.isFinite(optional.min) ? optional.min : null;
+  const max = Number.isFinite(optional.max) ? optional.max : min;
+  let stackLine = '';
+  if (min && max) {
+    if (min === max) {
+      const unitLabel = min === 1 ? 'item' : 'items';
+      stackLine = ` It appears in stacks of ${formatNumber(min)} ${unitLabel}.`;
+    } else {
+      stackLine = ` It appears in stacks of ${formatNumber(min)}-${formatNumber(max)} items.`;
+    }
+  }
+  return `${chanceLine}${stackLine}`.trim();
+}
+
+function buildSeedReplacementDetail(item) {
+  const replacement = COIN_SHOP_SEED_LOOKUP.get(item.id);
+  if (!replacement) return null;
+  const chanceInfo = formatChance(replacement.chance);
+  if (chanceInfo && chanceInfo.percent) {
+    const ratioText = chanceInfo.ratio ? ` (~1 in ${chanceInfo.ratio})` : '';
+    return `Each hourly coin shop restock rolls a base ${chanceInfo.percent}% chance${ratioText} for a basic seed slot to upgrade into ${item.name}.`;
+  }
+  return 'Each hourly coin shop restock uses weighted odds to upgrade a seed slot into this item.';
+}
+
+function buildAdditionalChanceDetails(item) {
+  const details = [];
+  const optionalDetail = buildCoinShopOptionalDetail(item);
+  if (optionalDetail) details.push(optionalDetail);
+  const seedDetail = buildSeedReplacementDetail(item);
+  if (seedDetail) details.push(seedDetail);
+  return details;
+}
+
 function getObtainmentDetails(item) {
   if (!item) {
     return { description: 'unknown', limitedEvent: null };
   }
   const limitedEvent = getLimitedObtainmentEvent(item);
   const digDescription = buildDigObtainment(item);
-  if (digDescription) return { description: digDescription, limitedEvent };
-  if (Number.isFinite(item.price) && item.price > 0) {
-    return {
-      description: `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`,
-      limitedEvent,
-    };
+  const parts = [];
+  if (digDescription) {
+    parts.push(digDescription);
+  } else if (Number.isFinite(item.price) && item.price > 0) {
+    parts.push(
+      `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`,
+    );
   }
-  return { description: 'unknown', limitedEvent };
+  parts.push(...buildAdditionalChanceDetails(item));
+  if (parts.length === 0) parts.push('unknown');
+  return { description: parts.join('\n\n'), limitedEvent };
 }
 
 function buildKnownInfo(item, totals) {
