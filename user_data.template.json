@@ -24,5 +24,8 @@
       "countdownTargetTimestamp": 0,
       "countdownMessageId": null
     }
+  },
+  "lunar_new_year_event": {
+    "announcementMessageId": null
   }
 }
