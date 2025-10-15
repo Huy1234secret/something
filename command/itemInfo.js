@@ -10,6 +10,8 @@ const {
   TextDisplayBuilder,
 } = require('@discordjs/builders');
 const { ITEMS, DIG_ITEMS } = require('../items');
+const { ANIMALS } = require('../animals');
+const { AREA_BY_KEY, HUNT_LURES } = require('../huntData');
 const { getSkinsForItem } = require('../skins');
 const { formatNumber, normalizeInventory } = require('../utils');
 
@@ -58,6 +60,106 @@ const COIN_SHOP_OPTIONAL_LOOKUP = new Map(
 
 const COIN_SHOP_SEED_LOOKUP = new Map(
   COIN_SHOP_SPECIAL_SEED_REPLACEMENTS.map(entry => [entry.id, entry]),
+);
+
+const ANIMAL_LOOKUP = new Map(ANIMALS.map(animal => [animal.id, animal]));
+
+const HUNT_LURE_LOOKUP = new Map(
+  Object.entries(HUNT_LURES).map(([areaKey, data]) => [data.itemId, areaKey]),
+);
+
+const AURORA_EVENT_KEY = 'AuroraTundra';
+const AREA_EVENT_LABEL = {
+  [AURORA_EVENT_KEY]: 'Christmas',
+};
+
+const FARM_PLANTS = [
+  {
+    plantName: 'Wheat',
+    seedId: 'WheatSeed',
+    cropId: 'Sheaf',
+    cropLabel: 'Sheafs',
+    produceRange: { min: 2, max: 5 },
+    seedReturns: [
+      { amount: 2, chance: 0.05 },
+      { amount: 1, chance: 0.75 },
+    ],
+  },
+  {
+    plantName: 'Potato',
+    seedId: 'PotatoSeed',
+    cropId: 'Potato',
+    cropLabel: 'Potatoes',
+    produceRange: { min: 1, max: 3 },
+    seedReturns: [
+      { amount: 2, chance: 0.01 },
+      { amount: 1, chance: 0.89 },
+    ],
+  },
+  {
+    plantName: 'White Cabbage',
+    seedId: 'WhiteCabbageSeed',
+    cropId: 'WhiteCabbage',
+    cropLabel: 'White Cabbages',
+    masteryLevel: 30,
+    produceRange: { min: 1, max: 1 },
+    seedReturns: [
+      { amount: 2, chance: 0.05 },
+      { amount: 1, chance: 0.75 },
+    ],
+  },
+  {
+    plantName: 'Pumpkin',
+    seedId: 'PumpkinSeed',
+    cropId: 'Pumpkin',
+    cropLabel: 'Pumpkins',
+    masteryLevel: 30,
+    produceRange: { min: 1, max: 1 },
+    seedReturns: [
+      { amount: 2, chance: 0.04 },
+      { amount: 1, chance: 0.7 },
+    ],
+  },
+  {
+    plantName: 'Melon',
+    seedId: 'MelonSeed',
+    cropId: 'Melon',
+    cropLabel: 'Melons',
+    masteryLevel: 60,
+    produceRange: { min: 1, max: 1 },
+    seedReturns: [
+      { amount: 2, chance: 0.03 },
+      { amount: 1, chance: 0.5 },
+    ],
+  },
+  {
+    plantName: 'Star Fruit',
+    seedId: 'StarFruitSeed',
+    cropId: 'StarFruit',
+    cropLabel: 'Star Fruits',
+    masteryLevel: 60,
+    produceRange: { min: 1, max: 1 },
+    seedReturns: [
+      { amount: 2, chance: 0.02 },
+      { amount: 1, chance: 0.45 },
+    ],
+  },
+  {
+    plantName: 'Ornament Berry',
+    seedId: 'OrnamentBerrySeed',
+    cropId: 'OrnamentBerry',
+    cropLabel: 'Ornament Berries',
+    event: 'Christmas',
+    produceRange: { min: 5, max: 10 },
+    seedReturns: [],
+  },
+];
+
+const FARM_PLANT_BY_SEED = new Map(
+  FARM_PLANTS.map(plant => [plant.seedId, plant]),
+);
+const FARM_PLANT_BY_CROP = new Map(
+  FARM_PLANTS.map(plant => [plant.cropId, plant]),
 );
 
 const ITEM_USAGE_DETAILS = {
@@ -441,6 +543,164 @@ const ITEM_USAGE_BOOST_RULES = {
   UltraLuckyPotion: [{ percent: 300, search: /Massively boosts luck/i }],
 };
 
+const ADDITIONAL_USAGE_GENERATORS = {
+  HarvestScythe: item => {
+    const durability = Number.isFinite(item?.durability)
+      ? formatNumber(item.durability)
+      : '25';
+    return [
+      {
+        command: '/farm-view',
+        summary: 'Required tool for harvesting grown crops.',
+        fields: [
+          {
+            label: 'How to use',
+            value:
+              'Open `/farm-view`, select the ripe plots, and press **Harvest**. A scythe must be in your inventory to finish the action.',
+          },
+          {
+            label: 'Durability',
+            value: `${durability} harvests before it breaks (1 durability per harvested plot).`,
+          },
+        ],
+        bullets: ['Also clears dead crops so you can replant immediately.'],
+      },
+    ];
+  },
+  WateringCan: item => {
+    const durability = Number.isFinite(item?.durability)
+      ? formatNumber(item.durability)
+      : '10';
+    return [
+      {
+        command: '/farm-view',
+        summary: 'Keeps planted crops hydrated.',
+        fields: [
+          {
+            label: 'How to use',
+            value:
+              'Choose **Water** in `/farm-view`, pick the plots you want, and confirm to hydrate them.',
+          },
+          {
+            label: 'Effect',
+            value:
+              'Prevents planted crops from drying out; empty plots stay watered for about an hour.',
+          },
+          {
+            label: 'Durability',
+            value: `${durability} watering actions before the can breaks (1 durability per watering).`,
+          },
+        ],
+      },
+    ];
+  },
+  HuntingRifleT1: item => {
+    const durability = Number.isFinite(item?.durability)
+      ? formatNumber(item.durability)
+      : '50';
+    return [
+      {
+        command: '/hunt',
+        summary: 'Starter rifle that lets you go hunting.',
+        fields: [
+          {
+            label: 'Equip',
+            value: 'Open `/hunt`, head to **Equipment**, and select this rifle in the gun dropdown.',
+          },
+          {
+            label: 'Targets',
+            value: 'Supports Common and many Rare animals. Upgrade to higher tiers for rarer finds.',
+          },
+          {
+            label: 'Durability',
+            value: `${durability} hunts before the rifle breaks (1 durability per hunt).`,
+          },
+        ],
+      },
+    ];
+  },
+  HuntingRifleT2: item => {
+    const durability = Number.isFinite(item?.durability)
+      ? formatNumber(item.durability)
+      : '75';
+    return [
+      {
+        command: '/hunt',
+        summary: 'Advanced rifle for rarer animals.',
+        fields: [
+          {
+            label: 'Equip',
+            value: 'Select it from the rifle dropdown in `/hunt` → Equipment.',
+          },
+          {
+            label: 'Unlocks',
+            value: 'Allows Epic and Legendary animals to appear in addition to lower rarities.',
+          },
+          {
+            label: 'Bonuses',
+            value: 'Reduces the `/hunt` cooldown by 10% while equipped.',
+          },
+          {
+            label: 'Durability',
+            value: `${durability} hunts before the rifle breaks (1 durability per hunt).`,
+          },
+        ],
+      },
+    ];
+  },
+  HuntingRifleT3: item => {
+    const durability = Number.isFinite(item?.durability)
+      ? formatNumber(item.durability)
+      : '100';
+    return [
+      {
+        command: '/hunt',
+        summary: 'Top-tier rifle for mythical hunts.',
+        fields: [
+          {
+            label: 'Equip',
+            value: 'Pick it in the rifle dropdown from `/hunt` → Equipment.',
+          },
+          {
+            label: 'Unlocks',
+            value:
+              'Lets Mythical and Godly animals spawn. Secret animals appear once you reach Hunt Mastery 100.',
+          },
+          {
+            label: 'Bonuses',
+            value: 'Cuts the `/hunt` cooldown by 25% while equipped.',
+          },
+          {
+            label: 'Durability',
+            value: `${durability} hunts before the rifle breaks (1 durability per hunt).`,
+          },
+        ],
+      },
+    ];
+  },
+  Bullet: () => [
+    {
+      command: '/hunt',
+      summary: 'Standard ammunition for hunts.',
+      fields: [
+        {
+          label: 'Consumption',
+          value:
+            'Each `/hunt` attempt consumes 1 bullet before the result roll. Hunt Mastery Lv.20 adds a 25% refund chance.',
+        },
+        {
+          label: 'Equip',
+          value: 'Switch bullet types from `/hunt` → Equipment → Bullet.',
+        },
+        {
+          label: 'Restocking',
+          value: 'Open Bullet Boxes or purchase more from the rotating shop when they appear.',
+        },
+      ],
+    },
+  ],
+};
+
 function renderUsageDetails(detail) {
   if (!detail) return null;
   if (typeof detail === 'string') return detail.trim();
@@ -669,19 +929,254 @@ function buildAdditionalChanceDetails(item) {
   return details;
 }
 
+function formatChanceTextValue(chance) {
+  const info = formatChance(chance);
+  if (!info || !info.percent) return null;
+  const ratioText = info.ratio && info.ratio > 1 ? ` (~1 in ${info.ratio})` : '';
+  return `${info.percent}%${ratioText}`;
+}
+
+function formatProduceRangeText(plant) {
+  if (!plant || !plant.produceRange) return null;
+  const { min, max } = plant.produceRange;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  if (min === max) {
+    const unit = plant.cropLabel || 'crops';
+    const amount = formatNumber(min);
+    return `${amount} ${unit}`;
+  }
+  const unit = plant.cropLabel || 'crops';
+  return `${formatNumber(min)}–${formatNumber(max)} ${unit}`;
+}
+
+function formatSeedReturnDetails(plant) {
+  if (!plant) return '';
+  const returns = Array.isArray(plant.seedReturns) ? plant.seedReturns : [];
+  if (returns.length === 0) return '';
+  const fragments = returns
+    .map(entry => {
+      if (!entry || !Number.isFinite(entry.amount)) return null;
+      const text = formatChanceTextValue(entry.chance);
+      if (!text) return null;
+      const suffix = entry.amount === 1 ? 'seed' : 'seeds';
+      return `${text} for ${entry.amount} extra ${suffix}`;
+    })
+    .filter(Boolean);
+  const totalChance = returns.reduce((sum, entry) => sum + (entry.chance || 0), 0);
+  const noneChance = Math.max(0, 1 - totalChance);
+  if (noneChance > 0.0001) {
+    const text = formatChanceTextValue(noneChance);
+    if (text) fragments.push(`${text} for no seeds returned`);
+  }
+  return fragments.join('; ');
+}
+
+function buildFarmObtainment(item) {
+  if (!item) return null;
+  const plant = FARM_PLANT_BY_SEED.get(item.id);
+  const produce = FARM_PLANT_BY_CROP.get(item.id);
+  if (!plant && !produce) return null;
+  const lines = [];
+  let limitedEvent = null;
+  if (plant) {
+    const cropRange = formatProduceRangeText(plant);
+    const seedDetails = formatSeedReturnDetails(plant);
+    lines.push(
+      `Plant these seeds on your farm using \`/farm-view\`. Each seed fills one empty plot and grows into ${plant.plantName}.`,
+    );
+    if (cropRange) {
+      lines.push(
+        `Fully grown ${plant.plantName} yield ${cropRange} per harvest. These values are before any inventory or mastery bonuses.`,
+      );
+    }
+    if (seedDetails) {
+      lines.push(`Harvesting has ${seedDetails}.`);
+    }
+    if (plant.masteryLevel) {
+      lines.push(`Requires Farm Mastery Lv.${plant.masteryLevel} or higher to plant.`);
+    }
+    if (Number.isFinite(item.price) && item.price > 0) {
+      lines.push(
+        `Shop rotations sometimes sell these for ${formatNumber(item.price)} Coins ${COIN_EMOJI} per package.`,
+      );
+    }
+    if (plant.event) limitedEvent = plant.event;
+  } else if (produce) {
+    const cropRange = formatProduceRangeText(produce);
+    const seedDetails = formatSeedReturnDetails(produce);
+    lines.push(
+      `Harvest fully grown ${produce.plantName} via \`/farm-view\` to collect this crop.`,
+    );
+    if (cropRange) {
+      lines.push(`Each harvested plot awards ${cropRange}.`);
+    }
+    if (seedDetails) {
+      const seedItem = ITEMS[produce.seedId];
+      const seedName = seedItem ? seedItem.name : 'its seeds';
+      lines.push(`Harvests also roll seed returns (${seedDetails}) to keep ${seedName} stocked.`);
+    }
+    if (produce.event) limitedEvent = produce.event;
+  }
+  return {
+    description: lines.join('\n\n'),
+    limitedEvent,
+  };
+}
+
+function buildHuntObtainment(item) {
+  const animal = ANIMAL_LOOKUP.get(item?.id);
+  if (!animal) return null;
+  const areaEntries = Object.entries(animal.chances || {});
+  const lines = [];
+  const activeAreas = new Set();
+  for (const [areaKey, chanceList] of areaEntries) {
+    if (!Array.isArray(chanceList)) continue;
+    const filtered = chanceList
+      .map((value, index) => ({ value: Number(value) || 0, index }))
+      .filter(entry => entry.value > 0);
+    if (!filtered.length) continue;
+    const areaInfo = AREA_BY_KEY[areaKey] || { name: areaKey };
+    activeAreas.add(areaKey);
+    const tierChunks = filtered.map(entry => {
+      const chanceText = formatChanceTextValue(entry.value);
+      const tierLabel = `Tier ${entry.index + 1}`;
+      return chanceText ? `${tierLabel}: ${chanceText}` : `${tierLabel}: weighted`;
+    });
+    if (tierChunks.length) {
+      lines.push(`- ${areaInfo.name}: ${tierChunks.join('; ')}`);
+    }
+  }
+  if (!lines.length) {
+    return {
+      description:
+        'Track this animal through `/hunt`. Its base appearance rate is tied to rifle tier and luck but exact chances are currently unknown.',
+      limitedEvent: null,
+    };
+  }
+  let limitedEvent = null;
+  if (activeAreas.size === 1) {
+    const [onlyArea] = activeAreas;
+    if (AREA_EVENT_LABEL[onlyArea]) limitedEvent = AREA_EVENT_LABEL[onlyArea];
+  }
+  const intro =
+    'Track this animal through `/hunt`. Successful hunts roll the following base odds before luck, detectors, or lure bonuses:';
+  return {
+    description: `${intro}\n${lines.join('\n')}`,
+    limitedEvent,
+  };
+}
+
+function buildFarmUsageContexts(item) {
+  const plant = FARM_PLANT_BY_SEED.get(item?.id);
+  if (!plant) return [];
+  const contexts = [];
+  const cropRange = formatProduceRangeText(plant);
+  const seedDetails = formatSeedReturnDetails(plant);
+  const fields = [
+    {
+      label: 'Planting',
+      value: 'Open `/farm-view`, choose **Plant**, select empty plots, and pick these seeds.',
+    },
+    {
+      label: 'Watering',
+      value: 'Keep the plots watered so the crop does not dry out before harvest.',
+    },
+  ];
+  if (cropRange) {
+    fields.push({
+      label: 'Harvest',
+      value: `Fully grown ${plant.plantName} yield ${cropRange} per plot.`,
+    });
+  }
+  if (seedDetails) {
+    fields.push({
+      label: 'Seed return',
+      value: `Harvests have ${seedDetails}.`,
+    });
+  }
+  const bullets = [];
+  if (plant.masteryLevel) {
+    bullets.push(`Requires Farm Mastery Lv.${plant.masteryLevel} or higher to plant.`);
+  }
+  if (plant.event) {
+    bullets.push(`Only available during the ${plant.event} event.`);
+  }
+  contexts.push({
+    command: '/farm-view',
+    summary: `Plant to grow ${plant.plantName}.`,
+    fields,
+    bullets,
+  });
+  return contexts;
+}
+
+function buildHuntLureUsageContexts(item) {
+  const areaKey = HUNT_LURE_LOOKUP.get(item?.id);
+  if (!areaKey) return [];
+  const areaInfo = AREA_BY_KEY[areaKey] || { name: areaKey };
+  return [
+    {
+      command: '/hunt',
+      summary: `Doubles rare-animal weights while hunting in ${areaInfo.name}.`,
+      fields: [
+        {
+          label: 'Equip',
+          value: 'Open `/hunt`, go to **Equipment**, and activate the lure slot with this item.',
+        },
+        {
+          label: 'Effect',
+          value: 'Rare and above animals in that area roll at double weight for each successful hunt.',
+        },
+        {
+          label: 'Charges',
+          value: 'Each lure grants 20 successful hunts; using more lures stacks the remaining charges.',
+        },
+      ],
+      bullets: ['Charges are tracked per area and only one lure can be active per location at a time.'],
+    },
+  ];
+}
+
+function getAdditionalUsageContexts(item) {
+  const contexts = [];
+  const generator = ADDITIONAL_USAGE_GENERATORS[item?.id];
+  if (typeof generator === 'function') {
+    const generated = generator(item) || [];
+    if (Array.isArray(generated)) {
+      contexts.push(...generated.filter(Boolean));
+    } else if (generated) {
+      contexts.push(generated);
+    }
+  }
+  contexts.push(...buildFarmUsageContexts(item));
+  contexts.push(...buildHuntLureUsageContexts(item));
+  return contexts;
+}
+
 function getObtainmentDetails(item) {
   if (!item) {
     return { description: 'unknown', limitedEvent: null };
   }
-  const limitedEvent = getLimitedObtainmentEvent(item);
-  const digDescription = buildDigObtainment(item);
+  let limitedEvent = getLimitedObtainmentEvent(item);
   const parts = [];
-  if (digDescription) {
-    parts.push(digDescription);
-  } else if (Number.isFinite(item.price) && item.price > 0) {
-    parts.push(
-      `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`,
-    );
+  const farmInfo = buildFarmObtainment(item);
+  if (farmInfo) {
+    if (farmInfo.description) parts.push(farmInfo.description);
+    if (!limitedEvent && farmInfo.limitedEvent) limitedEvent = farmInfo.limitedEvent;
+  } else {
+    const huntInfo = buildHuntObtainment(item);
+    if (huntInfo) {
+      if (huntInfo.description) parts.push(huntInfo.description);
+      if (!limitedEvent && huntInfo.limitedEvent) limitedEvent = huntInfo.limitedEvent;
+    }
+    const digDescription = buildDigObtainment(item);
+    if (digDescription) {
+      parts.push(digDescription);
+    } else if (Number.isFinite(item.price) && item.price > 0) {
+      parts.push(
+        `Purchase this item from the rotating shop when it appears. It costs ${formatNumber(item.price)} Coins ${COIN_EMOJI} per unit.`,
+      );
+    }
   }
   parts.push(...buildAdditionalChanceDetails(item));
   if (parts.length === 0) parts.push('unknown');
@@ -759,10 +1254,23 @@ function formatUsageDescription(item) {
 }
 
 function buildUsageSection(item, totals) {
-  if (!item || !item.useable) return null;
+  if (!item) return null;
   if (item.rarity === 'Secret' && !totals.discovered) return '## Usage: ?';
-  const description = formatUsageDescription(item);
-  return `## Usage:\n${description}`;
+  const sections = [];
+  if (item.useable) {
+    const description = formatUsageDescription(item);
+    if (description) sections.push(`## Usage:\n${description}`);
+  }
+  const contexts = getAdditionalUsageContexts(item);
+  for (const context of contexts) {
+    if (!context) continue;
+    const rendered = renderUsageDetails(context);
+    if (!rendered) continue;
+    const heading = context.command ? `## Usage in ${context.command}` : '## Usage';
+    sections.push(`${heading}\n${rendered}`);
+  }
+  if (!sections.length) return null;
+  return sections.join('\n\n');
 }
 
 async function sendItemInfo(interaction, item, resources) {
