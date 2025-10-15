@@ -41,6 +41,7 @@ const badgesCommand = require('./command/badges');
 const battlePassCommand = require('./command/battlePass');
 const purgeMessageCommand = require('./command/purgeMessage');
 const upgradeFeature = require('./command/upgrade');
+const lunarNewYearEvent = require('./lunarNewYearEvent');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
@@ -69,6 +70,9 @@ function createDefaultData() {
         countdownTargetTimestamp: 0,
         countdownMessageId: null,
       },
+    },
+    lunar_new_year_event: {
+      announcementMessageId: null,
     },
   };
 }
@@ -133,6 +137,9 @@ let battlePassData = {
     countdownTargetTimestamp: 0,
     countdownMessageId: null,
   },
+};
+let lunarNewYearEventData = {
+  announcementMessageId: null,
 };
 
 const ITEMS_BY_RARITY = {};
@@ -233,6 +240,17 @@ function loadData() {
         announcements.countdownMessageId = String(announcements.countdownMessageId);
       }
     }
+    lunarNewYearEventData = data.lunar_new_year_event || {
+      announcementMessageId: null,
+    };
+    if (
+      lunarNewYearEventData.announcementMessageId !== null &&
+      typeof lunarNewYearEventData.announcementMessageId !== 'string'
+    ) {
+      lunarNewYearEventData.announcementMessageId = String(
+        lunarNewYearEventData.announcementMessageId,
+      );
+    }
   } catch (err) {
     console.error('Failed to load user data, restoring defaults:', err.message);
     userStats = {};
@@ -243,6 +261,7 @@ function loadData() {
     upgradeMessageId = null;
     shop = { stock: {}, nextRestock: 0 };
     battlePassData = { reward100: { stage: 0, claims: [] } };
+    lunarNewYearEventData = { announcementMessageId: null };
     saveData();
   }
   const fixed = fixItemEntries(userStats);
@@ -262,6 +281,7 @@ function saveData() {
     upgrade_message_id: upgradeMessageId,
     shop,
     battle_pass: battlePassData,
+    lunar_new_year_event: lunarNewYearEventData,
   };
   fs.mkdirSync(DATA_DIR, { recursive: true });
   createBackup();
@@ -564,6 +584,13 @@ const resources = {
   setUpgradeMessageId: id => {
     upgradeMessageId = id;
   },
+  getLunarNewYearEventMessageId: () => lunarNewYearEventData.announcementMessageId,
+  setLunarNewYearEventMessageId: id => {
+    lunarNewYearEventData.announcementMessageId = id;
+  },
+  clearLunarNewYearEventMessageId: () => {
+    lunarNewYearEventData.announcementMessageId = null;
+  },
 };
 
 const client = new Client({
@@ -572,6 +599,7 @@ const client = new Client({
 resources.client = client;
 client.setMaxListeners(50);
 setupErrorHandling(client, '1383481711651721307');
+lunarNewYearEvent.setup(client, resources);
 
 // Wrap interactionCreate listeners so banned interactions don't trigger other handlers
 const originalOn = client.on.bind(client);
