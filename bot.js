@@ -41,6 +41,7 @@ const badgesCommand = require('./command/badges');
 const battlePassCommand = require('./command/battlePass');
 const purgeMessageCommand = require('./command/purgeMessage');
 const upgradeFeature = require('./command/upgrade');
+const listItemsCommand = require('./command/listItems');
 const lunarNewYearEvent = require('./lunarNewYearEvent');
 const { ITEMS } = require('./items');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
@@ -700,6 +701,7 @@ client.on = function(event, listener) {
     battlePassCommand.setup(client, resources);
     purgeMessageCommand.setup(client, resources);
     upgradeFeature.setup(client, resources);
+    listItemsCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
