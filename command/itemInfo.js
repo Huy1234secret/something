@@ -201,7 +201,7 @@ const ITEM_USAGE_DETAILS = {
     fields: [
       {
         label: 'Effect',
-        value: 'Each detector grants 25 guaranteed successful hunts.',
+        value: 'Each detector grants 20 guaranteed successful hunts.',
       },
       {
         label: 'Stacking',
@@ -218,7 +218,7 @@ const ITEM_USAGE_DETAILS = {
     fields: [
       {
         label: 'Duration',
-        value: '6 hours per soda. Re-using before expiry extends the remaining time.',
+        value: '3 hours per soda. Re-using before expiry extends the remaining time.',
       },
       { label: 'Targeting', value: 'Can be used on yourself or another player.' },
       {
@@ -229,7 +229,7 @@ const ITEM_USAGE_DETAILS = {
     bullets: ['Affects all chat XP sources, including Cookies, Candy Canes, and Gingerbread Men.'],
   },
   CoinPotion: {
-    summary: 'Applies a +100% coin boost (double coins).',
+    summary: 'Applies a +50% coin boost.',
     fields: [
       {
         label: 'Duration',
@@ -241,7 +241,7 @@ const ITEM_USAGE_DETAILS = {
       },
       {
         label: 'Stacking',
-        value: 'Boost amount stays at +100%; only the remaining duration increases.',
+        value: 'Boost amount stays at +50%; only the remaining duration increases.',
       },
     ],
   },
@@ -250,7 +250,7 @@ const ITEM_USAGE_DETAILS = {
     fields: [
       {
         label: 'Effect',
-        value: '+100% luck bonus (equivalent to +1 luck) for hunts, digs, begs, and other rolls.',
+        value: '+30% luck bonus for hunts, digs, begs, and other rolls.',
       },
       {
         label: 'Duration',
@@ -258,7 +258,7 @@ const ITEM_USAGE_DETAILS = {
       },
       {
         label: 'Stacking',
-        value: 'The luck bonus stays at +100%; re-using extends the expiration time.',
+        value: 'The luck bonus stays at +30%; re-using extends the expiration time.',
       },
     ],
     bullets: ['Stacks with other luck sources such as Good List, cosmetics, and mastery bonuses.'],
@@ -268,7 +268,7 @@ const ITEM_USAGE_DETAILS = {
     fields: [
       {
         label: 'Effect',
-        value: '+300% luck bonus and all hunts/digs/begs ignore RNG failure (except death rolls).',
+        value: '+100% luck bonus and all hunts/digs/begs ignore RNG failure (except death rolls).',
       },
       {
         label: 'Duration',
@@ -276,7 +276,7 @@ const ITEM_USAGE_DETAILS = {
       },
       {
         label: 'Stacking',
-        value: 'Luck bonus remains +300%; additional potions only add time.',
+        value: 'Luck bonus remains +100%; additional potions only add time.',
       },
     ],
   },
@@ -336,7 +336,7 @@ const ITEM_USAGE_DETAILS = {
       },
       {
         label: 'Duration',
-        value: 'Lasts 30 minutes; drinking more adds reduction and refreshes the expiration.',
+        value: 'Lasts 20 minutes; drinking more adds reduction and refreshes the expiration.',
       },
       {
         label: 'Limits',
@@ -422,11 +422,11 @@ const ITEM_USAGE_DETAILS = {
     ],
   },
   GoodList: {
-    summary: 'Blesses a player with massive luck.',
+    summary: 'Blesses a player with hefty luck.',
     fields: [
       {
         label: 'Effect',
-        value: '+100% luck bonus (+1 luck) applied to the target for all luck-based rolls.',
+        value: '+69% luck bonus applied to the target for all luck-based rolls.',
       },
       {
         label: 'Duration',
@@ -532,15 +532,15 @@ const ITEM_USAGE_DETAILS = {
 
 const ITEM_USAGE_BOOST_RULES = {
   XPSoda: [{ percent: 100, search: /Doubles XP gains/i }],
-  CoinPotion: [{ percent: 100, search: /Doubles coin earnings/i }],
+  CoinPotion: [{ percent: 50, search: /coin earnings/i }],
   LuckyPotion: [
     {
-      percent: 100,
+      percent: 30,
       search: /Increases luck/i,
-      cleanup: /\s+by\s+100%/i,
+      cleanup: /\s+by\s+\d+%/i,
     },
   ],
-  UltraLuckyPotion: [{ percent: 300, search: /Massively boosts luck/i }],
+  UltraLuckyPotion: [{ percent: 100, search: /Boosts luck/i }],
 };
 
 const ADDITIONAL_USAGE_GENERATORS = {

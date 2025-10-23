@@ -167,7 +167,7 @@ function getLuckBonus(stats) {
     for (const entry of stats.luck_bonuses) bonus += entry.amount;
   }
 
-  if (hasGoodList(stats)) bonus += 1;
+  if (hasGoodList(stats)) bonus += 0.69;
 
   if (Number.isFinite(stats.luckMultiplier)) {
     bonus += Math.max(0, stats.luckMultiplier - 1);

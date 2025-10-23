@@ -393,7 +393,7 @@ function useXPSoda(user, amount, resources, options = {}) {
   normalizeInventory(stats);
   const targetStats = resources.userStats[target.id] || {};
   const base = Math.max(Date.now(), targetStats.xp_boost_until || 0);
-  const expires = base + 6 * 60 * 60 * 1000 * amount;
+  const expires = base + 3 * 60 * 60 * 1000 * amount;
   targetStats.xp_boost_until = expires;
   resources.userStats[user.id] = stats;
   resources.userStats[target.id] = targetStats;
@@ -418,14 +418,14 @@ function useCoinPotion(user, amount, resources) {
   const base = Math.max(now, stats.coin_boost_until || 0);
   const duration = 30 * 60 * 1000;
   stats.coin_boost_until = base + duration * amount;
-  stats.coin_boost_multiplier = 2;
-  stats.coin_boost_percent = 100;
+  stats.coin_boost_multiplier = 1.5;
+  stats.coin_boost_percent = 50;
   resources.userStats[user.id] = stats;
   resources.saveData();
   const expiresTs = Math.floor(stats.coin_boost_until / 1000);
   const lines = [
     `${user} drank ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
-    `-# Coin earnings boosted by 100% until <t:${expiresTs}:R>.`,
+    `-# Coin earnings boosted by 50% until <t:${expiresTs}:R>.`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
   ];
   const container = buildItemContainer(
@@ -459,13 +459,13 @@ function useLuckyPotion(user, amount, resources) {
   stats.luck_bonuses = stats.luck_bonuses.filter(
     entry => entry && entry.source !== 'LuckyPotion',
   );
-  stats.luck_bonuses.push({ amount: 1, expiresAt: expires, source: 'LuckyPotion' });
+  stats.luck_bonuses.push({ amount: 0.3, expiresAt: expires, source: 'LuckyPotion' });
   resources.userStats[user.id] = stats;
   resources.saveData();
   const expiresTs = Math.floor(expires / 1000);
   const lines = [
     `${user} used ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
-    `-# Luck increased by 100% until <t:${expiresTs}:R>.`,
+    `-# Luck increased by 30% until <t:${expiresTs}:R>.`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
   ];
   const container = buildItemContainer(
@@ -498,13 +498,13 @@ function useUltraLuckyPotion(user, amount, resources) {
   stats.luck_bonuses = stats.luck_bonuses.filter(
     entry => entry && entry.source !== 'UltraLuckyPotion',
   );
-  stats.luck_bonuses.push({ amount: 3, expiresAt: expires, source: 'UltraLuckyPotion' });
+  stats.luck_bonuses.push({ amount: 1, expiresAt: expires, source: 'UltraLuckyPotion' });
   resources.userStats[user.id] = stats;
   resources.saveData();
   const expiresTs = Math.floor(expires / 1000);
   const lines = [
     `${user} unleashed the power of ×${formatNumber(amount)} ${item.name} ${item.emoji}!`,
-    `-# Luck increased by 300% and success chances are maxed until <t:${expiresTs}:R>.`,
+    `-# Luck increased by 100% and success chances are maxed until <t:${expiresTs}:R>.`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
   ];
   const container = buildItemContainer(
@@ -849,7 +849,7 @@ function useCupOfMilk(user, amount, resources, options = {}) {
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
   normalizeInventory(stats);
 
-  const durationMs = 30 * 60 * 1000;
+  const durationMs = 20 * 60 * 1000;
   const targetStats = resources.userStats[target.id] || {};
   addCooldownBuff(targetStats, 0.1 * amount, durationMs);
   resources.userStats[user.id] = stats;
@@ -1036,7 +1036,7 @@ async function useGoodList(user, amount, resources, options = {}) {
   const cdTs = Math.floor(stats.good_list_cd_until / 1000);
   const lines = [
     `${user} blessed ${target} with the ${item.name}!`,
-    `-# Luck boost active until <t:${expiresTs}:R>.`,
+    `-# Luck boost (+69%) active until <t:${expiresTs}:R>.`,
     `-# You can use another ${item.name} <t:${cdTs}:R>.`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
   ];
@@ -1341,7 +1341,7 @@ function useAnimalDetector(user, amount, resources) {
   }
   entry.amount -= amount;
   if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
-  const gained = 25 * amount;
+  const gained = 20 * amount;
   stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
     ? stats.hunt_detector_charges
     : 0;
@@ -1359,7 +1359,7 @@ function useAnimalDetector(user, amount, resources) {
         `-# Guaranteed hunts remaining: ${stats.hunt_detector_charges}`,
       ),
       new TextDisplayBuilder().setContent(
-        '-# Each detector grants 25 guaranteed hunts.',
+        '-# Each detector grants 20 guaranteed hunts.',
       ),
     );
   return { component: container };
