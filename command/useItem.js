@@ -19,6 +19,11 @@ const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
 const {
+  CHRISTMAS_GIFT_LURES,
+  getContainerLootTable,
+  pickWeightedEntry,
+} = require('../containerLoot');
+const {
   formatNumber,
   normalizeInventory,
   setSafeTimeout,
@@ -36,33 +41,6 @@ const DELUXE_COIN_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 const CHRISTMAS_GIFT_THUMBNAIL = 'https://i.ibb.co/WvPthnND/Battle-Pass-Gift.png';
 const CHRISTMAS_GIFT_COLOR = 0x0b6623;
-const CHRISTMAS_GIFT_LURES = [
-  'VerdantLures',
-  'SunprideLures',
-  'MarshlightLures',
-  'SnowglassLures',
-];
-const CHRISTMAS_GIFT_REWARDS = [
-  { weight: 15, type: 'coins', min: 100000, max: 250000, label: 'Coin' },
-  { weight: 15, type: 'snowflakes', min: 100, max: 10000, label: 'Snowflake' },
-  { weight: 15, type: 'diamonds', min: 1, max: 100, label: 'Diamond' },
-  { weight: 5, type: 'item', id: 'CupOfMilk', min: 1, max: 5 },
-  { weight: 5, type: 'item', id: 'Cookie', min: 5, max: 15 },
-  { weight: 3, type: 'item', id: 'GingerbreadMan', min: 1, max: 5 },
-  { weight: 7.5, type: 'item', id: 'SnowBall', min: 10, max: 25 },
-  { weight: 5, type: 'item', id: 'CandyCane', min: 3, max: 10 },
-  { weight: 1, type: 'deluxeCoins', min: 1, max: 50, label: 'Deluxe Coin' },
-  { weight: 1, type: 'item', id: 'StarFruitSeed', min: 1, max: 2 },
-  { weight: 1, type: 'item', id: 'MelonSeed', min: 1, max: 2 },
-  { weight: 3, type: 'item', id: 'PumpkinSeed', min: 1, max: 3 },
-  { weight: 3, type: 'item', id: 'WhiteCabbageSeed', min: 1, max: 3 },
-  { weight: 5, type: 'item', id: 'WheatSeed', min: 1, max: 5 },
-  { weight: 5, type: 'item', id: 'PotatoSeed', min: 1, max: 5 },
-  { weight: 5, type: 'lure', min: 5, max: 5 },
-  { weight: 2, type: 'item', id: 'AnimalDetector', min: 1, max: 2 },
-  { weight: 3, type: 'item', id: 'XPSoda', min: 1, max: 3 },
-  { weight: 0.5, type: 'item', id: 'GoodList', min: 1, max: 1 },
-];
 const RARITY_COLORS = {
   Common: 0xffffff,
   Rare: 0x00ffff,
@@ -96,14 +74,11 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+const CHRISTMAS_GIFT_TABLE = getContainerLootTable('ChristmasBattlePassGift');
+
 function pickChristmasGiftReward() {
-  const totalWeight = CHRISTMAS_GIFT_REWARDS.reduce((sum, reward) => sum + reward.weight, 0);
-  let roll = Math.random() * totalWeight;
-  for (const reward of CHRISTMAS_GIFT_REWARDS) {
-    roll -= reward.weight;
-    if (roll <= 0) return reward;
-  }
-  return CHRISTMAS_GIFT_REWARDS[CHRISTMAS_GIFT_REWARDS.length - 1];
+  if (!CHRISTMAS_GIFT_TABLE || !Array.isArray(CHRISTMAS_GIFT_TABLE.entries)) return null;
+  return pickWeightedEntry(CHRISTMAS_GIFT_TABLE.entries);
 }
 
 function addInventoryItem(stats, itemId, amount) {
@@ -617,9 +592,12 @@ function useChristmasBattlePassGift(user, amount, resources) {
 
   const summary = new Map();
 
+  const pullsPerGift = (CHRISTMAS_GIFT_TABLE && Number(CHRISTMAS_GIFT_TABLE.rolls)) || 5;
+
   for (let gift = 0; gift < amount; gift += 1) {
-    for (let pull = 0; pull < 5; pull += 1) {
+    for (let pull = 0; pull < pullsPerGift; pull += 1) {
       const reward = pickChristmasGiftReward();
+      if (!reward) continue;
       const qty = randomInt(reward.min, reward.max);
       if (qty <= 0) continue;
       switch (reward.type) {
@@ -647,7 +625,12 @@ function useChristmasBattlePassGift(user, amount, resources) {
           break;
         }
         case 'lure': {
-          const lureId = CHRISTMAS_GIFT_LURES[randomInt(0, CHRISTMAS_GIFT_LURES.length - 1)];
+          const pool =
+            Array.isArray(reward.pool) && reward.pool.length
+              ? reward.pool
+              : CHRISTMAS_GIFT_LURES;
+          if (!Array.isArray(pool) || pool.length === 0) break;
+          const lureId = pool[randomInt(0, pool.length - 1)];
           addInventoryItem(stats, lureId, qty);
           const base = ITEMS[lureId];
           const label = base?.name || lureId;

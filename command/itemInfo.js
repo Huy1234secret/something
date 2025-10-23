@@ -14,8 +14,12 @@ const { ANIMALS } = require('../animals');
 const { AREA_BY_KEY, HUNT_LURES } = require('../huntData');
 const { getSkinsForItem } = require('../skins');
 const { formatNumber, normalizeInventory } = require('../utils');
+const { getContainerLootTable } = require('../containerLoot');
 
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
+const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
+const DELUXE_COIN_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
+const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 const RARITY_EMOJIS = {
   Common: '<:SBRCommon:1409932856762826862>',
   Rare: '<:SBRRare:1409932954037387324>',
@@ -929,6 +933,140 @@ function buildAdditionalChanceDetails(item) {
   return details;
 }
 
+function appendEmoji(text, emoji) {
+  const formatted = formatDisplayEmoji(emoji);
+  return formatted ? `${text} ${formatted}` : text;
+}
+
+function formatCurrencyRange(min, max, singular, plural, emoji) {
+  if (!Number.isFinite(min) && !Number.isFinite(max)) return appendEmoji(plural, emoji);
+  const first = Number.isFinite(min) ? min : max;
+  const second = Number.isFinite(max) ? max : min;
+  if (!Number.isFinite(first) || !Number.isFinite(second)) return appendEmoji(plural, emoji);
+  const low = Math.min(first, second);
+  const high = Math.max(first, second);
+  if (low === high) {
+    const unit = low === 1 ? singular : plural;
+    return appendEmoji(`${formatNumber(low)} ${unit}`, emoji);
+  }
+  return appendEmoji(`${formatNumber(low)}–${formatNumber(high)} ${plural}`, emoji);
+}
+
+function formatItemRange(min, max, name, emoji) {
+  if (!Number.isFinite(min) && !Number.isFinite(max)) return appendEmoji(name, emoji);
+  const first = Number.isFinite(min) ? min : max;
+  const second = Number.isFinite(max) ? max : min;
+  if (!Number.isFinite(first) || !Number.isFinite(second)) return appendEmoji(name, emoji);
+  const low = Math.min(first, second);
+  const high = Math.max(first, second);
+  if (low === high) {
+    return appendEmoji(`${formatNumber(low)} × ${name}`, emoji);
+  }
+  return appendEmoji(`${formatNumber(low)}–${formatNumber(high)} × ${name}`, emoji);
+}
+
+function resolveContainerEntryChance(entry, totalWeight) {
+  if (!entry) return null;
+  const explicit = Number(entry.chance);
+  if (Number.isFinite(explicit) && explicit > 0) return formatChance(explicit);
+  const weight = Number(entry.weight);
+  if (Number.isFinite(weight) && weight > 0 && Number.isFinite(totalWeight) && totalWeight > 0) {
+    return formatChance(weight / totalWeight);
+  }
+  return null;
+}
+
+function formatContainerEntryLabel(entry) {
+  if (!entry) return 'Reward';
+  if (entry.label) return String(entry.label).trim();
+  switch (entry.type) {
+    case 'coins':
+      return 'Coins';
+    case 'diamonds':
+      return 'Diamonds';
+    case 'snowflakes':
+      return 'Snowflakes';
+    case 'deluxeCoins':
+      return 'Deluxe Coins';
+    case 'item': {
+      const base = ITEMS[entry.id];
+      return base?.name || entry.id || 'Item';
+    }
+    case 'lure':
+      return 'Hunting Lures';
+    default:
+      return 'Reward';
+  }
+}
+
+function formatContainerEntryAmount(entry) {
+  if (!entry) return 'Unknown amount';
+  const { min, max } = entry;
+  switch (entry.type) {
+    case 'coins':
+      return formatCurrencyRange(min, max, 'Coin', 'Coins', COIN_EMOJI);
+    case 'diamonds':
+      return formatCurrencyRange(min, max, 'Diamond', 'Diamonds', DIAMOND_EMOJI);
+    case 'snowflakes':
+      return formatCurrencyRange(min, max, 'Snowflake', 'Snowflakes', SNOWFLAKE_EMOJI);
+    case 'deluxeCoins':
+      return formatCurrencyRange(min, max, 'Deluxe Coin', 'Deluxe Coins', DELUXE_COIN_EMOJI);
+    case 'item': {
+      const base = ITEMS[entry.id];
+      const name = base?.name || entry.id || 'Item';
+      return formatItemRange(min, max, name, base?.emoji);
+    }
+    case 'lure': {
+      const label = entry.label || 'Hunting lure';
+      return formatItemRange(min, max, label, null);
+    }
+    default: {
+      const label = entry.label || 'Reward';
+      return formatItemRange(min, max, label, null);
+    }
+  }
+}
+
+function buildContainerLootSection(item, totals) {
+  if (!item || !Array.isArray(item.types) || !item.types.includes('Container')) return null;
+  if (item.rarity === 'Secret' && !totals?.discovered) return '## Container Rewards: ?';
+  const table = getContainerLootTable(item.id);
+  if (!table) return null;
+  const entries = Array.isArray(table.entries) ? table.entries.filter(Boolean) : [];
+  if (!entries.length) return null;
+  const totalWeight = entries.reduce((sum, entry) => {
+    const weight = Number(entry?.weight);
+    return weight > 0 ? sum + weight : sum;
+  }, 0);
+  const headerParts = [];
+  if (Number.isFinite(table.rolls) && table.rolls > 1) {
+    headerParts.push(`Each use performs ${formatNumber(table.rolls)} independent rolls.`);
+    headerParts.push('Chances listed are per roll.');
+  }
+  const lines = entries.map(entry => {
+    const chanceInfo = resolveContainerEntryChance(entry, totalWeight);
+    let chanceText = 'Weighted odds';
+    if (chanceInfo && chanceInfo.percent) {
+      const ratioText = chanceInfo.ratio && chanceInfo.ratio > 1 ? ` (~1 in ${chanceInfo.ratio})` : '';
+      chanceText = `${chanceInfo.percent}%${ratioText}`;
+    }
+    const label = formatContainerEntryLabel(entry);
+    const amount = formatContainerEntryAmount(entry);
+    const notes = [];
+    if (Array.isArray(entry.pool) && entry.pool.length) {
+      const poolNames = entry.pool
+        .map(id => ITEMS[id]?.name || id)
+        .filter(Boolean);
+      if (poolNames.length) notes.push(`Random type: ${poolNames.join(', ')}`);
+    }
+    if (entry.note) notes.push(String(entry.note));
+    const noteText = notes.length ? ` (${notes.join('; ')})` : '';
+    return `* **${label}:** ${chanceText} chance for ${amount}${noteText}.`;
+  });
+  const header = headerParts.length ? `${headerParts.join(' ')}\n` : '';
+  return `## Container Rewards:\n${header}${lines.join('\n')}`;
+}
+
 function formatChanceTextValue(chance) {
   const info = formatChance(chance);
   if (!info || !info.percent) return null;
@@ -1299,6 +1437,13 @@ async function sendItemInfo(interaction, item, resources) {
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(buildObtainmentSection(item, totals)),
   );
+  const containerSection = buildContainerLootSection(item, totals);
+  if (containerSection) {
+    container.addSeparatorComponents(new SeparatorBuilder());
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(containerSection),
+    );
+  }
   const usageSection = buildUsageSection(item, totals);
   if (usageSection) {
     container.addSeparatorComponents(new SeparatorBuilder());
