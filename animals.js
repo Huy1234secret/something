@@ -48,7 +48,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [32, 23.5, 20],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'SnowyHare',
@@ -64,7 +64,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [30, 18, 17],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'ReindeerCalf',
@@ -80,7 +80,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [20, 16, 14.25],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'SnowyOwl',
@@ -96,7 +96,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [18, 12, 12.5],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'NutcrackerGuard',
@@ -112,7 +112,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [0, 11, 10],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'ToySoldier',
@@ -128,7 +128,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [0, 9, 9.5],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'SnowGolem',
@@ -144,7 +144,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [0, 6, 8],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'FrostlightWisp',
@@ -160,7 +160,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [0, 4.5, 6],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'GingerbreadBrute',
@@ -176,7 +176,7 @@ const AURORA_TUNDRA_ANIMALS = [
       Savannah: [0, 0, 0],
       [AURORA_TUNDRA_KEY]: [0, 0, 2.5],
     },
-    types: ['Sellable', 'Collectible'],
+    types: ['Sellable'],
   },
   {
     id: 'Krampus',
