@@ -126,9 +126,10 @@ async function renderLevelCard({
 
   // 🔽 your assets
   backgroundURL = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg',
-  starURL = 'https://i.ibb.co/1Nbf5NG/4a8ffc72-efd2-47d7-b33b-3f2c6d5133fd.png',
+  starURL = 'https://cdn.discordapp.com/emojis/1432731173762760854.png?size=128&quality=lossless',
   medalURL = 'https://i.ibb.co/7dw9RjgV/7cbb626b-1509-463f-a5b9-dce886ba4619.png',
   color = [92,220,140],
+  chatXpEmoji = '<:SBXP:1432731173762760854>',
 }) {
   const W = 1100;
   const H = 420;
@@ -254,7 +255,7 @@ async function renderLevelCard({
   }
 
   statCard('Prestige', prestige, leftPad);
-  statCard('Total XP', totalXP, leftPad + 280);
+  statCard('Total XP', `${totalXP} ${chatXpEmoji}`, leftPad + 280);
 
   // --- Badge slots (three separate circles, not overlapping)
   const cy = rowTop + 35;
@@ -277,7 +278,8 @@ async function renderLevelCard({
   const barY = rowTop + 70 + 28;
 
   const progress = Math.max(0, Math.min(1, currentXP / nextLevelXP));
-  drawProgressBar(ctx, barX, barY, barW, barH, progress, `${currentXP} / ${nextLevelXP}`, starImg, color);
+  const progressLabel = `${currentXP} ${chatXpEmoji} / ${nextLevelXP} ${chatXpEmoji}`;
+  drawProgressBar(ctx, barX, barY, barW, barH, progress, progressLabel, starImg, color);
 
   return canvas.toBuffer('image/png');
 }

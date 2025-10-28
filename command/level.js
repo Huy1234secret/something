@@ -18,6 +18,8 @@ const {
 } = require('@discordjs/builders');
 const { applyComponentEmoji } = require('../utils');
 const { renderLevelCard } = require('../levelCard');
+
+const CHAT_XP_EMOJI = '<:SBXP:1432731173762760854>';
 const { loadImage } = require('canvas');
 
 const WARN = '<:SBWarning:1404101025849147432> ';
@@ -54,6 +56,7 @@ async function sendLevelCard(user, send, { userStats, userCardSettings, saveData
     rankText: `#${rank}`,
     backgroundURL: settings.background_url,
     color: settings.color,
+    chatXpEmoji: CHAT_XP_EMOJI,
   });
 
   const attachment = new AttachmentBuilder(buffer, { name: `level_${user.id}.png` });
