@@ -82,6 +82,17 @@ function buildBadgeContainer(user, stats, page) {
   return container;
 }
 
+async function sendBadges(user, send, resources, page = 0) {
+  const stats = resources.userStats[user.id] || {};
+  const container = buildBadgeContainer(user, stats, page);
+  const message = await send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+  badgeStates.set(message.id, { userId: user.id });
+  return message;
+}
+
 function setup(client, resources) {
   const command = new SlashCommandBuilder()
     .setName('badges')
@@ -91,10 +102,14 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     try {
       if (!interaction.isChatInputCommand() || interaction.commandName !== 'badges') return;
-      const stats = resources.userStats[interaction.user.id] || {};
-      const container = buildBadgeContainer(interaction.user, stats, 0);
       await interaction.reply({
-        components: [container],
+        components: [
+          buildBadgeContainer(
+            interaction.user,
+            resources.userStats[interaction.user.id] || {},
+            0,
+          ),
+        ],
         flags: MessageFlags.IsComponentsV2,
       });
       const message = await interaction.fetchReply();
@@ -129,4 +144,4 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, sendBadges };

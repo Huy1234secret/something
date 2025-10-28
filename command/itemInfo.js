@@ -1303,13 +1303,13 @@ function buildKnownInfo(item, totals) {
   const exists = formatNumber(totals.total || 0);
   const sellable = Number.isFinite(item.sellPrice) && item.sellPrice > 0;
   const sellPrice = sellable ? `${formatNumber(item.sellPrice)} ${COIN_EMOJI}` : 'N/A';
-  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ${types}\n* **Value:** ${value}\n* **Exists:** ${exists}\n* **Sell-Price:** ${sellPrice}`;
+  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ${types}\n* **ID:** \`${item.id}\`\n* **Value:** ${value}\n* **Exists:** ${exists}\n* **Sell-Price:** ${sellPrice}`;
 }
 
 function buildSecretInfo(item) {
   const rarityEmoji = formatDisplayEmoji(RARITY_EMOJIS[item.rarity]) || '';
   const heading = applyItemHeadingEmoji(item);
-  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ?\n* **Value:** ?\n* **Exists:** ?\n* **Sell-Price:** ?`;
+  return `## ${heading}\n* **Rarity:** ${item.rarity} ${rarityEmoji}\n* **Type:** ?\n* **ID:** \`${item.id}\`\n* **Value:** ?\n* **Exists:** ?\n* **Sell-Price:** ?`;
 }
 
 function buildObtainmentSection(item, totals) {
@@ -1385,7 +1385,7 @@ function buildUsageSection(item, totals) {
   return sections.join('\n\n');
 }
 
-async function sendItemInfo(interaction, item, resources) {
+function buildItemInfoContainer(item, resources) {
   const totals = computeInventoryTotals(item.id, resources.userStats || {});
   const accent = resolveAccentColor(item);
   const container = new ContainerBuilder().setAccentColor(accent);
@@ -1429,7 +1429,20 @@ async function sendItemInfo(interaction, item, resources) {
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(buildOthersSection(item, totals)),
   );
+  return container;
+}
+
+async function sendItemInfo(interaction, item, resources) {
+  const container = buildItemInfoContainer(item, resources);
   await interaction.editReply({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+}
+
+async function sendItemInfoMessage(send, item, resources) {
+  const container = buildItemInfoContainer(item, resources);
+  return send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
@@ -1504,4 +1517,4 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, findItem, sendItemInfoMessage };
