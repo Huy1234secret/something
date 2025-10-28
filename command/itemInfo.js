@@ -600,7 +600,7 @@ const ADDITIONAL_USAGE_GENERATORS = {
   HuntingRifleT2: item => {
     const durability = Number.isFinite(item?.durability)
       ? formatNumber(item.durability)
-      : '75';
+      : '250';
     return [
       {
         command: '/hunt',
@@ -629,7 +629,7 @@ const ADDITIONAL_USAGE_GENERATORS = {
   HuntingRifleT3: item => {
     const durability = Number.isFinite(item?.durability)
       ? formatNumber(item.durability)
-      : '100';
+      : '500';
     return [
       {
         command: '/hunt',
