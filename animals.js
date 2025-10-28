@@ -40,7 +40,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITFestiveSquirrel:1426945744803467435>',
     rarity: 'Common',
     value: 150,
-    sellPrice: { currency: 'snowflakes', amount: 50 },
+    sellPrice: { currency: 'snowflakes', amount: 20 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -72,7 +72,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITReindeerCalf:1426945804224167956>',
     rarity: 'Rare',
     value: 450,
-    sellPrice: { currency: 'snowflakes', amount: 90 },
+    sellPrice: { currency: 'snowflakes', amount: 75 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -88,7 +88,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITSnowyOwl:1426945840257171669>',
     rarity: 'Rare',
     value: 550,
-    sellPrice: { currency: 'snowflakes', amount: 110 },
+    sellPrice: { currency: 'snowflakes', amount: 90 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -104,7 +104,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITNutcrackerGuard:1426945794392461392>',
     rarity: 'Epic',
     value: 1200,
-    sellPrice: { currency: 'snowflakes', amount: 240 },
+    sellPrice: { currency: 'snowflakes', amount: 210 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -120,7 +120,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITToySoldier:1426945853444194345>',
     rarity: 'Epic',
     value: 1350,
-    sellPrice: { currency: 'snowflakes', amount: 275 },
+    sellPrice: { currency: 'snowflakes', amount: 250 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -136,7 +136,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITSnowGolem:1426945818241531954>',
     rarity: 'Legendary',
     value: 2250,
-    sellPrice: { currency: 'snowflakes', amount: 450 },
+    sellPrice: { currency: 'snowflakes', amount: 680 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -152,7 +152,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITFrostlightWisp:1426945756048265308>',
     rarity: 'Legendary',
     value: 2500,
-    sellPrice: { currency: 'snowflakes', amount: 500 },
+    sellPrice: { currency: 'snowflakes', amount: 800 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -168,7 +168,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITGingerbreadBrute:1426945769000407181>',
     rarity: 'Mythical',
     value: 5000,
-    sellPrice: { currency: 'snowflakes', amount: 760 },
+    sellPrice: { currency: 'snowflakes', amount: 850 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
@@ -184,7 +184,7 @@ const AURORA_TUNDRA_ANIMALS = [
     emoji: '<:ITKrampus:1426945781159690372>',
     rarity: 'Godly',
     value: 15000,
-    sellPrice: { currency: 'snowflakes', amount: 900 },
+    sellPrice: { currency: 'snowflakes', amount: 10000 },
     chances: {
       TemperateForest: [0, 0, 0],
       ArcticTundra: [0, 0, 0],
