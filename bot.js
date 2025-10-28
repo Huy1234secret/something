@@ -149,6 +149,15 @@ for (const item of Object.values(ITEMS)) {
   ITEMS_BY_RARITY[r].push(item);
 }
 
+function normalizeItemId(raw) {
+  if (raw == null) return raw;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return trimmed;
+  const match = trimmed.match(/^<a?:([\w~]+):\d+>$/i);
+  if (match) return match[1];
+  return trimmed;
+}
+
 function fixItemEntries(statsMap) {
   const itemsById = Object.fromEntries(
     Object.values(ITEMS).map(i => [i.id, i])
@@ -812,6 +821,11 @@ client.on('messageCreate', async message => {
   if (isPrefixCommand) {
     const afterPrefix = content.slice(2).trim();
     const lowerAfter = afterPrefix.toLowerCase();
+    const args = afterPrefix.split(/\s+/).filter(Boolean);
+    const lowerArgs = args.map(arg => arg.toLowerCase());
+    const firstArg = lowerArgs[0] || '';
+    const secondArg = lowerArgs[1] || '';
+
     if (lowerAfter === 'level') {
       await levelCommand.sendLevelCard(
         message.author,
@@ -860,27 +874,116 @@ client.on('messageCreate', async message => {
         message.channel.send.bind(message.channel),
         resources,
       );
-    } else if (lowerAfter.startsWith('use ')) {
-      const args = afterPrefix.split(/\s+/).slice(1);
-      const itemId = args[0];
-      let amount = parseInt(args[1], 10);
-      if (Number.isNaN(amount)) amount = parseInt(args[2], 10);
-      if (Number.isNaN(amount) || amount <= 0) amount = 1;
-      const target = message.mentions.users.first() || null;
-      await useItemCommand.handleUseItem(
+    } else if (
+      firstArg === 'item-info' ||
+      (firstArg === 'item' && secondArg === 'info')
+    ) {
+      const startIndex = firstArg === 'item-info' ? 1 : 2;
+      const rawQuery = args.slice(startIndex).join(' ').trim();
+      if (!rawQuery) {
+        await message.channel.send({
+          content: '<:SBWarning:1404101025849147432> Please provide an item ID to inspect.',
+        });
+      } else {
+        const normalizedQuery = normalizeItemId(rawQuery);
+        const item =
+          itemInfoCommand.findItem(normalizedQuery) ||
+          (normalizedQuery !== rawQuery ? itemInfoCommand.findItem(rawQuery) : null);
+        if (!item) {
+          await message.channel.send({
+            content: `<:SBWarning:1404101025849147432> Unable to find an item matching \`${normalizedQuery || rawQuery}\`.`,
+          });
+        } else {
+          await itemInfoCommand.sendItemInfoMessage(
+            message.channel.send.bind(message.channel),
+            item,
+            resources,
+          );
+        }
+      }
+    } else if (lowerAfter === 'badges') {
+      await badgesCommand.sendBadges(
         message.author,
-        itemId,
-        amount,
         message.channel.send.bind(message.channel),
         resources,
-        { target },
       );
-    } else if (lowerAfter.startsWith('rob')) {
-      const args = afterPrefix.split(/\s+/).slice(1);
+    } else if (lowerAfter === 'my cosmetic' || firstArg === 'my-cosmetic') {
+      await myCosmeticCommand.sendCosmetics(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (
+      firstArg === 'my-skin' ||
+      (firstArg === 'my' && secondArg === 'skin')
+    ) {
+      const startIndex = firstArg === 'my-skin' ? 1 : 2;
+      const rawItemId = args.slice(startIndex).join(' ').trim();
+      if (!rawItemId) {
+        await message.channel.send({
+          content: '<:SBWarning:1404101025849147432> Please provide an item ID to view skins.',
+        });
+      } else {
+        const normalized = normalizeItemId(rawItemId);
+        const available = mySkinCommand.listSkinnableItems();
+        const match = available.find(
+          def => def.id.toLowerCase() === normalized.toLowerCase(),
+        ) ||
+        (normalized !== rawItemId
+          ? available.find(def => def.id.toLowerCase() === rawItemId.toLowerCase())
+          : null);
+        if (!match) {
+          await message.channel.send({
+            content: `<:SBWarning:1404101025849147432> Unknown skinnable item \`${normalized || rawItemId}\`.`,
+          });
+        } else {
+          await mySkinCommand.sendSkinViewMessage(
+            message.author,
+            message.guild || null,
+            message.channel.send.bind(message.channel),
+            resources,
+            match.id,
+          );
+        }
+      }
+    } else if (
+      lowerAfter === 'my boosts' ||
+      lowerAfter === 'my boost' ||
+      firstArg === 'my-boost' ||
+      firstArg === 'my-boosts'
+    ) {
+      await myBoostCommand.sendBoosts(
+        message.author,
+        message.channel.send.bind(message.channel),
+        resources,
+      );
+    } else if (firstArg === 'use') {
+      const commandArgs = args.slice(1);
+      const itemId = normalizeItemId(commandArgs[0]);
+      if (!itemId) {
+        await message.channel.send({
+          content: '<:SBWarning:1404101025849147432> Please provide an item ID to use.',
+        });
+      } else {
+        let amount = parseInt(commandArgs[1], 10);
+        if (Number.isNaN(amount)) amount = parseInt(commandArgs[2], 10);
+        if (Number.isNaN(amount) || amount <= 0) amount = 1;
+        const target = message.mentions.users.first() || null;
+        await useItemCommand.handleUseItem(
+          message.author,
+          itemId,
+          amount,
+          message.channel.send.bind(message.channel),
+          resources,
+          { target },
+        );
+      }
+    } else if (firstArg === 'rob') {
+      const commandArgs = args.slice(1);
       let target = message.mentions.users.first();
-      if (!target && args[0]) {
+      if (!target && commandArgs[0]) {
         try {
-          target = await message.client.users.fetch(args[0]);
+          target = await message.client.users.fetch(commandArgs[0]);
         } catch {}
       }
       if (target) {
@@ -895,9 +998,13 @@ client.on('messageCreate', async message => {
             content: '<:SBWarning:1404101025849147432> Please provide a user ID to rob.',
           });
       }
-    } else if (lowerAfter.startsWith('add role')) {
-      const args = afterPrefix.split(/\s+/).slice(2);
-      await addRoleCommand.handleTextCommand(message, args, resources);
+    } else if (
+      (firstArg === 'add' && secondArg === 'role') ||
+      firstArg === 'add-role'
+    ) {
+      const startIndex = firstArg === 'add-role' ? 1 : 2;
+      const commandArgs = args.slice(startIndex);
+      await addRoleCommand.handleTextCommand(message, commandArgs, resources);
     }
     await message.delete().catch(() => {});
     return;

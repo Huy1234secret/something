@@ -110,6 +110,18 @@ async function sendSkinView(interaction, itemId, resources) {
   skinMessageState.set(message.id, { userId: interaction.user.id, itemId });
 }
 
+async function sendSkinViewMessage(user, guild, send, resources, itemId) {
+  const stats = resources.userStats[user.id] || { inventory: [] };
+  resources.userStats[user.id] = stats;
+  const container = buildSkinContainer(user, stats, itemId, guild);
+  const message = await send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+  skinMessageState.set(message.id, { userId: user.id, itemId });
+  return message;
+}
+
 function setup(client, resources) {
   const command = new SlashCommandBuilder()
     .setName('my-skin')
@@ -190,5 +202,5 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, sendSkinViewMessage, listSkinnableItems };
 
