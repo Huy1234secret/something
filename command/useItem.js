@@ -1224,37 +1224,12 @@ function useHuntLure(user, itemId, amount, resources) {
   stats.hunt_lures = stats.hunt_lures || {};
   const state = stats.hunt_lures[areaKey] || { itemId, remaining: 0 };
   state.itemId = itemId;
-  state.remaining = (state.remaining || 0) + 20 * amount;
+  state.remaining = (state.remaining || 0) + amount;
   stats.hunt_lures[areaKey] = state;
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
-
-  const summary = buildLureSummary(areaKey);
-  const container = new ContainerBuilder()
-    .setAccentColor(RARITY_COLORS[item.rarity] || 0xffffff)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${item.name} activated!`),
-      new TextDisplayBuilder().setContent(
-        `Hey ${user}, you have used ×${amount} ${item.name} ${item.emoji}!`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# Area boosted: ${areaInfo.name}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `-# Successful hunts remaining: ${state.remaining}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        '-# Rare animal chances are doubled while this lure is active.',
-      ),
-    );
-  if (summary.length) {
-    container.addSeparatorComponents(new SeparatorBuilder());
-    summary.forEach(block =>
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(block)),
-    );
-  }
-  return { component: container };
+  return { success: true, area: areaInfo.name };
 }
 
 function useDiamondItem(user, itemId, amount, perDiamond, resources) {

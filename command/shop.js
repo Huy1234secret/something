@@ -69,6 +69,8 @@ const SPECIAL_SEED_REPLACEMENTS = [
 const OPTIONAL_COIN_ITEMS = [
   { id: 'XPSoda', chance: 0.35, min: 1, max: 3 },
   { id: 'AnimalDetector', chance: 0.15, min: 1, max: 2 },
+  { id: 'Magnet', chance: 0.5, min: 1, max: 3 },
+  { id: 'ItemScanner', chance: 0.3, min: 1, max: 2 },
   { id: 'MarshlightLures', chance: 0.25, min: 10, max: 25 },
   { id: 'SnowglassLures', chance: 0.25, min: 10, max: 25 },
   { id: 'SunprideLures', chance: 0.25, min: 10, max: 25 },
@@ -178,6 +180,8 @@ const STOCK_CONFIG = {
   Shovel: { min: 1, max: 2 },
   XPSoda: { min: 1, max: 3 },
   AnimalDetector: { min: 1, max: 2 },
+  Magnet: { min: 1, max: 3 },
+  ItemScanner: { min: 1, max: 2 },
   MarshlightLures: { min: 10, max: 25 },
   SnowglassLures: { min: 10, max: 25 },
   SunprideLures: { min: 10, max: 25 },

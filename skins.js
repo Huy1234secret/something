@@ -59,6 +59,15 @@ const SKIN_DEFINITIONS = {
         rarity: 'Mythical',
         description: 'Sprinkle cheer like snowfall on seedlings.',
       },
+      {
+        id: 'GoldWateringCan',
+        name: 'Gold Watering Can',
+        emoji: '<:ITGoldWateringCan:1433097178779484302>',
+        rarity: 'Godly',
+        description:
+          'Halve growth times when you water plots—stacks with other growth boosts.',
+        image: 'https://i.ibb.co/x8YYMrDv/Gold-Watering-Can.png',
+      },
     ],
   },
   Farm: {
