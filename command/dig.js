@@ -33,6 +33,7 @@ const { getItemDisplay } = require('../skins');
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DIG_STAT_EMOJI = '<:SBDig:1412452052721995868>';
+const XP_EMOJI = '<:SBXP:1432731173762760854>';
 const FAIL_MESSAGES = [
   '🪨 Your shovel hits a BIG rock… and nothing else.',
   '🐛 You dig up a handful of worms. You stupidly think it is not exactly treasure.',
@@ -329,7 +330,7 @@ async function handleDig(interaction, resources, stats) {
       }
     }
     xp = foundItem ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1)) : 100;
-    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(
+    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
     color = 0x00ff00;
@@ -340,7 +341,7 @@ async function handleDig(interaction, resources, stats) {
     if (forcedFail && snowballed) {
       failLine += '\\n-# A frosty snowball curse makes every attempt fail!';
     }
-    text = `${failLine}\n-# You gained **${xp} XP**\n-# You can dig again <t:${Math.floor(
+    text = `${failLine}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
     color = 0xff0000;

@@ -41,6 +41,8 @@ const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
 const { getItemDisplay } = require('../skins');
 
+const XP_EMOJI = '<:SBXP:1432731173762760854>';
+
 const AURORA_TUNDRA_KEY = 'AuroraTundra';
 
 const ITEMS_BY_RARITY = {};
@@ -700,7 +702,7 @@ async function handleHunt(interaction, resources, stats) {
     xp = Math.floor(100 * (HUNT_XP_MULTIPLIER[animal.rarity] || 1));
     text = `${user}, you have hunted ${art} **${animal.name} ${animal.emoji}**!\n* Rarity: ${
       animal.rarity
-    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
+    } ${RARITY_EMOJIS[animal.rarity] || ''}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
 
@@ -732,7 +734,7 @@ async function handleHunt(interaction, resources, stats) {
     }
     color = 0xff0000;
     xp = 25;
-    text = `${user}, ${fail}\n-# You gained **${xp} XP**\n-# You can hunt again <t:${Math.floor(
+    text = `${user}, ${fail}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can hunt again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
   } else {
@@ -742,7 +744,7 @@ async function handleHunt(interaction, resources, stats) {
     color = 0x000000;
     xp = -1000;
     died = true;
-    text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP**`;
+    text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP ${XP_EMOJI}**`;
   }
 
   if (bulletRefunded) extraLines.push('-# Bullet refunded!');

@@ -101,6 +101,7 @@ const FAIL_MESSAGES = [
 ];
 
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
+const XP_EMOJI = '<:SBXP:1432731173762760854>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
 const DELUXE_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
 const RARITY_EMOJIS = {
@@ -222,7 +223,7 @@ async function sendBeg(user, send, resources) {
     else xp = itemGiven ? 1000 : 100;
     await resources.addXp(user, xp, resources.client);
     resources.saveData();
-    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}${ownerPart}\n-# You gained **${xp} XP**`;
+    const text = `## ${name}\n${successMsg}\n${currencyLine}${itemPart}${ownerPart}\n-# You gained **${xp} XP ${XP_EMOJI}**`;
     const container = new ContainerBuilder()
       .setAccentColor(0x00ff00)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
@@ -235,7 +236,7 @@ async function sendBeg(user, send, resources) {
     const xp = 25;
     await resources.addXp(user, xp, resources.client);
     resources.saveData();
-    const text = `## ${name}\n${failMsg}\n-# You gained **${xp} XP**`;
+    const text = `## ${name}\n${failMsg}\n-# You gained **${xp} XP ${XP_EMOJI}**`;
     const container = new ContainerBuilder()
       .setAccentColor(0xff0000)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));

@@ -38,6 +38,7 @@ const WARNING = '<:SBWarning:1404101025849147432>';
 const DIAMOND_EMOJI = '<:CRDiamond:1405595593069432912>';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DELUXE_COIN_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
+const XP_EMOJI = '<:SBXP:1432731173762760854>';
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 const CHRISTMAS_GIFT_THUMBNAIL = 'https://i.ibb.co/WvPthnND/Battle-Pass-Gift.png';
 const CHRISTMAS_GIFT_COLOR = 0x0b6623;
@@ -757,7 +758,7 @@ async function useCandyCane(user, amount, resources, options = {}) {
       : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
     actionLine,
-    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# XP gained: ${formatNumber(totalXpGained)} ${XP_EMOJI}`,
     `-# Levels gained: ${levelsGained}`,
   ];
   if (bonusLevels > 0) {
@@ -805,7 +806,7 @@ async function useCookie(user, amount, resources, options = {}) {
       : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
     actionLine,
-    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# XP gained: ${formatNumber(totalXpGained)} ${XP_EMOJI}`,
     `-# Levels gained: ${levelsGained}`,
     `-# Remaining: ${formatNumber(Math.max(remaining, 0))}`,
   ];
@@ -918,7 +919,7 @@ async function useGingerbreadMan(user, amount, resources, options = {}) {
       : `${user} used ×${formatNumber(amount)} ${item.name}${amount > 1 ? 's' : ''} on ${target}.`;
   const lines = [
     actionLine,
-    `-# XP gained: ${formatNumber(totalXpGained)}`,
+    `-# XP gained: ${formatNumber(totalXpGained)} ${XP_EMOJI}`,
     `-# Levels gained: ${levelsGained}`,
   ];
   if (surgeActivations > 0) {
