@@ -389,9 +389,9 @@ function buildEquipmentContainer(user, stats) {
   const activeLureState = areaKey && stats.hunt_lures ? stats.hunt_lures[areaKey] : null;
   const activeLureItem = activeLureState ? ITEMS[activeLureState.itemId] : null;
   const activeLureText = activeLureItem
-    ? `* Lure using: ${activeLureItem.name} ${activeLureItem.emoji} - ${
+    ? `* Lure using: ${activeLureItem.name} ${activeLureItem.emoji}\n-# ${activeLureItem.name} left: ${
         activeLureState.remaining || 0
-      } hunts left`
+      }`
     : '* Lure using: None';
 
   const lureSelect = new StringSelectMenuBuilder()
@@ -712,10 +712,7 @@ async function handleHunt(interaction, resources, stats) {
     if (lureActive) {
       const lureItem = ITEMS[lureConfig.itemId] || { name: 'Lure', emoji: '' };
       lureState.remaining = Math.max(0, lureState.remaining - 1);
-      const remainingText =
-        lureState.remaining > 0
-          ? `-# ${lureItem.name} boost hunts left: ${lureState.remaining}`
-          : `-# ${lureItem.name} boost has expired.`;
+      const remainingText = `-# ${lureItem.name} left: ${lureState.remaining}`;
       extraLines.push('-# Rarer animals were drawn in by your lure!');
       extraLines.push(remainingText);
       if (lureState.remaining <= 0) delete stats.hunt_lures[areaObj.key];
@@ -1025,10 +1022,6 @@ function setup(client, resources) {
         await interaction.update({
           components: containers,
           flags: MessageFlags.IsComponentsV2,
-        });
-        await interaction.followUp({
-          components: [result.component],
-          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
         });
       } else if (interaction.isButton() && interaction.customId === 'hunt-back') {
         const state = huntStates.get(interaction.message.id);

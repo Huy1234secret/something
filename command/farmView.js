@@ -36,6 +36,13 @@ const SELECT_IMG = 'https://i.ibb.co/yFCBLCfB/Select-pattern.png';
 const WATERED_PLOT = 'https://i.ibb.co/tpyMJL5G/Watered-plot.png';
 
 const WARNING = '<:SBWarning:1404101025849147432>';
+const GOLD_WATERING_SKIN_MULTIPLIER = 0.5;
+
+function hasGoldWateringCanSkin(stats) {
+  const canItem = ITEMS.WateringCan || { name: 'Watering Can', emoji: '' };
+  const display = getItemDisplay(stats, canItem, canItem.name, canItem.emoji);
+  return Boolean(display.skin && display.skin.id === 'GoldWateringCan');
+}
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -271,10 +278,14 @@ const PLOT_POSITIONS = {
 };
 
 function isPlotWatered(plot) {
-  if (!plot || !plot.watered) return false;
+  if (!plot || !plot.watered) {
+    if (plot) delete plot.growthSkinMultiplier;
+    return false;
+  }
   if (plot.wateredExpires && plot.wateredExpires < Date.now()) {
     plot.watered = false;
     delete plot.wateredExpires;
+    delete plot.growthSkinMultiplier;
     return false;
   }
   return true;
@@ -296,14 +307,21 @@ function cleanupSeasonalPlants(farm) {
   });
 }
 
-function getPlantData(seedId, stats = {}) {
+function getPlantData(seedId, stats = {}, plot = null) {
   const level = Number.isFinite(stats.farm_mastery_level)
     ? stats.farm_mastery_level
     : 0;
   const growthMultiplier = getFarmGrowthMultiplier(level);
+  const plotMultiplier =
+    plot && Number.isFinite(plot.growthSkinMultiplier) && plot.growthSkinMultiplier > 0
+      ? plot.growthSkinMultiplier
+      : 1;
+  const effectiveGrowthMultiplier = growthMultiplier * plotMultiplier;
   const penaltyMultiplier = hasNaughtyList(stats) ? 2 : 1;
   if (seedId === 'WheatSeed') {
-    const growTime = Math.round(WHEAT_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      WHEAT_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(1, Math.round(growTime / (WHEAT_IMAGES.length - 1)));
     return {
       images: WHEAT_IMG_PROMISES,
@@ -326,7 +344,9 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'PotatoSeed') {
-    const growTime = Math.round(POTATO_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      POTATO_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(1, Math.round(growTime / (POTATO_IMAGES.length - 1)));
     return {
       images: POTATO_IMG_PROMISES,
@@ -349,7 +369,9 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'WhiteCabbageSeed') {
-    const growTime = Math.round(WHITE_CABBAGE_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      WHITE_CABBAGE_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(
       1,
       Math.round(growTime / (WHITE_CABBAGE_IMAGES.length - 1)),
@@ -374,7 +396,9 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'PumpkinSeed') {
-    const growTime = Math.round(PUMPKIN_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      PUMPKIN_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(
       1,
       Math.round(growTime / (PUMPKIN_IMAGES.length - 1)),
@@ -399,7 +423,9 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'MelonSeed') {
-    const growTime = Math.round(MELON_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      MELON_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(
       1,
       Math.round(growTime / (MELON_IMAGES.length - 1)),
@@ -424,7 +450,9 @@ function getPlantData(seedId, stats = {}) {
     };
   }
   if (seedId === 'StarFruitSeed') {
-    const growTime = Math.round(STAR_FRUIT_GROW_TIME * growthMultiplier * penaltyMultiplier);
+    const growTime = Math.round(
+      STAR_FRUIT_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
+    );
     const stageTime = Math.max(
       1,
       Math.round(growTime / (STAR_FRUIT_IMAGES.length - 1)),
@@ -452,7 +480,7 @@ function getPlantData(seedId, stats = {}) {
     if (!isChristmasEventActive()) return null;
     const stages = Math.max(1, ORNAMENT_BERRY_IMAGES.length - 1);
     const growTime = Math.round(
-      ORNAMENT_BERRY_GROW_TIME * growthMultiplier * penaltyMultiplier,
+      ORNAMENT_BERRY_GROW_TIME * effectiveGrowthMultiplier * penaltyMultiplier,
     );
     const stageTime = Math.max(1, Math.round(growTime / stages));
     return {
@@ -476,7 +504,7 @@ function getPlantData(seedId, stats = {}) {
 
 function getPlotStatus(plot, stats) {
   if (!plot || !plot.seedId) return { grown: false, dead: false };
-  const data = getPlantData(plot.seedId, stats);
+  const data = getPlantData(plot.seedId, stats, plot);
   if (!data) return { grown: false, dead: false };
   const elapsed = Date.now() - (plot.plantedAt || 0);
   const grown = elapsed >= data.growTime;
@@ -487,7 +515,7 @@ function getPlotStatus(plot, stats) {
 }
 
 async function getPlantImage(plot, stats) {
-  const data = getPlantData(plot.seedId, stats);
+  const data = getPlantData(plot.seedId, stats, plot);
   if (!data) return null;
   const status = getPlotStatus(plot, stats);
   if (status.dead) return await data.deadImg;
@@ -595,7 +623,7 @@ function buildFarmContainer(user, selected = [], farm = {}, stats = {}) {
   for (const [id, plot] of Object.entries(farm)) {
     if (!plot.seedId) continue;
     const status = getPlotStatus(plot, stats);
-    const data = getPlantData(plot.seedId, stats);
+    const data = getPlantData(plot.seedId, stats, plot);
     const emoji = data ? data.harvestItem.emoji : '';
     const name = data ? data.name : 'Plant';
     if (status.grown && !status.dead)
@@ -789,12 +817,18 @@ function setup(client, resources) {
       plantable.forEach(id => {
         const plot = farm[id] || {};
         const wasWatered = isPlotWatered(plot);
+        const multiplier =
+          wasWatered && Number.isFinite(plot.growthSkinMultiplier)
+            ? plot.growthSkinMultiplier
+            : null;
         farm[id] = {
           seedId,
           plantedAt: Date.now(),
           watered: wasWatered,
         };
         if (wasWatered) delete farm[id].wateredExpires;
+        if (wasWatered && multiplier) farm[id].growthSkinMultiplier = multiplier;
+        else delete farm[id].growthSkinMultiplier;
       });
       seed.amount -= plantable.length;
       normalizeInventory(stats);
@@ -880,7 +914,7 @@ function setup(client, resources) {
       plots.forEach(id => {
         const plot = farm[id];
         const status = getPlotStatus(plot, stats);
-        const data = getPlantData(plot.seedId, stats);
+        const data = getPlantData(plot.seedId, stats, plot);
         if (!plot.seedId || !data) return;
         let replanted = false;
         if (status.dead) deadNote = true;
@@ -1017,6 +1051,7 @@ function setup(client, resources) {
       const plots = interaction.values.map(v => parseInt(v, 10));
       const stats = resources.userStats[state.userId] || { farm: {} };
       const farm = stats.farm;
+      const goldSkinEquipped = hasGoldWateringCanSkin(stats);
       plots.forEach(id => {
         const plot = farm[id] || {};
         plot.watered = true;
@@ -1025,6 +1060,9 @@ function setup(client, resources) {
         } else {
           plot.wateredExpires = Date.now() + WATER_DURATION;
         }
+        if (goldSkinEquipped)
+          plot.growthSkinMultiplier = GOLD_WATERING_SKIN_MULTIPLIER;
+        else delete plot.growthSkinMultiplier;
         farm[id] = plot;
       });
       useDurableItem(interaction, interaction.user, stats, 'WateringCan');

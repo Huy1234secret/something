@@ -78,12 +78,56 @@ const DIG_XP_MULTIPLIER = {
   Secret: 20,
 };
 
+const DIG_GEAR_CONFIG = {
+  Magnet: {
+    id: 'Magnet',
+    dropBonus: 0.15,
+    luckBonus: 0,
+    perk: 'Increase item drop by 15%',
+    expireType: 'Success Digs',
+  },
+  ItemScanner: {
+    id: 'ItemScanner',
+    dropBonus: 0.65,
+    luckBonus: 0.25,
+    perk: 'Increase item drop by 65% and +25% dig luck',
+    expireType: 'Success Digs',
+  },
+};
+
+const DIG_GEAR_IDS = new Set(Object.keys(DIG_GEAR_CONFIG));
+
 const digStates = new Map();
 
-function getRandomDigItem(stats) {
+function applyGearLuck(stats, extraLuck) {
+  if (!stats || !extraLuck) return stats;
+  return {
+    ...stats,
+    luck_bonus: (stats.luck_bonus || 0) + extraLuck,
+    luckBonus: (stats.luckBonus || 0) + extraLuck,
+  };
+}
+
+function getEquippedGear(stats, { cleanup = false } = {}) {
+  if (!stats || !stats.dig_gear) return null;
+  const config = DIG_GEAR_CONFIG[stats.dig_gear];
+  const item = ITEMS[stats.dig_gear];
+  if (!config || !item) {
+    if (cleanup) delete stats.dig_gear;
+    return null;
+  }
+  const entry = (stats.inventory || []).find(i => i.id === stats.dig_gear);
+  if (!entry) {
+    if (cleanup) delete stats.dig_gear;
+    return null;
+  }
+  return { ...config, item, entry };
+}
+
+function getRandomDigItem(stats, luckSource = stats) {
   const weighted = DIG_ITEMS.map(it => ({
     item: it,
-    chance: getLuckAdjustedWeight(it.chance || 0, it.rarity, stats),
+    chance: getLuckAdjustedWeight(it.chance || 0, it.rarity, luckSource),
   })).filter(entry => entry.chance > 0);
   const total = weighted.reduce((sum, entry) => sum + entry.chance, 0);
   const r = Math.random() * total;
@@ -235,6 +279,7 @@ function buildEquipmentContainer(user, stats) {
       );
   }
 
+  const equippedGear = getEquippedGear(stats, { cleanup: true });
   const equippedToolItem = ITEMS[stats.dig_tool] || {
     id: stats.dig_tool,
     name: 'None',
@@ -244,6 +289,47 @@ function buildEquipmentContainer(user, stats) {
     stats.dig_tool && equippedToolItem
       ? getItemDisplay(stats, equippedToolItem, equippedToolItem.name, equippedToolItem.emoji)
       : { name: 'None', emoji: '' };
+  const gearCounts = {};
+  for (const entry of stats.inventory || []) {
+    if (DIG_GEAR_IDS.has(entry.id)) {
+      gearCounts[entry.id] = (gearCounts[entry.id] || 0) + 1;
+    }
+  }
+  const gearSelect = new StringSelectMenuBuilder()
+    .setCustomId('dig-gear-select')
+    .setPlaceholder('Gear');
+  const gearIds = Object.keys(gearCounts);
+  if (gearIds.length) {
+    const noneOption = new StringSelectMenuOptionBuilder()
+      .setLabel('None')
+      .setValue('none')
+      .setDescription('Unequip your gear');
+    if (!stats.dig_gear) noneOption.setDefault(true);
+    gearSelect.addOptions(noneOption);
+    for (const id of gearIds) {
+      const gearItem = ITEMS[id];
+      if (!gearItem) continue;
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(gearItem.name)
+        .setValue(gearItem.id)
+        .setDescription(`Owned: ${gearCounts[id]}`);
+      applyComponentEmoji(option, gearItem.emoji);
+      if (stats.dig_gear === gearItem.id) option.setDefault(true);
+      gearSelect.addOptions(option);
+    }
+  } else {
+    gearSelect
+      .setDisabled(true)
+      .setPlaceholder('No gear')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('No gear')
+          .setValue('none'),
+      );
+  }
+  const equippedGearDisplay = equippedGear
+    ? { name: equippedGear.item.name, emoji: equippedGear.item.emoji || '' }
+    : { name: 'None', emoji: '' };
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(THUMB_URL))
     .addTextDisplayComponents(
@@ -251,11 +337,19 @@ function buildEquipmentContainer(user, stats) {
       new TextDisplayBuilder().setContent(
         `* Tool equipped: ${equippedToolDisplay.name} ${equippedToolDisplay.emoji}`,
       ),
+      new TextDisplayBuilder().setContent(
+        `* Gear equipped: ${equippedGearDisplay.name} ${equippedGearDisplay.emoji}`,
+      ),
+    );
+  if (equippedGear)
+    section.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`-# ${equippedGear.perk}`),
     );
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
     .addActionRowComponents(new ActionRowBuilder().addComponents(toolSelect))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(gearSelect))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
     );
@@ -285,6 +379,13 @@ async function handleDig(interaction, resources, stats) {
   const { message, user } = interaction;
   const initialFull = alertInventoryFull(interaction, user, stats);
   const snowballed = isSnowballed(stats);
+  const gearInfo = getEquippedGear(stats, { cleanup: true });
+  const lootStats = applyGearLuck(stats, gearInfo?.luckBonus || 0);
+  const gearDurabilityBefore =
+    gearInfo && typeof gearInfo.entry?.durability === 'number'
+      ? gearInfo.entry.durability
+      : null;
+  let gearUsesRemaining = gearDurabilityBefore;
   const { chance: successChance, forcedFail } = computeActionSuccessChance(0.5, stats, {
     min: 0.01,
     max: 0.95,
@@ -304,9 +405,12 @@ async function handleDig(interaction, resources, stats) {
     stats.dig_success = (stats.dig_success || 0) + 1;
     let extra = '';
     let foundItem = null;
-    const itemDropChance = scaleChanceWithLuck(0.15, stats, { max: 0.5 });
+    let itemDropChance = scaleChanceWithLuck(0.15, lootStats, { max: 0.5 });
+    if (gearInfo?.dropBonus) {
+      itemDropChance = Math.min(1, itemDropChance + gearInfo.dropBonus);
+    }
     if (Math.random() < itemDropChance) {
-      const item = getRandomDigItem(stats);
+      const item = getRandomDigItem(stats, lootStats);
       if (item) {
         foundItem = item;
         if (!stats.dig_discover) stats.dig_discover = [];
@@ -334,6 +438,12 @@ async function handleDig(interaction, resources, stats) {
       cooldown / 1000,
     )}:R>`;
     color = 0x00ff00;
+    if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
+      const result = useDurableItem(interaction, user, stats, gearInfo.id);
+      gearUsesRemaining = Math.max(0, gearDurabilityBefore - 1);
+      if (gearUsesRemaining <= 0) delete stats.dig_gear;
+      if (result.broken && result.remaining === 0) delete stats.dig_gear;
+    }
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
     xp = 25;
@@ -345,6 +455,15 @@ async function handleDig(interaction, resources, stats) {
       cooldown / 1000,
     )}:R>`;
     color = 0xff0000;
+  }
+  if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
+    const gearEmoji = gearInfo.item.emoji ? ` ${gearInfo.item.emoji}` : '';
+    const usesDisplay =
+      gearUsesRemaining != null && Number.isFinite(gearUsesRemaining)
+        ? Math.max(0, gearUsesRemaining)
+        : Math.max(0, gearDurabilityBefore);
+    const gearLine = `-# ${gearInfo.item.name}${gearEmoji} expires after ${usesDisplay} ${gearInfo.expireType}`;
+    text += `\n${gearLine}`;
   }
   await resources.addXp(user, xp, resources.client);
   const toolId = stats.dig_tool || 'Shovel';
@@ -455,6 +574,39 @@ function setup(client, resources) {
       ) {
         const stats = resources.userStats[state.userId] || {};
         stats.dig_tool = interaction.values[0];
+        resources.userStats[state.userId] = stats;
+        resources.saveData();
+        const container = buildEquipmentContainer(interaction.user, stats);
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } else if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === 'dig-gear-select'
+      ) {
+        const stats = resources.userStats[state.userId] || { inventory: [] };
+        normalizeInventory(stats);
+        const selected = interaction.values[0];
+        if (selected === 'none') {
+          delete stats.dig_gear;
+        } else if (!DIG_GEAR_IDS.has(selected)) {
+          await interaction.reply({
+            content: '<:SBWarning:1404101025849147432> Invalid gear selection.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        } else {
+          const hasGear = (stats.inventory || []).some(i => i.id === selected);
+          if (!hasGear) {
+            await interaction.reply({
+              content: '<:SBWarning:1404101025849147432> You do not own that gear.',
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+          stats.dig_gear = selected;
+        }
         resources.userStats[state.userId] = stats;
         resources.saveData();
         const container = buildEquipmentContainer(interaction.user, stats);

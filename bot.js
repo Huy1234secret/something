@@ -43,6 +43,7 @@ const purgeMessageCommand = require('./command/purgeMessage');
 const upgradeFeature = require('./command/upgrade');
 const lunarNewYearEvent = require('./lunarNewYearEvent');
 const { ITEMS } = require('./items');
+const { addSkin, ownsSkin } = require('./skins');
 const { setSafeTimeout, applyCoinBoost } = require('./utils');
 const { setupErrorHandling } = require('./errorHandler');
 
@@ -521,6 +522,7 @@ async function addFarmMasteryXp(user, amount, client) {
   stats.farm_mastery_xp = Number.isFinite(stats.farm_mastery_xp)
     ? stats.farm_mastery_xp
     : 0;
+  const previousLevel = stats.farm_mastery_level;
   stats.farm_mastery_xp += amount;
   while (
     stats.farm_mastery_level < 100 &&
@@ -530,6 +532,21 @@ async function addFarmMasteryXp(user, amount, client) {
     stats.farm_mastery_level += 1;
   }
   if (stats.farm_mastery_level >= 100) stats.farm_mastery_xp = 0;
+  if (previousLevel < 100 && stats.farm_mastery_level >= 100) {
+    if (!ownsSkin(stats, 'WateringCan', 'GoldWateringCan')) {
+      addSkin(stats, 'WateringCan', 'GoldWateringCan');
+    }
+    try {
+      const container = new ContainerBuilder()
+        .setAccentColor(0xffd700)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### Farming Mastery Maxed!\nYou reached level 100 farming mastery and unlocked:\n-# Gold Watering Can <:ITGoldWateringCan:1433097178779484302>\n-# Watered plots grow 50% faster while using this skin.`,
+          ),
+        );
+      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    } catch {}
+  }
   userStats[user.id] = stats;
   saveData();
 }
