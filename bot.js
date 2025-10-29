@@ -522,6 +522,11 @@ async function addFarmMasteryXp(user, amount, client) {
   stats.farm_mastery_xp = Number.isFinite(stats.farm_mastery_xp)
     ? stats.farm_mastery_xp
     : 0;
+  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins)
+    ? stats.deluxe_coins
+    : 0;
+  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
+  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
   const previousLevel = stats.farm_mastery_level;
   stats.farm_mastery_xp += amount;
   while (
@@ -533,6 +538,9 @@ async function addFarmMasteryXp(user, amount, client) {
   }
   if (stats.farm_mastery_level >= 100) stats.farm_mastery_xp = 0;
   if (previousLevel < 100 && stats.farm_mastery_level >= 100) {
+    stats.deluxe_coins += 2000;
+    stats.diamonds += 6000;
+    stats.coins += 1_000_000;
     if (!ownsSkin(stats, 'WateringCan', 'GoldWateringCan')) {
       addSkin(stats, 'WateringCan', 'GoldWateringCan');
     }
@@ -541,7 +549,7 @@ async function addFarmMasteryXp(user, amount, client) {
         .setAccentColor(0xffd700)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `### Farming Mastery Maxed!\nYou reached level 100 farming mastery and unlocked:\n-# Gold Watering Can <:ITGoldWateringCan:1433097178779484302>\n-# Watered plots grow 50% faster while using this skin.`,
+            `### Farming Mastery Maxed!\nYou reached level 100 farming mastery and received:\n-# 2000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 6000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# Gold Watering Can Skin <:ITGoldWateringCan:1433097178779484302>\n-# Watered plots grow 50% faster while using this skin.`,
           ),
         );
       await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });

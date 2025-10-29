@@ -357,6 +357,11 @@ function buildFarmResponse(user, stats, farmMasteryXpNeeded) {
   container
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('* Mastery perks, every 10 levels unlock 1 perk.'))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        '* Mastery Level 100 Rewards:\n-# 2000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 6000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# Gold Watering Can Skin <:ITGoldWateringCan:1433097178779484302>',
+      ),
+    )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(perks))
     .addSeparatorComponents(new SeparatorBuilder());
   const select = buildMasterySelect('farm');
