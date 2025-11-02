@@ -13,7 +13,9 @@ const {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } = require('@discordjs/builders');
-const { ITEMS, DIG_ITEMS } = require('../items');
+const { ITEMS, DIG_ITEMS, DIG_ITEMS_BY_AREA } = require('../items');
+const { handleDeath } = require('../death');
+const { DIG_AREAS, DIG_AREA_BY_KEY, DIG_AREA_BY_NAME } = require('../digData');
 const {
   normalizeInventory,
   getInventoryCount,
@@ -78,6 +80,11 @@ const DIG_XP_MULTIPLIER = {
   Secret: 20,
 };
 
+const DEFAULT_DIG_COLOR = 0xffffff;
+const DIG_DEATH_CHANCE = 0.05;
+const DIG_SUCCESS_BASE = 0.425;
+const DIG_ITEM_BASE_CHANCE = 0.45;
+
 const DIG_GEAR_CONFIG = {
   Magnet: {
     id: 'Magnet',
@@ -98,6 +105,34 @@ const DIG_GEAR_CONFIG = {
 const DIG_GEAR_IDS = new Set(Object.keys(DIG_GEAR_CONFIG));
 
 const digStates = new Map();
+
+function ensureValidDigArea(stats) {
+  if (!stats) return;
+  if (stats.dig_area && DIG_AREA_BY_NAME[stats.dig_area]) return;
+  const firstArea = DIG_AREAS[0];
+  if (firstArea) stats.dig_area = firstArea.name;
+}
+
+function getDigArea(name) {
+  if (!name) return null;
+  return DIG_AREA_BY_NAME[name] || DIG_AREA_BY_KEY[name] || null;
+}
+
+function pickAreaDeathMessage(area) {
+  const pool = area?.deathMessages || [];
+  if (!pool.length) {
+    return {
+      description: 'A fatal mishap ended your excavation.',
+      cause: '-# You died from [Accident] 💀',
+    };
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function formatAreaLabel(area) {
+  if (!area) return '';
+  return area.emoji ? `${area.emoji} ${area.name}` : area.name;
+}
 
 function applyGearLuck(stats, extraLuck) {
   if (!stats || !extraLuck) return stats;
@@ -124,22 +159,52 @@ function getEquippedGear(stats, { cleanup = false } = {}) {
   return { ...config, item, entry };
 }
 
-function getRandomDigItem(stats, luckSource = stats) {
-  const weighted = DIG_ITEMS.map(it => ({
-    item: it,
-    chance: getLuckAdjustedWeight(it.chance || 0, it.rarity, luckSource),
-  })).filter(entry => entry.chance > 0);
+function getRandomDigItem(areaKey, stats, luckSource = stats) {
+  const source =
+    (areaKey && Array.isArray(DIG_ITEMS_BY_AREA[areaKey])
+      ? DIG_ITEMS_BY_AREA[areaKey]
+      : DIG_ITEMS) || DIG_ITEMS;
+  const weighted = source
+    .map(it => ({
+      item: it,
+      chance: getLuckAdjustedWeight(it.chance || 0, it.rarity, luckSource),
+    }))
+    .filter(entry => entry.chance > 0);
   const total = weighted.reduce((sum, entry) => sum + entry.chance, 0);
   const r = Math.random() * total;
   let acc = 0;
   for (const entry of weighted) {
     acc += entry.chance;
-    if (r < acc) return entry.item;
+    if (r < acc) return { ...entry.item };
   }
-  return null;
+  return weighted.length ? { ...weighted[weighted.length - 1].item } : null;
 }
 
-function buildMainContainer(user, text, color, disable = false) {
+function buildMainContainer(user, stats, text, color = DEFAULT_DIG_COLOR, disable = false) {
+  ensureValidDigArea(stats);
+  const area = getDigArea(stats.dig_area);
+  const areaSelect = new StringSelectMenuBuilder()
+    .setCustomId('dig-area')
+    .setPlaceholder('Excavation Site');
+  if (DIG_AREAS.length) {
+    for (const entry of DIG_AREAS) {
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(entry.name)
+        .setValue(entry.name);
+      applyComponentEmoji(option, entry.emoji);
+      if (area && entry.name === area.name) option.setDefault(true);
+      areaSelect.addOptions(option);
+    }
+  } else {
+    areaSelect
+      .setDisabled(true)
+      .setPlaceholder('No dig areas available')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Unavailable')
+          .setValue('none'),
+      );
+  }
   const digBtn = applyComponentEmoji(
     new ButtonBuilder()
       .setCustomId('dig-action')
@@ -165,13 +230,17 @@ function buildMainContainer(user, text, color, disable = false) {
     digBtn.setDisabled(true);
     statBtn.setDisabled(true);
     equipBtn.setDisabled(true);
+    areaSelect.setDisabled(true);
   }
   const section = new SectionBuilder()
-    .setThumbnailAccessory(new ThumbnailBuilder().setURL(THUMB_URL))
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(area?.image || THUMB_URL),
+    )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
   return new ContainerBuilder()
     .setAccentColor(color)
     .addSectionComponents(section)
+    .addActionRowComponents(new ActionRowBuilder().addComponents(areaSelect))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(digBtn, statBtn, equipBtn),
     );
@@ -217,7 +286,7 @@ function buildStatContainer(user, stats) {
       ),
     );
   return new ContainerBuilder()
-    .setAccentColor(0xffffff)
+    .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(section)
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
@@ -225,6 +294,7 @@ function buildStatContainer(user, stats) {
 }
 
 function buildEquipmentContainer(user, stats) {
+  ensureValidDigArea(stats);
   const backBtn = new ButtonBuilder()
     .setCustomId('dig-back')
     .setLabel('Back')
@@ -346,7 +416,7 @@ function buildEquipmentContainer(user, stats) {
       new TextDisplayBuilder().setContent(`-# ${equippedGear.perk}`),
     );
   return new ContainerBuilder()
-    .setAccentColor(0xffffff)
+    .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(section)
     .addActionRowComponents(new ActionRowBuilder().addComponents(toolSelect))
     .addActionRowComponents(new ActionRowBuilder().addComponents(gearSelect))
@@ -359,11 +429,13 @@ async function sendDig(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
-  const container = buildMainContainer(
-    user,
-    `${user}, ready for digging?`,
-    0xffffff,
-  );
+  ensureValidDigArea(stats);
+  const area = getDigArea(stats.dig_area);
+  const areaLabel = formatAreaLabel(area);
+  const intro = areaLabel
+    ? `### ${user}, you will be digging in ${areaLabel}!`
+    : `### ${user}, select an excavation site before digging!`;
+  const container = buildMainContainer(user, stats, intro, DEFAULT_DIG_COLOR);
   let message = await send({
     components: [container],
     flags: MessageFlags.IsComponentsV2,
@@ -377,6 +449,8 @@ async function sendDig(user, send, resources, fetchReply) {
 
 async function handleDig(interaction, resources, stats) {
   const { message, user } = interaction;
+  ensureValidDigArea(stats);
+  const area = getDigArea(stats.dig_area);
   const initialFull = alertInventoryFull(interaction, user, stats);
   const snowballed = isSnowballed(stats);
   const gearInfo = getEquippedGear(stats, { cleanup: true });
@@ -386,11 +460,20 @@ async function handleDig(interaction, resources, stats) {
       ? gearInfo.entry.durability
       : null;
   let gearUsesRemaining = gearDurabilityBefore;
-  const { chance: successChance, forcedFail } = computeActionSuccessChance(0.5, stats, {
-    min: 0.01,
-    max: 0.95,
-  });
-  const success = !forcedFail && Math.random() < successChance;
+  const { chance: adjustedChance, forcedFail } = computeActionSuccessChance(
+    DIG_SUCCESS_BASE,
+    stats,
+    {
+      deathChance: DIG_DEATH_CHANCE,
+      min: 0.01,
+      max: 0.95,
+    },
+  );
+  const successChance = forcedFail ? 0 : adjustedChance;
+  const failChance = Math.max(0, 1 - successChance - DIG_DEATH_CHANCE);
+  const roll = Math.random();
+  const died = roll >= successChance + failChance;
+  const success = !died && roll < successChance;
   const cooldownDuration = Math.round(30000 * getCooldownMultiplier(stats));
   const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
@@ -398,19 +481,23 @@ async function handleDig(interaction, resources, stats) {
   let text;
   let color;
   let xp;
+  let foundItem = null;
+  const areaLabel = formatAreaLabel(area);
+  const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
   if (success) {
     let amount = Math.floor(Math.random() * 4001) + 1000;
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
     let extra = '';
-    let foundItem = null;
-    let itemDropChance = scaleChanceWithLuck(0.15, lootStats, { max: 0.5 });
+    let itemDropChance = scaleChanceWithLuck(DIG_ITEM_BASE_CHANCE, lootStats, {
+      max: 0.95,
+    });
     if (gearInfo?.dropBonus) {
       itemDropChance = Math.min(1, itemDropChance + gearInfo.dropBonus);
     }
     if (Math.random() < itemDropChance) {
-      const item = getRandomDigItem(stats, lootStats);
+      const item = getRandomDigItem(area?.key, stats, lootStats);
       if (item) {
         foundItem = item;
         if (!stats.dig_discover) stats.dig_discover = [];
@@ -433,7 +520,9 @@ async function handleDig(interaction, resources, stats) {
         }`;
       }
     }
-    xp = foundItem ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1)) : 100;
+    xp = foundItem
+      ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1))
+      : 100;
     text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
@@ -444,6 +533,17 @@ async function handleDig(interaction, resources, stats) {
       if (gearUsesRemaining <= 0) delete stats.dig_gear;
       if (result.broken && result.remaining === 0) delete stats.dig_gear;
     }
+    if (locationLine) text += `\n${locationLine}`;
+  } else if (died) {
+    stats.dig_die = (stats.dig_die || 0) + 1;
+    xp = -500;
+    const deathMessage = pickAreaDeathMessage(area);
+    const header = `## ${user}, ${deathMessage.description}`;
+    text = `${header}\n${deathMessage.cause}\n-# You lost **${Math.abs(xp)} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
+      cooldown / 1000,
+    )}:R>`;
+    if (locationLine) text += `\n${locationLine}`;
+    color = 0x000000;
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
     xp = 25;
@@ -454,6 +554,7 @@ async function handleDig(interaction, resources, stats) {
     text = `${failLine}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
       cooldown / 1000,
     )}:R>`;
+    if (locationLine) text += `\n${locationLine}`;
     color = 0xff0000;
   }
   if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
@@ -472,8 +573,11 @@ async function handleDig(interaction, resources, stats) {
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
-  const container = buildMainContainer(user, text, color, false);
+  const container = buildMainContainer(user, stats, text, color, false);
   await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  if (died) {
+    await handleDeath(user, 'digging', resources);
+  }
 }
 
 function setup(client, resources) {
@@ -513,6 +617,15 @@ function setup(client, resources) {
           });
           return;
         }
+        ensureValidDigArea(stats);
+        const area = getDigArea(stats.dig_area);
+        if (!area) {
+          await interaction.reply({
+            content: 'Select an excavation site before digging.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
         normalizeInventory(stats);
         const inv = stats.inventory || [];
         if (!stats.dig_tool) {
@@ -543,6 +656,7 @@ function setup(client, resources) {
         }
         const loading = buildMainContainer(
           interaction.user,
+          stats,
           'You are going for a dig... <a:Digani:1412451477309620316>',
           0x000000,
           true,
@@ -614,12 +728,50 @@ function setup(client, resources) {
           components: [container],
           flags: MessageFlags.IsComponentsV2,
         });
-      } else if (interaction.isButton() && interaction.customId === 'dig-back') {
+      } else if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === 'dig-area'
+      ) {
         const stats = resources.userStats[state.userId] || {};
+        const selection = interaction.values[0];
+        const area = DIG_AREA_BY_NAME[selection];
+        if (!area) {
+          await interaction.reply({
+            content: '<:SBWarning:1404101025849147432> Invalid excavation site.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        stats.dig_area = area.name;
+        resources.userStats[state.userId] = stats;
+        resources.saveData();
+        const areaLabel = formatAreaLabel(area);
+        const intro = areaLabel
+          ? `### ${interaction.user}, you will be digging in ${areaLabel}!`
+          : `### ${interaction.user}, select an excavation site before digging!`;
         const container = buildMainContainer(
           interaction.user,
-          `${interaction.user}, ready for digging?`,
-          0xffffff,
+          stats,
+          intro,
+          DEFAULT_DIG_COLOR,
+        );
+        await interaction.update({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } else if (interaction.isButton() && interaction.customId === 'dig-back') {
+        const stats = resources.userStats[state.userId] || {};
+        ensureValidDigArea(stats);
+        const area = getDigArea(stats.dig_area);
+        const areaLabel = formatAreaLabel(area);
+        const intro = areaLabel
+          ? `### ${interaction.user}, you will be digging in ${areaLabel}!`
+          : `### ${interaction.user}, select an excavation site before digging!`;
+        const container = buildMainContainer(
+          interaction.user,
+          stats,
+          intro,
+          DEFAULT_DIG_COLOR,
         );
         await interaction.update({
           components: [container],

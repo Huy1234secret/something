@@ -1,39 +1,146 @@
 const { ANIMAL_ITEMS } = require('./animals');
+const { DIG_AREAS, DIG_AREA_BY_NAME } = require('./digData');
 const XLSX = require('xlsx');
 
+const RARITY_PRIORITY = {
+  Common: 0,
+  Uncommon: 1,
+  Rare: 2,
+  Epic: 3,
+  Legendary: 4,
+  Mythical: 5,
+  Godly: 6,
+  Prismatic: 7,
+  Secret: 8,
+};
+
+function normalizeItemId(name) {
+  if (!name) return '';
+  return String(name).replace(/[^a-zA-Z0-9]/g, '');
+}
+
+function normalizeTypes(cells = []) {
+  const values = cells
+    .filter(Boolean)
+    .map(value => String(value).trim())
+    .filter(Boolean)
+    .map(value => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase());
+  return Array.from(new Set(values));
+}
+
+function rarityScore(rarity) {
+  return RARITY_PRIORITY[String(rarity)] ?? -1;
+}
+
 function loadDigItems() {
-  const workbook = XLSX.readFile('Dig item data.xlsx');
+  const workbook = XLSX.readFile('biome_items.xlsx');
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-  const items = [];
+  const aggregated = new Map();
+  const areaItems = new Map();
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || !row[0]) continue;
-    let id = String(row[0]).replace(/\s+/g, '');
-    if (/arcs of resurgence/i.test(row[0])) id = 'ArcsOfResurgence';
-    const types = [row[5], row[6], row[7]]
-      .filter(Boolean)
-      .map(t => String(t).trim())
-      .map(t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
-    items.push({
+    if (!row) continue;
+    const areaName = row[0] ? String(row[0]).trim() : '';
+    const itemName = row[1] ? String(row[1]).trim() : '';
+    if (!areaName || !itemName) continue;
+    const area = DIG_AREA_BY_NAME[areaName];
+    if (!area) continue;
+
+    let id = normalizeItemId(itemName);
+    if (/arcs of resurgence/i.test(itemName)) id = 'ArcsOfResurgence';
+    if (!id) continue;
+
+    const emoji = row[2] ? String(row[2]).trim() : '';
+    const rarity = row[3] ? String(row[3]).trim() : 'Common';
+    const value = Number(row[4]) || 0;
+    const sellPriceRaw = Number(row[5]);
+    const sellPrice = Number.isFinite(sellPriceRaw) && sellPriceRaw > 0 ? sellPriceRaw : null;
+    const types = normalizeTypes([row[6], row[7], row[8]]);
+    const chance = Number(row[9]) || 0;
+
+    const baseItem = {
       id,
-      name: row[0],
-      emoji: row[8],
-      rarity: row[1],
-      value: Number(row[3]) || 0,
+      name: itemName,
+      emoji,
+      rarity,
+      value,
       useable: false,
       types,
       note: '',
       image: '',
       price: '',
-      sellPrice: Number(row[4]) || null,
-      chance: Number(row[2]) || 0,
-    });
+      sellPrice,
+    };
+
+    const areaList = areaItems.get(area.key) || [];
+    areaList.push({ ...baseItem, chance, areaKey: area.key });
+    areaItems.set(area.key, areaList);
+
+    const existing = aggregated.get(id);
+    if (!existing) {
+      aggregated.set(id, {
+        ...baseItem,
+        chance,
+        areas: {
+          [area.key]: {
+            chance,
+            rarity,
+            value,
+            sellPrice,
+          },
+        },
+      });
+      continue;
+    }
+
+    existing.types = Array.from(new Set([...(existing.types || []), ...types]));
+    if (!existing.emoji && emoji) existing.emoji = emoji;
+    const existingScore = rarityScore(existing.rarity);
+    const newScore = rarityScore(rarity);
+    if (newScore > existingScore) {
+      existing.rarity = rarity;
+      existing.value = value;
+      existing.sellPrice = sellPrice;
+    } else if (newScore === existingScore) {
+      if (value > (existing.value || 0)) existing.value = value;
+      if (sellPrice && (!existing.sellPrice || sellPrice > existing.sellPrice)) {
+        existing.sellPrice = sellPrice;
+      }
+    }
+    existing.chance = Math.max(existing.chance || 0, chance || 0);
+    existing.areas[area.key] = {
+      chance,
+      rarity,
+      value,
+      sellPrice,
+    };
   }
-  return items;
+
+  const items = Array.from(aggregated.values()).map(item => ({
+    ...item,
+    types: Array.isArray(item.types) ? item.types : [],
+  }));
+  items.sort((a, b) => a.name.localeCompare(b.name));
+
+  const itemsByArea = {};
+  for (const area of DIG_AREAS) {
+    const list = (areaItems.get(area.key) || []).map(entry => ({
+      ...entry,
+      types: Array.isArray(entry.types) ? entry.types : [],
+    }));
+    list.sort((a, b) => {
+      if (b.chance !== a.chance) return b.chance - a.chance;
+      return a.name.localeCompare(b.name);
+    });
+    itemsByArea[area.key] = list;
+  }
+
+  return { items, itemsByArea };
 }
 
-const DIG_ITEMS = loadDigItems();
+const { items: DIG_ITEMS, itemsByArea: DIG_ITEMS_BY_AREA } = loadDigItems();
 
 const ITEMS = {
   Padlock: {
@@ -712,4 +819,4 @@ const ITEMS = {
   ...ANIMAL_ITEMS,
 };
 
-module.exports = { ITEMS, DIG_ITEMS };
+module.exports = { ITEMS, DIG_ITEMS, DIG_ITEMS_BY_AREA };
