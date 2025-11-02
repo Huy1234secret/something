@@ -525,13 +525,15 @@ async function handleDig(interaction, resources, stats) {
   const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
   stats.dig_total = (stats.dig_total || 0) + 1;
-  let text;
   let color;
   let xp;
   let foundItem = null;
   let successHeader = '';
   let successXpLine = '';
   let successBodyLines = [];
+  let sectionTexts = null;
+  let bodyLines = null;
+  let includeSeparator = false;
   const areaLabel = formatAreaLabel(area);
   const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
   if (success) {
@@ -592,16 +594,23 @@ async function handleDig(interaction, resources, stats) {
       if (result.broken && result.remaining === 0) delete stats.dig_gear;
     }
     if (locationLine) successBodyLines.push(locationLine);
+    sectionTexts = [`${successHeader}\n${successXpLine}`];
+    bodyLines = successBodyLines;
+    includeSeparator = true;
   } else if (died) {
     stats.dig_die = (stats.dig_die || 0) + 1;
     xp = -500;
     const deathMessage = pickAreaDeathMessage(area);
     const header = `## ${user}, ${deathMessage.description}`;
-    text = `${header}\n${deathMessage.cause}\n-# You lost **${Math.abs(xp)} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
-      cooldown / 1000,
-    )}:R>`;
-    if (locationLine) text += `\n${locationLine}`;
     color = 0x000000;
+    const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
+    const deathBodyLines = [countdownLine];
+    if (locationLine) deathBodyLines.push(locationLine);
+    sectionTexts = [
+      `${header}\n${deathMessage.cause}\n-# Earned ${xp} ${XP_EMOJI}`,
+    ];
+    bodyLines = deathBodyLines;
+    includeSeparator = true;
   } else {
     stats.dig_fail = (stats.dig_fail || 0) + 1;
     xp = 25;
@@ -609,11 +618,20 @@ async function handleDig(interaction, resources, stats) {
     if (forcedFail && snowballed) {
       failLine += '\\n-# A frosty snowball curse makes every attempt fail!';
     }
-    text = `${failLine}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
-      cooldown / 1000,
-    )}:R>`;
-    if (locationLine) text += `\n${locationLine}`;
     color = 0xff0000;
+    const [failMessage, ...extraFailLines] = failLine.split('\n');
+    const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
+    const failBodyLines = [countdownLine];
+    for (const extra of extraFailLines) {
+      if (extra && extra.trim()) failBodyLines.push(extra);
+    }
+    if (locationLine) failBodyLines.push(locationLine);
+    const safeFailMessage = failMessage?.trim()
+      ? failMessage.trim()
+      : 'Your dig failed.';
+    sectionTexts = [`## ${user}, ${safeFailMessage}\n-# Earned ${xp} ${XP_EMOJI}`];
+    bodyLines = failBodyLines;
+    includeSeparator = true;
   }
   if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
     const gearEmoji = gearInfo.item.emoji ? ` ${gearInfo.item.emoji}` : '';
@@ -622,10 +640,8 @@ async function handleDig(interaction, resources, stats) {
         ? Math.max(0, gearUsesRemaining)
         : Math.max(0, gearDurabilityBefore);
     const gearLine = `-# ${gearInfo.item.name}${gearEmoji} expires after ${usesDisplay} ${gearInfo.expireType}`;
-    if (success) {
-      gearLine && gearLine.trim() && successBodyLines.push(gearLine);
-    } else {
-      text += `\n${gearLine}`;
+    if (gearLine && gearLine.trim()) {
+      if (bodyLines) bodyLines.push(gearLine);
     }
   }
   await resources.addXp(user, xp, resources.client);
@@ -635,13 +651,24 @@ async function handleDig(interaction, resources, stats) {
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
-  const content = success
-    ? {
-        sectionTexts: [`${successHeader}\n${successXpLine}`],
-        bodyTexts: [successBodyLines.join('\n')],
-        includeSeparator: true,
-      }
-    : text;
+  let content;
+  if (sectionTexts) {
+    const bodyText = bodyLines && bodyLines.length ? bodyLines.join('\n') : '';
+    content = {
+      sectionTexts,
+      bodyTexts: bodyText ? [bodyText] : [],
+      includeSeparator,
+    };
+  }
+  if (!content) {
+    content = success
+      ? {
+          sectionTexts: [`${successHeader}\n${successXpLine}`],
+          bodyTexts: [successBodyLines.join('\n')],
+          includeSeparator: true,
+        }
+      : '';
+  }
   const container = buildMainContainer(user, stats, content, color, false);
   await interaction.editReply({
     components: [container],
