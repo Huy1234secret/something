@@ -12,6 +12,7 @@ const {
 const { ITEMS, DIG_ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { AREA_BY_KEY, HUNT_LURES } = require('../huntData');
+const { DIG_AREAS, DIG_AREA_BY_KEY } = require('../digData');
 const { getSkinsForItem } = require('../skins');
 const { formatNumber, normalizeInventory } = require('../utils');
 const { getContainerLootTable } = require('../containerLoot');
@@ -215,6 +216,73 @@ const ITEM_USAGE_DETAILS = {
         label: 'Consumption',
         value: 'One charge is consumed before each hunt roll; unused charges survive restarts.',
       },
+    ],
+  },
+  ItemScanner: {
+    command: '/dig',
+    summary: 'Premium dig gear that supercharges excavation rewards.',
+    fields: [
+      {
+        label: 'How to equip',
+        value:
+          'Use `/dig`, open **Equipment**, and select it in the Gear dropdown to activate the scanner.',
+      },
+      {
+        label: 'Effect',
+        value:
+          'Adds +65% to the base item drop chance and +25% dig luck on every successful run.',
+      },
+      {
+        label: 'Durability',
+        value:
+          'Lasts for 20 successful digs. Durability is only spent when the dig succeeds.',
+      },
+    ],
+    bullets: [
+      'Only one piece of dig gear can be equipped at a time; equipping the scanner unequips magnets and other gear.',
+      'Swapping the scanner off preserves the remaining durability for later.',
+    ],
+  },
+  Magnet: {
+    command: '/dig',
+    summary: 'Entry-level dig gear that nudges loot odds upward.',
+    fields: [
+      {
+        label: 'How to equip',
+        value: 'Go to `/dig` → **Equipment** → Gear and pick the magnet from the list.',
+      },
+      {
+        label: 'Effect',
+        value: 'Adds +15% to the base chance of finding an item on successful digs.',
+      },
+      {
+        label: 'Durability',
+        value: 'Survives 10 successful digs before breaking. Failures do not consume durability.',
+      },
+    ],
+    bullets: [
+      'Gear effects do not stack—only the currently equipped item applies.',
+      'Unequipping the magnet pauses durability loss until you equip it again.',
+    ],
+  },
+  Shovel: {
+    command: '/dig',
+    summary: 'The basic tool required to run `/dig`.',
+    fields: [
+      {
+        label: 'How to equip',
+        value:
+          'Open `/dig`, choose **Equipment**, and assign the shovel in the Tool selector. If it is your only shovel it equips automatically.',
+      },
+      {
+        label: 'Durability',
+        value:
+          'Handles 50 dig attempts. Each `/dig`—success, failure, or death—consumes one durability.',
+      },
+    ],
+    bullets: [
+      'You cannot dig without at least one shovel in your inventory.',
+      'Higher-tier shovels replace the basic one in the same equipment slot.',
     ],
   },
   XPSoda: {
@@ -850,16 +918,44 @@ function getLimitedObtainmentEvent(item) {
 function buildDigObtainment(item) {
   const digInfo = DIG_ITEM_LOOKUP.get(item.id);
   if (!digInfo) return null;
-  const chanceInfo = formatChance(digInfo.chance);
-  if (!chanceInfo) {
-    return 'Unearth this item by successfully using `/dig`. Its base drop chance is currently unspecified and scales with your luck bonuses.';
+  const areaEntries = DIG_AREAS.map(area => [
+    area.key,
+    digInfo.areas ? digInfo.areas[area.key] : null,
+  ]).filter(([, data]) => data);
+  if (!areaEntries.length) {
+    const chanceInfo = formatChance(digInfo.chance);
+    if (chanceInfo?.percent) {
+      const ratioText = chanceInfo.ratio ? ` (roughly 1 in ${chanceInfo.ratio})` : '';
+      return (
+        'Unearth this item through successful runs of `/dig`.' +
+        `\nEach victory roll has a base ${chanceInfo.percent}% chance${ratioText} to reveal it before luck adjustments.`
+      );
+    }
+    return 'Unearth this item by successfully using `/dig`. It uses a weighted loot roll, and higher luck increases the odds.';
   }
-  if (chanceInfo.percent) {
-    const ratioText = chanceInfo.ratio ? ` (roughly 1 in ${chanceInfo.ratio})` : '';
-    const intro = 'Unearth this item through successful runs of `/dig`.';
-    return `${intro} Each victory roll has a base ${chanceInfo.percent}% chance${ratioText} to reveal it before luck adjustments.`;
+  const lines = [];
+  for (const [areaKey, data] of areaEntries) {
+    const area = DIG_AREA_BY_KEY[areaKey];
+    const label = area
+      ? area.emoji
+        ? `${area.emoji} ${area.name}`
+        : area.name
+      : areaKey;
+    const chanceInfo = formatChance(data?.chance);
+    if (chanceInfo?.percent) {
+      const ratioText = chanceInfo.ratio ? ` (~1 in ${chanceInfo.ratio})` : '';
+      lines.push(`${label}: ${chanceInfo.percent}%${ratioText}`);
+    } else if (chanceInfo?.ratio) {
+      lines.push(`${label}: roughly 1 in ${chanceInfo.ratio}`);
+    } else {
+      lines.push(`${label}: weighted roll (luck improves odds)`);
+    }
   }
-  return 'Unearth this item by successfully using `/dig`. It uses a weighted loot roll, and higher luck increases the odds.';
+  const intro = 'Unearth this item through successful runs of `/dig`.';
+  const areaBlock = lines
+    .map(line => `  • ${line}`)
+    .join('\n');
+  return `${intro}\n-# Base drop odds by area:\n${areaBlock}\n-# Luck bonuses further increase these chances.`;
 }
 
 function buildCoinShopOptionalDetail(item) {
@@ -1358,6 +1454,7 @@ function formatUsageDescription(item) {
     if (rendered) return rendered;
   }
   const note = typeof item.note === 'string' ? item.note.trim() : '';
+  if (!item.useable && !note) return null;
   const description = note || 'Usage details unavailable.';
   const rules = ITEM_USAGE_BOOST_RULES[item.id];
   if (!rules) return description;
@@ -1369,9 +1466,24 @@ function buildUsageSection(item, totals) {
   if (!item) return null;
   if (item.rarity === 'Secret' && !totals.discovered) return '## Usage: ?';
   const sections = [];
-  if (item.useable) {
+  const seenHeadings = new Set();
+  const detail = ITEM_USAGE_DETAILS[item.id];
+  const note = typeof item.note === 'string' ? item.note.trim() : '';
+  const hasDetail = Boolean(detail);
+  const detailCommand =
+    detail && typeof detail === 'object' && 'command' in detail
+      ? detail.command
+      : null;
+  const shouldDescribe = item.useable || hasDetail || note;
+  if (shouldDescribe) {
     const description = formatUsageDescription(item);
-    if (description) sections.push(`## Usage:\n${description}`);
+    if (description) {
+      const heading = detailCommand
+        ? `## Usage in ${detailCommand}`
+        : '## Usage';
+      sections.push(`${heading}\n${description}`);
+      seenHeadings.add(heading);
+    }
   }
   const contexts = getAdditionalUsageContexts(item);
   for (const context of contexts) {
@@ -1379,7 +1491,9 @@ function buildUsageSection(item, totals) {
     const rendered = renderUsageDetails(context);
     if (!rendered) continue;
     const heading = context.command ? `## Usage in ${context.command}` : '## Usage';
+    if (seenHeadings.has(heading)) continue;
     sections.push(`${heading}\n${rendered}`);
+    seenHeadings.add(heading);
   }
   if (!sections.length) return null;
   return sections.join('\n\n');
