@@ -8,6 +8,7 @@ const {
   SectionBuilder,
   ThumbnailBuilder,
   TextDisplayBuilder,
+  SeparatorBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   StringSelectMenuBuilder,
@@ -180,7 +181,23 @@ function getRandomDigItem(areaKey, stats, luckSource = stats) {
   return weighted.length ? { ...weighted[weighted.length - 1].item } : null;
 }
 
-function buildMainContainer(user, stats, text, color = DEFAULT_DIG_COLOR, disable = false) {
+function normalizeSectionTexts(texts) {
+  const normalized = [];
+  for (const entry of texts) {
+    if (!entry) continue;
+    const str = String(entry);
+    if (!str.trim()) continue;
+    if (normalized.length < 3) {
+      normalized.push(str);
+    } else {
+      normalized[normalized.length - 1] = `${normalized[normalized.length - 1]}\n${str}`;
+    }
+  }
+  if (!normalized.length) normalized.push('');
+  return normalized;
+}
+
+function buildMainContainer(user, stats, content, color = DEFAULT_DIG_COLOR, disable = false) {
   ensureValidDigArea(stats);
   const area = getDigArea(stats.dig_area);
   const areaSelect = new StringSelectMenuBuilder()
@@ -232,14 +249,46 @@ function buildMainContainer(user, stats, text, color = DEFAULT_DIG_COLOR, disabl
     equipBtn.setDisabled(true);
     areaSelect.setDisabled(true);
   }
-  const section = new SectionBuilder()
-    .setThumbnailAccessory(
-      new ThumbnailBuilder().setURL(area?.image || THUMB_URL),
-    )
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
-  return new ContainerBuilder()
+  let sectionTexts = [];
+  let bodyTexts = [];
+  let includeSeparator = false;
+  if (typeof content === 'string') {
+    sectionTexts = [content];
+  } else if (Array.isArray(content)) {
+    sectionTexts = content.map(String);
+  } else if (content && typeof content === 'object') {
+    if (content.sectionTexts) {
+      sectionTexts = Array.isArray(content.sectionTexts)
+        ? content.sectionTexts.map(String)
+        : [String(content.sectionTexts)];
+    }
+    if (content.bodyTexts) {
+      bodyTexts = Array.isArray(content.bodyTexts)
+        ? content.bodyTexts.map(String)
+        : [String(content.bodyTexts)];
+    }
+    includeSeparator = Boolean(content.includeSeparator);
+  }
+  if (!sectionTexts.length) sectionTexts = [''];
+  const section = new SectionBuilder().setThumbnailAccessory(
+    new ThumbnailBuilder().setURL(area?.image || THUMB_URL),
+  );
+  for (const textDisplay of normalizeSectionTexts(sectionTexts)) {
+    section.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(textDisplay),
+    );
+  }
+  const container = new ContainerBuilder()
     .setAccentColor(color)
-    .addSectionComponents(section)
+    .addSectionComponents(section);
+  if (includeSeparator) container.addSeparatorComponents(new SeparatorBuilder());
+  for (const body of bodyTexts) {
+    if (!body?.trim()) continue;
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(body),
+    );
+  }
+  return container
     .addActionRowComponents(new ActionRowBuilder().addComponents(areaSelect))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(digBtn, statBtn, equipBtn),
@@ -405,16 +454,14 @@ function buildEquipmentContainer(user, stats) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(` ## ${user} Equipment`),
       new TextDisplayBuilder().setContent(
-        `* Tool equipped: ${equippedToolDisplay.name} ${equippedToolDisplay.emoji}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `* Gear equipped: ${equippedGearDisplay.name} ${equippedGearDisplay.emoji}`,
+        `* Tool equipped: ${equippedToolDisplay.name} ${equippedToolDisplay.emoji}\n* Gear equipped: ${equippedGearDisplay.name} ${equippedGearDisplay.emoji}`,
       ),
     );
-  if (equippedGear)
+  if (equippedGear) {
     section.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`-# ${equippedGear.perk}`),
     );
+  }
   return new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(section)
@@ -448,7 +495,7 @@ async function sendDig(user, send, resources, fetchReply) {
 }
 
 async function handleDig(interaction, resources, stats) {
-  const { message, user } = interaction;
+  const { user } = interaction;
   ensureValidDigArea(stats);
   const area = getDigArea(stats.dig_area);
   const initialFull = alertInventoryFull(interaction, user, stats);
@@ -482,6 +529,9 @@ async function handleDig(interaction, resources, stats) {
   let color;
   let xp;
   let foundItem = null;
+  let successHeader = '';
+  let successXpLine = '';
+  let successBodyLines = [];
   const areaLabel = formatAreaLabel(area);
   const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
   if (success) {
@@ -489,7 +539,7 @@ async function handleDig(interaction, resources, stats) {
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
-    let extra = '';
+    let itemMessage = '';
     let itemDropChance = scaleChanceWithLuck(DIG_ITEM_BASE_CHANCE, lootStats, {
       max: 0.95,
     });
@@ -515,7 +565,8 @@ async function handleDig(interaction, resources, stats) {
             alertInventoryFull(interaction, user, stats, 1);
           }
         }
-        extra = `\n-# You also found **${item.name} ${item.emoji}** while digging! ${
+        const itemEmoji = item.emoji || '';
+        itemMessage = `-# You also found **${item.name} ${itemEmoji}** while digging! ${
           RARITY_EMOJIS[item.rarity] || ''
         }`;
       }
@@ -523,9 +574,16 @@ async function handleDig(interaction, resources, stats) {
     xp = foundItem
       ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1))
       : 100;
-    text = `${user}, you have digged up **${amount} Coins ${COIN_EMOJI}!**${extra}\n-# You gained **${xp} XP ${XP_EMOJI}**\n-# You can dig again <t:${Math.floor(
-      cooldown / 1000,
-    )}:R>`;
+    const foundEmoji = foundItem?.emoji || '';
+    successHeader = foundItem
+      ? `## ${user}, you have digged up ${amount} ${COIN_EMOJI} and also found **${
+          foundItem.name
+        } ${foundEmoji}!!**`
+      : `## ${user}, you have digged up ${amount} ${COIN_EMOJI}!`;
+    successXpLine = `-# Earned ${xp} ${XP_EMOJI}`;
+    const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
+    successBodyLines = [countdownLine];
+    if (itemMessage) successBodyLines.push(itemMessage);
     color = 0x00ff00;
     if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
       const result = useDurableItem(interaction, user, stats, gearInfo.id);
@@ -533,7 +591,7 @@ async function handleDig(interaction, resources, stats) {
       if (gearUsesRemaining <= 0) delete stats.dig_gear;
       if (result.broken && result.remaining === 0) delete stats.dig_gear;
     }
-    if (locationLine) text += `\n${locationLine}`;
+    if (locationLine) successBodyLines.push(locationLine);
   } else if (died) {
     stats.dig_die = (stats.dig_die || 0) + 1;
     xp = -500;
@@ -564,7 +622,11 @@ async function handleDig(interaction, resources, stats) {
         ? Math.max(0, gearUsesRemaining)
         : Math.max(0, gearDurabilityBefore);
     const gearLine = `-# ${gearInfo.item.name}${gearEmoji} expires after ${usesDisplay} ${gearInfo.expireType}`;
-    text += `\n${gearLine}`;
+    if (success) {
+      gearLine && gearLine.trim() && successBodyLines.push(gearLine);
+    } else {
+      text += `\n${gearLine}`;
+    }
   }
   await resources.addXp(user, xp, resources.client);
   const toolId = stats.dig_tool || 'Shovel';
@@ -573,8 +635,18 @@ async function handleDig(interaction, resources, stats) {
   normalizeInventory(stats);
   resources.userStats[user.id] = stats;
   resources.saveData();
-  const container = buildMainContainer(user, stats, text, color, false);
-  await message.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  const content = success
+    ? {
+        sectionTexts: [`${successHeader}\n${successXpLine}`],
+        bodyTexts: [successBodyLines.join('\n')],
+        includeSeparator: true,
+      }
+    : text;
+  const container = buildMainContainer(user, stats, content, color, false);
+  await interaction.editReply({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
   if (died) {
     await handleDeath(user, 'digging', resources);
   }
