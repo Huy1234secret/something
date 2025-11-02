@@ -643,10 +643,16 @@ async function handleDig(interaction, resources, stats) {
       }
     : text;
   const container = buildMainContainer(user, stats, content, color, false);
-  await interaction.editReply({
-    components: [container],
-    flags: MessageFlags.IsComponentsV2,
-  });
+  if (typeof interaction.isMessageComponent === 'function' && interaction.isMessageComponent()) {
+    await interaction.message.edit({
+      components: [container],
+    });
+  } else {
+    await interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+  }
   if (died) {
     await handleDeath(user, 'digging', resources);
   }
