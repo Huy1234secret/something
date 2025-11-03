@@ -541,7 +541,6 @@ async function handleDig(interaction, resources, stats) {
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
-    let itemMessage = '';
     let itemDropChance = scaleChanceWithLuck(DIG_ITEM_BASE_CHANCE, lootStats, {
       max: 0.95,
     });
@@ -567,25 +566,23 @@ async function handleDig(interaction, resources, stats) {
             alertInventoryFull(interaction, user, stats, 1);
           }
         }
-        const itemEmoji = item.emoji || '';
-        itemMessage = `-# You also found **${item.name} ${itemEmoji}** while digging! ${
-          RARITY_EMOJIS[item.rarity] || ''
-        }`;
       }
     }
     xp = foundItem
       ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1))
       : 100;
     const foundEmoji = foundItem?.emoji || '';
+    const rarityEmoji = foundItem ? RARITY_EMOJIS[foundItem.rarity] || '' : '';
+    const raritySuffix = rarityEmoji ? ` ${rarityEmoji}` : '';
+    const foundEmojiPart = foundEmoji ? ` ${foundEmoji}` : '';
     successHeader = foundItem
-      ? `## ${user}, you have digged up ${amount} ${COIN_EMOJI} and also found **${
+      ? `## ${user}, you have digged up ${amount} ${COIN_EMOJI} and also found ${
           foundItem.name
-        } ${foundEmoji}!!**`
+        }${foundEmojiPart} while digging${raritySuffix}!!`
       : `## ${user}, you have digged up ${amount} ${COIN_EMOJI}!`;
     successXpLine = `-# Earned ${xp} ${XP_EMOJI}`;
     const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     successBodyLines = [countdownLine];
-    if (itemMessage) successBodyLines.push(itemMessage);
     color = 0x00ff00;
     if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
       const result = useDurableItem(interaction, user, stats, gearInfo.id);
