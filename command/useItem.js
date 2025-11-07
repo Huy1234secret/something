@@ -19,11 +19,6 @@ const { ITEMS } = require('../items');
 const { ANIMALS } = require('../animals');
 const { HUNT_LURES, AREA_BY_KEY, RARE_RARITIES } = require('../huntData');
 const {
-  CHRISTMAS_GIFT_LURES,
-  getContainerLootTable,
-  pickWeightedEntry,
-} = require('../containerLoot');
-const {
   formatNumber,
   normalizeInventory,
   setSafeTimeout,
@@ -40,8 +35,6 @@ const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DELUXE_COIN_EMOJI = '<:CRDeluxeCoin:1405595587780280382>';
 const XP_EMOJI = '<:SBXP:1432731173762760854>';
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
-const CHRISTMAS_GIFT_THUMBNAIL = 'https://i.ibb.co/WvPthnND/Battle-Pass-Gift.png';
-const CHRISTMAS_GIFT_COLOR = 0x0b6623;
 const RARITY_COLORS = {
   Common: 0xffffff,
   Rare: 0x00ffff,
@@ -70,17 +63,6 @@ const RARITY_ORDER = [
   'Prismatic',
   'Secret',
 ];
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-const CHRISTMAS_GIFT_TABLE = getContainerLootTable('ChristmasBattlePassGift');
-
-function pickChristmasGiftReward() {
-  if (!CHRISTMAS_GIFT_TABLE || !Array.isArray(CHRISTMAS_GIFT_TABLE.entries)) return null;
-  return pickWeightedEntry(CHRISTMAS_GIFT_TABLE.entries);
-}
 
 function addInventoryItem(stats, itemId, amount) {
   if (amount <= 0) return;
@@ -564,113 +546,6 @@ async function useBoltCutter(user, amount, resources, options = {}) {
   );
   return { component: container };
 }
-function useChristmasBattlePassGift(user, amount, resources) {
-  const stats =
-    resources.userStats[user.id] || {
-      inventory: [],
-      coins: 0,
-      diamonds: 0,
-      deluxe_coins: 0,
-      snowflakes: 0,
-    };
-  stats.inventory = stats.inventory || [];
-  normalizeInventory(stats);
-  const entry = stats.inventory.find(i => i.id === 'ChristmasBattlePassGift');
-  const item = ITEMS.ChristmasBattlePassGift;
-  if (!entry || entry.amount < amount) {
-    return { error: `${WARNING} You need at least ${amount} ${item.name} to use.` };
-  }
-
-  entry.amount -= amount;
-  if (entry.amount <= 0) stats.inventory = stats.inventory.filter(i => i !== entry);
-
-  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
-  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
-  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins)
-    ? stats.deluxe_coins
-    : 0;
-  stats.snowflakes = Number.isFinite(stats.snowflakes) ? stats.snowflakes : 0;
-
-  const summary = new Map();
-
-  const pullsPerGift = (CHRISTMAS_GIFT_TABLE && Number(CHRISTMAS_GIFT_TABLE.rolls)) || 5;
-
-  for (let gift = 0; gift < amount; gift += 1) {
-    for (let pull = 0; pull < pullsPerGift; pull += 1) {
-      const reward = pickChristmasGiftReward();
-      if (!reward) continue;
-      const qty = randomInt(reward.min, reward.max);
-      if (qty <= 0) continue;
-      switch (reward.type) {
-        case 'coins':
-          stats.coins += qty;
-          updateSummary(summary, 'coins', 'Coin', qty, COIN_EMOJI);
-          break;
-        case 'diamonds':
-          stats.diamonds += qty;
-          updateSummary(summary, 'diamonds', 'Diamond', qty, DIAMOND_EMOJI);
-          break;
-        case 'snowflakes':
-          stats.snowflakes += qty;
-          updateSummary(summary, 'snowflakes', 'Snowflake', qty, SNOWFLAKE_EMOJI);
-          break;
-        case 'deluxeCoins':
-          stats.deluxe_coins += qty;
-          updateSummary(summary, 'deluxe_coins', 'Deluxe Coin', qty, DELUXE_COIN_EMOJI);
-          break;
-        case 'item': {
-          addInventoryItem(stats, reward.id, qty);
-          const base = ITEMS[reward.id];
-          const label = base?.name || reward.id;
-          updateSummary(summary, `item:${reward.id}`, label, qty, base?.emoji);
-          break;
-        }
-        case 'lure': {
-          const pool =
-            Array.isArray(reward.pool) && reward.pool.length
-              ? reward.pool
-              : CHRISTMAS_GIFT_LURES;
-          if (!Array.isArray(pool) || pool.length === 0) break;
-          const lureId = pool[randomInt(0, pool.length - 1)];
-          addInventoryItem(stats, lureId, qty);
-          const base = ITEMS[lureId];
-          const label = base?.name || lureId;
-          updateSummary(summary, `item:${lureId}`, label, qty, base?.emoji);
-          break;
-        }
-        default:
-          break;
-      }
-    }
-  }
-
-  normalizeInventory(stats);
-  resources.userStats[user.id] = stats;
-  resources.saveData();
-
-  const summaryLines = Array.from(summary.values()).map(entry => {
-    const emoji = entry.emoji ? ` ${entry.emoji}` : '';
-    return `- ${formatNumber(entry.amount)} ${entry.label}${emoji}`;
-  });
-  const listText = summaryLines.length
-    ? summaryLines.join('\n')
-    : '- Nothing? The gift was empty!';
-
-  const content = `${user} You have unboxed ${formatNumber(amount)} Christmas BP Gift${
-    amount > 1 ? 's' : ''
-  } and got:\n${listText}`;
-
-  const container = new ContainerBuilder()
-    .setAccentColor(CHRISTMAS_GIFT_COLOR)
-    .addSectionComponents(
-      new SectionBuilder()
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(CHRISTMAS_GIFT_THUMBNAIL))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(content)),
-    );
-
-  return { component: container };
-}
-
 function useBanHammer(user, targetId, resources) {
   if (targetId === user.id) {
     return {
@@ -1106,8 +981,6 @@ const ITEM_USE_HANDLERS = {
   BulletBox: (user, amount, resources) => useBulletBox(user, amount, resources),
   AnimalDetector: (user, amount, resources) =>
     useAnimalDetector(user, amount, resources),
-  ChristmasBattlePassGift: (user, amount, resources) =>
-    useChristmasBattlePassGift(user, amount, resources),
   CoinPotion: (user, amount, resources) => useCoinPotion(user, amount, resources),
   LuckyPotion: (user, amount, resources) => useLuckyPotion(user, amount, resources),
   UltraLuckyPotion: (user, amount, resources) =>

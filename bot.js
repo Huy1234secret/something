@@ -38,7 +38,7 @@ const mySkinCommand = require('./command/mySkin');
 const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
-const battlePassCommand = require('./command/battlePass');
+const christmasQuestCommand = require('./command/christmasQuest');
 const purgeMessageCommand = require('./command/purgeMessage');
 const upgradeFeature = require('./command/upgrade');
 const lunarNewYearEvent = require('./lunarNewYearEvent');
@@ -61,16 +61,11 @@ function createDefaultData() {
     csh_message_id: null,
     upgrade_message_id: null,
     shop: { stock: {}, nextRestock: 0 },
-    battle_pass: {
-      reward100: {
-        stage: 0,
-        claims: [],
-      },
-      announcements: {
-        startAnnouncementTimestamp: 0,
-        countdownTargetTimestamp: 0,
-        countdownMessageId: null,
-      },
+    christmas_event: {
+      countdownTargetTimestamp: 0,
+      countdownMessageId: null,
+      questMessageId: null,
+      questMessageChannelId: null,
     },
     lunar_new_year_event: {
       announcementMessageId: null,
@@ -131,13 +126,11 @@ const levelUpChannelId = '1373578620634665052';
 const voiceSessions = new Map();
 const pendingRequests = new Map();
 let shop = { stock: {}, nextRestock: 0 };
-let battlePassData = {
-  reward100: { stage: 0, claims: [] },
-  announcements: {
-    startAnnouncementTimestamp: 0,
-    countdownTargetTimestamp: 0,
-    countdownMessageId: null,
-  },
+let christmasEventData = {
+  countdownTargetTimestamp: 0,
+  countdownMessageId: null,
+  questMessageId: null,
+  questMessageChannelId: null,
 };
 let lunarNewYearEventData = {
   announcementMessageId: null,
@@ -215,40 +208,38 @@ function loadData() {
       upgradeMessageId = String(upgradeMessageId);
     }
     shop = data.shop || { stock: {}, nextRestock: 0 };
-    battlePassData = data.battle_pass || {
-      reward100: { stage: 0, claims: [] },
-      announcements: {
-        startAnnouncementTimestamp: 0,
-        countdownTargetTimestamp: 0,
-        countdownMessageId: null,
-      },
+    christmasEventData = data.christmas_event || {
+      countdownTargetTimestamp: 0,
+      countdownMessageId: null,
+      questMessageId: null,
+      questMessageChannelId: null,
     };
-    if (!battlePassData.reward100) {
-      battlePassData.reward100 = { stage: 0, claims: [] };
+    if (!Number.isFinite(christmasEventData.countdownTargetTimestamp)) {
+      christmasEventData.countdownTargetTimestamp = 0;
     }
-    if (!Array.isArray(battlePassData.reward100.claims)) {
-      battlePassData.reward100.claims = [];
+    if (
+      christmasEventData.countdownMessageId !== null &&
+      typeof christmasEventData.countdownMessageId !== 'string'
+    ) {
+      christmasEventData.countdownMessageId = String(
+        christmasEventData.countdownMessageId,
+      );
     }
-    if (!battlePassData.announcements) {
-      battlePassData.announcements = {
-        startAnnouncementTimestamp: 0,
-        countdownTargetTimestamp: 0,
-        countdownMessageId: null,
-      };
-    } else {
-      const announcements = battlePassData.announcements;
-      if (!Number.isFinite(announcements.startAnnouncementTimestamp)) {
-        announcements.startAnnouncementTimestamp = 0;
-      }
-      if (!Number.isFinite(announcements.countdownTargetTimestamp)) {
-        announcements.countdownTargetTimestamp = 0;
-      }
-      if (
-        announcements.countdownMessageId !== null &&
-        typeof announcements.countdownMessageId !== 'string'
-      ) {
-        announcements.countdownMessageId = String(announcements.countdownMessageId);
-      }
+    if (
+      christmasEventData.questMessageId !== null &&
+      typeof christmasEventData.questMessageId !== 'string'
+    ) {
+      christmasEventData.questMessageId = String(
+        christmasEventData.questMessageId,
+      );
+    }
+    if (
+      christmasEventData.questMessageChannelId !== null &&
+      typeof christmasEventData.questMessageChannelId !== 'string'
+    ) {
+      christmasEventData.questMessageChannelId = String(
+        christmasEventData.questMessageChannelId,
+      );
     }
     lunarNewYearEventData = data.lunar_new_year_event || {
       announcementMessageId: null,
@@ -270,7 +261,12 @@ function loadData() {
     cshMessageId = null;
     upgradeMessageId = null;
     shop = { stock: {}, nextRestock: 0 };
-    battlePassData = { reward100: { stage: 0, claims: [] } };
+    christmasEventData = {
+      countdownTargetTimestamp: 0,
+      countdownMessageId: null,
+      questMessageId: null,
+      questMessageChannelId: null,
+    };
     lunarNewYearEventData = { announcementMessageId: null };
     saveData();
   }
@@ -290,7 +286,7 @@ function saveData() {
     csh_message_id: cshMessageId,
     upgrade_message_id: upgradeMessageId,
     shop,
-    battle_pass: battlePassData,
+    christmas_event: christmasEventData,
     lunar_new_year_event: lunarNewYearEventData,
   };
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -601,7 +597,7 @@ const resources = {
   userCardSettings,
   commandBans,
   shop,
-  battlePassData,
+  christmasEventData,
   saveData,
   xpNeeded,
   addXp,
@@ -614,6 +610,8 @@ const resources = {
   huntMasteryXpNeeded,
   addFarmMasteryXp,
   farmMasteryXpNeeded,
+  addSkin,
+  ownsSkin,
   getUpgradeMessageId: () => upgradeMessageId,
   setUpgradeMessageId: id => {
     upgradeMessageId = id;
@@ -731,7 +729,7 @@ client.on = function(event, listener) {
     masteryCommand.setup(client, resources);
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
-    battlePassCommand.setup(client, resources);
+    christmasQuestCommand.setup(client, resources);
     purgeMessageCommand.setup(client, resources);
     upgradeFeature.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
