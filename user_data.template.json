@@ -14,16 +14,11 @@
     "activeChristmasItemIds": [],
     "nextChristmasRestock": 0
   },
-  "battle_pass": {
-    "reward100": {
-      "stage": 0,
-      "claims": []
-    },
-    "announcements": {
-      "startAnnouncementTimestamp": 0,
-      "countdownTargetTimestamp": 0,
-      "countdownMessageId": null
-    }
+  "christmas_event": {
+    "countdownTargetTimestamp": 0,
+    "countdownMessageId": null,
+    "questMessageId": null,
+    "questMessageChannelId": null
   },
   "lunar_new_year_event": {
     "announcementMessageId": null

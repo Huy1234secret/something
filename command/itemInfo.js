@@ -440,19 +440,6 @@ const ITEM_USAGE_DETAILS = {
     ],
     bullets: ['Instant level skips respect the level cap and preserve active XP boosts.'],
   },
-  ChristmasBattlePassGift: {
-    summary: 'Opens five weighted holiday rewards per gift.',
-    fields: [
-      {
-        label: 'Rolls',
-        value: 'Each gift performs 5 independent pulls from the festive loot table.',
-      },
-      {
-        label: 'Delivery',
-        value: 'Currencies are deposited immediately; items and lures go straight into your inventory.',
-      },
-    ],
-  },
   SnowBall: {
     summary: 'Sabotages another player’s luck-based commands.',
     fields: [
