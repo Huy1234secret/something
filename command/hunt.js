@@ -40,6 +40,7 @@ const {
 const { handleDeath } = require('../death');
 const { useHuntLure } = require('./useItem');
 const { getItemDisplay } = require('../skins');
+const { isBossAnimal, startBossBattle } = require('../huntBossPvp');
 
 const XP_EMOJI = '<:SBXP:1432731173762760854>';
 
@@ -623,13 +624,27 @@ async function handleHunt(interaction, resources, stats) {
   const extraLines = [];
 
   if (roll < successChance) {
-    stats.hunt_success = (stats.hunt_success || 0) + 1;
     const tierMap = { HuntingRifleT1: 1, HuntingRifleT2: 2, HuntingRifleT3: 3 };
     const tier = tierMap[stats.hunt_gun] || 1;
     const lureConfig = HUNT_LURES[areaObj.key];
     const lureState = lureConfig ? stats.hunt_lures[areaObj.key] : null;
     const lureActive = Boolean(lureConfig && lureState && lureState.remaining > 0);
     const animal = pickAnimal(areaObj.key, tier, stats, { luckBoost });
+    if (isBossAnimal(animal.id)) {
+      huntStates.delete(message.id);
+      await startBossBattle({
+        interaction: {
+          message,
+          update: options => message.edit(options),
+        },
+        user,
+        stats,
+        animal,
+        resources,
+      });
+      return;
+    }
+    stats.hunt_success = (stats.hunt_success || 0) + 1;
     const item = ITEMS[animal.id];
     if (!stats.hunt_discover) stats.hunt_discover = [];
     if (!stats.hunt_discover.includes(item.id)) stats.hunt_discover.push(item.id);
