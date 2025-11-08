@@ -37,6 +37,13 @@ const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
 const DIG_STAT_EMOJI = '<:SBDig:1412452052721995868>';
 const XP_EMOJI = '<:SBXP:1432731173762760854>';
+const AURORA_TUNDRA_KEY = 'AuroraTundra';
+const AURORA_RARITY_TASKS = {
+  Common: 'aurora-common',
+  Rare: 'aurora-rare',
+  Epic: 'aurora-epic',
+  Legendary: 'aurora-legendary',
+};
 const FAIL_MESSAGES = [
   '🪨 Your shovel hits a BIG rock… and nothing else.',
   '🐛 You dig up a handful of worms. You stupidly think it is not exactly treasure.',
@@ -525,6 +532,11 @@ async function handleDig(interaction, resources, stats) {
   const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
   stats.dig_total = (stats.dig_total || 0) + 1;
+  const questUpdates = resources.applyChristmasQuestProgress ? {} : null;
+  const inAurora = area?.key === AURORA_TUNDRA_KEY;
+  if (questUpdates && inAurora) {
+    questUpdates['aurora-digs'] = (questUpdates['aurora-digs'] || 0) + 1;
+  }
   let color;
   let xp;
   let foundItem = null;
@@ -536,10 +548,13 @@ async function handleDig(interaction, resources, stats) {
   let includeSeparator = false;
   const areaLabel = formatAreaLabel(area);
   const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
+  let coinsEarned = 0;
+  let magnetBroken = false;
   if (success) {
     let amount = Math.floor(Math.random() * 4001) + 1000;
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
+    coinsEarned = amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
     let itemDropChance = scaleChanceWithLuck(DIG_ITEM_BASE_CHANCE, lootStats, {
       max: 0.95,
@@ -589,6 +604,13 @@ async function handleDig(interaction, resources, stats) {
       gearUsesRemaining = Math.max(0, gearDurabilityBefore - 1);
       if (gearUsesRemaining <= 0) delete stats.dig_gear;
       if (result.broken && result.remaining === 0) delete stats.dig_gear;
+      if (
+        result.broken &&
+        result.remaining === 0 &&
+        gearInfo.id === 'Magnet'
+      ) {
+        magnetBroken = true;
+      }
     }
     if (locationLine) successBodyLines.push(locationLine);
     sectionTexts = [`${successHeader}\n${successXpLine}`];
@@ -639,6 +661,36 @@ async function handleDig(interaction, resources, stats) {
     const gearLine = `-# ${gearInfo.item.name}${gearEmoji} expires after ${usesDisplay} ${gearInfo.expireType}`;
     if (gearLine && gearLine.trim()) {
       if (bodyLines) bodyLines.push(gearLine);
+    }
+  }
+  if (questUpdates) {
+    if (success && inAurora) {
+      if (coinsEarned > 0) {
+        questUpdates['aurora-sell-coins'] =
+          (questUpdates['aurora-sell-coins'] || 0) + coinsEarned;
+      }
+      if (foundItem) {
+        const rarityTask = AURORA_RARITY_TASKS[foundItem.rarity];
+        if (rarityTask) {
+          questUpdates[rarityTask] = (questUpdates[rarityTask] || 0) + 1;
+        }
+        const name = String(foundItem.name || '');
+        if (/aurora\s*shard/i.test(name)) {
+          questUpdates['aurora-shards'] =
+            (questUpdates['aurora-shards'] || 0) + 1;
+        }
+        if (/snowglobe/i.test(name)) {
+          questUpdates.snowglobe = (questUpdates.snowglobe || 0) + 1;
+        }
+      }
+    }
+    if (magnetBroken) {
+      questUpdates['consume-magnets'] =
+        (questUpdates['consume-magnets'] || 0) + 1;
+    }
+    const hasProgress = Object.values(questUpdates).some(value => value);
+    if (hasProgress) {
+      resources.applyChristmasQuestProgress(stats, questUpdates);
     }
   }
   await resources.addXp(user, xp, resources.client);

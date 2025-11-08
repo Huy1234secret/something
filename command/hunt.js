@@ -43,6 +43,25 @@ const { getItemDisplay } = require('../skins');
 
 const XP_EMOJI = '<:SBXP:1432731173762760854>';
 
+const HUNT_COUNT_TASK_ID = 'hunts';
+const HUNT_RARITY_TASKS = {
+  Common: 'hunt-common',
+  Rare: 'hunt-rare',
+  Epic: 'hunt-epic',
+  Legendary: 'hunt-legendary',
+  Mythical: 'hunt-mythical',
+};
+const SPECIAL_ANIMAL_TASKS = {
+  Krampus: 'krampus',
+  GingerbreadBrute: 'gingerbread-brute',
+};
+const LURE_TASKS = {
+  VerdantLures: 'use-verdant-lure',
+  SnowglassLures: 'use-snowglass-lure',
+  SunprideLures: 'use-sunpride-lure',
+  MarshlightLures: 'use-marshlight-lure',
+};
+
 const AURORA_TUNDRA_KEY = 'AuroraTundra';
 
 const ITEMS_BY_RARITY = {};
@@ -614,6 +633,9 @@ async function handleHunt(interaction, resources, stats) {
   const cooldown = Date.now() + cooldownDuration;
   stats.hunt_cd_until = cooldown;
   stats.hunt_total = (stats.hunt_total || 0) + 1;
+  const questUpdates = resources.applyChristmasQuestProgress
+    ? { [HUNT_COUNT_TASK_ID]: 1 }
+    : null;
 
   const roll = Math.random();
   let text;
@@ -621,6 +643,8 @@ async function handleHunt(interaction, resources, stats) {
   let xp;
   let died = false;
   const extraLines = [];
+  let animal = null;
+  let lureTaskId = null;
 
   if (roll < successChance) {
     stats.hunt_success = (stats.hunt_success || 0) + 1;
@@ -629,7 +653,7 @@ async function handleHunt(interaction, resources, stats) {
     const lureConfig = HUNT_LURES[areaObj.key];
     const lureState = lureConfig ? stats.hunt_lures[areaObj.key] : null;
     const lureActive = Boolean(lureConfig && lureState && lureState.remaining > 0);
-    const animal = pickAnimal(areaObj.key, tier, stats, { luckBoost });
+    animal = pickAnimal(areaObj.key, tier, stats, { luckBoost });
     const item = ITEMS[animal.id];
     if (!stats.hunt_discover) stats.hunt_discover = [];
     if (!stats.hunt_discover.includes(item.id)) stats.hunt_discover.push(item.id);
@@ -712,6 +736,7 @@ async function handleHunt(interaction, resources, stats) {
     if (lureActive) {
       const lureItem = ITEMS[lureConfig.itemId] || { name: 'Lure', emoji: '' };
       lureState.remaining = Math.max(0, lureState.remaining - 1);
+      lureTaskId = LURE_TASKS[lureConfig.itemId] || null;
       const remainingText = `-# ${lureItem.name} left: ${lureState.remaining}`;
       extraLines.push('-# Rarer animals were drawn in by your lure!');
       extraLines.push(remainingText);
@@ -756,6 +781,28 @@ async function handleHunt(interaction, resources, stats) {
   }
   if (extraLines.length) {
     text += `\n${extraLines.join('\n')}`;
+  }
+
+  if (questUpdates) {
+    if (roll < successChance) {
+      const rarityTask = animal ? HUNT_RARITY_TASKS[animal.rarity] : null;
+      if (rarityTask) {
+        questUpdates[rarityTask] = (questUpdates[rarityTask] || 0) + 1;
+      }
+      if (animal) {
+        const specialTask = SPECIAL_ANIMAL_TASKS[animal.id];
+        if (specialTask) {
+          questUpdates[specialTask] = (questUpdates[specialTask] || 0) + 1;
+        }
+      }
+    }
+    if (lureTaskId) {
+      questUpdates[lureTaskId] = (questUpdates[lureTaskId] || 0) + 1;
+    }
+    const hasProgress = Object.values(questUpdates).some(value => value);
+    if (hasProgress) {
+      resources.applyChristmasQuestProgress(stats, questUpdates);
+    }
   }
 
   await resources.addXp(user, xp, resources.client);
@@ -975,6 +1022,18 @@ function setup(client, resources) {
         const gun = interaction.values[0];
         const stats = resources.userStats[state.userId] || {};
         stats.hunt_gun = gun;
+        if (resources.applyChristmasQuestProgress) {
+          const questUpdates = {};
+          if (gun === 'HuntingRifleT2') {
+            questUpdates['obtain-rifle-t2'] = 1;
+          }
+          if (gun === 'HuntingRifleT3') {
+            questUpdates['obtain-rifle-t3'] = 1;
+          }
+          if (Object.keys(questUpdates).length) {
+            resources.applyChristmasQuestProgress(stats, questUpdates);
+          }
+        }
         resources.userStats[state.userId] = stats;
         resources.saveData();
         const containers = buildEquipmentContainer(interaction.user, stats);

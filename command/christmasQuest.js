@@ -194,6 +194,14 @@ const QUESTS = [
   },
 ];
 
+const TASK_INDEX_BY_ID = new Map();
+for (let i = 0; i < QUESTS.length; i += 1) {
+  const quest = QUESTS[i];
+  for (const task of quest.tasks) {
+    if (task && task.id) TASK_INDEX_BY_ID.set(task.id, i);
+  }
+}
+
 let resourcesRef = null;
 let clientRef = null;
 let watcherStarted = false;
@@ -252,6 +260,72 @@ function isQuestComplete(quest, questState) {
     const entry = questState.tasks[task.id];
     return entry && Number(entry.current) >= task.target;
   });
+}
+
+function ensureQuestTaskState(questState, quest) {
+  if (!questState.tasks) {
+    questState.tasks = initializeQuestTasks(quest);
+    return;
+  }
+  for (const task of quest.tasks) {
+    if (!questState.tasks[task.id]) {
+      questState.tasks[task.id] = { current: 0, target: task.target };
+    }
+  }
+}
+
+function applyQuestProgress(stats, updates = {}, { autoSave = false } = {}) {
+  if (!stats || !updates || typeof updates !== 'object') {
+    return { changed: false, completedQuests: [] };
+  }
+  let changed = false;
+  const completed = new Set();
+  for (const [taskId, incrementRaw] of Object.entries(updates)) {
+    const amount = Number(incrementRaw);
+    if (!taskId || !Number.isFinite(amount) || amount === 0) continue;
+    const questIndex = TASK_INDEX_BY_ID.get(taskId);
+    if (questIndex == null) continue;
+    const quest = QUESTS[questIndex];
+    if (!quest) continue;
+    const questState = getQuestState(stats, questIndex, { create: true });
+    if (!questState) continue;
+    ensureQuestTaskState(questState, quest);
+    const taskState = questState.tasks[taskId];
+    if (!taskState) continue;
+    const before = Number(taskState.current) || 0;
+    const target = Number(taskState.target) || 0;
+    const capped = target > 0 ? Math.min(target, before + amount) : before + amount;
+    if (capped !== before) {
+      taskState.current = capped;
+      changed = true;
+    }
+    if (isQuestComplete(quest, questState)) {
+      if (!questState.completedAt) {
+        questState.completedAt = Date.now();
+        changed = true;
+      }
+      completed.add(quest.id);
+    }
+  }
+  if (changed && autoSave && resourcesRef?.saveData) {
+    resourcesRef.saveData();
+  }
+  return { changed, completedQuests: Array.from(completed) };
+}
+
+function recordQuestProgress(userId, updates = {}, options = {}) {
+  if (!resourcesRef) {
+    return { changed: false, completedQuests: [] };
+  }
+  const stats = resourcesRef.userStats?.[userId];
+  if (!stats) {
+    return { changed: false, completedQuests: [] };
+  }
+  const result = applyQuestProgress(stats, updates, { autoSave: false });
+  if (result.changed && options.autoSave && resourcesRef.saveData) {
+    resourcesRef.saveData();
+  }
+  return result;
 }
 
 function buildProgressBar(current, target, size = 20) {
@@ -550,6 +624,12 @@ async function registerCommand(client) {
 function setup(client, resources) {
   resourcesRef = resources;
   clientRef = client;
+  if (resources) {
+    resources.applyChristmasQuestProgress = (stats, updates = {}, options = {}) =>
+      applyQuestProgress(stats, updates, options);
+    resources.recordChristmasQuestProgress = (userId, updates = {}, options = {}) =>
+      recordQuestProgress(userId, updates, options);
+  }
   registerInteractions(client);
   client.once('ready', () => {
     startWatcher();
@@ -557,4 +637,4 @@ function setup(client, resources) {
   });
 }
 
-module.exports = { setup };
+module.exports = { setup, applyQuestProgress, recordQuestProgress };
