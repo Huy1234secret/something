@@ -41,6 +41,7 @@ const badgesCommand = require('./command/badges');
 const christmasQuestCommand = require('./command/christmasQuest');
 const purgeMessageCommand = require('./command/purgeMessage');
 const upgradeFeature = require('./command/upgrade');
+const listItemsCommand = require('./command/listItems');
 const lunarNewYearEvent = require('./lunarNewYearEvent');
 const { ITEMS } = require('./items');
 const { addSkin, ownsSkin } = require('./skins');
@@ -732,6 +733,7 @@ client.on = function(event, listener) {
     christmasQuestCommand.setup(client, resources);
     purgeMessageCommand.setup(client, resources);
     upgradeFeature.setup(client, resources);
+    listItemsCommand.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
     // Remove deprecated /level-button command if it exists
