@@ -576,6 +576,7 @@ async function handleBattleDefeat(state) {
     flags: MessageFlags.IsComponentsV2,
   });
   battleStates.delete(state.messageId);
+  await resources.saveData();
   await handleDeath(user, 'hunting', resources);
 }
 
