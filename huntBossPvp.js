@@ -52,6 +52,7 @@ const BASE_PLAYER_DAMAGE = 20;
 const BASE_PLAYER_ENERGY = 100;
 
 const STATUS_KEYS = ['withered', 'poison', 'cold', 'burn', 'stun'];
+const DEFAULT_SECTION_THUMB_URL = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 function emojiToUrl(emoji) {
   if (!emoji) return null;
@@ -293,8 +294,9 @@ function buildBattleContainers(state) {
   const enemyHealthBar = buildHealthBar(enemy.health, enemy.maxHealth);
   const playerHealthBar = buildHealthBar(player.health, player.maxHealth);
 
-  const enemySection = new SectionBuilder();
-  if (enemyThumb) enemySection.setThumbnailAccessory(new ThumbnailBuilder().setURL(enemyThumb));
+  const enemySection = new SectionBuilder().setThumbnailAccessory(
+    new ThumbnailBuilder().setURL(enemyThumb ?? DEFAULT_SECTION_THUMB_URL),
+  );
   enemySection.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
       `## ${state.userMention}, you are trying to hunt ${enemy.name} ${enemy.emoji || ''}  ${enemy.rarity || ''}` +
@@ -557,9 +559,10 @@ async function handleBattleVictory(state) {
 async function handleBattleDefeat(state) {
   const { resources, userId, animal } = state;
   const user = await resources.client.users.fetch(userId);
-  const thumb = emojiToUrl(animal.emoji);
-  const section = new SectionBuilder();
-  if (thumb) section.setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
+  const thumb = emojiToUrl(animal.emoji) ?? DEFAULT_SECTION_THUMB_URL;
+  const section = new SectionBuilder().setThumbnailAccessory(
+    new ThumbnailBuilder().setURL(thumb),
+  );
   section.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
       `${user} you have failed to fight agaisnt ${animal.name}!\n-# You died`,
