@@ -6,7 +6,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
 } = require('@discordjs/builders');
 const { ITEMS, DIG_ITEMS } = require('../items');
@@ -1495,6 +1494,14 @@ function buildItemInfoContainer(item, resources) {
     item.rarity === 'Secret' && !totals.discovered
       ? buildSecretInfo(item)
       : buildKnownInfo(item, totals);
+  const bodySections = [buildObtainmentSection(item, totals)];
+  const containerSection = buildContainerLootSection(item, totals);
+  if (containerSection) bodySections.push(containerSection);
+  const usageSection = buildUsageSection(item, totals);
+  if (usageSection) bodySections.push(usageSection);
+  bodySections.push(buildOthersSection(item, totals));
+  const bodyContent = bodySections.filter(Boolean).join('\n\n---\n\n');
+
   if (thumbnailUrl) {
     container.addSectionComponents(
       new SectionBuilder()
@@ -1503,33 +1510,21 @@ function buildItemInfoContainer(item, resources) {
           new TextDisplayBuilder().setContent(headerContent),
         ),
     );
+    if (bodyContent) {
+      container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(bodyContent),
+      );
+    }
   } else {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(headerContent),
-    );
+    const combinedContent = [headerContent, bodyContent]
+      .filter(Boolean)
+      .join('\n\n---\n\n');
+    if (combinedContent) {
+      container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(combinedContent),
+      );
+    }
   }
-  container.addSeparatorComponents(new SeparatorBuilder());
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(buildObtainmentSection(item, totals)),
-  );
-  const containerSection = buildContainerLootSection(item, totals);
-  if (containerSection) {
-    container.addSeparatorComponents(new SeparatorBuilder());
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(containerSection),
-    );
-  }
-  const usageSection = buildUsageSection(item, totals);
-  if (usageSection) {
-    container.addSeparatorComponents(new SeparatorBuilder());
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(usageSection),
-    );
-  }
-  container.addSeparatorComponents(new SeparatorBuilder());
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(buildOthersSection(item, totals)),
-  );
   return container;
 }
 
