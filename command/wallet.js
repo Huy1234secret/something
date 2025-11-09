@@ -7,7 +7,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -56,8 +55,9 @@ async function sendWallet(user, send, { userStats, saveData }) {
     );
   }
 
-  const balancesText = new TextDisplayBuilder().setContent(
-    balanceLines.join('\n'),
+  const balancesContent = ['', ...balanceLines].join('\n');
+  headerSection.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(balancesContent),
   );
 
   const padlockActive = stats.padlock_until && stats.padlock_until > Date.now();
@@ -84,9 +84,6 @@ async function sendWallet(user, send, { userStats, saveData }) {
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(headerSection)
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(balancesText)
-    .addSeparatorComponents(new SeparatorBuilder())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(padlockButton, landmineButton),
     );

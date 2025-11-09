@@ -435,15 +435,29 @@ function buildEquipmentContainer(user, stats) {
       new TextDisplayBuilder().setContent(activeLureText),
     );
 
-  const container = new ContainerBuilder()
-    .setAccentColor(0xffffff)
-    .addSectionComponents(equipmentSection)
-    .addActionRowComponents(new ActionRowBuilder().addComponents(gunSelect))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(bulletSelect))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(lureSelect))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn));
+  const containers = [];
 
-  return [container];
+  containers.push(
+    new ContainerBuilder()
+      .setAccentColor(0xffffff)
+      .addSectionComponents(equipmentSection)
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
+      ),
+  );
+
+  const selects = [gunSelect, bulletSelect, lureSelect];
+  for (const selectComponent of selects) {
+    containers.push(
+      new ContainerBuilder()
+        .setAccentColor(0xffffff)
+        .addActionRowComponents(
+          new ActionRowBuilder().addComponents(selectComponent),
+        ),
+    );
+  }
+
+  return containers;
 }
 
 function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
