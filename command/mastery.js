@@ -278,15 +278,15 @@ function buildChatResponse(user, stats, chatMasteryXpNeeded) {
   const xp = stats.chat_mastery_xp || 0;
   const next = level >= 100 ? 0 : chatMasteryXpNeeded(level + 1);
   const bar = buildBar(xp, next);
-  const header = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
-  );
+  const thumbUrl = level >= 100 ? CHAT_THUMB_MAX : CHAT_THUMB;
+  const header = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbUrl))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## Chat Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`,
+      ),
+    );
   const perks = buildChatPerks(level);
-  if (level >= 100) {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(CHAT_THUMB_MAX));
-  } else {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(CHAT_THUMB));
-  }
   const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
   container.addSectionComponents(header);
   container
@@ -310,15 +310,15 @@ function buildHuntResponse(user, stats, huntMasteryXpNeeded) {
   const xp = stats.hunt_mastery_xp || 0;
   const next = level >= 100 ? 0 : huntMasteryXpNeeded(level + 1);
   const bar = buildBar(xp, next);
-  const header = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## Hunting Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`)
-  );
+  const thumbUrl = level >= 100 ? HUNT_THUMB_MAX : HUNT_THUMB;
+  const header = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbUrl))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## Hunting Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`,
+      ),
+    );
   const perks = buildHuntPerks(level);
-  if (level >= 100) {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(HUNT_THUMB_MAX));
-  } else {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(HUNT_THUMB));
-  }
   const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
   container.addSectionComponents(header);
   container
@@ -341,17 +341,15 @@ function buildFarmResponse(user, stats, farmMasteryXpNeeded) {
   const xp = stats.farm_mastery_xp || 0;
   const next = level >= 100 ? 0 : farmMasteryXpNeeded(level + 1);
   const bar = buildBar(xp, next);
-  const header = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      `## Farm Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`,
-    ),
-  );
+  const thumbUrl = level >= 100 ? FARM_THUMB_MAX : FARM_THUMB;
+  const header = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(thumbUrl))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## Farm Mastery - Level ${level}\n-# ${bar} [${xp} / ${next || 'MAX'}]`,
+      ),
+    );
   const perks = buildFarmPerks(level);
-  if (level >= 100) {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(FARM_THUMB_MAX));
-  } else {
-    header.setThumbnailAccessory(new ThumbnailBuilder().setURL(FARM_THUMB));
-  }
   const container = new ContainerBuilder().setAccentColor(level >= 100 ? 0xffff00 : 0xffffff);
   container.addSectionComponents(header);
   container
