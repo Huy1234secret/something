@@ -509,6 +509,20 @@ function buildAttackMenu(state, index = 0) {
   return container;
 }
 
+function getSafeInteractionContent(interaction, fallback = '\u200b') {
+  if (!interaction?.message) return fallback;
+  const content = interaction.message.content;
+  return content === null || content === undefined || content === '' ? fallback : content;
+}
+
+async function clearInteractionComponents(interaction, options = {}) {
+  const { content = getSafeInteractionContent(interaction) } = options;
+  await interaction.update({
+    content,
+    components: [],
+  });
+}
+
 async function updateBattleMessage(state) {
   const containers = buildBattleContainers(state);
   await state.message.edit({
@@ -848,7 +862,7 @@ async function handleAttackNavigation(interaction) {
   refreshInactivityTimer(state);
   const attacks = state.player.attacks || [];
   if (!attacks.length) {
-    await interaction.update({ components: [] });
+    await clearInteractionComponents(interaction);
     return;
   }
   const total = attacks.length;
@@ -879,12 +893,12 @@ async function handleAttackUse(interaction) {
   const attacks = state.player.attacks || [];
   const attack = attacks[index];
   if (!attack) {
-    await interaction.update({ components: [] });
+    await clearInteractionComponents(interaction);
     return;
   }
   if (hasStun(state.player)) {
     appendActionLog(state, `${state.username} tried to attack but failed.`);
-    await interaction.update({ components: [] });
+    await clearInteractionComponents(interaction);
     await updateBattleMessage(state);
     await executeEnemyTurn(state);
     return;
@@ -909,7 +923,7 @@ async function handleAttackUse(interaction) {
     logs.push(`-# ${state.enemy.name} loses ${shieldDamage} defense.`);
   }
   appendActionLog(state, logs);
-  await interaction.update({ components: [] });
+  await clearInteractionComponents(interaction);
   await updateBattleMessage(state);
   if (state.enemy.health <= 0) {
     await handleBattleVictory(state);
