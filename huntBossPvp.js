@@ -315,18 +315,14 @@ function buildBattleContainers(state) {
   const playerSection = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(state.userAvatar))
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${state.username} Stat:`),
       new TextDisplayBuilder().setContent(
-        `-# Health: ${playerHealthBar} \`${player.health} / ${player.maxHealth}\` ${HEALTH_EMOJI}`,
+        `## ${state.username} Stat:` +
+          `\n-# Health: ${playerHealthBar} \`${player.health} / ${player.maxHealth}\` ${HEALTH_EMOJI}` +
+          `\n-# Defense: ${getEffectiveDefense(player).toFixed(2)} ${DEFENSE_EMOJI}` +
+          `\n-# Energy: ${player.energy} ${ENERGY_EMOJI}` +
+          `\n-# Damage buff: ${player.damageBuff >= 0 ? '+' : ''}${player.damageBuff.toFixed(2)} ${DAMAGE_EMOJI}` +
+          `\n-# Debuff: ${formatDebuffLine(player)}`,
       ),
-      new TextDisplayBuilder().setContent(
-        `-# Defese: ${getEffectiveDefense(player).toFixed(2)} ${DEFENSE_EMOJI}`,
-      ),
-      new TextDisplayBuilder().setContent(`-# Energy: ${player.energy} ${ENERGY_EMOJI}`),
-      new TextDisplayBuilder().setContent(
-        `-# Damage buff: ${player.damageBuff >= 0 ? '+' : ''}${player.damageBuff.toFixed(2)} ${DAMAGE_EMOJI}`,
-      ),
-      new TextDisplayBuilder().setContent(`-# Debuff: ${formatDebuffLine(player)}`),
     );
 
   const container3 = new ContainerBuilder()
