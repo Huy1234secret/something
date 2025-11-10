@@ -37,6 +37,7 @@ const BOSS_IDS = new Set([
 ]);
 
 const battleStates = new Map();
+const ACTION_LOG_LIMIT = 12;
 
 const RIFLE_DAMAGE = {
   HuntingRifleT1: 5,
@@ -73,18 +74,31 @@ function buildHealthBar(current, max, segments = 30) {
   return '█'.repeat(filled) + '░'.repeat(segments - filled);
 }
 
+function appendActionLog(state, entries) {
+  if (!state.actionLog) state.actionLog = [];
+  const lines = Array.isArray(entries) ? entries : [entries];
+  for (const line of lines) {
+    if (!line) continue;
+    state.actionLog.push(line);
+  }
+  if (state.actionLog.length > ACTION_LOG_LIMIT) {
+    state.actionLog = state.actionLog.slice(-ACTION_LOG_LIMIT);
+  }
+}
+
 function createPlayerState(user, stats) {
   const rifle = stats.hunt_gun;
   const attacks = [];
   if (rifle && RIFLE_DAMAGE[rifle]) {
+    const damage = RIFLE_DAMAGE[rifle];
     attacks.push({
       id: 'shoot',
       name: 'Shoot Bullet',
       energyCost: 0,
-      damage: RIFLE_DAMAGE[rifle],
+      damage,
       shieldDamage: 1,
       description:
-        'Use your rifle and shoot out a bullet toward the enemy, dealing damage and nerfing defense by 1.',
+        `Use your rifle and shoot out a bullet toward the enemy, dealing ${damage} damage and nerfing defense by 1.`,
     });
   }
   return {
@@ -195,7 +209,7 @@ function applyWithered(target, tier = 1) {
   status.tier = Math.min(5, status.tier + tier);
   status.remaining = 3;
   target.statuses.withered = status;
-  tickWithered(target, status);
+  return tickWithered(target, status);
 }
 
 function applyPoison(target, tier = 1) {
@@ -203,7 +217,7 @@ function applyPoison(target, tier = 1) {
   status.tier = Math.min(5, status.tier + tier);
   status.remaining = 3;
   target.statuses.poison = status;
-  tickPoison(target, status);
+  return tickPoison(target, status);
 }
 
 function applyBurn(target, tier = 1) {
@@ -211,7 +225,7 @@ function applyBurn(target, tier = 1) {
   status.tier = Math.min(5, status.tier + tier);
   status.remaining = 5;
   target.statuses.burn = status;
-  tickBurn(target, status);
+  return tickBurn(target, status);
 }
 
 function applyCold(target, tier = 1) {
@@ -222,15 +236,17 @@ function applyCold(target, tier = 1) {
 }
 
 function applyStun(target, rounds = 1) {
-  if (target.immunities.includes('Stun')) return;
+  if (target.immunities.includes('Stun')) return 0;
   const status = target.statuses.stun || { tier: 0, remaining: 0 };
   status.tier = (status.tier || 0) + rounds;
   status.remaining = (status.remaining || 0) + rounds;
   target.statuses.stun = status;
+  return rounds;
 }
 
 function tickWithered(target, status) {
-  if (!status) return;
+  if (!status) return [];
+  const logs = [];
   const tier = Math.max(1, Math.min(5, status.tier));
   const hpPct = [0, 0.05, 0.1, 0.15, 0.2, 0.25][tier];
   const defPct = [0, 0.1, 0.2, 0.3, 0.4, 0.5][tier];
@@ -238,54 +254,68 @@ function tickWithered(target, status) {
   target.health = Math.max(0, target.health - hpLoss);
   const defLoss = target.defense * defPct;
   target.defense = Math.max(0, target.defense - defLoss);
+  logs.push(`-# ${target.name} loses ${hpLoss} ${HEALTH_EMOJI} due to Withered ${tier}.`);
   status.remaining -= 1;
   if (status.remaining <= 0) delete target.statuses.withered;
+  return logs;
 }
 
 function tickPoison(target, status) {
-  if (!status) return;
+  if (!status) return [];
+  const logs = [];
   const tier = Math.max(1, Math.min(5, status.tier));
   const hpPct = [0, 0.1, 0.2, 0.3, 0.4, 0.5][tier];
   const hpLoss = Math.max(1, Math.round(target.maxHealth * hpPct));
   if (target.health > 1) target.health = Math.max(1, target.health - hpLoss);
+  logs.push(`-# ${target.name} suffers ${hpLoss} ${HEALTH_EMOJI} from Poison ${tier}.`);
   status.remaining -= 1;
   if (status.remaining <= 0) delete target.statuses.poison;
+  return logs;
 }
 
 function tickBurn(target, status) {
-  if (!status) return;
+  if (!status) return [];
+  const logs = [];
   const tier = Math.max(1, Math.min(5, status.tier));
   const pct = [0, 0.02, 0.04, 0.06, 0.08, 0.1][tier];
   const hpLoss = Math.max(1, Math.round(target.maxHealth * pct));
   const defLoss = target.baseDefense * pct;
   target.health = Math.max(0, target.health - hpLoss);
   target.defense = Math.max(0, target.defense - defLoss);
+  logs.push(`-# ${target.name} is burned for ${hpLoss} ${HEALTH_EMOJI} (Burn ${tier}).`);
   status.remaining -= 1;
   if (status.remaining <= 0) delete target.statuses.burn;
+  return logs;
 }
 
 function tickCold(target, status) {
-  if (!status) return;
+  if (!status) return [];
+  const logs = [];
   status.dropTimer = (status.dropTimer || 0) - 1;
   if (status.dropTimer <= 0) {
     status.tier = Math.max(0, status.tier - 1);
     status.dropTimer = 2;
   }
   if (status.tier <= 0) delete target.statuses.cold;
+  return logs;
 }
 
 function tickStun(target, status) {
-  if (!status) return;
+  if (!status) return [];
+  const logs = [];
   status.remaining = (status.remaining || 0) - 1;
   if (status.remaining <= 0) delete target.statuses.stun;
+  return logs;
 }
 
 function tickStatuses(entity) {
-  if (entity.statuses.withered) tickWithered(entity, entity.statuses.withered);
-  if (entity.statuses.poison) tickPoison(entity, entity.statuses.poison);
-  if (entity.statuses.burn) tickBurn(entity, entity.statuses.burn);
-  if (entity.statuses.cold) tickCold(entity, entity.statuses.cold);
-  if (entity.statuses.stun) tickStun(entity, entity.statuses.stun);
+  const logs = [];
+  if (entity.statuses.withered) logs.push(...tickWithered(entity, entity.statuses.withered));
+  if (entity.statuses.poison) logs.push(...tickPoison(entity, entity.statuses.poison));
+  if (entity.statuses.burn) logs.push(...tickBurn(entity, entity.statuses.burn));
+  if (entity.statuses.cold) logs.push(...tickCold(entity, entity.statuses.cold));
+  if (entity.statuses.stun) logs.push(...tickStun(entity, entity.statuses.stun));
+  return logs;
 }
 
 function buildBattleContainers(state) {
@@ -310,7 +340,11 @@ function buildBattleContainers(state) {
 
   const container2 = new ContainerBuilder()
     .setAccentColor(0x000000)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(state.actionLog || 'The battle has begun!'));
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        state.actionLog?.length ? state.actionLog.join('\n') : 'The battle has begun!',
+      ),
+    );
 
   const playerSection = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(state.userAvatar))
@@ -348,6 +382,47 @@ function buildBattleContainers(state) {
   return [container1, container2, container3];
 }
 
+function buildAttackMenu(state, index = 0) {
+  const attacks = state.player.attacks || [];
+  if (!attacks.length) {
+    return new ContainerBuilder()
+      .setAccentColor(0x808080)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent('## You do not have any attacks available.'));
+  }
+  const total = attacks.length;
+  const wrappedIndex = ((index % total) + total) % total;
+  state.attackMenuIndex = wrappedIndex;
+  const attack = attacks[wrappedIndex];
+  const description = attack.description || 'No description provided.';
+  const energyCost = attack.energyCost ?? 0;
+  const header =
+    `## ${state.userMention} Choose an action!` +
+    `\n### ${attack.name} - ${energyCost} ${ENERGY_EMOJI}` +
+    `\n-# ${description}`;
+  const container = new ContainerBuilder()
+    .setAccentColor(0x808080)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(header));
+
+  const useBtn = new ButtonBuilder()
+    .setCustomId(`pvp-attack-use:${state.messageId}:${wrappedIndex}`)
+    .setLabel('Use')
+    .setStyle(ButtonStyle.Success);
+  const prevBtn = new ButtonBuilder()
+    .setCustomId(`pvp-attack-nav:${state.messageId}:prev`)
+    .setLabel('previous')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(total <= 1);
+  const nextBtn = new ButtonBuilder()
+    .setCustomId(`pvp-attack-nav:${state.messageId}:next`)
+    .setLabel('next')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(total <= 1);
+
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(useBtn));
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(prevBtn, nextBtn));
+  return container;
+}
+
 async function updateBattleMessage(state) {
   const containers = buildBattleContainers(state);
   await state.message.edit({
@@ -380,76 +455,91 @@ function getEnemyAttack(state) {
 
 function performEnemyAttack(state, attackId) {
   const { enemy, player } = state;
+  const logs = [];
   switch (attackId) {
     case 'naughtyList': {
       const dealt = applyDamage(player, 25);
-      applyWithered(player, 1);
-      state.actionLog = `Krampus pinned you on Naughty List, your soul got withered... and lost ${dealt} ${HEALTH_EMOJI}`;
+      logs.push(
+        `${enemy.name} has used Naughty List on ${player.name}, dealing ${dealt} ${HEALTH_EMOJI} and inflicting Withered!`,
+      );
+      logs.push(...applyWithered(player, 1));
       break;
     }
     case 'chainLash': {
       const dealt = applyDamage(player, 10);
-      applyStun(player, 1);
-      state.actionLog =
-        'Krampus summon the chain in the ground and chained you down, you got stuck and hurt. You lost ' +
-        `${dealt} ${HEALTH_EMOJI} and got stunned for 1 round.`;
+      logs.push(`${enemy.name} lashes ${player.name} with chains, dealing ${dealt} ${HEALTH_EMOJI}.`);
+      if (applyStun(player, 1)) {
+        logs.push(`-# ${player.name} is stunned for 1 round.`);
+      }
       break;
     }
     case 'hoofStomp': {
       const damage = 10 + Math.floor(Math.random() * 11);
       const dealt = applyDamage(player, damage);
-      let extra = '';
-      if (Math.random() < 0.25) {
-        applyStun(player, 1);
-        extra = ' And you got stunned for 1 round';
+      logs.push(`${enemy.name} stomps ${player.name}, dealing ${dealt} ${HEALTH_EMOJI}.`);
+      if (Math.random() < 0.25 && applyStun(player, 1)) {
+        logs.push(`-# ${player.name} is stunned for 1 round.`);
       }
-      state.actionLog = `Krampus stomp into you, you lost ${dealt} ${HEALTH_EMOJI}.${extra}`;
       break;
     }
     case 'bellsOfDread': {
       const heal = Math.round(enemy.health * 0.05);
       enemy.health = Math.min(enemy.maxHealth, enemy.health + heal);
       enemy.defense += 5;
-      state.actionLog = `Krampus use Bells of Dread, Krampus got healed ${heal} ${HEALTH_EMOJI} and defense increase by 5`;
+      logs.push(
+        `${enemy.name} rings the Bells of Dread, restoring ${heal} ${HEALTH_EMOJI} and gaining 5 defense.`,
+      );
       break;
     }
     case 'nightOfChains': {
       const dealt = applyDamage(player, 35);
-      applyStun(player, 1);
-      applyWithered(player, 1);
-      state.actionLog =
-        'Krampus unleashed Night of Chains! You lost ' +
-        `${dealt} ${HEALTH_EMOJI}, are stunned for 1 round and got withered!`;
+      logs.push(
+        `${enemy.name} unleashes Night of Chains on ${player.name}, dealing ${dealt} ${HEALTH_EMOJI}.`,
+      );
+      if (applyStun(player, 1)) {
+        logs.push(`-# ${player.name} is stunned for 1 round.`);
+      }
+      logs.push(...applyWithered(player, 1));
       break;
     }
     case 'intoTheSack': {
       const dealt = applyDamage(player, 50);
-      applyStun(player, 2);
-      state.actionLog = `Krampus throws you Into the Sack! You lost ${dealt} ${HEALTH_EMOJI} and got stunned for 2 rounds.`;
+      logs.push(
+        `${enemy.name} hurls ${player.name} Into the Sack, dealing ${dealt} ${HEALTH_EMOJI}.`,
+      );
+      if (applyStun(player, 2)) {
+        logs.push(`-# ${player.name} is stunned for 2 rounds.`);
+      }
       break;
     }
     default: {
       const damage = Math.max(5, Math.round(getEffectiveDamage(enemy)));
       const dealt = applyDamage(player, damage);
-      state.actionLog = `${enemy.name} attacks you and deals ${dealt} ${HEALTH_EMOJI}.`;
+      logs.push(`${enemy.name} attacks ${player.name}, dealing ${dealt} ${HEALTH_EMOJI}.`);
       break;
     }
   }
+  return logs;
 }
 
 async function executeEnemyTurn(state) {
-  tickStatuses(state.enemy);
+  const statusLogs = tickStatuses(state.enemy);
+  if (statusLogs.length) {
+    appendActionLog(state, statusLogs);
+    await updateBattleMessage(state);
+  }
   if (state.enemy.health <= 0) {
     await handleBattleVictory(state);
     return;
   }
   if (hasStun(state.enemy)) {
-    state.actionLog = `${state.enemy.name} is stunned and cannot move!`;
+    appendActionLog(state, `${state.enemy.name} is stunned and cannot move!`);
     await updateBattleMessage(state);
     return;
   }
   const attackId = getEnemyAttack(state);
-  performEnemyAttack(state, attackId);
+  const logs = performEnemyAttack(state, attackId);
+  appendActionLog(state, logs);
   if (state.player.health <= 0) {
     await handleBattleDefeat(state);
     return;
@@ -471,7 +561,8 @@ function createBattleState({ interaction, user, stats, animal, resources }) {
     userAvatar: user.displayAvatarURL(),
     player,
     enemy,
-    actionLog: `The battle has begun!\n${animal.name} prepares to strike!`,
+    actionLog: ['The battle has begun!', `${animal.name} prepares to strike!`],
+    attackMenuIndex: 0,
     turn: 'player',
     animal,
     resources,
@@ -580,22 +671,29 @@ async function handleAttack(interaction) {
   const [, messageId] = interaction.customId.split(':');
   const state = battleStates.get(messageId);
   if (!state || state.userId !== interaction.user.id) return;
-  tickStatuses(state.player);
+  const statusLogs = tickStatuses(state.player);
+  if (statusLogs.length) {
+    appendActionLog(state, statusLogs);
+    await updateBattleMessage(state);
+  }
   if (state.player.health <= 0) {
     await handleBattleDefeat(state);
     await interaction.reply({ content: 'You succumbed to your debuffs!', flags: MessageFlags.Ephemeral });
     return;
   }
-  const attack = state.player.attacks[0];
-  if (!attack) {
+  if (!state.player.attacks.length) {
     await interaction.reply({
       content: 'You do not have any attacks available.',
       flags: MessageFlags.Ephemeral,
     });
+    appendActionLog(state, `${state.username} has no attacks available.`);
+    await updateBattleMessage(state);
     await executeEnemyTurn(state);
     return;
   }
   if (hasStun(state.player)) {
+    appendActionLog(state, `${state.username} tried to attack but failed.`);
+    await updateBattleMessage(state);
     await interaction.reply({
       content: 'You are stunned and cannot move!',
       flags: MessageFlags.Ephemeral,
@@ -603,17 +701,77 @@ async function handleAttack(interaction) {
     await executeEnemyTurn(state);
     return;
   }
-  const damage = attack.damage + state.player.damageBuff;
-  const dealt = applyDamage(state.enemy, Math.max(1, damage));
-  reduceDefense(state.enemy, attack.shieldDamage || 0);
-  state.actionLog = `${state.username} used ${attack.name}, dealing ${dealt} ${HEALTH_EMOJI} and reducing defense by ${attack.shieldDamage || 0}.`;
-  if (state.enemy.health <= 0) {
-    await handleBattleVictory(state);
-    await interaction.reply({ content: 'Attack executed!', flags: MessageFlags.Ephemeral });
+  const menu = buildAttackMenu(state, state.attackMenuIndex || 0);
+  await interaction.reply({
+    components: [menu],
+    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+  });
+}
+
+async function handleAttackNavigation(interaction) {
+  const [, messageId, direction] = interaction.customId.split(':');
+  const state = battleStates.get(messageId);
+  if (!state || state.userId !== interaction.user.id) return;
+  const attacks = state.player.attacks || [];
+  if (!attacks.length) {
+    await interaction.update({ components: [] });
     return;
   }
-  await interaction.reply({ content: 'Attack executed!', flags: MessageFlags.Ephemeral });
+  const total = attacks.length;
+  const current = state.attackMenuIndex || 0;
+  if (direction === 'prev') {
+    state.attackMenuIndex = (current - 1 + total) % total;
+  } else {
+    state.attackMenuIndex = (current + 1) % total;
+  }
+  const menu = buildAttackMenu(state, state.attackMenuIndex);
+  await interaction.update({ components: [menu], flags: MessageFlags.IsComponentsV2 });
+}
+
+async function handleAttackUse(interaction) {
+  const [, messageId, indexStr] = interaction.customId.split(':');
+  const state = battleStates.get(messageId);
+  if (!state || state.userId !== interaction.user.id) return;
+  const index = Number.parseInt(indexStr, 10);
+  if (Number.isNaN(index)) return;
+  const attacks = state.player.attacks || [];
+  const attack = attacks[index];
+  if (!attack) {
+    await interaction.update({ components: [] });
+    return;
+  }
+  if (hasStun(state.player)) {
+    appendActionLog(state, `${state.username} tried to attack but failed.`);
+    await interaction.update({ components: [] });
+    await updateBattleMessage(state);
+    await executeEnemyTurn(state);
+    return;
+  }
+  const energyCost = attack.energyCost ?? 0;
+  if (state.player.energy < energyCost) {
+    await interaction.reply({
+      content: 'You do not have enough energy to use this attack.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  state.player.energy -= energyCost;
+  state.attackMenuIndex = index;
+  const baseDamage = Math.max(1, attack.damage + state.player.damageBuff);
+  const dealt = applyDamage(state.enemy, baseDamage);
+  const shieldDamage = attack.shieldDamage || 0;
+  if (shieldDamage) reduceDefense(state.enemy, shieldDamage);
+  const logs = [`${state.username} has used ${attack.name} and dealt ${dealt} ${HEALTH_EMOJI}.`];
+  if (shieldDamage) {
+    logs.push(`-# ${state.enemy.name} loses ${shieldDamage} defense.`);
+  }
+  appendActionLog(state, logs);
+  await interaction.update({ components: [] });
   await updateBattleMessage(state);
+  if (state.enemy.health <= 0) {
+    await handleBattleVictory(state);
+    return;
+  }
   await executeEnemyTurn(state);
 }
 
@@ -665,7 +823,11 @@ function setup(client, resources) {
   client.on('interactionCreate', async interaction => {
     try {
       if (interaction.isButton()) {
-        if (interaction.customId.startsWith('pvp-attack:')) {
+        if (interaction.customId.startsWith('pvp-attack-use:')) {
+          await handleAttackUse(interaction);
+        } else if (interaction.customId.startsWith('pvp-attack-nav:')) {
+          await handleAttackNavigation(interaction);
+        } else if (interaction.customId.startsWith('pvp-attack:')) {
           await handleAttack(interaction);
         } else if (interaction.customId.startsWith('pvp-stat:')) {
           await handleStat(interaction);
