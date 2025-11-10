@@ -6,7 +6,6 @@ const {
   ContainerBuilder,
   SectionBuilder,
   ThumbnailBuilder,
-  SeparatorBuilder,
   TextDisplayBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
@@ -82,24 +81,16 @@ function buildContainer(user, stats, state = {}) {
     .setDisabled(state.slot == null)
     .addOptions(cosmeticOptions);
 
+  const overviewSection = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`## Equipped cosmetics:\n${equippedList}`),
+      new TextDisplayBuilder().setContent(`## Perks:\n${perkText}`),
+    );
+
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
-    .addSectionComponents(
-      new SectionBuilder()
-        .setThumbnailAccessory(
-          new ThumbnailBuilder().setURL(user.displayAvatarURL()),
-        )
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `## Equipped cosmetics:\n${equippedList}`,
-          ),
-        ),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## Perks:\n${perkText}`),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
+    .addSectionComponents(overviewSection)
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(slotSelect),
       new ActionRowBuilder().addComponents(cosmeticSelect),
