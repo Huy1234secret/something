@@ -194,18 +194,32 @@ const DEFAULT_COIN_ORDER = [
   ...BASE_COIN_ITEM_ORDER.slice(3),
 ];
 
-const MAX_ACTION_ROWS_PER_CONTAINER = 3;
+const MAX_COMPONENTS_PER_CONTAINER = 3;
 
-function distributeActionRows(baseContainer, rows, accentColor) {
+function getContainerComponentCount(container) {
+  if (!container || typeof container.toJSON !== 'function') return 0;
+  try {
+    const json = container.toJSON();
+    if (json && Array.isArray(json.components)) return json.components.length;
+  } catch (error) {
+    // If the container cannot be serialized yet, assume it is empty.
+  }
+  return 0;
+}
+
+function distributeActionRows(baseContainer, rows, accentColor, initialCount) {
   const containers = [baseContainer];
   let current = baseContainer;
-  let count = 0;
+  let count =
+    Number.isFinite(initialCount) && initialCount >= 0
+      ? Math.floor(initialCount)
+      : getContainerComponentCount(baseContainer);
 
   for (const row of rows) {
     if (!row || !Array.isArray(row.components) || row.components.length === 0)
       continue;
 
-    if (count >= MAX_ACTION_ROWS_PER_CONTAINER) {
+    if (count >= MAX_COMPONENTS_PER_CONTAINER) {
       current = new ContainerBuilder();
       if (accentColor !== undefined) current.setAccentColor(accentColor);
       containers.push(current);
@@ -755,20 +769,25 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
     new ActionRowBuilder().addComponents(typeSelect),
   ];
 
+  const selectionBaseContainer = new ContainerBuilder()
+    .setAccentColor(0xffffff)
+    .addSeparatorComponents(new SeparatorBuilder());
   const selectionContainers = distributeActionRows(
-    new ContainerBuilder().setAccentColor(0xffffff).addSeparatorComponents(new SeparatorBuilder()),
+    selectionBaseContainer,
     selectionRows,
     0xffffff,
+    getContainerComponentCount(selectionBaseContainer),
   );
 
   const containers = [headerContainer, ...selectionContainers];
 
   if (buttonRows.length) {
-    const buttonContainer = new ContainerBuilder().setAccentColor(0xffffff);
-    for (const row of buttonRows) {
-      buttonContainer.addActionRowComponents(row);
-    }
-    containers.push(buttonContainer);
+    const buttonContainers = distributeActionRows(
+      new ContainerBuilder().setAccentColor(0xffffff),
+      buttonRows,
+      0xffffff,
+    );
+    containers.push(...buttonContainers);
   }
 
   const message = await send({
