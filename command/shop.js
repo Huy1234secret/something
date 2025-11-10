@@ -744,19 +744,24 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       buttonRows.push(new ActionRowBuilder().addComponents(...rowButtons));
   }
 
-  const container = new ContainerBuilder()
+  const headerContainer = new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(headerSection)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(mediaGallery)
-    .addSeparatorComponents(new SeparatorBuilder());
+    .addMediaGalleryComponents(mediaGallery);
 
   const selectionRows = [
     new ActionRowBuilder().addComponents(pageSelect),
     new ActionRowBuilder().addComponents(typeSelect),
   ];
 
-  const containers = distributeActionRows(container, selectionRows, 0xffffff);
+  const selectionContainers = distributeActionRows(
+    new ContainerBuilder().setAccentColor(0xffffff).addSeparatorComponents(new SeparatorBuilder()),
+    selectionRows,
+    0xffffff,
+  );
+
+  const containers = [headerContainer, ...selectionContainers];
 
   if (buttonRows.length) {
     const buttonContainer = new ContainerBuilder().setAccentColor(0xffffff);
