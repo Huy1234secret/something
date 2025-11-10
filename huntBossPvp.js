@@ -55,6 +55,9 @@ const BASE_PLAYER_ENERGY = 100;
 const STATUS_KEYS = ['withered', 'poison', 'cold', 'burn', 'stun'];
 const DEFAULT_SECTION_THUMB_URL = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
+const ACTION_COOLDOWN_MS = 3000;
+const INACTIVITY_TIMEOUT_MS = 60_000;
+
 function emojiToUrl(emoji) {
   if (!emoji) return null;
   const match = emoji.match(/^<(?:(a):)?[^:]+:(\d+)>$/);
@@ -83,6 +86,80 @@ function appendActionLog(state, entries) {
   }
   if (state.actionLog.length > ACTION_LOG_LIMIT) {
     state.actionLog = state.actionLog.slice(-ACTION_LOG_LIMIT);
+  }
+}
+
+function isActionOnCooldown(state) {
+  return Boolean(state?.cooldowns?.actionUntil && state.cooldowns.actionUntil > Date.now());
+}
+
+function scheduleActionCooldownUpdate(state) {
+  if (!state) return;
+  if (!state.cooldownTimeouts) state.cooldownTimeouts = {};
+  if (state.cooldownTimeouts.action) {
+    clearTimeout(state.cooldownTimeouts.action);
+    state.cooldownTimeouts.action = null;
+  }
+  if (!isActionOnCooldown(state)) return;
+  const remaining = Math.max(0, state.cooldowns.actionUntil - Date.now());
+  state.cooldownTimeouts.action = setTimeout(() => {
+    if (!battleStates.has(state.messageId) || battleStates.get(state.messageId) !== state) return;
+    state.cooldownTimeouts.action = null;
+    if (isActionOnCooldown(state)) {
+      scheduleActionCooldownUpdate(state);
+      return;
+    }
+    updateBattleMessage(state).catch(err => {
+      if (!err || (err.code !== 10008 && err.code !== 10062)) {
+        console.error(err);
+      }
+    });
+  }, remaining);
+}
+
+function setActionCooldown(state, durationMs = ACTION_COOLDOWN_MS) {
+  if (!state) return;
+  if (!state.cooldowns) state.cooldowns = {};
+  state.cooldowns.actionUntil = Date.now() + durationMs;
+  scheduleActionCooldownUpdate(state);
+}
+
+function scheduleInactivityTimeout(state) {
+  if (!state) return;
+  if (state.inactivityTimeout) {
+    clearTimeout(state.inactivityTimeout);
+    state.inactivityTimeout = null;
+  }
+  const lastInteraction = state.lastInteractionAt || Date.now();
+  const delay = Math.max(0, lastInteraction + INACTIVITY_TIMEOUT_MS - Date.now());
+  state.inactivityTimeout = setTimeout(() => {
+    if (!battleStates.has(state.messageId) || battleStates.get(state.messageId) !== state) return;
+    handleBattleDespawn(state).catch(err => {
+      if (!err || (err.code !== 10008 && err.code !== 10062)) {
+        console.error(err);
+      }
+    });
+  }, delay);
+}
+
+function refreshInactivityTimer(state) {
+  if (!state) return;
+  state.lastInteractionAt = Date.now();
+  scheduleInactivityTimeout(state);
+}
+
+function clearBattleTimeouts(state) {
+  if (!state) return;
+  if (state.inactivityTimeout) {
+    clearTimeout(state.inactivityTimeout);
+    state.inactivityTimeout = null;
+  }
+  if (state.cooldownTimeouts) {
+    for (const key of Object.keys(state.cooldownTimeouts)) {
+      const timeout = state.cooldownTimeouts[key];
+      if (timeout) clearTimeout(timeout);
+    }
+    state.cooldownTimeouts = {};
   }
 }
 
@@ -236,12 +313,18 @@ function applyCold(target, tier = 1) {
 }
 
 function applyStun(target, rounds = 1) {
-  if (target.immunities.includes('Stun')) return 0;
+  if (target.immunities.includes('Stun')) {
+    return {
+      applied: false,
+      reason: 'immune',
+      message: `-# ${target.name} is immune to Stun.`,
+    };
+  }
   const status = target.statuses.stun || { tier: 0, remaining: 0 };
   status.tier = (status.tier || 0) + rounds;
   status.remaining = (status.remaining || 0) + rounds;
   target.statuses.stun = status;
-  return rounds;
+  return { applied: true, rounds };
 }
 
 function tickWithered(target, status) {
@@ -364,6 +447,7 @@ function buildBattleContainers(state) {
     .addSectionComponents(playerSection)
     .addSeparatorComponents(new SeparatorBuilder());
 
+  const onCooldown = isActionOnCooldown(state);
   const statBtn = new ButtonBuilder()
     .setCustomId(`pvp-stat:${state.messageId}`)
     .setLabel('Check stat')
@@ -371,11 +455,13 @@ function buildBattleContainers(state) {
   const attackBtn = new ButtonBuilder()
     .setCustomId(`pvp-attack:${state.messageId}`)
     .setLabel('attack')
-    .setStyle(ButtonStyle.Secondary);
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(onCooldown);
   const itemBtn = new ButtonBuilder()
     .setCustomId(`pvp-item:${state.messageId}`)
     .setLabel('Item')
-    .setStyle(ButtonStyle.Secondary);
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(onCooldown);
 
   container3.addActionRowComponents(new ActionRowBuilder().addComponents(statBtn, attackBtn, itemBtn));
 
@@ -468,8 +554,11 @@ function performEnemyAttack(state, attackId) {
     case 'chainLash': {
       const dealt = applyDamage(player, 10);
       logs.push(`${enemy.name} lashes ${player.name} with chains, dealing ${dealt} ${HEALTH_EMOJI}.`);
-      if (applyStun(player, 1)) {
+      const stunResult = applyStun(player, 1);
+      if (stunResult.applied) {
         logs.push(`-# ${player.name} is stunned for 1 round.`);
+      } else if (stunResult.reason === 'immune') {
+        logs.push(stunResult.message || `-# ${player.name} is immune to Stun.`);
       }
       break;
     }
@@ -477,8 +566,13 @@ function performEnemyAttack(state, attackId) {
       const damage = 10 + Math.floor(Math.random() * 11);
       const dealt = applyDamage(player, damage);
       logs.push(`${enemy.name} stomps ${player.name}, dealing ${dealt} ${HEALTH_EMOJI}.`);
-      if (Math.random() < 0.25 && applyStun(player, 1)) {
-        logs.push(`-# ${player.name} is stunned for 1 round.`);
+      if (Math.random() < 0.25) {
+        const stunResult = applyStun(player, 1);
+        if (stunResult.applied) {
+          logs.push(`-# ${player.name} is stunned for 1 round.`);
+        } else if (stunResult.reason === 'immune') {
+          logs.push(stunResult.message || `-# ${player.name} is immune to Stun.`);
+        }
       }
       break;
     }
@@ -496,8 +590,11 @@ function performEnemyAttack(state, attackId) {
       logs.push(
         `${enemy.name} unleashes Night of Chains on ${player.name}, dealing ${dealt} ${HEALTH_EMOJI}.`,
       );
-      if (applyStun(player, 1)) {
+      const stunResult = applyStun(player, 1);
+      if (stunResult.applied) {
         logs.push(`-# ${player.name} is stunned for 1 round.`);
+      } else if (stunResult.reason === 'immune') {
+        logs.push(stunResult.message || `-# ${player.name} is immune to Stun.`);
       }
       logs.push(...applyWithered(player, 1));
       break;
@@ -507,8 +604,11 @@ function performEnemyAttack(state, attackId) {
       logs.push(
         `${enemy.name} hurls ${player.name} Into the Sack, dealing ${dealt} ${HEALTH_EMOJI}.`,
       );
-      if (applyStun(player, 2)) {
+      const stunResult = applyStun(player, 2);
+      if (stunResult.applied) {
         logs.push(`-# ${player.name} is stunned for 2 rounds.`);
+      } else if (stunResult.reason === 'immune') {
+        logs.push(stunResult.message || `-# ${player.name} is immune to Stun.`);
       }
       break;
     }
@@ -567,12 +667,17 @@ function createBattleState({ interaction, user, stats, animal, resources }) {
     animal,
     resources,
     stats,
+    cooldowns: {},
+    cooldownTimeouts: {},
+    inactivityTimeout: null,
+    lastInteractionAt: Date.now(),
   };
 }
 
 async function startBossBattle({ interaction, user, stats, animal, resources }) {
   const state = createBattleState({ interaction, user, stats, animal, resources });
   battleStates.set(state.messageId, state);
+  refreshInactivityTimer(state);
   const containers = buildBattleContainers(state);
   await interaction.update({
     content: null,
@@ -602,7 +707,26 @@ function getRarityXpMultiplier(rarity) {
   }
 }
 
+async function handleBattleDespawn(state) {
+  clearBattleTimeouts(state);
+  const { animal } = state;
+  const thumb = emojiToUrl(animal.emoji) ?? DEFAULT_SECTION_THUMB_URL;
+  const section = new SectionBuilder().setThumbnailAccessory(new ThumbnailBuilder().setURL(thumb));
+  section.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`${animal.name} despawned...`),
+  );
+  const container = new ContainerBuilder()
+    .setAccentColor(0x000000)
+    .addSectionComponents(section);
+  await state.message.edit({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+  battleStates.delete(state.messageId);
+}
+
 async function handleBattleVictory(state) {
+  clearBattleTimeouts(state);
   const { resources, userId, stats, animal } = state;
   const user = await resources.client.users.fetch(userId);
   normalizeInventory(stats);
@@ -644,6 +768,7 @@ async function handleBattleVictory(state) {
 }
 
 async function handleBattleDefeat(state) {
+  clearBattleTimeouts(state);
   const { resources, userId, animal } = state;
   const user = await resources.client.users.fetch(userId);
   const thumb = emojiToUrl(animal.emoji) ?? DEFAULT_SECTION_THUMB_URL;
@@ -671,6 +796,14 @@ async function handleAttack(interaction) {
   const [, messageId] = interaction.customId.split(':');
   const state = battleStates.get(messageId);
   if (!state || state.userId !== interaction.user.id) return;
+  refreshInactivityTimer(state);
+  if (isActionOnCooldown(state)) {
+    await interaction.reply({
+      content: 'You must wait before taking another action.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
   const statusLogs = tickStatuses(state.player);
   if (statusLogs.length) {
     appendActionLog(state, statusLogs);
@@ -712,6 +845,7 @@ async function handleAttackNavigation(interaction) {
   const [, messageId, direction] = interaction.customId.split(':');
   const state = battleStates.get(messageId);
   if (!state || state.userId !== interaction.user.id) return;
+  refreshInactivityTimer(state);
   const attacks = state.player.attacks || [];
   if (!attacks.length) {
     await interaction.update({ components: [] });
@@ -732,6 +866,14 @@ async function handleAttackUse(interaction) {
   const [, messageId, indexStr] = interaction.customId.split(':');
   const state = battleStates.get(messageId);
   if (!state || state.userId !== interaction.user.id) return;
+  refreshInactivityTimer(state);
+  if (isActionOnCooldown(state)) {
+    await interaction.reply({
+      content: 'You must wait before taking another action.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
   const index = Number.parseInt(indexStr, 10);
   if (Number.isNaN(index)) return;
   const attacks = state.player.attacks || [];
@@ -757,6 +899,7 @@ async function handleAttackUse(interaction) {
   }
   state.player.energy -= energyCost;
   state.attackMenuIndex = index;
+  setActionCooldown(state, ACTION_COOLDOWN_MS);
   const baseDamage = Math.max(1, attack.damage + state.player.damageBuff);
   const dealt = applyDamage(state.enemy, baseDamage);
   const shieldDamage = attack.shieldDamage || 0;
@@ -779,6 +922,7 @@ async function handleStat(interaction) {
   const [, messageId] = interaction.customId.split(':');
   const state = battleStates.get(messageId);
   if (!state || state.userId !== interaction.user.id) return;
+  refreshInactivityTimer(state);
   const enemy = state.enemy;
   const immune = enemy.immunities.length ? enemy.immunities.join(', ') : 'None';
   const container = new ContainerBuilder()
@@ -797,6 +941,17 @@ async function handleStat(interaction) {
 }
 
 async function handleItem(interaction) {
+  const [, messageId] = interaction.customId.split(':');
+  const state = battleStates.get(messageId);
+  if (!state || state.userId !== interaction.user.id) return;
+  refreshInactivityTimer(state);
+  if (isActionOnCooldown(state)) {
+    await interaction.reply({
+      content: 'You must wait before taking another action.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
   const container = new ContainerBuilder()
     .setAccentColor(0x808080)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('## You have no usable items.'));
