@@ -113,12 +113,6 @@ function ensureChatStats(stats) {
   stats.level = Number.isFinite(stats.level) && stats.level > 0 ? stats.level : 1;
   stats.xp = Number.isFinite(stats.xp) ? stats.xp : 0;
   stats.total_xp = Number.isFinite(stats.total_xp) ? stats.total_xp : 0;
-  stats.chat_mastery_level = Number.isFinite(stats.chat_mastery_level)
-    ? stats.chat_mastery_level
-    : 0;
-  stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
-    ? stats.chat_mastery_xp
-    : 0;
   stats.xp_boost_until = Number.isFinite(stats.xp_boost_until)
     ? stats.xp_boost_until
     : 0;

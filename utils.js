@@ -323,14 +323,6 @@ function applyCoinBoost(stats, amount) {
   if (slots.includes('ArcsOfResurgence')) percent += 7.77;
   if (slots.includes('GoldRing')) percent += 0.1;
   if (slots.includes('ElfHat')) percent += 1;
-  if (stats && stats.chat_mastery_level >= 70) {
-    percent += (stats.level || 0) * 0.1;
-  }
-  let perk = 1;
-  if (stats && stats.chat_mastery_level >= 10) perk += 0.5;
-  if (stats && stats.chat_mastery_level >= 30) perk += 1.0;
-  if (stats && stats.chat_mastery_level >= 50) perk += 1.5;
-  if (stats && stats.chat_mastery_level >= 80) perk += 2.0;
   if (hasNaughtyList(stats)) {
     percent *= 0.1;
   }
@@ -341,12 +333,36 @@ function applyCoinBoost(stats, amount) {
     else if (Number.isFinite(stats.coin_boost_percent))
       boostMultiplier *= 1 + stats.coin_boost_percent / 100;
   }
-  let result = Math.floor(perk * (amount + amount * percent));
+  let result = Math.floor(amount + amount * percent);
   result = Math.floor(result * boostMultiplier);
   if (hasNaughtyList(stats)) {
     result = Math.floor(result * 0.5);
   }
   return result;
+}
+
+function getDigLevel(stats) {
+  if (!stats) return 0;
+  const level = Number(stats.dig_level);
+  if (!Number.isFinite(level) || level < 0) return 0;
+  return Math.min(100, Math.floor(level));
+}
+
+function getDigCoinBonusPercent(stats) {
+  return getDigLevel(stats) * 0.05;
+}
+
+function getDigCoinMultiplier(stats) {
+  return 1 + getDigCoinBonusPercent(stats);
+}
+
+function getDigLuckBonus(stats) {
+  const level = getDigLevel(stats);
+  return Math.floor(level / 2) * 0.02;
+}
+
+function getDigCooldownReduction(stats) {
+  return Math.floor(getDigLevel(stats) / 4);
 }
 
 module.exports = {
@@ -359,6 +375,11 @@ module.exports = {
   alertInventoryFull,
   useDurableItem,
   applyCoinBoost,
+  getDigLevel,
+  getDigCoinBonusPercent,
+  getDigCoinMultiplier,
+  getDigLuckBonus,
+  getDigCooldownReduction,
   resolveComponentEmoji,
   applyComponentEmoji,
   addCooldownBuff,

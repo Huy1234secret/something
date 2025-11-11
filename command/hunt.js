@@ -46,13 +46,6 @@ const XP_EMOJI = '<:SBXP:1432731173762760854>';
 
 const AURORA_TUNDRA_KEY = 'AuroraTundra';
 
-const ITEMS_BY_RARITY = {};
-for (const item of Object.values(ITEMS)) {
-  const rarity = String(item.rarity || 'Common').toLowerCase();
-  if (!ITEMS_BY_RARITY[rarity]) ITEMS_BY_RARITY[rarity] = [];
-  ITEMS_BY_RARITY[rarity].push(item);
-}
-
 const HUNT_LUCK_WEIGHTS = {
   Common: 0,
   Uncommon: 0.25,
@@ -262,11 +255,6 @@ function buildStatContainer(user, stats) {
   );
   const discovered = (stats.hunt_discover || []).length;
   const totalAnimals = ANIMALS.length;
-  const masteryLevelText = new TextDisplayBuilder().setContent(
-    `## <:SBHuntingstat:1410892320538230834> Mastery Level: ${
-      stats.hunt_mastery_level || 0
-    }`,
-  );
   const huntStatsText = new TextDisplayBuilder().setContent(
     `Guaranteed hunts left: ${stats.hunt_detector_charges || 0}\nHunt amount: ${
       stats.hunt_total || 0
@@ -291,7 +279,7 @@ function buildStatContainer(user, stats) {
   const infoText = new TextDisplayBuilder().setContent(infoLines.join('\n\n'));
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
-    .addTextDisplayComponents(masteryLevelText, huntStatsText, infoText);
+    .addTextDisplayComponents(huntStatsText, infoText);
   return new ContainerBuilder()
     .setAccentColor(0xffffff)
     .addSectionComponents(section)
@@ -461,7 +449,7 @@ function buildEquipmentContainer(user, stats) {
 }
 
 function pickAnimal(areaKey, tier, stats, { luckBoost = false } = {}) {
-  const allowSecret = (stats && stats.hunt_mastery_level >= 100) || false;
+  const allowSecret = false;
   const lureInfo = HUNT_LURES[areaKey];
   const lureState = stats && stats.hunt_lures ? stats.hunt_lures[areaKey] : null;
   const lureActive = Boolean(lureInfo && lureState && lureState.remaining > 0);
@@ -541,27 +529,10 @@ async function handleHunt(interaction, resources, stats) {
     return;
   }
 
-  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
-    ? stats.hunt_mastery_level
-    : 0;
-  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
-    ? stats.hunt_mastery_xp
-    : 0;
   stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
     ? stats.hunt_detector_charges
     : 0;
-  stats.hunt_luck_counter = Number.isFinite(stats.hunt_luck_counter)
-    ? stats.hunt_luck_counter
-    : 0;
-
-  const masteryLevel = stats.hunt_mastery_level || 0;
-
   bullet.amount -= 1;
-  let bulletRefunded = false;
-  if (masteryLevel >= 20 && Math.random() < 0.25) {
-    bullet.amount += 1;
-    bulletRefunded = true;
-  }
   if (bullet.amount <= 0) stats.inventory = inv.filter(i => i !== bullet);
 
   const slots = stats.cosmeticSlots || [];
@@ -570,10 +541,6 @@ async function handleHunt(interaction, resources, stats) {
   let successChance = 0.45;
   let deathChance = 0.1;
   let failChance = 1 - successChance - deathChance;
-
-  if (masteryLevel >= 10) successChance += 0.05;
-  if (masteryLevel >= 60) successChance += 0.15;
-  failChance = Math.max(0, 1 - successChance - deathChance);
 
   if (hasArc) {
     failChance *= 1.25;
@@ -610,18 +577,9 @@ async function handleHunt(interaction, resources, stats) {
   successChance = forcedFailure ? 0 : adjustedChance;
   failChance = Math.max(0, 1 - successChance - deathChance);
 
-  let luckBoost = false;
-  if (masteryLevel >= 80) {
-    stats.hunt_luck_counter += 1;
-    if (stats.hunt_luck_counter >= 10) {
-      luckBoost = true;
-      stats.hunt_luck_counter = 0;
-    }
-  } else {
-    stats.hunt_luck_counter = 0;
-  }
+  const luckBoost = false;
 
-  const baseCooldown = masteryLevel >= 90 ? 10000 : masteryLevel >= 40 ? 20000 : 30000;
+  const baseCooldown = 30000;
   let cooldownMultiplier = getCooldownMultiplier(stats);
   if (stats.hunt_gun === 'HuntingRifleT2') cooldownMultiplier *= 0.9;
   else if (stats.hunt_gun === 'HuntingRifleT3') cooldownMultiplier *= 0.75;
@@ -684,47 +642,8 @@ async function handleHunt(interaction, resources, stats) {
     }
 
     let duplicated = false;
-    if (addedEntry && masteryLevel >= 70) {
-      const duplicateChance = scaleChanceWithLuck(0.1, stats, { max: 0.35 });
-      if (Math.random() < duplicateChance) {
-        addedEntry.amount += 1;
-        duplicated = true;
-      }
-    }
 
     let bonusItemText = '';
-    if (masteryLevel >= 50) {
-      const bonusDropChance = scaleChanceWithLuck(0.1, stats, { max: 0.45 });
-      if (Math.random() < bonusDropChance) {
-        const luckBonus = Math.max(0, getLuckBonus(stats));
-        const rarityRoll = Math.random() * 100;
-        const rarityShift = Math.min(45, luckBonus * 20);
-        const adjustedRoll = Math.max(0, rarityRoll - rarityShift);
-        let rarityKey;
-        if (adjustedRoll < 60) rarityKey = 'common';
-        else if (adjustedRoll < 90) rarityKey = 'rare';
-        else if (adjustedRoll < 97) rarityKey = 'epic';
-        else if (adjustedRoll < 99.5) rarityKey = 'legendary';
-        else if (adjustedRoll < 99.95) rarityKey = 'mythical';
-        else rarityKey = 'godly';
-        const pool = ITEMS_BY_RARITY[rarityKey] || [];
-        if (pool.length) {
-          const reward = pool[Math.floor(Math.random() * pool.length)];
-          const invList = stats.inventory || [];
-          const existingReward = invList.find(i => i.id === reward.id);
-          const needsSlot = !existingReward;
-          const willExceedBonus =
-            needsSlot && getInventoryCount(stats) + 1 > MAX_ITEMS;
-          if (!initialFull && !willExceedBonus) {
-            if (existingReward) existingReward.amount += 1;
-            else invList.push({ ...reward, amount: 1 });
-            bonusItemText = `-# Bonus drop: ${reward.emoji || ''} ${reward.name}`;
-          } else if (!initialFull) {
-            alertInventoryFull(interaction, user, stats, 1);
-          }
-        }
-      }
-    }
 
     const art = articleFor(animal.name);
     color = RARITY_COLORS[animal.rarity] || 0xffffff;
@@ -773,7 +692,6 @@ async function handleHunt(interaction, resources, stats) {
     text = `${death.replace('{user}', user)}\n-# You lost **${Math.abs(xp)} XP ${XP_EMOJI}**`;
   }
 
-  if (bulletRefunded) extraLines.push('-# Bullet refunded!');
   if (detectorActive) {
     stats.hunt_detector_charges = Math.max(
       0,
@@ -788,7 +706,6 @@ async function handleHunt(interaction, resources, stats) {
   }
 
   await resources.addXp(user, xp, resources.client);
-  await resources.addHuntMasteryXp(user, xp, resources.client);
   const gun = stats.hunt_gun;
   const res = useDurableItem(interaction, user, stats, gun);
   if (res.broken && res.remaining === 0 && stats.hunt_gun === gun) delete stats.hunt_gun;

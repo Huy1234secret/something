@@ -105,7 +105,6 @@ const FARM_PLANTS = [
     seedId: 'WhiteCabbageSeed',
     cropId: 'WhiteCabbage',
     cropLabel: 'White Cabbages',
-    masteryLevel: 30,
     produceRange: { min: 1, max: 1 },
     seedReturns: [
       { amount: 2, chance: 0.05 },
@@ -117,7 +116,6 @@ const FARM_PLANTS = [
     seedId: 'PumpkinSeed',
     cropId: 'Pumpkin',
     cropLabel: 'Pumpkins',
-    masteryLevel: 30,
     produceRange: { min: 1, max: 1 },
     seedReturns: [
       { amount: 2, chance: 0.04 },
@@ -129,7 +127,6 @@ const FARM_PLANTS = [
     seedId: 'MelonSeed',
     cropId: 'Melon',
     cropLabel: 'Melons',
-    masteryLevel: 60,
     produceRange: { min: 1, max: 1 },
     seedReturns: [
       { amount: 2, chance: 0.03 },
@@ -141,7 +138,6 @@ const FARM_PLANTS = [
     seedId: 'StarFruitSeed',
     cropId: 'StarFruit',
     cropLabel: 'Star Fruits',
-    masteryLevel: 60,
     produceRange: { min: 1, max: 1 },
     seedReturns: [
       { amount: 2, chance: 0.02 },
@@ -332,7 +328,7 @@ const ITEM_USAGE_DETAILS = {
         value: 'The luck bonus stays at +30%; re-using extends the expiration time.',
       },
     ],
-    bullets: ['Stacks with other luck sources such as Good List, cosmetics, and mastery bonuses.'],
+    bullets: ['Stacks with other luck sources such as Good List and cosmetics.'],
   },
   UltraLuckyPotion: {
     summary: 'Supercharges your luck and forces success chances to their cap.',
@@ -696,7 +692,7 @@ const ADDITIONAL_USAGE_GENERATORS = {
           {
             label: 'Unlocks',
             value:
-              'Lets Mythical and Godly animals spawn. Secret animals appear once you reach Hunt Mastery 100.',
+              'Lets Mythical and Godly animals spawn alongside lower rarities. Secret animals have a tiny chance to appear.',
           },
           {
             label: 'Bonuses',
@@ -717,8 +713,7 @@ const ADDITIONAL_USAGE_GENERATORS = {
       fields: [
         {
           label: 'Consumption',
-          value:
-            'Each `/hunt` attempt consumes 1 bullet before the result roll. Hunt Mastery Lv.20 adds a 25% refund chance.',
+          value: 'Each `/hunt` attempt consumes 1 bullet before the result roll.',
         },
         {
           label: 'Equip',
@@ -1180,14 +1175,11 @@ function buildFarmObtainment(item) {
     );
     if (cropRange) {
       lines.push(
-        `Fully grown ${plant.plantName} yield ${cropRange} per harvest. These values are before any inventory or mastery bonuses.`,
+        `Fully grown ${plant.plantName} yield ${cropRange} per harvest. These values are before any inventory bonuses.`,
       );
     }
     if (seedDetails) {
       lines.push(`Harvesting has ${seedDetails}.`);
-    }
-    if (plant.masteryLevel) {
-      lines.push(`Requires Farm Mastery Lv.${plant.masteryLevel} or higher to plant.`);
     }
     if (Number.isFinite(item.price) && item.price > 0) {
       lines.push(
@@ -1289,9 +1281,6 @@ function buildFarmUsageContexts(item) {
     });
   }
   const bullets = [];
-  if (plant.masteryLevel) {
-    bullets.push(`Requires Farm Mastery Lv.${plant.masteryLevel} or higher to plant.`);
-  }
   if (plant.event) {
     bullets.push(`Only available during the ${plant.event} event.`);
   }
