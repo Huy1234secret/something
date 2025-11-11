@@ -532,8 +532,12 @@ function buildAttackMenu(state, index = 0) {
 }
 
 async function clearInteractionComponents(interaction) {
-  await interaction.update({
+  await interaction.deferUpdate({
+    flags: MessageFlags.IsComponentsV2,
+  });
+  await interaction.message.edit({
     components: [],
+    flags: MessageFlags.IsComponentsV2,
   });
 }
 
@@ -728,7 +732,10 @@ async function startBossBattle({ interaction, user, stats, animal, resources }) 
   battleStates.set(state.messageId, state);
   refreshInactivityTimer(state);
   const containers = buildBattleContainers(state);
-  await interaction.update({
+  await interaction.deferUpdate({
+    flags: MessageFlags.IsComponentsV2,
+  });
+  await state.message.edit({
     components: containers,
     flags: MessageFlags.IsComponentsV2,
   });
