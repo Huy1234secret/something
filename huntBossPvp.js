@@ -37,7 +37,21 @@ const BOSS_IDS = new Set([
 ]);
 
 const battleStates = new Map();
-const ACTION_LOG_LIMIT = 12;
+const ACTION_COOLDOWN_MS = 3000;
+const INACTIVITY_TIMEOUT_MS = 60_000;
+
+const RARITY_EMOJIS = {
+  Common: '<:SBRCommon:1409932856762826862>',
+  Rare: '<:SBRRare:1409932954037387324>',
+  Epic: '<:SBREpic:1409933003269996674>',
+  Legendary: '<a:SBRLegendary:1409933036568449105>',
+  Mythical: '<a:SBRMythical:1409933097176268902>',
+  Godly: '<a:SBRGodly:1409933130793750548>',
+  Prismatic: '<a:SBRPrismatic:1409933176276521010>',
+  Secret: '<a:SBRSecret:1409933447220297791>',
+};
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const RIFLE_DAMAGE = {
   HuntingRifleT1: 5,
@@ -54,9 +68,6 @@ const BASE_PLAYER_ENERGY = 100;
 
 const STATUS_KEYS = ['withered', 'poison', 'cold', 'burn', 'stun'];
 const DEFAULT_SECTION_THUMB_URL = 'https://cdn.discordapp.com/embed/avatars/0.png';
-
-const ACTION_COOLDOWN_MS = 3000;
-const INACTIVITY_TIMEOUT_MS = 60_000;
 
 function emojiToUrl(emoji) {
   if (!emoji) return null;
@@ -78,19 +89,23 @@ function buildHealthBar(current, max, segments = 30) {
 }
 
 function appendActionLog(state, entries) {
-  if (!state.actionLog) state.actionLog = [];
+  if (!state) return;
   const lines = Array.isArray(entries) ? entries : [entries];
+  const filtered = [];
   for (const line of lines) {
     if (!line) continue;
-    state.actionLog.push(line);
+    filtered.push(line);
   }
-  if (state.actionLog.length > ACTION_LOG_LIMIT) {
-    state.actionLog = state.actionLog.slice(-ACTION_LOG_LIMIT);
-  }
+  if (!filtered.length) return;
+  state.actionMessage = filtered.join('\n');
 }
 
 function isActionOnCooldown(state) {
   return Boolean(state?.cooldowns?.actionUntil && state.cooldowns.actionUntil > Date.now());
+}
+
+function isBattleActive(state) {
+  return Boolean(state && battleStates.get(state.messageId) === state);
 }
 
 function scheduleActionCooldownUpdate(state) {
@@ -406,13 +421,18 @@ function buildBattleContainers(state) {
   const enemyThumb = enemy.emoji ? emojiToUrl(enemy.emoji) : null;
   const enemyHealthBar = buildHealthBar(enemy.health, enemy.maxHealth);
   const playerHealthBar = buildHealthBar(player.health, player.maxHealth);
+  const rarityEmoji = enemy.rarity ? RARITY_EMOJIS[enemy.rarity] || '' : '';
+  const actionMessage = state.actionMessage || 'Selecting an action...';
 
   const enemySection = new SectionBuilder().setThumbnailAccessory(
     new ThumbnailBuilder().setURL(enemyThumb ?? DEFAULT_SECTION_THUMB_URL),
   );
   enemySection.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
-      `## ${state.userMention}, you are trying to hunt ${enemy.name} ${enemy.emoji || ''}  ${enemy.rarity || ''}` +
+      `### ${state.userMention}, you are trying to hunt ${enemy.name} ${enemy.emoji || ''}` +
+        (enemy.rarity
+          ? `\n-# Rarity: ${enemy.rarity} ${rarityEmoji}`
+          : '') +
         `\n-# Health: ${enemyHealthBar} \`${enemy.health} / ${enemy.maxHealth}\` ${HEALTH_EMOJI}`,
     ),
   );
@@ -425,7 +445,9 @@ function buildBattleContainers(state) {
     .setAccentColor(0x000000)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        state.actionLog?.length ? state.actionLog.join('\n') : 'The battle has begun!',
+        `### ${state.username} / ${enemy.name} turn` +
+          `\n-# Round ${state.round}` +
+          `\n${actionMessage}`,
       ),
     );
 
@@ -447,7 +469,7 @@ function buildBattleContainers(state) {
     .addSectionComponents(playerSection)
     .addSeparatorComponents(new SeparatorBuilder());
 
-  const onCooldown = isActionOnCooldown(state);
+  const onCooldown = isActionOnCooldown(state) || state.turn !== 'player';
   const statBtn = new ButtonBuilder()
     .setCustomId(`pvp-stat:${state.messageId}`)
     .setLabel('Check stat')
@@ -509,16 +531,8 @@ function buildAttackMenu(state, index = 0) {
   return container;
 }
 
-function getSafeInteractionContent(interaction, fallback = '\u200b') {
-  if (!interaction?.message) return fallback;
-  const content = interaction.message.content;
-  return content === null || content === undefined || content === '' ? fallback : content;
-}
-
-async function clearInteractionComponents(interaction, options = {}) {
-  const { content = getSafeInteractionContent(interaction) } = options;
+async function clearInteractionComponents(interaction) {
   await interaction.update({
-    content,
     components: [],
   });
 }
@@ -637,10 +651,17 @@ function performEnemyAttack(state, attackId) {
 }
 
 async function executeEnemyTurn(state) {
+  state.turn = 'enemy';
+  await updateBattleMessage(state);
+
+  await delay(ACTION_COOLDOWN_MS);
+  if (!isBattleActive(state)) return;
+
   const statusLogs = tickStatuses(state.enemy);
   if (statusLogs.length) {
     appendActionLog(state, statusLogs);
     await updateBattleMessage(state);
+    if (!isBattleActive(state)) return;
   }
   if (state.enemy.health <= 0) {
     await handleBattleVictory(state);
@@ -649,15 +670,28 @@ async function executeEnemyTurn(state) {
   if (hasStun(state.enemy)) {
     appendActionLog(state, `${state.enemy.name} is stunned and cannot move!`);
     await updateBattleMessage(state);
-    return;
+  } else {
+    const attackId = getEnemyAttack(state);
+    const logs = performEnemyAttack(state, attackId);
+    appendActionLog(state, logs);
+    if (state.player.health <= 0) {
+      await updateBattleMessage(state);
+      await handleBattleDefeat(state);
+      return;
+    }
+    await updateBattleMessage(state);
   }
-  const attackId = getEnemyAttack(state);
-  const logs = performEnemyAttack(state, attackId);
-  appendActionLog(state, logs);
-  if (state.player.health <= 0) {
-    await handleBattleDefeat(state);
-    return;
-  }
+
+  if (!isBattleActive(state)) return;
+
+  setActionCooldown(state, ACTION_COOLDOWN_MS);
+  state.turn = 'player';
+  state.round += 1;
+
+  await delay(ACTION_COOLDOWN_MS);
+  if (!isBattleActive(state)) return;
+
+  state.actionMessage = 'Selecting an action...';
   await updateBattleMessage(state);
 }
 
@@ -675,7 +709,8 @@ function createBattleState({ interaction, user, stats, animal, resources }) {
     userAvatar: user.displayAvatarURL(),
     player,
     enemy,
-    actionLog: ['The battle has begun!', `${animal.name} prepares to strike!`],
+    round: 1,
+    actionMessage: 'Selecting an action...',
     attackMenuIndex: 0,
     turn: 'player',
     animal,
@@ -694,7 +729,6 @@ async function startBossBattle({ interaction, user, stats, animal, resources }) 
   refreshInactivityTimer(state);
   const containers = buildBattleContainers(state);
   await interaction.update({
-    content: null,
     components: containers,
     flags: MessageFlags.IsComponentsV2,
   });
