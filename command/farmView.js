@@ -48,24 +48,6 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-const SEED_LEVEL_REQUIREMENTS = {
-  WhiteCabbageSeed: 30,
-  PumpkinSeed: 30,
-  MelonSeed: 60,
-  StarFruitSeed: 60,
-};
-
-function getSeedRequirement(seedId) {
-  const requirement = SEED_LEVEL_REQUIREMENTS[seedId];
-  return Number.isFinite(requirement) ? requirement : null;
-}
-
-function formatSeedRequirementName(seedId) {
-  const item = ITEMS[seedId];
-  if (!item || !item.name) return 'this seed';
-  return item.name.replace(/seed package$/i, 'seeds');
-}
-
 const SEED_POSITIONS = {
   1: { x: 150, y: 200 },
   2: { x: 250, y: 200 },
@@ -150,24 +132,6 @@ const ORNAMENT_BERRY_IMAGES = [
   'https://i.ibb.co/Z6Bg2YD6/Ornament-Berry-5.png',
 ];
 
-const FARM_WATER_XP = 20;
-const CROP_XP_REWARDS = {
-  Sheaf: 50,
-  WheatSeed: 25,
-  Potato: 200,
-  PotatoSeed: 100,
-  WhiteCabbage: 500,
-  WhiteCabbageSeed: 250,
-  Pumpkin: 1000,
-  PumpkinSeed: 500,
-  Melon: 2500,
-  MelonSeed: 1250,
-  StarFruit: 5000,
-  StarFruitSeed: 2500,
-  OrnamentBerry: 3000,
-  OrnamentBerrySeed: 1500,
-};
-
 const FARM_DROP_TABLE = [
   { rarity: 'Common', weight: 0.55 },
   { rarity: 'Rare', weight: 0.3 },
@@ -244,10 +208,7 @@ const WATER_DURATION = 60 * 60 * 1000; // 1h water on empty plot
 const FARM_REPLANT_CHANCE = 0.15;
 const FARM_DROP_CHANCE = 0.6;
 
-function getFarmGrowthMultiplier(level) {
-  if (level >= 90) return 0.5;
-  if (level >= 50) return 0.75;
-  if (level >= 10) return 0.9;
+function getFarmGrowthMultiplier() {
   return 1;
 }
 
@@ -308,10 +269,7 @@ function cleanupSeasonalPlants(farm) {
 }
 
 function getPlantData(seedId, stats = {}, plot = null) {
-  const level = Number.isFinite(stats.farm_mastery_level)
-    ? stats.farm_mastery_level
-    : 0;
-  const growthMultiplier = getFarmGrowthMultiplier(level);
+  const growthMultiplier = getFarmGrowthMultiplier();
   const plotMultiplier =
     plot && Number.isFinite(plot.growthSkinMultiplier) && plot.growthSkinMultiplier > 0
       ? plot.growthSkinMultiplier
@@ -778,26 +736,8 @@ function setup(client, resources) {
         });
         return;
       }
-      const farmLevel = Number.isFinite(stats.farm_mastery_level)
-        ? stats.farm_mastery_level
-        : 0;
       const seed = (stats.inventory || []).find(i => i.id === seedId);
       const required = state.selected.length;
-      const requirement = getSeedRequirement(seedId);
-      if (requirement && farmLevel < requirement) {
-        const container = new ContainerBuilder()
-          .setAccentColor(0xffffff)
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `${WARNING} You need Farm Mastery Lv.${requirement} to plant ${formatSeedRequirementName(seedId)}.`,
-            ),
-          );
-        await interaction.editReply({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
       if (!seed || seed.amount < required) {
         const msg = `${WARNING} You need ${required} ${seed ? seed.name : 'seed'} ${
           seed ? seed.emoji : ''
@@ -835,7 +775,6 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
-      // Planting no longer grants farm mastery XP.
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = 'Planted!';
       if (occupied.length) {
@@ -903,10 +842,6 @@ function setup(client, resources) {
       const seedMap = {};
       const dropMap = {};
       let deadNote = false;
-      const farmLevel = Number.isFinite(stats.farm_mastery_level)
-        ? stats.farm_mastery_level
-        : 0;
-      let totalHarvestXp = 0;
       let harvestedAny = false;
       const replantedPlots = [];
       const initialFull = alertInventoryFull(interaction, interaction.user, stats);
@@ -931,13 +866,9 @@ function setup(client, resources) {
             let seedEntry = inv.find(i => i.id === data.seedItem.id);
             if (seedEntry) seedEntry.amount = (seedEntry.amount || 0) + seeds;
             else inv.push({ ...data.seedItem, amount: seeds });
-            const seedXp = CROP_XP_REWARDS[data.seedItem.id] || 0;
-            totalHarvestXp += seeds * seedXp;
           }
-          const cropXp = CROP_XP_REWARDS[data.harvestItem.id] || 0;
-          totalHarvestXp += crop * cropXp;
           harvestedAny = true;
-          if (farmLevel >= 40 && Math.random() < FARM_REPLANT_CHANCE) {
+          if (Math.random() < FARM_REPLANT_CHANCE) {
             farm[id] = {
               seedId: plot.seedId,
               plantedAt: Date.now(),
@@ -951,7 +882,7 @@ function setup(client, resources) {
         if (!replanted) farm[id] = {};
       });
       useDurableItem(interaction, interaction.user, stats, 'HarvestScythe');
-      if (harvestedAny && farmLevel >= 70 && Math.random() < FARM_DROP_CHANCE) {
+      if (harvestedAny && Math.random() < FARM_DROP_CHANCE) {
         const bonus = getRandomFarmDrop();
         if (bonus) {
           const inv = stats.inventory || [];
@@ -969,13 +900,6 @@ function setup(client, resources) {
       resources.userStats[state.userId] = stats;
       resources.saveData();
       state.selected = [];
-      if (totalHarvestXp > 0) {
-        await resources.addFarmMasteryXp(
-          interaction.user,
-          totalHarvestXp,
-          resources.client,
-        );
-      }
       await updateFarmMessage(state, interaction.user, stats, resources);
       let content = '';
       for (const [id, amt] of Object.entries(harvestedMap)) {
@@ -1069,13 +993,6 @@ function setup(client, resources) {
       normalizeInventory(stats);
       resources.userStats[state.userId] = stats;
       resources.saveData();
-      if (plots.length > 0) {
-        await resources.addFarmMasteryXp(
-          interaction.user,
-          plots.length * FARM_WATER_XP,
-          resources.client,
-        );
-      }
       await updateFarmMessage(state, interaction.user, stats, resources);
       const container = new ContainerBuilder()
         .setAccentColor(0xffffff)

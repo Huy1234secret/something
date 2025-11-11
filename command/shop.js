@@ -23,9 +23,8 @@ const {
 const { renderShopMedia } = require('../shopMedia');
 const { renderDeluxeMedia } = require('../shopMediaDeluxe');
 const { renderChristmasShop } = require('../shopMediaChristmas');
-const { ITEMS } = require('../items');
+const { ITEMS, DIG_ITEMS } = require('../items');
 const { getItemDisplay } = require('../skins');
-const { ANIMAL_ITEMS } = require('../animals');
 const { isChristmasEventActive } = require('../events');
 const {
   normalizeInventory,
@@ -35,6 +34,7 @@ const {
   applyCoinBoost,
   applyComponentEmoji,
   resolveComponentEmoji,
+  getDigCoinMultiplier,
 } = require('../utils');
 
 const DELUXE_ITEM_IDS = ['DiamondBag', 'DiamondCrate', 'DiamondChest'];
@@ -51,13 +51,6 @@ const BASE_COIN_ITEM_ORDER = [
 ];
 
 const BASE_SEED_IDS = ['WheatSeed', 'PotatoSeed'];
-
-const SEED_LEVEL_REQUIREMENTS = {
-  WhiteCabbageSeed: 30,
-  PumpkinSeed: 30,
-  MelonSeed: 60,
-  StarFruitSeed: 60,
-};
 
 const SPECIAL_SEED_REPLACEMENTS = [
   { id: 'StarFruitSeed', chance: 0.2 },
@@ -78,6 +71,7 @@ const OPTIONAL_COIN_ITEMS = [
 ];
 
 const CHRISTMAS_SHOP_SIZE = 3;
+const DIG_ITEM_IDS = new Set(DIG_ITEMS.map(item => item.id));
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 
 const CHRISTMAS_SHOP_ITEM_POOL = [
@@ -150,16 +144,6 @@ const CURRENCY_EMOJIS = {
   deluxe_coins: '<:CRDeluxeCoin:1405595587780280382>',
   snowflakes: SNOWFLAKE_EMOJI,
 };
-
-const FARM_CROP_IDS = new Set([
-  'Sheaf',
-  'Potato',
-  'WhiteCabbage',
-  'Pumpkin',
-  'Melon',
-  'StarFruit',
-  'OrnamentBerry',
-]);
 
 const shopStates = new Map();
 
@@ -268,11 +252,6 @@ function getChristmasItems(resources) {
       };
     })
     .filter(Boolean);
-}
-
-function getSeedRequirement(id) {
-  const requirement = SEED_LEVEL_REQUIREMENTS[id];
-  return Number.isFinite(requirement) ? requirement : null;
 }
 
 function getCoinItemIds(resources) {
@@ -594,9 +573,6 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
   let stock = {};
   let restockTime = 0;
   const stats = resources.userStats[user.id] || {};
-  const farmLevel = Number.isFinite(stats.farm_mastery_level)
-    ? stats.farm_mastery_level
-    : 0;
   const now = Date.now();
   const isDeluxe = state.type === 'deluxe';
   const isChristmas = state.type === 'christmas';
@@ -638,8 +614,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       originalPrice = price;
       price = Math.round(price * (1 - s.discount));
     }
-    const requiredLevel = SEED_LEVEL_REQUIREMENTS[it.id];
-    const locked = Number.isFinite(requiredLevel) && farmLevel < requiredLevel;
+    const locked = false;
     const display = getItemDisplay(stats, it);
     return {
       ...it,
@@ -651,7 +626,7 @@ async function sendShop(user, send, resources, state = { page: 1, type: 'coin' }
       maxStock: s.max ?? 0,
       discount: s.discount,
       locked,
-      lockedText: locked ? `Farm Mastery Lv.${requiredLevel}` : null,
+      lockedText: null,
       info: it.info || s.info || '',
       currency: it.currency || (isDeluxe ? 'deluxe_coins' : 'coins'),
     };
@@ -911,17 +886,6 @@ function setup(client, resources) {
           return;
         }
         const viewerStats = resources.userStats[state.userId] || {};
-        const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
-          ? viewerStats.farm_mastery_level
-          : 0;
-        const requirement = getSeedRequirement(item.id);
-        if (requirement && viewerFarmLevel < requirement) {
-          await interaction.reply({
-            content: `You need Farm Mastery Lv.${requirement} to purchase this seed package.`,
-            flags: MessageFlags.Ephemeral,
-          });
-          return;
-        }
         let store;
         if (state.type === 'deluxe') store = resources.shop.deluxeStock;
         else if (state.type === 'christmas') store = resources.shop.christmasStock;
@@ -975,21 +939,6 @@ function setup(client, resources) {
             snowflakes: 0,
           };
         normalizeInventory(stats);
-        const farmMasteryLevel = Number.isFinite(stats.farm_mastery_level)
-          ? stats.farm_mastery_level
-          : 0;
-        const requirementConfirm = getSeedRequirement(itemId);
-        if (requirementConfirm && farmMasteryLevel < requirementConfirm) {
-          await interaction.update({
-            components: [
-              makeTextContainer(
-                `You need Farm Mastery Lv.${requirementConfirm} to purchase this seed package.`,
-              ),
-            ],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
         const price = sInfo.discount
           ? Math.round(item.price * (1 - sInfo.discount))
           : item.price;
@@ -1162,21 +1111,6 @@ function setup(client, resources) {
           return;
         }
       const viewerStats = resources.userStats[state.userId] || {};
-      const viewerFarmLevel = Number.isFinite(viewerStats.farm_mastery_level)
-        ? viewerStats.farm_mastery_level
-        : 0;
-      const requirement = getSeedRequirement(baseItem.id);
-      if (requirement && viewerFarmLevel < requirement) {
-        await interaction.reply({
-          components: [
-            makeTextContainer(
-              `You need Farm Mastery Lv.${requirement} to purchase this seed package.`,
-            ),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
       let store;
       if (state.type === 'deluxe') store = resources.shop.deluxeStock;
       else if (state.type === 'christmas') store = resources.shop.christmasStock;
@@ -1328,21 +1262,10 @@ function setup(client, resources) {
       const min = Math.max(0, sellInfo.min);
       const max = Math.max(min, sellInfo.max);
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
-      const statsLevel = Number.isFinite(stats.hunt_mastery_level)
-        ? stats.hunt_mastery_level
-        : 0;
       let total = price * amount;
-      if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
-        total = Math.floor(total * 1.25);
-      }
-      const farmLevel = Number.isFinite(stats.farm_mastery_level)
-        ? stats.farm_mastery_level
-        : 0;
-      if (FARM_CROP_IDS.has(itemId)) {
-        let bonus = 0;
-        if (farmLevel >= 20) bonus += 0.3;
-        if (farmLevel >= 80) bonus += 1.0;
-        total = Math.floor(total * (1 + bonus));
+      if (DIG_ITEM_IDS.has(itemId)) {
+        const digMultiplier = getDigCoinMultiplier(stats);
+        total = Math.floor(total * digMultiplier);
       }
       const currencyField =
         sellInfo.currency === 'snowflakes'
@@ -1436,21 +1359,10 @@ function setup(client, resources) {
       const min = Math.max(0, sellInfo.min);
       const max = Math.max(min, sellInfo.max);
       const price = Math.floor(Math.random() * (max - min + 1)) + min;
-      const statsLevel = Number.isFinite(stats.hunt_mastery_level)
-        ? stats.hunt_mastery_level
-        : 0;
       let total = price * amount;
-      if (statsLevel >= 30 && ANIMAL_ITEMS[itemId]) {
-        total = Math.floor(total * 1.25);
-      }
-      const farmLevel = Number.isFinite(stats.farm_mastery_level)
-        ? stats.farm_mastery_level
-        : 0;
-      if (FARM_CROP_IDS.has(itemId)) {
-        let bonus = 0;
-        if (farmLevel >= 20) bonus += 0.3;
-        if (farmLevel >= 80) bonus += 1.0;
-        total = Math.floor(total * (1 + bonus));
+      if (DIG_ITEM_IDS.has(itemId)) {
+        const digMultiplier = getDigCoinMultiplier(stats);
+        total = Math.floor(total * digMultiplier);
       }
       const currencyField =
         sellInfo.currency === 'snowflakes'

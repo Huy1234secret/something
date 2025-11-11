@@ -795,7 +795,6 @@ async function handleBattleVictory(state) {
   }
   const xp = Math.floor(100 * getRarityXpMultiplier(animal.rarity));
   await resources.addXp(user, xp, resources.client);
-  await resources.addHuntMasteryXp(user, xp, resources.client);
   resources.saveData();
   const container = new ContainerBuilder()
     .setAccentColor(0xffffff)

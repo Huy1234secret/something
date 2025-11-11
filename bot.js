@@ -35,7 +35,6 @@ const digCommand = require('./command/dig');
 const begCommand = require('./command/beg');
 const myCosmeticCommand = require('./command/myCosmetic');
 const mySkinCommand = require('./command/mySkin');
-const masteryCommand = require('./command/mastery');
 const myBoostCommand = require('./command/myBoost');
 const badgesCommand = require('./command/badges');
 const christmasQuestCommand = require('./command/christmasQuest');
@@ -301,20 +300,6 @@ function xpNeeded(level) {
   return Math.floor(100 * Math.pow(n, 1.5));
 }
 
-function chatMasteryXpNeeded(level) {
-  const L = Number(level);
-  const n = Number.isFinite(L) && L > 0 ? L : 1;
-  return Math.floor(100 * Math.pow(1000, (n - 1) / 99) + 0.5);
-}
-
-function huntMasteryXpNeeded(level) {
-  return chatMasteryXpNeeded(level);
-}
-
-function farmMasteryXpNeeded(level) {
-  return chatMasteryXpNeeded(level);
-}
-
 function grantRandomItem(user, stats, channel) {
   const roll = Math.random();
   let rarity;
@@ -354,18 +339,6 @@ async function addXp(user, amount, client) {
   stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
   stats.deluxe_coins = Number.isFinite(stats.deluxe_coins) ? stats.deluxe_coins : 0;
   stats.snowflakes = Number.isFinite(stats.snowflakes) ? stats.snowflakes : 0;
-  stats.chat_mastery_level = Number.isFinite(stats.chat_mastery_level)
-    ? stats.chat_mastery_level
-    : 0;
-  stats.chat_mastery_xp = Number.isFinite(stats.chat_mastery_xp)
-    ? stats.chat_mastery_xp
-    : 0;
-  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
-    ? stats.hunt_mastery_level
-    : 0;
-  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
-    ? stats.hunt_mastery_xp
-    : 0;
   stats.hunt_detector_charges = Number.isFinite(stats.hunt_detector_charges)
     ? stats.hunt_detector_charges
     : 0;
@@ -387,57 +360,14 @@ async function addXp(user, amount, client) {
   xpGain = Math.floor(xpGain);
   stats.xp += xpGain;
   stats.total_xp += xpGain;
-  stats.chat_mastery_xp += amount;
   let prev = stats.level;
-  const prevMastery = stats.chat_mastery_level;
   while (stats.level < MAX_LEVEL && stats.xp >= xpNeeded(stats.level)) {
     stats.xp -= xpNeeded(stats.level);
     stats.level += 1;
   }
-  while (
-    stats.chat_mastery_level < 100 &&
-    stats.chat_mastery_xp >= chatMasteryXpNeeded(stats.chat_mastery_level + 1)
-  ) {
-    stats.chat_mastery_xp -= chatMasteryXpNeeded(
-      stats.chat_mastery_level + 1,
-    );
-    stats.chat_mastery_level += 1;
-  }
-  if (stats.chat_mastery_level >= 100) stats.chat_mastery_xp = 0;
-  if (prevMastery < 100 && stats.chat_mastery_level >= 100) {
-    stats.deluxe_coins = (stats.deluxe_coins || 0) + 1500;
-    stats.diamonds = (stats.diamonds || 0) + 3000;
-    stats.coins = (stats.coins || 0) + 4000000;
-    const xpSoda = ITEMS.XPSoda;
-    const entry = stats.inventory.find(i => i.id === 'XPSoda');
-    if (entry) entry.amount += 25;
-    else
-      stats.inventory.push({
-        id: xpSoda.id,
-        name: xpSoda.name,
-        emoji: xpSoda.emoji,
-        image: xpSoda.image,
-        amount: 25,
-      });
-    try {
-      const container = new ContainerBuilder()
-        .setAccentColor(0xffffff)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `### Chat Mastery Maxed!\nYou reached level 100 chat mastery and received:\n-# 1500 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 3000 Diamonds <:CRDiamond:1405595593069432912>\n-# 4M Coins <:CRCoin:1405595571141480570>\n-# 25 XP Soda ${xpSoda.emoji}`,
-          ),
-        );
-      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    } catch {}
-  }
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   userStats[user.id] = stats;
   if (stats.level > prev) {
-    if (stats.chat_mastery_level >= 90) {
-      for (let lvl = prev + 1; lvl <= stats.level; lvl++) {
-        stats.diamonds += lvl;
-      }
-    }
     const channel = client.channels.cache.get(levelUpChannelId);
     if (channel) {
       const container = new ContainerBuilder()
@@ -450,109 +380,6 @@ async function addXp(user, amount, client) {
       channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
     }
   }
-  saveData();
-}
-
-async function addHuntMasteryXp(user, amount, client) {
-  const stats = userStats[user.id] || {};
-  stats.hunt_mastery_level = Number.isFinite(stats.hunt_mastery_level)
-    ? stats.hunt_mastery_level
-    : 0;
-  stats.hunt_mastery_xp = Number.isFinite(stats.hunt_mastery_xp)
-    ? stats.hunt_mastery_xp
-    : 0;
-  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins)
-    ? stats.deluxe_coins
-    : 0;
-  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
-  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
-  stats.inventory = Array.isArray(stats.inventory) ? stats.inventory : [];
-
-  stats.hunt_mastery_xp += amount;
-  const previous = stats.hunt_mastery_level;
-  while (
-    stats.hunt_mastery_level < 100 &&
-    stats.hunt_mastery_xp >= huntMasteryXpNeeded(stats.hunt_mastery_level + 1)
-  ) {
-    stats.hunt_mastery_xp -= huntMasteryXpNeeded(
-      stats.hunt_mastery_level + 1,
-    );
-    stats.hunt_mastery_level += 1;
-  }
-  if (stats.hunt_mastery_level >= 100) stats.hunt_mastery_xp = 0;
-  if (previous < 100 && stats.hunt_mastery_level >= 100) {
-    stats.deluxe_coins += 3000;
-    stats.diamonds += 7500;
-    stats.coins += 12500000;
-    const detector = ITEMS.AnimalDetector;
-    const entry = stats.inventory.find(i => i.id === detector.id);
-    if (entry) entry.amount += 20;
-    else
-      stats.inventory.push({
-        id: detector.id,
-        name: detector.name,
-        emoji: detector.emoji,
-        image: detector.image,
-        amount: 20,
-      });
-    try {
-      const container = new ContainerBuilder()
-        .setAccentColor(0xffffff)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `### Hunting Mastery Maxed!\nYou reached level 100 hunting mastery and received:\n-# 3000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 7500 Diamonds <:CRDiamond:1405595593069432912>\n-# 12.5M Coins <:CRCoin:1405595571141480570>\n-# 20 Animal Detectors ${detector.emoji}`,
-          ),
-        );
-      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    } catch {}
-  }
-  userStats[user.id] = stats;
-  saveData();
-}
-
-async function addFarmMasteryXp(user, amount, client) {
-  if (!Number.isFinite(amount) || amount <= 0) return;
-  const stats = userStats[user.id] || {};
-  stats.farm_mastery_level = Number.isFinite(stats.farm_mastery_level)
-    ? stats.farm_mastery_level
-    : 0;
-  stats.farm_mastery_xp = Number.isFinite(stats.farm_mastery_xp)
-    ? stats.farm_mastery_xp
-    : 0;
-  stats.deluxe_coins = Number.isFinite(stats.deluxe_coins)
-    ? stats.deluxe_coins
-    : 0;
-  stats.diamonds = Number.isFinite(stats.diamonds) ? stats.diamonds : 0;
-  stats.coins = Number.isFinite(stats.coins) ? stats.coins : 0;
-  const previousLevel = stats.farm_mastery_level;
-  stats.farm_mastery_xp += amount;
-  while (
-    stats.farm_mastery_level < 100 &&
-    stats.farm_mastery_xp >= farmMasteryXpNeeded(stats.farm_mastery_level + 1)
-  ) {
-    stats.farm_mastery_xp -= farmMasteryXpNeeded(stats.farm_mastery_level + 1);
-    stats.farm_mastery_level += 1;
-  }
-  if (stats.farm_mastery_level >= 100) stats.farm_mastery_xp = 0;
-  if (previousLevel < 100 && stats.farm_mastery_level >= 100) {
-    stats.deluxe_coins += 2000;
-    stats.diamonds += 6000;
-    stats.coins += 1_000_000;
-    if (!ownsSkin(stats, 'WateringCan', 'GoldWateringCan')) {
-      addSkin(stats, 'WateringCan', 'GoldWateringCan');
-    }
-    try {
-      const container = new ContainerBuilder()
-        .setAccentColor(0xffd700)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `### Farming Mastery Maxed!\nYou reached level 100 farming mastery and received:\n-# 2000 Deluxe Coins <:CRDeluxeCoin:1405595587780280382>\n-# 6000 Diamonds <:CRDiamond:1405595593069432912>\n-# 1M Coins <:CRCoin:1405595571141480570>\n-# Gold Watering Can Skin <:ITGoldWateringCan:1433097178779484302>\n-# Watered plots grow 50% faster while using this skin.`,
-          ),
-        );
-      await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    } catch {}
-  }
-  userStats[user.id] = stats;
   saveData();
 }
 
@@ -606,11 +433,6 @@ const resources = {
   defaultBackground,
   scheduleRole,
   pendingRequests,
-  chatMasteryXpNeeded,
-  addHuntMasteryXp,
-  huntMasteryXpNeeded,
-  addFarmMasteryXp,
-  farmMasteryXpNeeded,
   addSkin,
   ownsSkin,
   getUpgradeMessageId: () => upgradeMessageId,
@@ -727,7 +549,6 @@ client.on = function(event, listener) {
     begCommand.setup(client, resources);
     myCosmeticCommand.setup(client, resources);
     mySkinCommand.setup(client, resources);
-    masteryCommand.setup(client, resources);
     myBoostCommand.setup(client, resources);
     badgesCommand.setup(client, resources);
     christmasQuestCommand.setup(client, resources);
@@ -791,26 +612,6 @@ client.on('messageCreate', async message => {
   addCoins(message.author, Math.floor(Math.random() * 100) + 1);
 
   const updated = userStats[message.author.id];
-  if (
-    updated.chat_mastery_level >= 40 &&
-    updated.chat_messages % 100 === 0
-  ) {
-    const d = Math.floor(Math.random() * 10) + 1;
-    updated.diamonds = (updated.diamonds || 0) + d;
-    const container = new ContainerBuilder()
-      .setAccentColor(0xffffff)
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `${message.author} earned ${d} diamonds!`,
-        ),
-      );
-    message.channel
-      .send({ components: [container], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 })
-      .catch(() => {});
-  }
-  if (updated.chat_mastery_level >= 60 && Math.random() < 0.01) {
-    grantRandomItem(message.author, updated, message.channel);
-  }
   saveData();
 
   if (!isCommand) return;
@@ -1063,16 +864,6 @@ client.on('voiceStateUpdate', (before, after) => {
         const xpGain = minutes * 10;
         if (xpGain > 0) addXp(user, xpGain, client);
         const stats = userStats[user.id] || {};
-        if (stats.chat_mastery_level >= 20) {
-          const hours = Math.floor(duration / 3600000);
-          for (let i = 0; i < hours; i++) {
-            stats.diamonds = (stats.diamonds || 0) + Math.floor(Math.random() * 91) + 10;
-          }
-        }
-        if (stats.chat_mastery_level >= 60 && Math.random() < 0.01) {
-          const channel = client.channels.cache.get(levelUpChannelId);
-          if (channel) grantRandomItem(user.user || user, stats, channel);
-        }
         userStats[user.id] = stats;
         saveData();
       }

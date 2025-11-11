@@ -30,6 +30,11 @@ const {
   isSnowballed,
   scaleChanceWithLuck,
   getLuckAdjustedWeight,
+  getDigCoinMultiplier,
+  getDigLuckBonus,
+  getDigCooldownReduction,
+  getDigLevel,
+  getDigCoinBonusPercent,
 } = require('../utils');
 const { getItemDisplay } = require('../skins');
 
@@ -73,12 +78,11 @@ const RARITY_EMOJIS = {
 
 const DIG_XP_MULTIPLIER = {
   Common: 2,
-  Rare: 2.2,
-  Epic: 2.8,
-  Legendary: 4,
-  Mythical: 7,
-  Godly: 12,
-  Secret: 20,
+  Rare: 3,
+  Epic: 5,
+  Legendary: 10,
+  Mythical: 25,
+  Godly: 50,
 };
 
 const DEFAULT_DIG_COLOR = 0xffffff;
@@ -106,6 +110,22 @@ const DIG_GEAR_CONFIG = {
 const DIG_GEAR_IDS = new Set(Object.keys(DIG_GEAR_CONFIG));
 
 const digStates = new Map();
+
+const DIG_LEVEL_MAX = 100;
+const DIG_XP_STEP = 100;
+
+const PENDING_PERK_OPTIONS = [
+  {
+    id: 'perk-a',
+    name: 'Perk Option A',
+    description: 'Perks will be available in a future update.',
+  },
+  {
+    id: 'perk-b',
+    name: 'Perk Option B',
+    description: 'Perks will be available in a future update.',
+  },
+];
 
 function ensureValidDigArea(stats) {
   if (!stats) return;
@@ -197,8 +217,100 @@ function normalizeSectionTexts(texts) {
   return normalized;
 }
 
+function ensureDigProgress(stats) {
+  if (!stats) return;
+  stats.dig_level = Number.isFinite(stats.dig_level)
+    ? Math.min(DIG_LEVEL_MAX, Math.max(0, Math.floor(stats.dig_level)))
+    : 0;
+  stats.dig_xp = Number.isFinite(stats.dig_xp)
+    ? Math.max(0, Math.floor(stats.dig_xp))
+    : 0;
+  stats.dig_total_xp = Number.isFinite(stats.dig_total_xp)
+    ? Math.max(0, Math.floor(stats.dig_total_xp))
+    : 0;
+  stats.dig_last_perk_notice = Number.isFinite(stats.dig_last_perk_notice)
+    ? Math.max(0, Math.floor(stats.dig_last_perk_notice))
+    : 0;
+  if (!Array.isArray(stats.dig_perks)) stats.dig_perks = [];
+}
+
+function getDigXpRequirement(level) {
+  const clamped = Math.min(Math.max(Math.floor(level), 0), DIG_LEVEL_MAX - 1);
+  return (clamped + 1) * DIG_XP_STEP;
+}
+
+function applyDigXp(stats, amount) {
+  ensureDigProgress(stats);
+  if (!Number.isFinite(amount) || amount === 0) return { levelsGained: [] };
+  const rounded = amount > 0 ? Math.floor(amount) : Math.ceil(amount);
+  if (!rounded) return { levelsGained: [] };
+  stats.dig_total_xp = Math.max(0, stats.dig_total_xp + rounded);
+  if (rounded > 0) {
+    stats.dig_xp += rounded;
+    const levelsGained = [];
+    while (stats.dig_level < DIG_LEVEL_MAX) {
+      const required = getDigXpRequirement(stats.dig_level);
+      if (stats.dig_xp < required) break;
+      stats.dig_xp -= required;
+      stats.dig_level += 1;
+      levelsGained.push(stats.dig_level);
+      if (stats.dig_level >= DIG_LEVEL_MAX) {
+        stats.dig_level = DIG_LEVEL_MAX;
+        stats.dig_xp = 0;
+        break;
+      }
+    }
+    return { levelsGained };
+  }
+  stats.dig_xp += rounded;
+  if (stats.dig_xp < 0) stats.dig_xp = 0;
+  return { levelsGained: [] };
+}
+
+async function sendDigPerkDm(user, level) {
+  if (!user) return;
+  try {
+    const intro = `## Hey ${user}, you reached another 20 levels. You can choose 1 of 2 perks below:`;
+    const optionsText = [
+      intro,
+      `${PENDING_PERK_OPTIONS[0].name}`,
+      `-# ${PENDING_PERK_OPTIONS[0].description}`,
+      '',
+      `${PENDING_PERK_OPTIONS[1].name}`,
+      `-# ${PENDING_PERK_OPTIONS[1].description}`,
+    ].join('\n');
+    const container = new ContainerBuilder()
+      .setAccentColor(0x00ff00)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(optionsText))
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`dig-perk-option-${level}-${PENDING_PERK_OPTIONS[0].id}`)
+            .setLabel('Choose')
+            .setStyle(ButtonStyle.Success),
+        ),
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`dig-perk-option-${level}-${PENDING_PERK_OPTIONS[1].id}`)
+            .setLabel('Choose')
+            .setStyle(ButtonStyle.Success),
+        ),
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('-# Choose wisely'),
+      );
+    await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  } catch (error) {
+    if (error.code !== 50007) console.warn('Failed to send dig perk DM:', error);
+  }
+}
+
 function buildMainContainer(user, stats, content, color = DEFAULT_DIG_COLOR, disable = false) {
   ensureValidDigArea(stats);
+  ensureDigProgress(stats);
   const area = getDigArea(stats.dig_area);
   const areaSelect = new StringSelectMenuBuilder()
     .setCustomId('dig-area')
@@ -296,6 +408,7 @@ function buildMainContainer(user, stats, content, color = DEFAULT_DIG_COLOR, dis
 }
 
 function buildStatContainer(user, stats) {
+  ensureDigProgress(stats);
   const backBtn = new ButtonBuilder()
     .setCustomId('dig-back')
     .setLabel('Back')
@@ -317,22 +430,37 @@ function buildStatContainer(user, stats) {
   );
   const discovered = (stats.dig_discover || []).length;
   const totalItems = DIG_ITEMS.length;
+  const level = getDigLevel(stats);
+  const sellBonus = Math.round(getDigCoinBonusPercent(stats) * 100);
+  const cooldownNerf = getDigCooldownReduction(stats);
+  const luckBonus = Math.round(getDigLuckBonus(stats) * 100);
+  const perks = Array.isArray(stats.dig_perks) ? stats.dig_perks : [];
+  const header = `${DIG_STAT_EMOJI} Dig Level: ${level}`;
+  const statsText = `Dig amount: ${stats.dig_total || 0}\n-# Success: ${
+    stats.dig_success || 0
+  }\n-# failed: ${stats.dig_fail || 0}\n-# died: ${stats.dig_die || 0}`;
+  const discoveryText = `Item discovered: ${discovered} / ${totalItems}`;
+  const perkLines = [
+    "### Dig's Level perks:",
+    `-# * Sell price bonus: +${sellBonus}%`,
+    `-# * Dig cooldown nerf: -${cooldownNerf}s`,
+    `-# * Dig luck bonus: +${luckBonus}%`,
+  ];
+  for (const perk of perks) {
+    if (perk && String(perk).trim()) {
+      perkLines.push(`-# * ${perk}`);
+    }
+  }
   const section = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `## ${DIG_STAT_EMOJI} Mastery Level: ${stats.dig_level || 0}`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `Dig amount: ${stats.dig_total || 0}\n-# Success: ${
-          stats.dig_success || 0
-        }\n-# failed: ${stats.dig_fail || 0}\n-# died: ${
-          stats.dig_die || 0
-        }`,
-      ),
-      new TextDisplayBuilder().setContent(
-        `Item discovered: ${discovered} / ${totalItems}`,
-      ),
+      new TextDisplayBuilder().setContent(header),
+      new TextDisplayBuilder().setContent(statsText),
+      new TextDisplayBuilder().setContent(discoveryText),
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(perkLines.join('\n')),
     );
   return new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
@@ -344,6 +472,7 @@ function buildStatContainer(user, stats) {
 
 function buildEquipmentContainer(user, stats) {
   ensureValidDigArea(stats);
+  ensureDigProgress(stats);
   const backBtn = new ButtonBuilder()
     .setCustomId('dig-back')
     .setLabel('Back')
@@ -475,6 +604,7 @@ function buildEquipmentContainer(user, stats) {
 async function sendDig(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
+  ensureDigProgress(stats);
   resources.userStats[user.id] = stats;
   ensureValidDigArea(stats);
   const area = getDigArea(stats.dig_area);
@@ -497,11 +627,16 @@ async function sendDig(user, send, resources, fetchReply) {
 async function handleDig(interaction, resources, stats) {
   const { user } = interaction;
   ensureValidDigArea(stats);
+  ensureDigProgress(stats);
   const area = getDigArea(stats.dig_area);
   const initialFull = alertInventoryFull(interaction, user, stats);
   const snowballed = isSnowballed(stats);
   const gearInfo = getEquippedGear(stats, { cleanup: true });
-  const lootStats = applyGearLuck(stats, gearInfo?.luckBonus || 0);
+  const digLuck = getDigLuckBonus(stats);
+  const lootStats = applyGearLuck(
+    stats,
+    (gearInfo?.luckBonus || 0) + digLuck,
+  );
   const gearDurabilityBefore =
     gearInfo && typeof gearInfo.entry?.durability === 'number'
       ? gearInfo.entry.durability
@@ -521,7 +656,12 @@ async function handleDig(interaction, resources, stats) {
   const roll = Math.random();
   const died = roll >= successChance + failChance;
   const success = !died && roll < successChance;
-  const cooldownDuration = Math.round(30000 * getCooldownMultiplier(stats));
+  const baseCooldownDuration = Math.round(30000 * getCooldownMultiplier(stats));
+  const cooldownReductionMs = Math.min(
+    baseCooldownDuration,
+    Math.max(0, getDigCooldownReduction(stats) * 1000),
+  );
+  const cooldownDuration = Math.max(0, baseCooldownDuration - cooldownReductionMs);
   const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
   stats.dig_total = (stats.dig_total || 0) + 1;
@@ -538,6 +678,7 @@ async function handleDig(interaction, resources, stats) {
   const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
   if (success) {
     let amount = Math.floor(Math.random() * 4001) + 1000;
+    amount = Math.floor(amount * getDigCoinMultiplier(stats));
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
@@ -596,7 +737,7 @@ async function handleDig(interaction, resources, stats) {
     includeSeparator = true;
   } else if (died) {
     stats.dig_die = (stats.dig_die || 0) + 1;
-    xp = -500;
+    xp = -1000;
     const deathMessage = pickAreaDeathMessage(area);
     const header = `## ${user}, ${deathMessage.description}`;
     color = 0x000000;
@@ -639,6 +780,18 @@ async function handleDig(interaction, resources, stats) {
     const gearLine = `-# ${gearInfo.item.name}${gearEmoji} expires after ${usesDisplay} ${gearInfo.expireType}`;
     if (gearLine && gearLine.trim()) {
       if (bodyLines) bodyLines.push(gearLine);
+    }
+  }
+  const { levelsGained } = applyDigXp(stats, xp);
+  if (levelsGained.length) {
+    const milestones = levelsGained.filter(
+      lvl => lvl % 20 === 0 && lvl <= DIG_LEVEL_MAX,
+    );
+    for (const milestone of milestones) {
+      if (milestone > (stats.dig_last_perk_notice || 0)) {
+        await sendDigPerkDm(user, milestone);
+        stats.dig_last_perk_notice = milestone;
+      }
     }
   }
   await resources.addXp(user, xp, resources.client);
@@ -699,9 +852,19 @@ function setup(client, resources) {
   });
 
   client.on('interactionCreate', async interaction => {
-    const state = digStates.get(interaction.message?.id);
-    if (!state || interaction.user.id !== state.userId) return;
     try {
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith('dig-perk-option-')
+      ) {
+        await interaction.reply({
+          content: 'Perk selection will be available in a future update.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+      const state = digStates.get(interaction.message?.id);
+      if (!state || interaction.user.id !== state.userId) return;
       if (interaction.isButton() && interaction.customId === 'dig-action') {
         const stats = resources.userStats[state.userId] || { inventory: [] };
         if ((stats.dig_cd_until || 0) > Date.now()) {
@@ -723,6 +886,7 @@ function setup(client, resources) {
           return;
         }
         normalizeInventory(stats);
+        ensureDigProgress(stats);
         const inv = stats.inventory || [];
         if (!stats.dig_tool) {
           const shovels = inv.filter(i => {
