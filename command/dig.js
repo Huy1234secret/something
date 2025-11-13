@@ -37,6 +37,15 @@ const {
   getDigCoinBonusPercent,
 } = require('../utils');
 const { getItemDisplay } = require('../skins');
+const {
+  getPerkOptionsForLevel,
+  ensureDigPerkState,
+  getSelectedDigPerkIds,
+  hasDigPerk,
+  selectDigPerk,
+  getDigPerkSummaries,
+  getDigPerkById,
+} = require('../digPerks');
 
 const THUMB_URL = 'https://i.ibb.co/G4cSsHHN/dig-symbol.png';
 const COIN_EMOJI = '<:CRCoin:1405595571141480570>';
@@ -76,6 +85,17 @@ const RARITY_EMOJIS = {
   Secret: '<a:SBRSecret:1409933447220297791>',
 };
 
+const RARITY_RANK = {
+  Common: 0,
+  Rare: 1,
+  Epic: 2,
+  Legendary: 3,
+  Mythical: 4,
+  Godly: 5,
+  Prismatic: 6,
+  Secret: 7,
+};
+
 const DIG_XP_MULTIPLIER = {
   Common: 2,
   Rare: 3,
@@ -113,19 +133,6 @@ const digStates = new Map();
 
 const DIG_LEVEL_MAX = 100;
 const DIG_XP_STEP = 100;
-
-const PENDING_PERK_OPTIONS = [
-  {
-    id: 'perk-a',
-    name: 'Perk Option A',
-    description: 'Perks will be available in a future update.',
-  },
-  {
-    id: 'perk-b',
-    name: 'Perk Option B',
-    description: 'Perks will be available in a future update.',
-  },
-];
 
 function ensureValidDigArea(stats) {
   if (!stats) return;
@@ -231,7 +238,7 @@ function ensureDigProgress(stats) {
   stats.dig_last_perk_notice = Number.isFinite(stats.dig_last_perk_notice)
     ? Math.max(0, Math.floor(stats.dig_last_perk_notice))
     : 0;
-  if (!Array.isArray(stats.dig_perks)) stats.dig_perks = [];
+  ensureDigPerkState(stats);
 }
 
 function getDigXpRequirement(level) {
@@ -267,41 +274,47 @@ function applyDigXp(stats, amount) {
   return { levelsGained: [] };
 }
 
-async function sendDigPerkDm(user, level) {
+function buildPerkSelectionContainer(user, level, stats) {
+  const options = getPerkOptionsForLevel(level);
+  if (!options.length) return null;
+  const selectedId = stats?.dig_perk_choices?.[level];
+  const selectedPerk = selectedId ? getDigPerkById(selectedId) : null;
+  const intro = `## Hey ${user}, you reached Dig level ${level}. Choose one perk below:`;
+  const lines = [intro];
+  for (const option of options) {
+    lines.push('', `${option.name}`, `-# ${option.description}`);
+  }
+  if (selectedPerk) {
+    lines.push('', `-# You already picked **${selectedPerk.name}**.`);
+  }
+  const footer = selectedPerk ? '-# Perk locked in.' : '-# Choose wisely';
+  const container = new ContainerBuilder()
+    .setAccentColor(0x00ff00)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(lines.join('\n')),
+    );
+  for (const option of options) {
+    const isSelected = option.id === selectedId;
+    const button = new ButtonBuilder()
+      .setCustomId(`dig-perk-option-${level}-${option.id}`)
+      .setLabel(isSelected ? 'Selected' : 'Choose')
+      .setStyle(isSelected ? ButtonStyle.Secondary : ButtonStyle.Success)
+      .setDisabled(Boolean(selectedId));
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(button),
+    );
+  }
+  container
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
+  return container;
+}
+
+async function sendDigPerkDm(user, level, stats) {
   if (!user) return;
+  const container = buildPerkSelectionContainer(user, level, stats);
+  if (!container) return;
   try {
-    const intro = `## Hey ${user}, you reached another 20 levels. You can choose 1 of 2 perks below:`;
-    const optionsText = [
-      intro,
-      `${PENDING_PERK_OPTIONS[0].name}`,
-      `-# ${PENDING_PERK_OPTIONS[0].description}`,
-      '',
-      `${PENDING_PERK_OPTIONS[1].name}`,
-      `-# ${PENDING_PERK_OPTIONS[1].description}`,
-    ].join('\n');
-    const container = new ContainerBuilder()
-      .setAccentColor(0x00ff00)
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(optionsText))
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`dig-perk-option-${level}-${PENDING_PERK_OPTIONS[0].id}`)
-            .setLabel('Choose')
-            .setStyle(ButtonStyle.Success),
-        ),
-      )
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`dig-perk-option-${level}-${PENDING_PERK_OPTIONS[1].id}`)
-            .setLabel('Choose')
-            .setStyle(ButtonStyle.Success),
-        ),
-      )
-      .addSeparatorComponents(new SeparatorBuilder())
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# Choose wisely'),
-      );
     await user.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
   } catch (error) {
     if (error.code !== 50007) console.warn('Failed to send dig perk DM:', error);
@@ -434,7 +447,7 @@ function buildStatContainer(user, stats) {
   const sellBonus = Math.round(getDigCoinBonusPercent(stats) * 100);
   const cooldownNerf = getDigCooldownReduction(stats);
   const luckBonus = Math.round(getDigLuckBonus(stats) * 100);
-  const perks = Array.isArray(stats.dig_perks) ? stats.dig_perks : [];
+  const perks = getDigPerkSummaries(stats);
   const header = `${DIG_STAT_EMOJI} Dig Level: ${level}`;
   const statsText = `Dig amount: ${stats.dig_total || 0}\n-# Success: ${
     stats.dig_success || 0
@@ -601,6 +614,78 @@ function buildEquipmentContainer(user, stats) {
     );
 }
 
+function useDigDurableItem(
+  interaction,
+  user,
+  stats,
+  itemId,
+  entry,
+  { bonusUses = 0, consumableLog } = {},
+) {
+  const inventory = stats.inventory || [];
+  let targetEntry = entry || null;
+  let index = targetEntry ? inventory.indexOf(targetEntry) : -1;
+  if (index === -1) {
+    index = inventory.findIndex(
+      i => i && i.id === itemId && typeof i.durability === 'number',
+    );
+    targetEntry = index !== -1 ? inventory[index] : null;
+  }
+  if (index === -1 || !targetEntry) {
+    return {
+      broken: false,
+      remaining: inventory.filter(i => i.id === itemId).length,
+      consumed: false,
+      currentDurability: null,
+    };
+  }
+
+  if (bonusUses > 0) {
+    if (!Number.isFinite(targetEntry.dig_reinforced_bonus)) {
+      targetEntry.dig_reinforced_bonus = bonusUses;
+    }
+    if (targetEntry.dig_reinforced_bonus > 0) {
+      targetEntry.dig_reinforced_bonus -= 1;
+      return {
+        broken: false,
+        remaining: inventory.filter(i => i.id === itemId).length,
+        consumed: false,
+        currentDurability:
+          typeof targetEntry.durability === 'number'
+            ? targetEntry.durability
+            : null,
+      };
+    }
+  }
+
+  const snapshot = { ...targetEntry };
+  const result = useDurableItem(interaction, user, stats, itemId);
+  const currentEntry = result.broken ? null : targetEntry;
+  const currentDurability = currentEntry && typeof currentEntry.durability === 'number'
+    ? currentEntry.durability
+    : null;
+  const types = (ITEMS[itemId]?.types || []).map(String);
+  if (
+    consumableLog &&
+    types.some(type => type.toLowerCase() === 'consumable') &&
+    (result.broken || snapshot.durability !== currentDurability)
+  ) {
+    consumableLog.push({
+      itemId,
+      snapshot,
+      entryRef: currentEntry,
+      broken: result.broken,
+    });
+  }
+  return {
+    ...result,
+    consumed: true,
+    currentDurability,
+    snapshot,
+    entryRef: currentEntry,
+  };
+}
+
 async function sendDig(user, send, resources, fetchReply) {
   const stats = resources.userStats[user.id] || { inventory: [] };
   normalizeInventory(stats);
@@ -632,11 +717,25 @@ async function handleDig(interaction, resources, stats) {
   const initialFull = alertInventoryFull(interaction, user, stats);
   const snowballed = isSnowballed(stats);
   const gearInfo = getEquippedGear(stats, { cleanup: true });
-  const digLuck = getDigLuckBonus(stats);
-  const lootStats = applyGearLuck(
-    stats,
-    (gearInfo?.luckBonus || 0) + digLuck,
-  );
+  const activePerkIds = new Set(getSelectedDigPerkIds(stats));
+  const hasPerkId = perkId => activePerkIds.has(perkId);
+  const nextDigCount = (stats.dig_total || 0) + 1;
+  const isLuckyMilestone = hasPerkId('lucky-milestone') && nextDigCount % 10 === 0;
+  const baseDigLuck = getDigLuckBonus(stats);
+  const extraLuck =
+    (gearInfo?.luckBonus || 0) +
+    baseDigLuck +
+    (isLuckyMilestone ? baseDigLuck : 0);
+  const lootStats = applyGearLuck(stats, extraLuck);
+  const usedConsumables = [];
+  const hasReinforcedGear = hasPerkId('reinforced-gear');
+  const hasFortuneLoop = hasPerkId('fortune-loop');
+  const hasMirrorTreasure = hasPerkId('mirror-treasure');
+  const hasResourceful = hasPerkId('resourceful-scavenger');
+  const hasProspectorInstinct = hasPerkId('prospectors-instinct');
+  const hasRapidExcavator = hasPerkId('rapid-excavator');
+  const hasLastChance = hasPerkId('last-chance-dig');
+  const hasTimelessTools = hasPerkId('timeless-tools');
   const gearDurabilityBefore =
     gearInfo && typeof gearInfo.entry?.durability === 'number'
       ? gearInfo.entry.durability
@@ -653,10 +752,19 @@ async function handleDig(interaction, resources, stats) {
   );
   const successChance = forcedFail ? 0 : adjustedChance;
   const failChance = Math.max(0, 1 - successChance - DIG_DEATH_CHANCE);
-  const roll = Math.random();
-  const died = roll >= successChance + failChance;
-  const success = !died && roll < successChance;
-  const baseCooldownDuration = Math.round(30000 * getCooldownMultiplier(stats));
+  let roll = Math.random();
+  let died = roll >= successChance + failChance;
+  let success = !died && roll < successChance;
+  let lastChanceTriggered = false;
+  if (died && hasLastChance) {
+    lastChanceTriggered = true;
+    roll = Math.random();
+    died = roll >= successChance + failChance;
+    success = !died && roll < successChance;
+  }
+  const baseCooldownDuration = Math.round(
+    30000 * getCooldownMultiplier(stats) * (hasRapidExcavator ? 0.5 : 1),
+  );
   const cooldownReductionMs = Math.min(
     baseCooldownDuration,
     Math.max(0, getDigCooldownReduction(stats) * 1000),
@@ -664,16 +772,16 @@ async function handleDig(interaction, resources, stats) {
   const cooldownDuration = Math.max(0, baseCooldownDuration - cooldownReductionMs);
   const cooldown = Date.now() + cooldownDuration;
   stats.dig_cd_until = cooldown;
-  stats.dig_total = (stats.dig_total || 0) + 1;
+  stats.dig_total = nextDigCount;
   let color;
   let xp;
-  let foundItem = null;
   let successHeader = '';
   let successXpLine = '';
   let successBodyLines = [];
   let sectionTexts = null;
   let bodyLines = null;
   let includeSeparator = false;
+  let resourcefulRestored = false;
   const areaLabel = formatAreaLabel(area);
   const locationLine = areaLabel ? `-# Dig site: ${areaLabel}` : '';
   if (success) {
@@ -682,56 +790,135 @@ async function handleDig(interaction, resources, stats) {
     amount = applyCoinBoost(stats, amount);
     stats.coins = (stats.coins || 0) + amount;
     stats.dig_success = (stats.dig_success || 0) + 1;
-    let itemDropChance = scaleChanceWithLuck(DIG_ITEM_BASE_CHANCE, lootStats, {
-      max: 0.95,
-    });
+    let itemDropChance = scaleChanceWithLuck(
+      DIG_ITEM_BASE_CHANCE + (hasProspectorInstinct ? 0.15 : 0),
+      lootStats,
+      {
+        max: 0.95,
+      },
+    );
     if (gearInfo?.dropBonus) {
       itemDropChance = Math.min(1, itemDropChance + gearInfo.dropBonus);
     }
-    if (Math.random() < itemDropChance) {
-      const item = getRandomDigItem(area?.key, stats, lootStats);
-      if (item) {
-        foundItem = item;
-        if (!stats.dig_discover) stats.dig_discover = [];
-        if (!stats.dig_discover.includes(item.id))
-          stats.dig_discover.push(item.id);
-        if (!initialFull) {
-          const willExceed = getInventoryCount(stats) + 1 > MAX_ITEMS;
+    const foundItemMap = new Map();
+    let mirrorTriggered = false;
+    if (itemDropChance > 0) {
+      const initialChance = Math.min(1, itemDropChance);
+      if (Math.random() < initialChance) {
+        const loopChance = hasFortuneLoop ? Math.min(itemDropChance, 0.99) : itemDropChance;
+        let loopGuard = 0;
+        do {
+          const item = getRandomDigItem(area?.key, stats, lootStats);
+          if (!item) break;
+          const duplicateCount =
+            hasMirrorTreasure && Math.random() < 0.25 ? 1 : 0;
+          if (duplicateCount > 0) mirrorTriggered = true;
+          const totalCount = 1 + duplicateCount;
+          const existing = foundItemMap.get(item.id);
+          if (existing) existing.count += totalCount;
+          else foundItemMap.set(item.id, { item: { ...item }, count: totalCount });
+          if (!hasFortuneLoop) break;
+          loopGuard += 1;
+          if (loopGuard >= 50) break;
+        } while (Math.random() < loopChance);
+      }
+    }
+    const foundRecords = Array.from(foundItemMap.values());
+    if (foundRecords.length) {
+      if (!stats.dig_discover) stats.dig_discover = [];
+      for (const record of foundRecords) {
+        if (!stats.dig_discover.includes(record.item.id)) {
+          stats.dig_discover.push(record.item.id);
+        }
+      }
+      if (!initialFull) {
+        for (const record of foundRecords) {
+          const pending = record.count;
+          const willExceed = getInventoryCount(stats) + pending > MAX_ITEMS;
           if (!willExceed) {
             stats.inventory = stats.inventory || [];
-            const entry = stats.inventory.find(i => i.id === item.id);
-            if (entry) entry.amount += 1;
-            else stats.inventory.push({ ...item, amount: 1 });
+            const entry = stats.inventory.find(i => i.id === record.item.id);
+            if (entry) entry.amount += pending;
+            else stats.inventory.push({ ...record.item, amount: pending });
             alertInventoryFull(interaction, user, stats);
           } else {
-            alertInventoryFull(interaction, user, stats, 1);
+            alertInventoryFull(interaction, user, stats, pending);
           }
         }
       }
     }
-    xp = foundItem
-      ? Math.floor(100 * (DIG_XP_MULTIPLIER[foundItem.rarity] || 1))
+    const totalFinds = foundRecords.reduce((sum, record) => sum + record.count, 0);
+    xp = foundRecords.length
+      ? Math.max(
+          100,
+          foundRecords.reduce(
+            (sum, record) =>
+              sum +
+              record.count *
+                Math.floor(100 * (DIG_XP_MULTIPLIER[record.item.rarity] || 1)),
+            0,
+          ),
+        )
       : 100;
-    const foundEmoji = foundItem?.emoji || '';
-    const rarityEmoji = foundItem ? RARITY_EMOJIS[foundItem.rarity] || '' : '';
-    const raritySuffix = rarityEmoji ? ` ${rarityEmoji}` : '';
-    const foundEmojiPart = foundEmoji ? ` ${foundEmoji}` : '';
-    successHeader = foundItem
-      ? `## ${user}, you have digged up ${amount} ${COIN_EMOJI} and also found ${
-          foundItem.name
-        }${foundEmojiPart} while digging${raritySuffix}!!`
+    const topRecord = foundRecords.reduce((best, record) => {
+      if (!best) return record;
+      const rank = RARITY_RANK[record.item.rarity] ?? -1;
+      const bestRank = RARITY_RANK[best.item.rarity] ?? -1;
+      return rank > bestRank ? record : best;
+    }, null);
+    const rarityEmoji = topRecord ? RARITY_EMOJIS[topRecord.item.rarity] || '' : '';
+    const foundSummary = foundRecords
+      .map(record => {
+        const quantity = record.count > 1 ? `×${record.count} ` : '';
+        const emoji = record.item.emoji ? ` ${record.item.emoji}` : '';
+        return `${quantity}${record.item.name}${emoji}`;
+      })
+      .join(', ');
+    successHeader = foundRecords.length
+      ? `## ${user}, you have digged up ${amount} ${COIN_EMOJI} and also found ${foundSummary}!${
+          rarityEmoji ? ` ${rarityEmoji}` : ''
+        }`
       : `## ${user}, you have digged up ${amount} ${COIN_EMOJI}!`;
     successXpLine = `-# Earned ${xp} ${XP_EMOJI}`;
     const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     successBodyLines = [countdownLine];
+    if (isLuckyMilestone) {
+      successBodyLines.push('-# Lucky Milestone doubled your dig luck this dig!');
+    }
+    if (mirrorTriggered) {
+      successBodyLines.push('-# Mirror Treasure duplicated one of your finds!');
+    }
+    if (hasFortuneLoop && totalFinds > 1) {
+      successBodyLines.push(
+        `-# Fortune Loop extended your streak to ${totalFinds} finds!`,
+      );
+    }
+    if (lastChanceTriggered) {
+      successBodyLines.push('-# Last Chance Dig saved you from a fatal mishap!');
+    }
     color = 0x00ff00;
     if (gearInfo && Number.isFinite(gearDurabilityBefore)) {
-      const result = useDurableItem(interaction, user, stats, gearInfo.id);
-      gearUsesRemaining = Math.max(0, gearDurabilityBefore - 1);
-      if (gearUsesRemaining <= 0) delete stats.dig_gear;
+      const result = useDigDurableItem(
+        interaction,
+        user,
+        stats,
+        gearInfo.id,
+        gearInfo.entry,
+        {
+          bonusUses: hasReinforcedGear ? 10 : 0,
+          consumableLog: usedConsumables,
+        },
+      );
+      if (result.consumed && Number.isFinite(gearDurabilityBefore)) {
+        gearUsesRemaining = Math.max(
+          0,
+          result.currentDurability ?? gearDurabilityBefore - 1,
+        );
+      } else {
+        gearUsesRemaining = gearDurabilityBefore;
+      }
       if (result.broken && result.remaining === 0) delete stats.dig_gear;
     }
-    if (locationLine) successBodyLines.push(locationLine);
     sectionTexts = [`${successHeader}\n${successXpLine}`];
     bodyLines = successBodyLines;
     includeSeparator = true;
@@ -743,6 +930,9 @@ async function handleDig(interaction, resources, stats) {
     color = 0x000000;
     const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     const deathBodyLines = [countdownLine];
+    if (lastChanceTriggered) {
+      deathBodyLines.push('-# Last Chance Dig could not save you twice.');
+    }
     if (locationLine) deathBodyLines.push(locationLine);
     sectionTexts = [
       `${header}\n${deathMessage.cause}\n-# Earned ${xp} ${XP_EMOJI}`,
@@ -760,6 +950,9 @@ async function handleDig(interaction, resources, stats) {
     const [failMessage, ...extraFailLines] = failLine.split('\n');
     const countdownLine = `You can dig again <t:${Math.floor(cooldown / 1000)}:R>`;
     const failBodyLines = [countdownLine];
+    if (lastChanceTriggered) {
+      failBodyLines.push('-# Last Chance Dig kept you alive through a fatal roll!');
+    }
     for (const extra of extraFailLines) {
       if (extra && extra.trim()) failBodyLines.push(extra);
     }
@@ -789,16 +982,54 @@ async function handleDig(interaction, resources, stats) {
     );
     for (const milestone of milestones) {
       if (milestone > (stats.dig_last_perk_notice || 0)) {
-        await sendDigPerkDm(user, milestone);
+        await sendDigPerkDm(user, milestone, stats);
         stats.dig_last_perk_notice = milestone;
       }
     }
   }
   await resources.addXp(user, xp, resources.client);
   const toolId = stats.dig_tool || 'Shovel';
-  const res = useDurableItem(interaction, user, stats, toolId);
-  if (res.broken && res.remaining === 0 && stats.dig_tool === toolId) delete stats.dig_tool;
+  const skipToolDurability = success && hasTimelessTools;
+  if (!skipToolDurability) {
+    const result = useDigDurableItem(interaction, user, stats, toolId, null, {
+      bonusUses: hasReinforcedGear ? 10 : 0,
+      consumableLog: usedConsumables,
+    });
+    if (result.broken && result.remaining === 0 && stats.dig_tool === toolId)
+      delete stats.dig_tool;
+  }
+  if (
+    success &&
+    hasResourceful &&
+    usedConsumables.length &&
+    Math.random() < 0.2
+  ) {
+    stats.inventory = stats.inventory || [];
+    for (const record of usedConsumables) {
+      if (record.broken) {
+        stats.inventory.push({ ...record.snapshot });
+      } else if (record.entryRef) {
+        record.entryRef.durability = record.snapshot.durability;
+        if (record.snapshot.dig_reinforced_bonus != null) {
+          record.entryRef.dig_reinforced_bonus = record.snapshot.dig_reinforced_bonus;
+        }
+      }
+    }
+    resourcefulRestored = true;
+  }
   normalizeInventory(stats);
+  if (resourcefulRestored) {
+    if (Array.isArray(successBodyLines)) {
+      successBodyLines.push(
+        '-# Resourceful Scavenger returned your consumables intact!',
+      );
+    } else if (Array.isArray(bodyLines)) {
+      bodyLines.push('-# Resourceful Scavenger returned your consumables intact!');
+    }
+  }
+  if (success && locationLine) {
+    successBodyLines.push(locationLine);
+  }
   resources.userStats[user.id] = stats;
   resources.saveData();
   let content;
@@ -857,9 +1088,64 @@ function setup(client, resources) {
         interaction.isButton() &&
         interaction.customId.startsWith('dig-perk-option-')
       ) {
-        await interaction.reply({
-          content: 'Perk selection will be available in a future update.',
-          flags: MessageFlags.Ephemeral,
+        const match = interaction.customId.match(/^dig-perk-option-(\d+)-(.+)$/);
+        if (!match) {
+          await interaction.reply({
+            content: 'Unable to parse perk selection.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        const level = parseInt(match[1], 10);
+        const perkId = match[2];
+        const options = getPerkOptionsForLevel(level);
+        if (!options.length) {
+          await interaction.reply({
+            content: 'This perk choice is no longer available.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        const stats = resources.userStats[interaction.user.id] || { inventory: [] };
+        normalizeInventory(stats);
+        ensureDigProgress(stats);
+        if (stats.dig_level < level) {
+          await interaction.reply({
+            content: `You need Dig level ${level} to choose this perk.`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        if (stats.dig_perk_choices[level]) {
+          const container = buildPerkSelectionContainer(
+            interaction.user,
+            level,
+            stats,
+          );
+          await interaction.update({
+            components: container ? [container] : [],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+        const selected = selectDigPerk(stats, level, perkId);
+        if (!selected) {
+          await interaction.reply({
+            content: 'Invalid perk selection.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        resources.userStats[interaction.user.id] = stats;
+        resources.saveData();
+        const container = buildPerkSelectionContainer(
+          interaction.user,
+          level,
+          stats,
+        );
+        await interaction.update({
+          components: container ? [container] : [],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }

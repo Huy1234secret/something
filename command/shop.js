@@ -72,6 +72,19 @@ const OPTIONAL_COIN_ITEMS = [
 
 const CHRISTMAS_SHOP_SIZE = 3;
 const DIG_ITEM_IDS = new Set(DIG_ITEMS.map(item => item.id));
+
+function hasGoldenBarter(stats) {
+  if (!stats || typeof stats !== 'object') return false;
+  if (stats.dig_perk_choices && typeof stats.dig_perk_choices === 'object') {
+    if (Object.values(stats.dig_perk_choices).includes('golden-barter')) {
+      return true;
+    }
+  }
+  if (Array.isArray(stats.dig_perks)) {
+    return stats.dig_perks.some(perk => /golden barter/i.test(perk));
+  }
+  return false;
+}
 const SNOWFLAKE_EMOJI = '<:CRSnowflake:1425751780683153448>';
 
 const CHRISTMAS_SHOP_ITEM_POOL = [
@@ -1266,6 +1279,9 @@ function setup(client, resources) {
       if (DIG_ITEM_IDS.has(itemId)) {
         const digMultiplier = getDigCoinMultiplier(stats);
         total = Math.floor(total * digMultiplier);
+        if (hasGoldenBarter(stats)) {
+          total *= 2;
+        }
       }
       const currencyField =
         sellInfo.currency === 'snowflakes'
@@ -1363,6 +1379,9 @@ function setup(client, resources) {
       if (DIG_ITEM_IDS.has(itemId)) {
         const digMultiplier = getDigCoinMultiplier(stats);
         total = Math.floor(total * digMultiplier);
+        if (hasGoldenBarter(stats)) {
+          total *= 2;
+        }
       }
       const currencyField =
         sellInfo.currency === 'snowflakes'
