@@ -464,20 +464,21 @@ function buildStatContainer(user, stats) {
       perkLines.push(`-# * ${perk}`);
     }
   }
-  const section = new SectionBuilder()
+  const overviewSection = new SectionBuilder()
     .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(header),
       new TextDisplayBuilder().setContent(statsText),
       new TextDisplayBuilder().setContent(discoveryText),
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(perkLines.join('\n')),
     );
+  const perkSection = new SectionBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(perkLines.join('\n')),
+  );
   return new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
-    .addSectionComponents(section)
+    .addSectionComponents(overviewSection)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addSectionComponents(perkSection)
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
     );
