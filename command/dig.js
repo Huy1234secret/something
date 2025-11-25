@@ -465,7 +465,13 @@ function buildStatContainer(user, stats) {
     }
   }
   const overviewSection = new SectionBuilder()
-    .setThumbnailAccessory(new ThumbnailBuilder().setURL(user.displayAvatarURL()))
+    .setThumbnailAccessory(
+      new ThumbnailBuilder().setURL(
+        typeof user.displayAvatarURL === 'function'
+          ? user.displayAvatarURL()
+          : THUMB_URL,
+      ),
+    )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(header),
       new TextDisplayBuilder().setContent(statsText),
@@ -474,14 +480,16 @@ function buildStatContainer(user, stats) {
   const perkSection = new SectionBuilder().addTextDisplayComponents(
     new TextDisplayBuilder().setContent(perkLines.join('\n')),
   );
+  const buttons = [backBtn, statBtn, equipBtn].filter(Boolean);
+  const actionRow = new ActionRowBuilder();
+  if (buttons.length) actionRow.addComponents(...buttons);
+
   return new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(overviewSection)
     .addSeparatorComponents(new SeparatorBuilder())
     .addSectionComponents(perkSection)
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(backBtn, statBtn, equipBtn),
-    );
+    .addActionRowComponents(actionRow);
 }
 
 function buildEquipmentContainer(user, stats) {
