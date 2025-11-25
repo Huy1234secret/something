@@ -464,15 +464,7 @@ function buildStatContainer(user, stats) {
       perkLines.push(`-# * ${perk}`);
     }
   }
-  const overviewSection = new SectionBuilder()
-    .setThumbnailAccessory(
-      new ThumbnailBuilder().setURL(
-        typeof user.displayAvatarURL === 'function'
-          ? user.displayAvatarURL()
-          : THUMB_URL,
-      ),
-    )
-    .addTextDisplayComponents(
+  const overviewSection = new SectionBuilder().addTextDisplayComponents(
       new TextDisplayBuilder().setContent(header),
       new TextDisplayBuilder().setContent(statsText),
       new TextDisplayBuilder().setContent(discoveryText),
@@ -481,15 +473,25 @@ function buildStatContainer(user, stats) {
     new TextDisplayBuilder().setContent(perkLines.join('\n')),
   );
   const buttons = [backBtn, statBtn, equipBtn].filter(Boolean);
-  const actionRow = new ActionRowBuilder();
-  if (buttons.length) actionRow.addComponents(...buttons);
+  const actionRows = buttons.length
+    ? [new ActionRowBuilder().addComponents(...buttons)]
+    : [];
+
+  const avatarUrl =
+    typeof user?.displayAvatarURL === 'function'
+      ? user.displayAvatarURL()
+      : THUMB_URL;
+
+  overviewSection.setThumbnailAccessory(
+    new ThumbnailBuilder().setURL(avatarUrl || THUMB_URL),
+  );
 
   return new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(overviewSection)
     .addSeparatorComponents(new SeparatorBuilder())
     .addSectionComponents(perkSection)
-    .addActionRowComponents(actionRow);
+    .addActionRowComponents(...actionRows);
 }
 
 function buildEquipmentContainer(user, stats) {
