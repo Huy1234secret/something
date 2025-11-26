@@ -472,7 +472,9 @@ function buildStatContainer(user, stats) {
   const perkSection = new SectionBuilder().addTextDisplayComponents(
     new TextDisplayBuilder().setContent(perkLines.join('\n')),
   );
-  const buttons = [backBtn, statBtn, equipBtn].filter(Boolean);
+  const buttons = [backBtn, statBtn, equipBtn].filter(
+    btn => btn instanceof ButtonBuilder,
+  );
   const actionRows = buttons.length
     ? [new ActionRowBuilder().addComponents(...buttons)]
     : [];
@@ -481,9 +483,13 @@ function buildStatContainer(user, stats) {
     typeof user?.displayAvatarURL === 'function'
       ? user.displayAvatarURL()
       : THUMB_URL;
+  const thumbnailUrl =
+    typeof avatarUrl === 'string' && avatarUrl.trim()
+      ? avatarUrl
+      : THUMB_URL;
 
   overviewSection.setThumbnailAccessory(
-    new ThumbnailBuilder().setURL(avatarUrl || THUMB_URL),
+    new ThumbnailBuilder().setURL(thumbnailUrl),
   );
 
   return new ContainerBuilder()
