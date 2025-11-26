@@ -469,12 +469,18 @@ function buildStatContainer(user, stats) {
       new TextDisplayBuilder().setContent(statsText),
       new TextDisplayBuilder().setContent(discoveryText),
     );
-  const perkSection = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(perkLines.join('\n')),
-  );
-  const buttons = [backBtn, statBtn, equipBtn].filter(
-    btn => btn instanceof ButtonBuilder,
-  );
+  // Build the perks section. Each Section must include either a thumbnail or a
+  // button. Without one of these, the Discord components API will throw
+  // validation errors complaining that the Section is missing a ButtonBuilder
+  // or ThumbnailBuilder instance. To satisfy this requirement, attach a
+  // thumbnail accessory to the perks section using a generic image.
+  const perkSection = new SectionBuilder()
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(THUMB_URL))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(perkLines.join('\n')),
+    );
+  // Filter out any falsy values instead of using instanceof to avoid undefined imports
+  const buttons = [backBtn, statBtn, equipBtn].filter(Boolean);
   const actionRows = buttons.length
     ? [new ActionRowBuilder().addComponents(...buttons)]
     : [];
@@ -492,12 +498,17 @@ function buildStatContainer(user, stats) {
     new ThumbnailBuilder().setURL(thumbnailUrl),
   );
 
-  return new ContainerBuilder()
+  const container = new ContainerBuilder()
     .setAccentColor(DEFAULT_DIG_COLOR)
     .addSectionComponents(overviewSection)
     .addSeparatorComponents(new SeparatorBuilder())
-    .addSectionComponents(perkSection)
-    .addActionRowComponents(...actionRows);
+    .addSectionComponents(perkSection);
+
+  if (actionRows.length) {
+    container.addActionRowComponents(...actionRows);
+  }
+
+  return container;
 }
 
 function buildEquipmentContainer(user, stats) {
