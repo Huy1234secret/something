@@ -557,15 +557,22 @@ client.on = function(event, listener) {
     huntBossPvp.setup(client, resources);
     timedRoles.forEach(r => scheduleRole(r.user_id, r.guild_id, r.role_id, r.expires_at));
 
-    // Remove deprecated /level-button command if it exists
+    // Remove deprecated commands if they exist
     try {
       const commands = await client.application.commands.fetch();
-      const legacy = commands.find(cmd => cmd.name === 'level-button');
-      if (legacy) {
-        await client.application.commands.delete(legacy.id);
+      const deprecatedNames = new Set([
+        'level-button',
+        'mastery',
+        'battle-pass',
+        'spooky-hunt-event',
+      ]);
+      for (const cmd of commands.values()) {
+        if (deprecatedNames.has(cmd.name)) {
+          await client.application.commands.delete(cmd.id);
+        }
       }
     } catch (err) {
-      console.warn('Failed to remove legacy /level-button command', err);
+      console.warn('Failed to remove legacy slash commands', err);
     }
   });
 

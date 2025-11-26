@@ -246,6 +246,17 @@ function getDigXpRequirement(level) {
   return (clamped + 1) * DIG_XP_STEP;
 }
 
+function renderDigProgressBar(current, required, segments = 10) {
+  if (required <= 0 || !Number.isFinite(required)) {
+    return '▰'.repeat(segments);
+  }
+  const progress = Math.max(0, Math.min(1, current / required));
+  const filled = Math.round(progress * segments);
+  const clampedFilled = Math.min(segments, Math.max(0, filled));
+  const empty = Math.max(0, segments - clampedFilled);
+  return `${'▰'.repeat(clampedFilled)}${'▱'.repeat(empty)}`;
+}
+
 function applyDigXp(stats, amount) {
   ensureDigProgress(stats);
   if (!Number.isFinite(amount) || amount === 0) return { levelsGained: [] };
@@ -444,11 +455,18 @@ function buildStatContainer(user, stats) {
   const discovered = (stats.dig_discover || []).length;
   const totalItems = DIG_ITEMS.length;
   const level = getDigLevel(stats);
+  const requiredXp = level >= DIG_LEVEL_MAX ? 0 : getDigXpRequirement(level);
   const sellBonus = Math.round(getDigCoinBonusPercent(stats) * 100);
   const cooldownNerf = getDigCooldownReduction(stats);
   const luckBonus = Math.round(getDigLuckBonus(stats) * 100);
   const perks = getDigPerkSummaries(stats);
   const header = `${DIG_STAT_EMOJI} Dig Level: ${level}`;
+  const progressBar = renderDigProgressBar(stats.dig_xp, requiredXp);
+  const progressLine =
+    level >= DIG_LEVEL_MAX
+      ? `-# ${progressBar} \`Max level\``
+      : `-# ${progressBar} \`${stats.dig_xp} / ${requiredXp}\``;
+  const headerWithProgress = `${header}\n${progressLine}`;
   const statsText = `Dig amount: ${stats.dig_total || 0}\n-# Success: ${
     stats.dig_success || 0
   }\n-# failed: ${stats.dig_fail || 0}\n-# died: ${stats.dig_die || 0}`;
@@ -465,7 +483,7 @@ function buildStatContainer(user, stats) {
     }
   }
   const overviewSection = new SectionBuilder().addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(header),
+      new TextDisplayBuilder().setContent(headerWithProgress),
       new TextDisplayBuilder().setContent(statsText),
       new TextDisplayBuilder().setContent(discoveryText),
     );

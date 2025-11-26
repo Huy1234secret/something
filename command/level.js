@@ -19,7 +19,7 @@ const {
 const { applyComponentEmoji } = require('../utils');
 const { renderLevelCard } = require('../levelCard');
 
-const CHAT_XP_EMOJI = '<:SBXP:1432731173762760854>';
+const CHAT_XP_EMOJI = 'XP';
 const { loadImage } = require('canvas');
 
 const WARN = '<:SBWarning:1404101025849147432> ';
