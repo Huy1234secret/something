@@ -126,10 +126,10 @@ async function renderLevelCard({
 
   // 🔽 your assets
   backgroundURL = 'https://i.ibb.co/9337ZnxF/wdwdwd.jpg',
-  starURL = 'https://cdn.discordapp.com/emojis/1432731173762760854.png?size=128&quality=lossless',
+  starURL = null,
   medalURL = 'https://i.ibb.co/7dw9RjgV/7cbb626b-1509-463f-a5b9-dce886ba4619.png',
   color = [92,220,140],
-  chatXpEmoji = '<:SBXP:1432731173762760854>',
+  chatXpEmoji = 'XP',
 }) {
   const W = 1100;
   const H = 420;
@@ -158,7 +158,9 @@ async function renderLevelCard({
   // Preload images
   let av = null, starImg = null, medalImg = null;
   try { if (avatarURL) av = await loadImage(avatarURL); } catch {}
-  try { starImg = await loadImage(starURL); } catch {}
+  if (starURL) {
+    try { starImg = await loadImage(starURL); } catch {}
+  }
   try { medalImg = await loadImage(medalURL); } catch {}
 
   // ----- Profile
